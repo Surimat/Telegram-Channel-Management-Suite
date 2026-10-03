@@ -28,6 +28,8 @@ def default_rule_specs() -> list[RuleSpec]:
             name="Новость",
             keywords=["новость", "новости", "news", "анонс", "релиз", "обновление", "update"],
             phrases=["важная новость", "breaking news"],
+            # A "грустная новость" is sad, not a celebratory news item.
+            exclusions=["грустн", "печальн", "траур", "потеряли", "умер", "погиб", "скорб"],
             forbidden_reactions=["🤡", "💩"],
             priority=2,
         ),

@@ -731,3 +731,58 @@ command is printed for Windows. Covered by network-free tests in
 
 ---
 
+## D-044 — 2026-10-03 — RC hardening: execution uses the same reaction policy as simulation — LOCKED
+
+**Decision:** `ReactionService.plan_post` builds the planner's `RuleMatch` from
+the post's category **through the category reaction policy** (`_result_to_match`
+/ `_policy_for_category`), exactly like `simulate`. A post executed for real can
+no longer receive an emoji that the category forbids.
+
+**Why:** `plan_post` previously constructed a `RuleMatch` without
+`allowed/preferred/forbidden` reactions, so it fell back to the whole profile
+emoji pool — a donation post could get 😍/🔥 even though the donation rule
+forbids them (only simulation enforced the policy). That is a correctness bug in
+the core feature. Emoji selection stays deterministic and rule-driven; AI still
+never picks emoji (D-021/D-033).
+
+**Consequence:** Execution and simulation now share one policy path. Covered by
+`tests/test_reaction_service.py::test_planned_jobs_respect_category_forbidden_emoji`.
+
+---
+
+## D-045 — 2026-10-03 — Restart recovery un-sticks claimed invite tasks — LOCKED
+
+**Decision:** On startup, `InviteService.recover()` first calls
+`InviteTaskRepository.recover_stuck_running()`, which resets any `RUNNING` tasks
+(claimed mid-batch by a crashed process) back to `PENDING`, then pauses the
+interrupted jobs as before.
+
+**Why:** `claim_batch` marks a batch `RUNNING`; if the process died mid-batch
+those rows were never returned to the pending pool, so an explicit resume could
+never finish the run — the tasks were stranded forever. Resetting them is the
+only way a resumed bulk action can complete, while the job still stays paused
+until the operator confirms (D-008 / D-030).
+
+**Consequence:** After any crash, resume finishes the run instead of hanging.
+Covered by
+`tests/test_invite_service.py::test_recover_returns_stuck_running_tasks_to_pending`.
+
+---
+
+## D-046 — 2026-10-03 — Sad posts are never classified as celebratory news — LOCKED
+
+**Decision:** The default `news` rule carries `exclusions` for sad vocabulary
+(`грустн`, `печальн`, `траур`, `потеряли`, `умер`, `погиб`, `скорб`, …) so a
+"грустная новость" classifies as `sad` rather than `news` (which would pick
+🎉/🔥). The seed ships a working, safe policy for a beginner; all rules stay
+UI-editable data.
+
+**Why:** Live RC testing with the default rules gave a sad post 🎉🔥 — an
+inappropriate reaction on a sensitive post, unacceptable for a channel owner out
+of the box.
+
+**Consequence:** Default rules are safer; covered by
+`tests/test_rules_engine.py::test_default_rules_sad_news_is_not_celebratory`.
+
+---
+

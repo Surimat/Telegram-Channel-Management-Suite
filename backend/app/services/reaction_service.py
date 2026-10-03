@@ -707,11 +707,16 @@ class ReactionService:
                 status_code=409,
             )
         pairs = [(b.id, b.username or f"bot{b.telegram_id}") for b in bots]
-        match = RuleMatch(
+        # Rebuild the category's reaction policy so the planner can never pick a
+        # forbidden emoji (e.g. 🎉 on a sad post). Simulation already did this;
+        # execution must use the same rules (D-044).
+        result = ClassificationResult(
             category=Category(post.category) if post.category else Category.NEUTRAL,
             confidence=post.confidence,
-            source=post.classification_source or "rules",
+            source=post.classification_source or SOURCE_RULES,
+            matched_terms=[t.strip() for t in (post.matched_terms or "").split(",") if t.strip()],
         )
+        match = await self._result_to_match(result)
         base_time = utcnow()
         planned = self.planner.plan(
             post_id=post.id,

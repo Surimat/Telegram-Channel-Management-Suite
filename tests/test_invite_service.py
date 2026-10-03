@@ -299,6 +299,33 @@ async def test_recover_pauses_interrupted_runs(setup) -> None:
     assert job.status == InviteJobStatus.PAUSED
 
 
+async def test_recover_returns_stuck_running_tasks_to_pending(setup) -> None:
+    """Tasks claimed RUNNING by a crash must not stay stuck after restart."""
+    from sqlalchemy import update
+
+    from backend.app.db.models.invite import InviteTask
+
+    service = InviteService(setup, session_provider_factory=_factory(FakeSessionProvider()))
+    job = await service.create_job(
+        target="@target", filters={}, per_account_delay_min=0, per_account_delay_max=0
+    )
+    await service.confirm_and_start(job.id)
+    # Simulate a crash mid-batch: mark all tasks RUNNING.
+    await setup.execute(update(InviteTask).values(status=InviteStatus.RUNNING))
+    await setup.flush()
+
+    await service.recover()
+    stuck = await service.tasks.list_for_job(job.id, status=InviteStatus.RUNNING)
+    assert stuck[1] == 0
+
+    # And the run can now actually finish after an explicit resume.
+    await service.resume_job(job.id)
+    action = await _drain(service, job.id)
+    await setup.refresh(job)
+    assert action == "done"
+    assert job.status == InviteJobStatus.COMPLETED
+
+
 async def test_max_total_cap(setup) -> None:
     service = InviteService(setup, session_provider_factory=_factory(FakeSessionProvider()))
     job = await service.create_job(target="@target", filters={}, max_total=2)

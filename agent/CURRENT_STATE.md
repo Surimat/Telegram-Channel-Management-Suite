@@ -4,9 +4,15 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-03
-**Current phase:** Post-roadmap polish — Audience/Sources views **and** automated portable runtime staging: **COMPLETED**.
-**Next phase:** Optional hardening — Alembic migrations, manager-bot command loop / notifications.
-**Repository status:** `develop` carries PHASE 0–11 + polish; `main` only via pull request.
+**Current phase:** **Release-candidate / hardening pass — IN PROGRESS.** Full
+end-to-end RC verification against a live server (offline/fake providers) was
+performed and three real bugs were fixed (reaction policy on execution, invite
+stuck-task recovery, sad-news classification). Remaining: finish the audit, push
+`develop`, refresh PR #1.
+**Next phase:** Push `develop` (8+ commits ahead), rename/refresh PR #1, then
+continue optional hardening (manager-bot command loop, Alembic).
+**Repository status:** `develop` carries PHASE 0–11 + polish + RC fixes; `main`
+only via pull request. **`develop` is unpushed ahead of `origin/develop`.**
 **Branch:** `develop` (tracks `origin/develop`); `main` is untouched and only ever updated via pull request.
 
 ---
@@ -375,7 +381,7 @@ Layered architecture: **core → db/models → db/repositories → services → 
   durable jobs, execution via the provider with FloodWait handling, and startup
   recovery — verified live in offline mode (add bot → enable → ingest → job
   created) and covered by 48 tests.
-- `ruff check backend tests` → clean. `pytest` → **313 passed**.
+- `ruff check backend tests` → clean. `pytest` → **336 passed** (after the RC regression tests).
 - Frontend `npm run build` → outputs to `backend/app/static/` successfully
   (`vue-tsc` clean).
 - **Sessions (PHASE 4)**: guided auth wizard (start → code → 2FA), `.session`
@@ -430,12 +436,33 @@ Layered architecture: **core → db/models → db/repositories → services → 
 
 ## 5. Next action
 
-The planned roadmap (PHASE 0–11) and the first polish items are **complete**.
-Remaining polish, in priority order:
+The planned roadmap (PHASE 0–11) and the first polish items are **complete**,
+and the RC/hardening pass has fixed three real bugs. Remaining RC steps:
 
-1. Optional hardening: Alembic migrations; manager-bot command loop / notifications.
+1. Push `develop` and refresh PR #1 (title still says "PHASE 0–3").
+2. Optional hardening: manager-bot command loop / notifications; Alembic migrations.
 
 See `agent/NEXT_TASK.md`. Do **not** re-open PHASE 8–11 — they are complete.
+
+### RC verification (2026-10-03) — done against a live server in offline mode
+
+A full user journey was exercised end-to-end via HTTP (fake providers, real
+scheduler, real SQLite): setup-wizard → add bots/health → session auth wizard →
+audience source/scan → import users/tags → reaction profiles/rules/simulate →
+ingest post + plan + execute → invite preview/create/confirm/run → **kill server →
+restart (recovery)** → resume invite to completion → backup → graceful shutdown.
+Also verified: SPA deep links and all 15 pages render RU-first with plain-language
+help; `vue-tsc` + `npm run build` clean; `ruff` clean; hidden-member/FloodWait
+limits surface as statuses (never bypassed); secrets/phone masked; git has no
+tracked secrets.
+
+**Bugs found and fixed during the RC pass:** D-044 (reaction policy on
+execution), D-045 (invite stuck-task recovery), D-046 (sad-news default rule),
+plus a Reactions-page status-text bug and a duplicate `backup_dir` config field.
+
+**Known gaps (documented, not blocking RC):** no manager-bot command loop yet;
+`create_all` instead of Alembic; Mini App BotFather registration is a deployment
+step (docs).
 
 ## 6. Locked decisions (do not break)
 

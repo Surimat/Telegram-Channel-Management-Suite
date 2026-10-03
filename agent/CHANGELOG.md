@@ -7,6 +7,24 @@ Dates are ISO-8601.
 
 ## [Unreleased]
 
+### Fixed — RC hardening
+- **Reactions**: executed posts now use the same category reaction policy as
+  simulation, so a real post can never get a forbidden emoji (e.g. 😍/🔥 on a
+  donation post). `ReactionService.plan_post` rebuilt the plan match through
+  `_result_to_match`/`_policy_for_category` (D-044).
+- **Invites**: restart recovery now resets invite tasks that were claimed
+  `RUNNING` when the process crashed back to `PENDING`, so an explicit resume can
+  actually finish the run instead of hanging (`recover_stuck_running`, D-045).
+- **Rules**: the default `news` rule excludes sad vocabulary, so a sad "новость"
+  classifies as `sad` (😢/😭/❤️) instead of `news` (🎉/🔥) (D-046).
+- **Frontend**: the Reactions page no longer shows the "system is off" help text
+  while reactions are enabled; it now explains that reactions run automatically.
+- **Config**: removed a duplicated `backup_dir` field in `Settings`.
+
+### Tests
+- Added regression tests for the reaction policy (execution), invite stuck-task
+  recovery, and the sad-news default rule. Suite is now **336 passed**.
+
 ### Added — Frontend (post-roadmap polish)
 - `frontend/src/views/SourcesView.vue` — audience source management: list,
   add, check, scan confirmation (preview) + live progress, pause/resume/cancel,

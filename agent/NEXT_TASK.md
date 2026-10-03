@@ -4,15 +4,17 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-03
-**Status:** PHASE 0–11 **and** the polish items (Audience/Sources views, automated
-portable runtime staging) are complete. Everything left is optional hardening.
+**Status:** PHASE 0–11, the polish items, **and the RC/hardening pass are complete
+in code**. Three real bugs were found by an end-to-end RC run and fixed (D-044,
+D-045, D-046) with regression tests; the suite is green at **336 passed**.
 
 ---
 
-## Active task (optional): hardening backlog
+## Active task: ship the RC, then optional hardening
 
-The core product is feature-complete and green. Pick the next item only if asked
-or if it unblocks a real user problem; keep each change a runnable vertical slice.
+1. **Ship the RC** — commit the hardening fixes + memory updates, push `develop`,
+   and refresh PR #1 (its title/body still say "PHASE 0–3").
+2. **Optional hardening** (only if asked / if it unblocks a real user problem):
 
 ### Candidates (in rough priority)
 
@@ -41,7 +43,7 @@ or if it unblocks a real user problem; keep each change a runnable vertical slic
 ### Verification checklist for any change
 
 ```bash
-python -m pytest                 # must stay green (currently 333 passed)
+python -m pytest                 # must stay green (currently 336 passed)
 ruff check backend tests         # must stay clean
 cd frontend && npm run build     # must succeed (outputs to backend/app/static)
 ```

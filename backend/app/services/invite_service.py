@@ -624,6 +624,9 @@ class InviteService:
     async def recover(self) -> int:
         """Pause runs interrupted by a restart so a bulk action never resumes
         silently. The operator resumes explicitly, or retries failed tasks."""
+        # Tasks claimed mid-batch by the crashed process must return to the
+        # pending pool, or an explicit resume would leave them stuck forever.
+        await self.tasks.recover_stuck_running()
         active = await self.jobs.active()
         for job in active:
             job.status = InviteJobStatus.PAUSED

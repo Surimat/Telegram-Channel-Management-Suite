@@ -174,6 +174,33 @@ async def test_ingest_post_plans_durable_jobs() -> None:
                 assert queue_job.kind == REACTION_JOB_KIND
 
 
+async def test_planned_jobs_respect_category_forbidden_emoji() -> None:
+    """A donation post must never plan 😍/🔥 (execution, not just simulation)."""
+    record: list[FakeTelegramBotProvider] = []
+    async with session_scope() as session:
+        service = await _service(session, record)
+        for i in range(6):
+            await _add_bot(session, username=f"r{i}", telegram_id=300 + i)
+        await service.save_profile(
+            None,
+            name="Wide",
+            enabled=True,
+            is_default=True,
+            # A deliberately broad pool that includes forbidden emoji.
+            allowed_emoji=["❤️", "👍", "🔥", "😍", "🎉"],
+            participation_probability=1.0,
+            skip_probability=0.0,
+            delay_min=1,
+            delay_max=5,
+        )
+        post = await service.ingest_post(
+            text="спасибо за донат", channel_id=-100123, telegram_message_id=77, seed=3
+        )
+        jobs = await service.jobs.for_post(post.id)
+        chosen = {j.reaction for j in jobs if j.status == ReactionJobStatus.SCHEDULED}
+        assert chosen <= {"❤️", "🙏", "👍"}, f"forbidden emoji planned: {chosen}"
+
+
 async def test_execute_reaction_job_records_on_fake_provider() -> None:
     record: list[FakeTelegramBotProvider] = []
     async with session_scope() as session:

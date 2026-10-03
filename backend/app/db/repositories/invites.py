@@ -190,5 +190,21 @@ class InviteTaskRepository:
         await self.session.flush()
         return int(result.rowcount or 0)
 
+    async def recover_stuck_running(self) -> int:
+        """Reset tasks claimed as RUNNING by a crashed process back to PENDING.
+
+        ``claim_batch`` marks a batch RUNNING; if the process dies mid-batch those
+        rows would never be picked up again. On restart they must return to the
+        pending pool so an explicit resume can finish the run.
+        """
+        stmt = (
+            update(InviteTask)
+            .where(InviteTask.status == InviteStatus.RUNNING)
+            .values(status=InviteStatus.PENDING)
+        )
+        result = await self.session.execute(stmt)
+        await self.session.flush()
+        return int(result.rowcount or 0)
+
 
 __all__ = ["InviteJobRepository", "InviteTaskRepository"]

@@ -146,9 +146,6 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_dir: str = "./logs"
 
-    # --- Backup ---
-    backup_dir: str = "./backups"
-
     @field_validator("app_port")
     @classmethod
     def _valid_port(cls, value: int) -> int:

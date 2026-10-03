@@ -113,3 +113,14 @@ def test_min_confidence_filters_weak_matches() -> None:
 def test_detect_language() -> None:
     assert detect_language("привет") == "ru"
     assert detect_language("hello") == "en"
+
+
+def test_default_rules_sad_news_is_not_celebratory() -> None:
+    """A sad "новость" must classify as SAD, never as NEWS (which picks 🎉🔥)."""
+    from backend.app.rules.defaults import default_rule_specs
+
+    engine = RulesEngine(default_rule_specs())
+    match = engine.classify("Грустная новость: мы потеряли друга")
+    assert match.category is Category.SAD
+    assert "🎉" in match.forbidden_reactions
+    assert "🎉" not in match.allowed_reactions
