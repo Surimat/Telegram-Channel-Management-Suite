@@ -520,6 +520,169 @@ export interface AiHistory {
   total: number
 }
 
+// Audience & Sources (PHASE 5)
+export interface AudienceSource {
+  id: string
+  title: string
+  username: string
+  telegram_id: number | null
+  source_type: string
+  reference: string
+  enabled: boolean
+  account_id: string | null
+  scan_status: string
+  completeness: string
+  last_scan_at: string | null
+  last_scan_finished_at: string | null
+  discovered_count: number
+  imported_count: number
+  new_count: number
+  duplicate_count: number
+  error_count: number
+  reported_total: number | null
+  scanned_offset: number
+  scan_job_id: string
+  last_error: string
+  created_at: string
+  updated_at: string
+}
+
+export interface SourceList {
+  items: AudienceSource[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export interface SourceCheck {
+  ok: boolean
+  title: string
+  username: string
+  telegram_id: number | null
+  kind: string
+  participants_count: number | null
+  participants_hidden: boolean
+  message: string
+  how_to_fix: string
+  completeness: string
+}
+
+export interface ScanPreview {
+  source_id: string
+  title: string
+  username: string
+  source_type: string
+  reference: string
+  account_id: string
+  account_label: string
+  mode: string
+  batch_size: number
+  chunk_size: number
+  estimated_total: number | null
+  filters: Record<string, unknown>
+  notes: string[]
+}
+
+export interface ScanResult {
+  source_id: string
+  scan_status: string
+  completeness: string
+  discovered: number
+  new: number
+  duplicates: number
+  errors: number
+  reported_total: number | null
+  offset: number
+  explanation: string
+  completed: boolean
+}
+
+export interface AudienceUser {
+  id: string
+  telegram_user_id: number
+  username: string
+  first_name: string
+  last_name: string
+  display_name: string
+  phone_masked: string
+  is_bot: boolean
+  is_deleted: boolean
+  is_premium: boolean | null
+  status: string
+  score: number
+  score_reason: string
+  tags: string[]
+  first_seen_at: string | null
+  last_seen_at: string | null
+  invite_status: string
+  invite_attempts: number
+  last_invite_at: string | null
+  last_invite_error: string
+}
+
+export interface AudienceUserDetail extends AudienceUser {
+  sources: string[]
+  score_components: Record<string, unknown>[]
+}
+
+export interface AudienceUserList {
+  items: AudienceUser[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export interface AudienceTag {
+  name: string
+  count: number
+}
+
+export interface FilterPreset {
+  key: string
+  label: string
+  description: string
+  filters: Record<string, unknown>
+}
+
+export interface AudienceDashboard {
+  sources_total: number
+  unique_users: number
+  total_records: number
+  new_users_7d: number
+  scans_total: number
+  partial_sources: number
+  errors_total: number
+  bots: number
+  by_scan_status: Record<string, number>
+  by_completeness: Record<string, number>
+  source_overlap: Record<string, unknown>[]
+  discovered_per_day: Record<string, unknown>[]
+}
+
+export interface ExportPreview {
+  count: number
+  fields: string[]
+  includes_pii: boolean
+  destination: string
+  note: string
+}
+
+export interface ExportResult {
+  filename: string
+  path: string
+  format: string
+  fields: string[]
+  includes_pii: boolean
+  row_count: number
+  size_bytes: number
+}
+
+export interface ImportResult {
+  created: number
+  merged: number
+  invalid: number
+}
+
 // Analytics (PHASE 8) — read-only aggregates with plain-language summaries.
 export interface DayPoint {
   date: string
@@ -903,6 +1066,104 @@ export const api = {
   aiMetrics: () => request<AiMetrics>('/api/v1/ai/metrics'),
   aiHistory: (params: Record<string, string> = {}) =>
     request<AiHistory>('/api/v1/ai/history?' + new URLSearchParams(params).toString()),
+
+  // Audience & Sources (PHASE 5)
+  audienceDashboard: () => request<AudienceDashboard>('/api/v1/audience/dashboard'),
+  audienceFilterPresets: () =>
+    request<FilterPreset[]>('/api/v1/audience/filters/presets'),
+  audienceSources: (params: Record<string, string> = {}) =>
+    request<SourceList>('/api/v1/audience/sources?' + new URLSearchParams(params).toString()),
+  createSource: (payload: {
+    reference: string
+    title?: string
+    source_type?: string
+    account_id?: string | null
+  }) =>
+    request<AudienceSource>('/api/v1/audience/sources', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getSource: (id: string) => request<AudienceSource>(`/api/v1/audience/sources/${id}`),
+  updateSource: (
+    id: string,
+    payload: { title?: string; enabled?: boolean; account_id?: string | null; source_type?: string },
+  ) =>
+    request<AudienceSource>(`/api/v1/audience/sources/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  deleteSource: (id: string) =>
+    request<null>(`/api/v1/audience/sources/${id}`, { method: 'DELETE' }),
+  checkSource: (id: string) =>
+    request<SourceCheck>(`/api/v1/audience/sources/${id}/check`, { method: 'POST' }),
+  previewScan: (id: string) =>
+    request<ScanPreview>(`/api/v1/audience/sources/${id}/scan/preview`, { method: 'POST' }),
+  startScan: (id: string) =>
+    request<ScanResult>(`/api/v1/audience/sources/${id}/scan`, { method: 'POST' }),
+  scanProgress: (id: string) =>
+    request<ScanResult>(`/api/v1/audience/sources/${id}/scan/progress`),
+  pauseScan: (id: string) =>
+    request<ScanResult>(`/api/v1/audience/sources/${id}/scan/pause`, { method: 'POST' }),
+  resumeScan: (id: string) =>
+    request<ScanResult>(`/api/v1/audience/sources/${id}/scan/resume`, { method: 'POST' }),
+  cancelScan: (id: string) =>
+    request<ScanResult>(`/api/v1/audience/sources/${id}/scan/cancel`, { method: 'POST' }),
+
+  audienceUsers: (params: Record<string, string> = {}) =>
+    request<AudienceUserList>('/api/v1/audience/users?' + new URLSearchParams(params).toString()),
+  audienceUser: (id: string) => request<AudienceUserDetail>(`/api/v1/audience/users/${id}`),
+  audienceTags: () => request<AudienceTag[]>('/api/v1/audience/tags'),
+  assignTags: (userIds: string[], tags: string[]) =>
+    request<{ updated: number }>('/api/v1/audience/tags/assign', {
+      method: 'POST',
+      body: JSON.stringify({ user_ids: userIds, tags }),
+    }),
+  removeTags: (userIds: string[], tags: string[]) =>
+    request<{ updated: number }>('/api/v1/audience/tags/remove', {
+      method: 'POST',
+      body: JSON.stringify({ user_ids: userIds, tags }),
+    }),
+  renameTag: (oldName: string, newName: string) =>
+    request<{ updated: number }>('/api/v1/audience/tags/rename', {
+      method: 'POST',
+      body: JSON.stringify({ old: oldName, new: newName }),
+    }),
+  deleteTag: (tag: string) =>
+    request<{ updated: number }>('/api/v1/audience/tags/' + encodeURIComponent(tag), {
+      method: 'DELETE',
+    }),
+  bulkUserStatus: (userIds: string[], status: string) =>
+    request<{ updated: number }>('/api/v1/audience/users/bulk-status', {
+      method: 'POST',
+      body: JSON.stringify({ user_ids: userIds, status }),
+    }),
+  exportPreview: (payload: {
+    format?: string
+    source_id?: string | null
+    tag?: string | null
+    include_pii?: boolean
+    limit?: number
+  }) =>
+    request<ExportPreview>('/api/v1/audience/export/preview', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  exportAudience: (payload: {
+    format?: string
+    source_id?: string | null
+    tag?: string | null
+    include_pii?: boolean
+    limit?: number
+  }) =>
+    request<ExportResult>('/api/v1/audience/export', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  importAudience: (payload: { data: string; format?: string; source_id?: string | null }) =>
+    request<ImportResult>('/api/v1/audience/import', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 
   // Analytics (PHASE 8)
   analyticsOverview: (days = 30) =>

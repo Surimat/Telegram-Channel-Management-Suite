@@ -4,53 +4,45 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-03
-**Status:** PHASE 11 (VPS/Docker) is **COMPLETE**; the planned PHASE 0–11 roadmap
-is done. Start the **post-roadmap polish** task below.
+**Status:** PHASE 0–11 **and** the Audience/Sources frontend polish are complete.
+Start the next polish task below.
 
 ---
 
-## Active task: Audience & Sources frontend views (post-roadmap polish)
+## Active task: Fully self-contained Windows binary (post-roadmap polish)
 
-**Goal:** close the main UI gap. The Audience/Sources **API is already complete**
-(PHASE 5) — only the Vue views are missing. Do not change the backend unless a
-bug is found.
+**Goal:** make the portable package truly zero-setup. Today `scripts/build_portable.sh`
+stages the code + built SPA and the user must drop a Python embeddable package into
+`runtime/` by hand (D-040). Automate that staging.
 
 ### What exists (do not rebuild)
 
-- `backend/app/api/v1/audience.py` + `schemas/audience.py` — sources CRUD, scan,
-  user list (search/filter/tags/sort/pagination), export/import, statistics.
-- `frontend/src/api/client.ts` — audit it for existing audience/source methods;
-  add typed methods/types if missing.
-- Existing views to mirror for style: `BotsView.vue`, `AudienceView`/`Sources`
-  placeholders if present, `AnalyticsView.vue` (charts), `BackupView.vue` (RU
-  copy + confirmations).
+- `scripts/build_portable.sh` — stages the portable tree.
+- `portable/run.bat`, `portable/stop.bat`, `portable/README.txt` — launchers.
+- `backend/app/core/paths.py` — `TCMS_ROOT` resolution (D-040).
+- `tests/test_portable_smoke.py` — startup + graceful-shutdown smoke test.
+- Docs: `docs/SETUP.md` (Windows portable section B), `docs/ARCHITECTURE.md` §11.
 
 ### Deliverable (one vertical slice)
 
-1. **SourcesView.vue** — list sources (title, username, type, last scan,
-   participants found, status/errors); add source; trigger scan; per-source
-   statistics; enable/disable.
-2. **AudienceView.vue** — paginated user table; search, filters, tags, sorting;
-   empty/loading states; export; import; friendly Telegram-error messaging.
-3. Router + sidebar nav entries; RU-first copy; help tooltips; confirmations.
-4. Tests: extend `tests/test_audience_api.py` only if backend changes; otherwise
-   verify the build and the existing API tests stay green.
-5. Docs + memory: `docs/UI.md`, `agent/CURRENT_STATE.md`, `agent/CHANGELOG.md`,
-   `docs/ROADMAP.md`; commit.
-
-### Secondary (only after the above)
-
-- Automate staging the Windows embeddable Python into `runtime/` in
-  `scripts/build_portable.sh` for a truly zero-setup binary (D-040).
+1. Extend `scripts/build_portable.sh` (or add a small helper) to download the
+   official Windows **embeddable** Python and unpack it into `runtime/`, then
+   `pip install -r backend/requirements.txt` into it (`--target` / get-pip flow),
+   so `run.bat` needs no manual step.
+2. Keep it optional/offline-friendly: if the download is unavailable, fall back to
+   the current manual staging and print a clear message.
+3. Verify: run the portable smoke test; document the exact steps and the expected
+   folder layout in `docs/SETUP.md`.
+4. Update `agent/CURRENT_STATE.md`, `agent/CHANGELOG.md`, `docs/ROADMAP.md`; commit.
 
 ### Do NOT
 
-- Do not re-open PHASE 8–11 — they are complete.
 - Do not add Redis/Kafka/Celery/PostgreSQL (D-002 / no-heavy-infra).
 - Do not fork the backend; one SPA, one API (D-003 / D-004).
-- Do not store or log bot tokens, `initData`, or session contents.
+- Do not bundle session files, `.env`, or secrets into the portable package.
+- Do not commit downloaded runtimes/binaries to git.
 
-### Verification checklist for any phase
+### Verification checklist for any change
 
 ```bash
 python -m pytest                 # must stay green (currently 330 passed)

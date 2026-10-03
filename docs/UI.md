@@ -139,6 +139,8 @@ Wording rule — instead of `BOT_TOKEN missing`, write:
 | `/bots` | `BotsView` | 2 |
 | `/reactions` | `ReactionsView` | 3 |
 | `/sessions` | `SessionsView` | 4 |
+| `/sources` | `SourcesView` | 5 |
+| `/audience` | `AudienceView` | 5 |
 | `/invites` | `InvitesView` | 6 |
 | `/ai` | `AiView` (Обзор / Модель / Настройки / Проверка / Диагностика) | 7 |
 | `/analytics` | `AnalyticsView` | 8 |
@@ -146,6 +148,43 @@ Wording rule — instead of `BOT_TOKEN missing`, write:
 | `/logs` | `LogsView` | 1 |
 | `/queue` | `QueueView` | 1 |
 | `/system` | `SystemView` (Setup Wizard) | 1 |
+
+### Audience & Sources pages (`SourcesView.vue`, `AudienceView.vue`, PHASE 5)
+
+Two linked pages close the audience workflow; both talk only to the existing
+PHASE 5 API (no backend change).
+
+**Источники (`/sources`)** — where the audience is collected from:
+
+- Headline cards from `GET /api/v1/audience/dashboard` (sources, unique users,
+  new in 7 days, collection errors).
+- Add-source form (reference / title / type / account) with a plain-language note
+  that closed sources require the account to already be a member.
+- Per-source row: type, scan status + completeness (full/partial/hidden list),
+  found/new/duplicate/error counts, last scan time, last error.
+- **Проверить** (`/check`) reports availability and, when the member list is
+  hidden, explains why instead of failing silently.
+- **Сканировать** opens a confirmation card built from `/scan/preview` (source,
+  type, account, estimated total, chunk size) before starting; while a scan runs
+  the page polls `/scan/progress` every few seconds and offers
+  Пауза / Продолжить / Отменить. The UI never bypasses Telegram limits — a
+  FloodWait or hidden list is shown as a status with a suggested fix.
+
+**Аудитория (`/audience`)** — the collected base:
+
+- Search, source/tag/status filters, `has_username` / `is_premium` toggles, sort
+  key + order, and page size; one-click filter presets come from
+  `/filters/presets`.
+- Paginated table with selection, bulk "add tag" and bulk status change.
+- Tag manager (list, rename, delete) via `/tags*`.
+- User detail (`/users/{id}`) shows status, score with components, tags, sources,
+  masked phone, invite status, and the last invite error.
+- **Export** (`/export/preview` → `/export`) writes a local file into `exports/`
+  with an explicit opt-in for personal data; **Import** (`/import`) merges CSV or
+  JSON without creating duplicates.
+- Empty/loading states throughout; all errors use the friendly API envelope.
+
+Both pages are reachable from the desktop sidebar and the Mini App bottom nav.
 
 ### AI page (`AiView.vue`, PHASE 7)
 

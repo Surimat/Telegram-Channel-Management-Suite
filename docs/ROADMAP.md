@@ -139,6 +139,17 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ---
 
+## Post-roadmap polish
+
+- [x] **Audience & Sources frontend views** (`SourcesView.vue`, `AudienceView.vue`)
+      — closes the main UI gap; the PHASE 5 API was already complete. RU-first,
+      search/filters/tags/pagination, scan confirmation + progress, export/import.
+- [ ] Fully self-contained Windows binary (stage the Python embeddable package
+      into `runtime/` automatically in `scripts/build_portable.sh`).
+- [ ] Optional: Alembic migrations; manager-bot command loop / notifications.
+
+---
+
 ## Cross-cutting (do continuously)
 - Persistent memory files updated every phase.
 - Tests for every module (unit, db, api, scheduler, providers, portable smoke).

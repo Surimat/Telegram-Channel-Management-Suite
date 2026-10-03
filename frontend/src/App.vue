@@ -12,6 +12,7 @@ const { inTelegram, loading, authenticated, error, hint, user } = storeToRefs(mi
 const mobileNav = [
   { to: '/', label: 'Панель' },
   { to: '/bots', label: 'Боты' },
+  { to: '/audience', label: 'Аудитория' },
   { to: '/reactions', label: 'Реакции' },
   { to: '/queue', label: 'Очередь' },
   { to: '/analytics', label: 'Аналитика' },
@@ -44,6 +45,8 @@ onMounted(() => {
         <RouterLink class="nav-item" to="/">Панель</RouterLink>
         <RouterLink class="nav-item" to="/bots">Боты</RouterLink>
         <RouterLink class="nav-item" to="/sessions">Аккаунты</RouterLink>
+        <RouterLink class="nav-item" to="/sources">Источники</RouterLink>
+        <RouterLink class="nav-item" to="/audience">Аудитория</RouterLink>
         <RouterLink class="nav-item" to="/invites">Приглашения</RouterLink>
         <RouterLink class="nav-item" to="/reactions">Реакции</RouterLink>
         <RouterLink class="nav-item" to="/ai">Мини-ИИ</RouterLink>

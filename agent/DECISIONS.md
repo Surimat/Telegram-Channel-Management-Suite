@@ -683,3 +683,24 @@ building the image and running the container (health, SPA, backup API).
 
 ---
 
+## D-042 — 2026-10-03 — Audience/Sources UI is frontend-only over the PHASE 5 API — LOCKED
+
+**Decision:** The dedicated Audience and Sources views are implemented purely in
+the SPA (`SourcesView.vue`, `AudienceView.vue`) against the existing
+`/api/v1/audience` endpoints. No backend endpoint, schema, or service is added or
+changed. All scan/limit semantics stay in the service layer: the UI only presents
+the `/scan/preview` summary and starts a scan after the owner confirms.
+
+**Why:** The PHASE 5 API already exposes sources CRUD, scan lifecycle
+(preview/start/progress/pause/resume/cancel), user list with search/filter/tags/
+sort/pagination, tags, bulk status, and export/import. Adding a second backend
+path would duplicate logic and risk drift. Keeping the UI thin preserves D-001
+(Telegram details behind providers) and the "one API" rule (D-003).
+
+**Consequence:** The two views reuse the shared typed client and the uniform API
+error envelope; Telegram limits (FloodWait, hidden member lists) surface as
+statuses with a suggested fix, never as bypass attempts. If a real gap is found
+later, it is fixed in the service and covered by `tests/test_audience_api.py`.
+
+---
+

@@ -4,9 +4,9 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-03
-**Current phase:** PHASE 11 — VPS / Docker production config: **COMPLETED**.
-**Next phase:** Post-roadmap polish — dedicated Audience/Sources frontend views; fully self-contained Windows binary assembly.
-**Repository status:** `develop` carries PHASE 0–11; `main` only via pull request.
+**Current phase:** Post-roadmap polish — Audience & Sources frontend views: **COMPLETED**.
+**Next phase:** Fully self-contained Windows binary (embeddable-Python staging).
+**Repository status:** `develop` carries PHASE 0–11 + polish; `main` only via pull request.
 **Branch:** `develop` (tracks `origin/develop`); `main` is untouched and only ever updated via pull request.
 
 ---
@@ -338,6 +338,11 @@ Layered architecture: **core → db/models → db/repositories → services → 
 - **PHASE 2**: `src/views/BotsView.vue` (inventory, health, enable/disable,
   add, managed-bot workflow), bot types + methods in `api/client.ts`, `/bots`
   route, nav link, and a Telegram summary card on the Dashboard.
+- **Post-roadmap polish**: `src/views/SourcesView.vue` (source list, add, check,
+  scan confirmation + progress, pause/resume/cancel) and
+  `src/views/AudienceView.vue` (paginated user table, search/filters/presets,
+  tags, bulk actions, detail, export/import); `/sources` and `/audience` routes,
+  sidebar + Mini App nav entries, and audience types/methods in `api/client.ts`.
 
 ### Ops / packaging (PHASE 1 foundation)
 - `backend/requirements.txt`, `backend/requirements-dev.txt`.
@@ -406,8 +411,6 @@ Layered architecture: **core → db/models → db/repositories → services → 
 
 ## 4. What does NOT exist yet
 
-- Dedicated Audience/Sources **frontend views** (API is complete; views land with
-  the frontend rollout).
 - Channel binding: there is no dedicated channel registry/binding UI yet, though
   posts carry `channel_id`/`channel_username` and analytics aggregate by channel
   indirectly.

@@ -7,7 +7,19 @@ Dates are ISO-8601.
 
 ## [Unreleased]
 
-_No unreleased changes._
+### Added — Frontend (post-roadmap polish)
+- `frontend/src/views/SourcesView.vue` — audience source management: list,
+  add, check, scan confirmation (preview) + live progress, pause/resume/cancel,
+  enable/disable, delete, headline stats.
+- `frontend/src/views/AudienceView.vue` — paginated audience base: search,
+  source/tag/status filters, filter presets, sort + page size, bulk tag/status
+  actions, tag manager, user detail, export/import.
+- `frontend/src/api/client.ts` — audience/source types and methods.
+- Router routes `/sources`, `/audience`; sidebar and Mini App bottom-nav entries.
+
+### Changed — Docs
+- `docs/UI.md` — audience/sources page documentation + running inventory.
+- `docs/ROADMAP.md` — post-roadmap polish section (Audience/Sources views done).
 
 ---
 
