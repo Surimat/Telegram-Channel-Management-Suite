@@ -11,7 +11,7 @@ Suite is green at **384 passed**; `ruff` clean; SPA builds. This closes the thre
 notification forwarding, and the standalone account permission probe (Alembic
 migrations remain the only documented gap).
 **Next phase:** Alembic migrations (optional) or channel-binding UI.
-**Repository status:** `develop` has uncommitted hardening work on top of
+**Repository status:** `develop` carries the hardening commit `c0174a8` on top of
 `ba30578`; `main` only via pull request.
 **Branch:** `develop` (tracks `origin/develop`); `main` is untouched and only ever updated via pull request.
 
