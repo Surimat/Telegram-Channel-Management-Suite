@@ -26,7 +26,8 @@ from backend.app.core import paths
 from backend.app.core.config import get_settings
 from backend.app.core.logging import get_logger, setup_logging
 from backend.app.core.security import validate_secret_key
-from backend.app.db.session import dispose_engine, init_models
+from backend.app.db.migrate import upgrade_database
+from backend.app.db.session import dispose_engine
 from backend.app.scheduler.scheduler import Scheduler
 
 logger = get_logger(__name__)
@@ -99,7 +100,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     ):
         ensure()
 
-    await init_models()
+    # Apply versioned database migrations (replaces create_all). Safe on fresh
+    # installs (creates schema), existing create_all installs (is stamped at
+    # head, no table touched) and upgrades (pre-migration backup + transaction).
+    migration = await upgrade_database()
+    if migration.state == "failed":
+        logger.error("Database migration did not complete: %s", migration.error)
+    elif migration.applied:
+        logger.info("Applied %d database migration(s)", len(migration.applied))
 
     # Register the manager bot from .env/settings if configured (best effort).
     with contextlib.suppress(Exception):

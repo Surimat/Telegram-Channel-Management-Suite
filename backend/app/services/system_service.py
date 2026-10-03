@@ -35,16 +35,11 @@ class SystemService:
         self.settings = settings or get_settings()
 
     async def database_check(self) -> Check:
+        """Report database readiness in plain language, including migrations."""
         try:
             engine = get_engine()
             async with engine.connect() as conn:
                 await conn.execute(text("SELECT 1"))
-            return Check(
-                "database",
-                "База данных",
-                STATUS_OK,
-                "Хранилище данных работает и доступно.",
-            )
         except Exception:  # pragma: no cover - depends on environment
             return Check(
                 "database",
@@ -53,6 +48,74 @@ class SystemService:
                 "Не удалось подключиться к хранилищу данных.",
                 "Проверьте папку data/ и права на запись.",
             )
+
+        # Connection is fine — now report the schema/migration state.
+        from backend.app.db import migrate
+
+        try:
+            status = await migrate.database_status()
+        except Exception:  # pragma: no cover - defensive
+            return Check(
+                "database",
+                "База данных",
+                STATUS_OK,
+                "Хранилище данных работает и доступно.",
+            )
+
+        if status.state == migrate.DB_STATE_FAILED:
+            return Check(
+                "database",
+                "База данных",
+                STATUS_ERROR,
+                "Обновление не удалось. Создан резервный файл.",
+                "Откройте «Журнал» для подробностей. Можно вернуть резервную копию "
+                "в разделе «Резервные копии».",
+            )
+        if status.state == migrate.DB_STATE_PENDING:
+            return Check(
+                "database",
+                "База данных",
+                STATUS_WARNING,
+                "Для базы доступно обновление.",
+                "Нажмите «Обновить базу данных» — перед обновлением будет создана "
+                "резервная копия.",
+            )
+        if status.state == migrate.DB_STATE_UPDATING:
+            return Check(
+                "database",
+                "База данных",
+                STATUS_OK,
+                "Идёт обновление структуры базы.",
+                "Дождитесь завершения — это занимает несколько секунд.",
+            )
+        if status.state == migrate.DB_STATE_FRESH:
+            return Check(
+                "database",
+                "База данных",
+                STATUS_OK,
+                "Хранилище данных готово. Структура будет создана при первом запуске.",
+            )
+        if status.state == migrate.DB_STATE_UPDATED:
+            return Check(
+                "database",
+                "База данных",
+                STATUS_OK,
+                "Обновление завершено. База данных готова.",
+            )
+        if status.state == migrate.DB_STATE_UNKNOWN:
+            return Check(
+                "database",
+                "База данных",
+                STATUS_WARNING,
+                "Не удалось проверить структуру базы данных.",
+                "Проверьте «Журнал». Хранилище доступно, но версию определить не удалось.",
+            )
+        return Check(
+            "database",
+            "База данных",
+            STATUS_OK,
+            "База данных готова.",
+        )
 
     def filesystem_check(self) -> Check:
         dirs = {

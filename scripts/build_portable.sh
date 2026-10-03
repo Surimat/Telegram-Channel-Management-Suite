@@ -58,6 +58,8 @@ copy_item() {
   fi
 }
 copy_item backend
+copy_item alembic.ini
+copy_item migrations
 copy_item frontend/dist 2>/dev/null || true
 copy_item pyproject.toml
 copy_item requirements.txt

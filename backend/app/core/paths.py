@@ -47,6 +47,27 @@ def project_root() -> Path:
     return _detect_project_root()
 
 
+def code_root() -> Path:
+    """Return the source tree root (holds ``backend/``, ``migrations/``).
+
+    Unlike :func:`project_root`, this never points at mutable data — it follows
+    the installed code, so migrations resolve correctly in tests and in the
+    portable build regardless of ``TCMS_ROOT``.
+    """
+    # backend/app/core/paths.py -> source root is 3 parents up.
+    return Path(__file__).resolve().parents[3]
+
+
+def migrations_dir() -> Path:
+    """Directory containing the Alembic migration scripts."""
+    return code_root() / "migrations"
+
+
+def alembic_ini() -> Path:
+    """Path to ``alembic.ini``."""
+    return code_root() / "alembic.ini"
+
+
 def _ensure(path: Path) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     return path

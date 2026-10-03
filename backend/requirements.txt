@@ -14,3 +14,5 @@ aiogram>=3.13,<4.0
 telethon>=1.36,<2.0
 # At-rest encryption for sealed bot tokens (Fernet).
 cryptography>=42,<47
+# Versioned database migrations (PHASE hardening). Ships in the portable build.
+alembic>=1.13,<2.0
