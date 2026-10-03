@@ -336,6 +336,7 @@ local Web UI.
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/api/v1/miniapp/config` | feature flag, manager bot username, plain-language availability + how-to-fix |
+| POST | `/api/v1/miniapp/setup` | register a public HTTPS URL as the manager bot's Web App menu button (owner action; persists `miniapp_public_url` + `miniapp_enabled`) |
 | POST | `/api/v1/miniapp/auth` | verify Telegram WebApp `initData` (HMAC-SHA256), set a signed session cookie |
 | GET | `/api/v1/miniapp/me` | report whether the current session cookie is valid |
 | POST | `/api/v1/miniapp/logout` | clear the session cookie |

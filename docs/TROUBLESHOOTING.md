@@ -173,7 +173,8 @@ filtering such users out before running the invite job.
 | Data disappears after `down` | Volumes not bind-mounted | Keep the `volumes:` mapping (`../data:/app/data`, etc.) in `docker-compose.yml` |
 | App not reachable on the public IP | It binds to `127.0.0.1` by design | Put the Caddy/nginx proxy in front; do not publish `8000` publicly |
 | HTTPS certificate not issued | DNS not pointing at the server, or port 80/443 blocked | Fix the A/AAAA record; open 80/443; check `docker compose logs proxy` |
-| Mini App says unavailable | `MINIAPP_PUBLIC_URL`/`MINIAPP_ENABLED` not set | Set them to the public HTTPS URL and restart |
+| Mini App says unavailable | `MINIAPP_PUBLIC_URL`/`MINIAPP_ENABLED` not set | Use **Настройки → Мини-приложение Telegram** (or set the vars) and restart |
+| Mini App setup rejected | URL is empty or not `https://` | Enter the public HTTPS URL of the panel (e.g. `https://tcms.example.com`) and retry |
 | Permission denied talking to the Docker socket | Not in the `docker` group | `sudo usermod -aG docker $USER` then re-login (or use `sudo`) |
 
 ## Hardening problems (post-1.0)

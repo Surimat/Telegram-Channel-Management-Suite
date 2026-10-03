@@ -74,8 +74,11 @@ def get_analytics_service(session: AsyncSession = Depends(get_session)) -> Analy
     return AnalyticsService(session)
 
 
-def get_miniapp_service(session: AsyncSession = Depends(get_session)) -> MiniAppService:
-    return MiniAppService(session)
+def get_miniapp_service(
+    session: AsyncSession = Depends(get_session),
+    provider_factory: ProviderFactory = Depends(get_provider_factory),
+) -> MiniAppService:
+    return MiniAppService(session, provider_factory=provider_factory)
 
 
 def get_backup_service(session: AsyncSession = Depends(get_session)) -> BackupService:

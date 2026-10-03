@@ -946,3 +946,29 @@ CI. CI is intentionally minimal (no Docker/portable jobs) to keep the free
 runner fast and avoid requiring credentials; Docker and portable builds remain
 documented manual gates. The workflow uses only official actions and the
 already-committed lockfile.
+
+---
+
+## D-054 — 2026-10-03 — Mini App registration is a one-click, provider-backed owner action — LOCKED
+
+**Decision:** Mini App deployment no longer requires the owner to talk to
+@BotFather by hand. `POST /api/v1/miniapp/setup` validates a **public HTTPS**
+URL, points the manager bot's chat menu button at it via a new
+`TelegramBotProvider.set_menu_button(title, url)` method, and persists
+`miniapp_public_url` + `miniapp_enabled` as UI-editable settings. The Settings
+page exposes this as a "Мини-приложение Telegram" card. Validation and provider
+failures return plain-RU `{ok, message, how_to_fix}` and are logged to the
+event center.
+
+**Why:** BotFather registration was the last manual, error-prone step in PHASE 9
+and is easy to get wrong (HTTP vs HTTPS, missing public URL). Routing it through
+the existing provider abstraction keeps Telegram details out of the service layer
+(D-001) and lets the fake provider cover the whole flow in tests. It never
+bypasses Telegram limits (D-049) — a rejected registration is surfaced honestly.
+
+**Consequence:** `set_menu_button` is added to the provider protocol; providers
+without a menu-button API may return `False`. HTTPS-only validation is enforced
+in the service (Telegram will not open non-HTTPS Web Apps), so a plain local
+`http://127.0.0.1` install still works but cannot be a Mini App target. The URL
+is normalised (trailing slash trimmed) and stored as a non-secret setting; the
+bot token is never read into the response or logs.

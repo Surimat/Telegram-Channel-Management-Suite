@@ -117,6 +117,11 @@ Wording rule — instead of `BOT_TOKEN missing`, write:
 - Minimum Mini App sections: Dashboard, Bots, Reactions, Queue, Audience
   statistics, System health, Settings.
 - Mobile-friendly layout; Telegram WebApp theme integration where useful.
+- **Setup helper:** Settings has a "Мини-приложение Telegram" card. The owner
+  enters the public HTTPS URL and clicks "Подключить мини-приложение"; the
+  backend registers it as the manager bot's Web App menu button
+  (`POST /api/v1/miniapp/setup`) and remembers the URL. Non-HTTPS or empty URLs
+  are rejected with a plain-language explanation; the bot token is never shown.
 
 ---
 

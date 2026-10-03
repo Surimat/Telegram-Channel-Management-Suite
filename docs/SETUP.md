@@ -225,8 +225,9 @@ server {
 </details>
 
 Once HTTPS works, set `MINIAPP_PUBLIC_URL=https://tcms.example.com` and
-`MINIAPP_ENABLED=true` in `.env` to use the Telegram Mini App (register the URL
-with @BotFather as a Web App).
+`MINIAPP_ENABLED=true` in `.env` (or open **Настройки → Мини-приложение
+Telegram**, enter the URL and click **Подключить мини-приложение** — the backend
+registers the bot's menu button with Telegram for you).
 
 ### 4. Operations
 

@@ -20,12 +20,12 @@ memory), keep the suite green, and push `develop` (no force). Candidates:
    invites and the permission probe now link to the registry, and the UI has a
    channel picker for sources/reactions/invites/permissions. Remaining: the
    analytics module aggregates globally and has no per-channel target yet.
-2. **Mini App BotFather registration** helper — currently a documented manual
-   deployment step.
 
 Done recently (do not rebuild): GitHub Actions CI (D-053,
 `.github/workflows/ci.yml`) runs ruff + pytest and the frontend build on
-`main`/`develop`.
+`main`/`develop`; the **Mini App setup helper** (D-054,
+`POST /api/v1/miniapp/setup` + the Settings card) registers the bot's Web App
+menu button, so no manual @BotFather step is needed.
 
 Do **not** create artificial new phases and do **not** re-open PHASE 8–11.
 

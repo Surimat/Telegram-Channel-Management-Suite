@@ -819,6 +819,12 @@ export interface MiniAppMe {
   expires_at: number | null
 }
 
+export interface MiniAppSetupResult {
+  ok: boolean
+  message: string
+  how_to_fix: string
+}
+
 // Backup / restore (PHASE 10)
 export interface BackupEntry {
   filename: string
@@ -1296,6 +1302,11 @@ export const api = {
     }),
   miniappMe: () => request<MiniAppMe>('/api/v1/miniapp/me'),
   miniappLogout: () => request<{ ok: boolean }>('/api/v1/miniapp/logout', { method: 'POST' }),
+  miniappSetup: (publicUrl: string) =>
+    request<MiniAppSetupResult>('/api/v1/miniapp/setup', {
+      method: 'POST',
+      body: JSON.stringify({ public_url: publicUrl }),
+    }),
 
   // Backup / restore (PHASE 10)
   backupInfo: () => request<BackupInfo>('/api/v1/backup/info'),

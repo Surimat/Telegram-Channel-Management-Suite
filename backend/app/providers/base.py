@@ -81,6 +81,14 @@ class TelegramBotProvider(Protocol):
         """
         ...
 
+    async def set_menu_button(self, title: str, url: str) -> bool:
+        """Point the bot's chat menu button at a Web App (Mini App) URL.
+
+        Optional: providers without a menu-button API may return ``False``. The
+        URL must be a public HTTPS URL that Telegram can reach.
+        """
+        ...
+
     async def get_updates(
         self, *, offset: int | None = None, timeout: int = 0
     ) -> list[BotUpdate]:

@@ -11,11 +11,12 @@ startup (with baseline-aware adoption, D-052); (2) a **shared Channel Registry**
 + RU-first "Каналы" page) so invites,
 post ingestion, audience sources and the permission probe all share one channel
 identity via nullable backfilled links.
-All gates pass: `pytest` **413 passed**, `ruff` clean, `vue-tsc` + `npm run build`
-clean, no Alembic drift.
-**Next phase:** optional only — Mini App BotFather registration helper; analytics
-still aggregates globally (no per-channel target yet). Development continues on
-`develop`; land via reviewed PR (never push `main`). Open PR: #2 (draft).
+All gates pass: `pytest` **418 passed**, `ruff` clean, `vue-tsc` + `npm run build`
+clean, no Alembic drift; **GitHub Actions CI** (D-053) enforces the backend and
+frontend gates on `main`/`develop`.
+**Next phase:** optional only — analytics still aggregates globally (no
+per-channel target yet). Development continues on `develop`; land via reviewed PR
+(never push `main`). Open PR: #2 (draft).
 **Repository status:** `main == origin/main == 82c1059` (tag `v1.0.0`); `develop`
 is 8 commits ahead of `main` (post-release hardening).
 **Branch:** `develop` (working branch); `main` is released and updated only via pull request.
@@ -292,11 +293,15 @@ Layered architecture: **core → db/models → db/repositories → services → 
   tokens keyed by `derive_key("miniapp-session")`; `MiniAppSessionError`.
 - `backend/app/miniapp/service.py` — `MiniAppService`: sealed manager-token read,
   owner allow-list (`settings.admin_ids`), DB-overridable `miniapp_enabled` /
-  `miniapp_public_url`, plain-language `MiniAppStatus`.
+  `miniapp_public_url`, plain-language `MiniAppStatus`, and `setup()` — the
+  one-click registration helper (D-054) that points the manager bot's Web App
+  menu button at a public HTTPS URL.
 - `backend/app/api/schemas/miniapp.py` + `api/v1/miniapp.py` —
-  `GET /config`, `POST /auth` (sets `HttpOnly` `tcms_miniapp` cookie),
-  `GET /me`, `POST /logout`; registered in `v1/router.py`;
-  `api/deps.py::get_miniapp_service`.
+  `GET /config`, `POST /setup` (register menu button), `POST /auth` (sets
+  `HttpOnly` `tcms_miniapp` cookie), `GET /me`, `POST /logout`; registered in
+  `v1/router.py`; `api/deps.py::get_miniapp_service`.
+- `backend/app/providers/base.py` — `TelegramBotProvider.set_menu_button`;
+  implemented by `aiogram_bot.py` (`set_chat_menu_button`) and `fake_bot.py`.
 - `backend/app/services/system_service.py` — `miniapp_check` added to the Setup
   Wizard checks.
 - `backend/app/core/config.py` + `.env.example` — `miniapp_enabled` (off by

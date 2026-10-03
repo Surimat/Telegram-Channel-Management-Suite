@@ -39,6 +39,13 @@ Dates are ISO-8601.
 - **GitHub Actions CI** (`.github/workflows/ci.yml`): two jobs run on pushes and
   PRs to `main`/`develop` — backend (`ruff check backend tests` + `pytest`) and
   frontend (`npm ci` + `npm run build`). Added to the release checklist.
+- **Mini App setup helper.** `POST /api/v1/miniapp/setup` validates a public
+  HTTPS URL, registers it as the manager bot's Web App menu button (new
+  `TelegramBotProvider.set_menu_button`, implemented by the aiogram and fake
+  providers) and persists `miniapp_public_url` + `miniapp_enabled`. Settings has
+  a "Мини-приложение Telegram" card with the URL field and a one-click button;
+  invalid URLs and provider errors are reported in plain RU. Tests:
+  `tests/test_miniapp_setup.py`.
 
 ### Changed
 - Application version string bumped `0.1.0 → 1.0.0` (`backend/app/__init__.py`,

@@ -41,6 +41,7 @@ class FakeTelegramBotProvider:
         # Manager-bot runtime (post-1.0): a scripted queue of incoming updates.
         self._updates: list[BotUpdate] = []
         self.commands: list[tuple[str, str]] = []
+        self.menu_button: tuple[str, str] | None = None
 
     def queue_updates(self, updates: list[BotUpdate]) -> None:
         """Enqueue updates for the next :meth:`get_updates` call (tests)."""
@@ -130,6 +131,12 @@ class FakeTelegramBotProvider:
         self._ensure_token()
         self._maybe_fail()
         self.commands = list(commands)
+        return True
+
+    async def set_menu_button(self, title: str, url: str) -> bool:
+        self._ensure_token()
+        self._maybe_fail()
+        self.menu_button = (title, url)
         return True
 
     async def get_updates(
