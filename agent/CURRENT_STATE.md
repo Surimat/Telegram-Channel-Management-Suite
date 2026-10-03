@@ -338,11 +338,21 @@ cd frontend && npm install && npm run build && cd ..
 - First sync (2026-10-03): PHASE 0–3 (commits `0daa91b`…`f06ba53`) pushed to
   `develop`; PR **#1** `develop → main` opened but **not merged** (needs explicit
   owner confirmation).
+- **Second sync (2026-10-03):** PHASE 4–6 pushed to `develop`
+  (`92d94e4`…`3ddc299`, fast-forward, no force). `origin/develop` HEAD is
+  `3ddc299` and contains PHASE 4 (`92d94e4`), PHASE 5 (`8197f33`) and PHASE 6
+  (`3ddc299`). `develop` is **0 ahead / 0 behind** `origin/develop`.
+- PR **#1** (`develop → main`) auto-updated to head `3ddc299`; still **open**,
+  `merged: false`, 9 commits, 0 files behind `main` change — **not merged**
+  (awaiting owner confirmation).
+  URL: https://github.com/Surimat/Telegram-Channel-Management-Suite/pull/1
 - **Never push directly to `main`.** All work goes to `develop` (or feature
   branches off it) and lands in `main` only via a reviewed pull request.
-- `main` still points at the initial README commit (`b2436d6`) until PR #1 merges.
+- `main` still points at the PHASE 3 commit (`f06ba53`) until PR #1 merges.
 - No history rewrite, no force push.
 - Secret audit before push: `.env`, `data/*.db`, session files and portable
   runtimes are git-ignored and confirmed absent from the remote; the mutable
   runtime dirs (`sessions/`, `logs/`, `data/`, `backups/`, `exports/`) contain
-  only `.gitkeep` on the remote.
+  only `.gitkeep` on the remote. The PHASE 5–6 diff contained no real tokens,
+  api_hash values, session strings, passwords or exported PII (only code
+  parameter names such as `api_hash`).

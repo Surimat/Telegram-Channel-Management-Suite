@@ -11,6 +11,25 @@ _No unreleased changes._
 
 ---
 
+## [0.6.1] — 2026-10-03 — Second GitHub sync (PHASE 4–6 to `develop`)
+
+### Changed
+- Pushed PHASE 4–6 to `origin/develop` (`92d94e4`…`3ddc299`) as a fast-forward;
+  no force push, no history rewrite.
+- `origin/develop` HEAD is now `3ddc299`; `develop` is 0 ahead / 0 behind.
+- PR **#1** (`develop → main`) auto-updated to head `3ddc299`; left **open** and
+  **unmerged**.
+
+### Verified
+- Pre-push secret audit: no `.env`, real tokens, `api_hash` values, `.session`
+  files, database files, audience exports or private-data logs are tracked or
+  present in the pushed diff; mutable runtime dirs carry only `.gitkeep`.
+- `main` was not touched.
+
+_No functional changes in this sync._
+
+---
+
 ## [0.6.0] — 2026-10-03 — PHASE 6: Invite Manager
 
 ### Added — DB
