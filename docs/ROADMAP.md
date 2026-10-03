@@ -41,13 +41,15 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
       forwarding, `managed_bot` update ingestion) — deferred into PHASE 3+/manager
       runtime work.
 
-## PHASE 3 — Reaction Manager ⬜
-- [ ] Reaction planner (weights, probability, delays, skip, profiles).
-- [ ] Scheduler + durable queue + restart recovery.
-- [ ] `reaction_jobs` model + per-job status/attempts/error.
-- [ ] Rules Engine (categories, allowed/preferred/forbidden, confidence, priority).
-- [ ] Preview/simulation.
-- [ ] API + UI (Reactions, Rules, Queue). Tests. Commit.
+## PHASE 3 — Reaction Manager 🟨
+- [x] Reaction planner (weights, probability, delays, skip, profiles).
+- [x] Scheduler + durable queue + restart recovery.
+- [x] `reaction_jobs` model + per-job status/attempts/error.
+- [x] Rules Engine (categories, allowed/preferred/forbidden, confidence, priority).
+- [x] Preview/simulation.
+- [x] API + UI (Reactions: profiles, rules, simulation, queue). Tests. Commit.
+- [ ] Manager-bot runtime (command loop, admin whitelist, notifications, error
+      forwarding, `managed_bot` update ingestion) — deferred; tracked here.
 
 ## PHASE 4 — User Session Manager ⬜
 - [ ] `SessionProvider` + Telethon impl + fake.

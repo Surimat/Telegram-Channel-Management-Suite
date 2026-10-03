@@ -3,11 +3,12 @@ import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAppStore } from '@/stores/app'
-import { api, type BotSummary } from '@/api/client'
+import { api, type BotSummary, type ReactionStats } from '@/api/client'
 
 const store = useAppStore()
 const { status, loading, error } = storeToRefs(store)
 const bots = ref<BotSummary | null>(null)
+const reactions = ref<ReactionStats | null>(null)
 
 onMounted(async () => {
   if (!store.status) store.loadStatus()
@@ -15,6 +16,11 @@ onMounted(async () => {
     bots.value = await api.botsSummary()
   } catch {
     bots.value = null
+  }
+  try {
+    reactions.value = await api.reactionStatus()
+  } catch {
+    reactions.value = null
   }
 })
 
@@ -66,6 +72,23 @@ const managerLabel = (s: BotSummary | null) => {
             Всего ботов: {{ bots.total }} · управляемых: {{ bots.by_kind['managed'] ?? 0 }}
           </p>
           <RouterLink to="/bots">Управление ботами →</RouterLink>
+        </div>
+        <div v-if="reactions" class="card">
+          <div>
+            <span
+              class="status-dot"
+              :class="reactions.enabled ? 'status-ok' : 'status-warning'"
+            ></span>
+            <strong>Реакции</strong>
+          </div>
+          <p>
+            {{ reactions.enabled ? 'Автоматические реакции включены.' : 'Автоматические реакции выключены.' }}
+          </p>
+          <p class="muted">
+            Ботов: {{ reactions.active_bots }} · в очереди: {{ reactions.queue_total }} ·
+            сегодня выполнено: {{ reactions.done_today }}
+          </p>
+          <RouterLink to="/reactions">Настроить реакции →</RouterLink>
         </div>
         <div v-for="check in status.checks" :key="check.key" class="card">
           <div>

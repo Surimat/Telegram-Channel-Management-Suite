@@ -10,6 +10,7 @@ Run locally with:
 from __future__ import annotations
 
 import contextlib
+import json
 from collections.abc import AsyncIterator
 
 from fastapi import FastAPI
@@ -29,6 +30,22 @@ from backend.app.db.session import dispose_engine, init_models
 from backend.app.scheduler.scheduler import Scheduler
 
 logger = get_logger(__name__)
+
+
+def _register_handlers(scheduler: Scheduler) -> None:
+    """Register durable-queue job handlers (PHASE 3: reaction execution)."""
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from backend.app.db.models.job import Job
+    from backend.app.services.reaction_service import REACTION_JOB_KIND, ReactionService
+
+    async def handle_reaction(session: AsyncSession, job: Job) -> None:
+        payload = json.loads(job.payload or "{}")
+        reaction_job_id = payload.get("reaction_job_id")
+        if reaction_job_id:
+            await ReactionService(session).execute_reaction_job(reaction_job_id)
+
+    scheduler.register(REACTION_JOB_KIND, handle_reaction)
 
 
 @contextlib.asynccontextmanager
@@ -60,9 +77,23 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         async with session_scope() as session:
             await BotService(session).ensure_manager_bot()
 
+    # Seed editable reaction rules + recover reaction jobs left running.
+    with contextlib.suppress(Exception):
+        from backend.app.db.session import session_scope
+        from backend.app.services.reaction_service import ReactionService
+
+        async with session_scope() as session:
+            service = ReactionService(session)
+            await service.ensure_default_rules()
+            await service.ensure_default_profile()
+            recovered = await service.recover()
+            if recovered:
+                logger.info("Recovered %d reaction job(s) after restart", recovered)
+
     scheduler: Scheduler | None = None
     if settings.scheduler_enabled:
         scheduler = Scheduler()
+        _register_handlers(scheduler)
         app.state.scheduler = scheduler
         await scheduler.start()
 

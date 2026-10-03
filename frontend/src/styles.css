@@ -226,3 +226,43 @@ h4 {
   .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
   .content { padding: 18px; }
 }
+
+/* PHASE 3 — Reactions UI helpers */
+.badge-muted { background: var(--bg); color: var(--text-muted); }
+
+.row-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.two-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0 16px;
+}
+
+.field-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.field input[type="range"] { padding: 0; }
+
+.table { margin-top: 8px; }
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.table th { color: var(--text-muted); font-weight: 600; }
+
+.ok-text { color: var(--ok); }

@@ -229,6 +229,36 @@ class SystemService:
             "Укажите путь к модели .gguf в разделе «AI» или выключите ИИ.",
         )
 
+    async def reactions_check(self, session: AsyncSession) -> Check:
+        """Report the Reaction Manager state in plain language (PHASE 3)."""
+        from backend.app.services.reaction_service import ReactionService
+
+        service = ReactionService(session, settings=self.settings)
+        enabled = await service.reactions_enabled()
+        active_bots = len(await service.active_bots())
+        if not enabled:
+            return Check(
+                "reactions",
+                "Автоматические реакции",
+                STATUS_OK,
+                "Реакции выключены — система ничего не ставит автоматически.",
+                "Включите реакции в разделе «Реакции», если хотите автоматические реакции.",
+            )
+        if active_bots == 0:
+            return Check(
+                "reactions",
+                "Автоматические реакции",
+                STATUS_WARNING,
+                "Реакции включены, но нет подходящих ботов.",
+                "Добавьте обычного бота с действующим токеном в разделе «Боты».",
+            )
+        return Check(
+            "reactions",
+            "Автоматические реакции",
+            STATUS_OK,
+            f"Реакции включены. Готовых ботов: {active_bots}.",
+        )
+
     async def setup_checks(self, session: AsyncSession | None = None) -> list[Check]:
         checks: list[Check] = [
             Check("runtime", "Среда выполнения", STATUS_OK, "Программа запущена правильно."),
@@ -240,6 +270,7 @@ class SystemService:
         if session is not None:
             checks.append(await self.manager_bot_db_check(session))
             checks.append(await self.managed_bots_check(session))
+            checks.append(await self.reactions_check(session))
         else:
             checks.append(self.manager_bot_check())
         checks.append(self.ai_check())

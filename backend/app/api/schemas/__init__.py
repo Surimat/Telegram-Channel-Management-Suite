@@ -11,6 +11,22 @@ from backend.app.api.schemas.bots import (
 from backend.app.api.schemas.common import ErrorBody, ErrorResponse, HealthStatus, Page
 from backend.app.api.schemas.events import EventOut
 from backend.app.api.schemas.jobs import JobOut
+from backend.app.api.schemas.reactions import (
+    CategoryInfo,
+    PostCreate,
+    PostOut,
+    ReactionJobOut,
+    ReactionLastPost,
+    ReactionProfileIn,
+    ReactionProfileOut,
+    ReactionRuleIn,
+    ReactionRuleOut,
+    ReactionSettingHelp,
+    ReactionStats,
+    SimulationIn,
+    SimulationOut,
+    SimulationStepOut,
+)
 from backend.app.api.schemas.settings import SettingOut, SettingsUpdate
 from backend.app.api.schemas.system import SetupCheck, SystemStatus
 
@@ -19,6 +35,7 @@ __all__ = [
     "BotHealthOut",
     "BotOut",
     "BotSummary",
+    "CategoryInfo",
     "ErrorBody",
     "ErrorResponse",
     "EventOut",
@@ -27,8 +44,21 @@ __all__ = [
     "ManagedBotPreview",
     "ManagedBotRegister",
     "Page",
+    "PostCreate",
+    "PostOut",
+    "ReactionJobOut",
+    "ReactionLastPost",
+    "ReactionProfileIn",
+    "ReactionProfileOut",
+    "ReactionRuleIn",
+    "ReactionRuleOut",
+    "ReactionSettingHelp",
+    "ReactionStats",
     "SettingOut",
     "SettingsUpdate",
     "SetupCheck",
+    "SimulationIn",
+    "SimulationOut",
+    "SimulationStepOut",
     "SystemStatus",
 ]

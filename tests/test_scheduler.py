@@ -36,7 +36,7 @@ async def test_scheduler_recovers_running_jobs() -> None:
 async def test_scheduler_executes_registered_handler() -> None:
     executed: list[str] = []
 
-    async def handler(job: Job) -> None:
+    async def handler(session, job: Job) -> None:
         executed.append(job.id)
 
     async with session_scope() as session:
@@ -55,7 +55,7 @@ async def test_scheduler_executes_registered_handler() -> None:
 
 
 async def test_scheduler_marks_failed_handler() -> None:
-    async def failing(job: Job) -> None:
+    async def failing(session, job: Job) -> None:
         raise RuntimeError("boom")
 
     async with session_scope() as session:
@@ -79,5 +79,5 @@ async def test_scheduler_ignores_future_jobs() -> None:
             kind="reaction", scheduled_at=utcnow() + timedelta(hours=1)
         )
     scheduler = Scheduler()
-    scheduler.register("reaction", lambda job: None)  # type: ignore[arg-type]
+    scheduler.register("reaction", lambda session, job: None)  # type: ignore[arg-type,return-value]
     await scheduler._tick()  # must not raise

@@ -6,11 +6,14 @@ run without real credentials or network access. It never performs I/O.
 
 from __future__ import annotations
 
+import time
+
 from backend.app.providers.errors import InvalidTokenError
 from backend.app.providers.types import (
     BotIdentity,
     ManagedBotAccess,
     ManagedBotRef,
+    ReactionRecord,
 )
 
 
@@ -31,6 +34,7 @@ class FakeTelegramBotProvider:
         self._managed_bots = list(managed_bots or [])
         self._fail_with = fail_with
         self.sent_messages: list[tuple[int | str, str]] = []
+        self.reactions: list[ReactionRecord] = []
         self.webhook_url: str | None = None
         self.closed = False
 
@@ -70,6 +74,21 @@ class FakeTelegramBotProvider:
         self._maybe_fail()
         self.webhook_url = url or None
         return True
+
+    async def set_reaction(self, chat_id: int | str, message_id: int, emoji: str) -> None:
+        self._ensure_token()
+        self._maybe_fail()
+        identity = await self.get_me()
+        self.reactions.append(
+            ReactionRecord(
+                chat_id=chat_id,
+                message_id=message_id,
+                emoji=emoji,
+                applied_at=time.time(),
+                bot_id=identity.id,
+                bot_username=identity.username,
+            )
+        )
 
     async def get_managed_bot_token(self, user_id: int) -> str:
         self._ensure_token()

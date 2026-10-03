@@ -4,9 +4,9 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-03
-**Current phase:** PHASE 2 — completed. Next: PHASE 3 (Reaction Manager).
-**Repository status:** committed (PHASE 2).
-**Branch:** `main`
+**Current phase:** PHASE 3 — Reaction Manager: **COMPLETED** (staged, not yet committed).
+**Repository status:** uncommitted changes (PHASE 3).
+**Branch:** `main` (an `openhands-workspace*` branch may be current — check `git branch`).
 
 ---
 
@@ -44,8 +44,9 @@ Layered architecture: **core → db/models → db/repositories → services → 
 - `backend/app/services/` — `settings_service`, `events_service`,
   `queue_service`, `system_service` (Setup Wizard checks, plain-language).
 - `backend/app/api/` — `errors.py` (uniform error envelope, no stack traces),
-  `schemas/` (common/events/settings/jobs/system), `v1/` routers:
-  `system`, `settings`, `events`, `queue`, aggregated in `v1/router.py`.
+  `schemas/` (common/events/settings/jobs/system/bots/reactions), `v1/` routers:
+  `system`, `settings`, `events`, `queue`, `bots`, `reactions`, aggregated in
+  `v1/router.py`.
 - `backend/app/scheduler/` — `scheduler.py`: pure-asyncio durable scheduler;
   recovers RUNNING jobs on startup, claims due jobs, runs registered handlers,
   records failures to the Event Center.
@@ -75,6 +76,32 @@ Layered architecture: **core → db/models → db/repositories → services → 
 - `SystemService` — DB-backed `manager_bot_db_check`, `managed_bots_check`; wired
   into `/api/v1/system/status`, `/api/v1/system/setup`, `/health/deep`.
 - `main.py` lifespan — best-effort `ensure_manager_bot()` from settings.
+
+### PHASE 3 — Reaction Manager (rules + planner + scheduling + UI)
+- `backend/app/rules/engine.py` — `RulesEngine`, `Category` (9 categories),
+  `RuleSpec`, `RuleMatch`. Deterministic keyword/phrase/regex matching with
+  exclusions, `min_confidence`, priority, language gate, `manual_override`.
+- `backend/app/rules/delays.py` — `DelayPreset` (`early`/`normal`/`spread`),
+  `scaled_window`, `distribution_for`, `UniformDelay`.
+- `backend/app/rules/defaults.py` — `default_rule_specs()` seed RU+EN rules.
+- `backend/app/db/models/post.py` — `Post` (text, category, confidence,
+  classification_source, status, channel/message ids).
+- `backend/app/db/models/reaction.py` — `ReactionProfile`, `ReactionRule`,
+  `ReactionJob` (+ `ReactionJobStatus`): `post_id, bot_id, reaction,
+  scheduled_at, status, attempts, error, completed_at, queue_job_id`.
+- `backend/app/db/repositories/posts.py`, `repositories/reactions.py`.
+- `backend/app/services/reaction_planner.py` — pure `ReactionPlanner` + RNG.
+- `backend/app/services/reaction_service.py` — the vertical-slice service
+  (profiles/rules CRUD, classify, simulate, ingest/plan, execute, recover, stats).
+- `backend/app/api/schemas/reactions.py`, `api/v1/reactions.py`,
+  `api/deps.py::get_reaction_service`, router registration.
+- `backend/app/providers/*` — `set_reaction` on the provider protocol, fake
+  (deterministic recorder + injectable failures) and aiogram implementations.
+- `backend/app/scheduler/scheduler.py` — handlers receive `(session, job)`
+  (fixes a nested-session SQLite deadlock; important on weak machines).
+- `backend/app/services/system_service.py` — `reactions` Setup-Wizard check.
+- `frontend/src/views/ReactionsView.vue` + reaction types/methods in
+  `api/client.ts`, `/reactions` route, nav link, Dashboard Reactions card.
 
 ### Frontend (PHASE 1) — Vue 3 + Vite + TypeScript
 - `frontend/` — `package.json`, `vite.config.ts` (builds into
@@ -111,25 +138,32 @@ Layered architecture: **core → db/models → db/repositories → services → 
 - **Bots**: add (validated + sealed), list/summary, enable/disable, remove,
   health check, managed-bot preview/register/fetch-token — verified live in
   offline mode (server + curl) and covered by tests.
-- `ruff check backend tests` → clean. `pytest` → **60 passed**.
-- Frontend `npm run build` → outputs to `backend/app/static/` successfully.
+- **Reactions (PHASE 3)**: profiles/rules CRUD, deterministic classification,
+  weighted/randomized planning, simulation (no Telegram), ingest+plan creating
+  durable jobs, execution via the provider with FloodWait handling, and startup
+  recovery — verified live in offline mode (add bot → enable → ingest → job
+  created) and covered by 48 tests.
+- `ruff check backend tests` → clean. `pytest` → **108 passed**.
+- Frontend `npm run build` → outputs to `backend/app/static/` successfully
+  (`vue-tsc` clean).
 
 ## 4. What does NOT exist yet
 
 - MTProto/user accounts (PHASE 4), channel binding, audience, invites,
-  reactions, rules, AI, analytics APIs/UI.
-- Telegram `managed_bot` update ingestion (currently registration is manual by
-  Telegram ID); a webhook/polling ingestion task lands with the manager-bot
-  runtime in a later phase.
+  analytics APIs/UI, Tiny AI classifier (PHASE 7).
+- Manager-bot runtime: the manager bot is registered from settings, but there is
+  no command loop / admin whitelist / notification forwarding yet; `managed_bot`
+  update ingestion is manual by Telegram ID.
 - Auth for the local UI / Mini App `initData`.
 - Alembic migrations (currently `create_all` at startup).
 - Backup/restore implementation, portable packaging, production HTTPS docs.
 
 ## 5. Next action
 
-Start **PHASE 3 — Reaction Manager** (see `agent/NEXT_TASK.md` and
-`docs/ROADMAP.md`): rules, reaction profiles, per-bot reaction scheduler over
-the durable queue, weighted/randomized delays, simulation, logs, and UI.
+Start **PHASE 4 — User Session Manager** (see `agent/NEXT_TASK.md` and
+`docs/ROADMAP.md`): `SessionProvider` + Telethon + fake, interactive auth wizard
+(api id/hash → phone → code → 2FA), session import/list/revoke/health, secure
+storage. **First commit PHASE 3** (see NEXT_TASK finish checklist).
 
 ## 6. Locked decisions (do not break)
 
@@ -147,6 +181,9 @@ See `agent/DECISIONS.md`. Key ones:
 - Bot tokens sealed at rest with Fernet; never returned by the API (D-017).
 - Managed bots only via the official API + user confirmation (D-018).
 - Provider selection via config; `offline_mode`/`fake` for tests (D-019).
+- Rules Engine is deterministic; categories/rules are editable data (D-020).
+- Reaction planner is pure with an injectable RNG; emoji are deterministic (D-021).
+- Reaction profiles are named, one default; preview is forgiving (D-022).
 
 ## 7. How to run / verify after opening a new chat
 

@@ -11,6 +11,74 @@ _No unreleased changes._
 
 ---
 
+## [0.3.0] — 2026-10-03 — PHASE 3: Reaction Manager (rules, planner, scheduling, UI)
+
+### Added — Rules Engine (deterministic, editable)
+- `backend/app/rules/engine.py` — `RulesEngine`, `Category` (9 categories),
+  `RuleSpec`, `RuleMatch`; keyword/phrase/regex matching with exclusions,
+  `min_confidence`, priority, language gate, and `manual_override` (always wins).
+  Confidence is a transparent matched-terms score; unknown text → `neutral`.
+- `backend/app/rules/delays.py` — `DelayPreset` (`early`/`normal`/`spread`),
+  `scaled_window`, `distribution_for`, `UniformDelay`.
+- `backend/app/rules/defaults.py` — `default_rule_specs()`: the seed RU+EN rule
+  set (donation/news/funny/sad/angry/cute/support/announcement) with
+  allowed/preferred/forbidden reactions.
+
+### Added — Data model & repositories
+- `db/models/post.py` — `Post` (`text`, `category`, `confidence`,
+  `classification_source`, `status`, `channel_id`, `telegram_message_id`, …).
+- `db/models/reaction.py` — `ReactionProfile`, `ReactionRule`, `ReactionJob`
+  (+ `ReactionJobStatus`); job stores `post_id`, `bot_id`, `reaction`,
+  `scheduled_at`, `status`, `attempts`, `error`, `completed_at`, `queue_job_id`.
+- `db/repositories/posts.py`, `db/repositories/reactions.py` (profiles, rules
+  incl. `clear_defaults`, jobs incl. `for_post`).
+
+### Added — Planner & service (vertical slice)
+- `services/reaction_planner.py` — pure `ReactionPlanner` with injectable RNG:
+  participation gate, skip gate, weighted emoji choice, per-bot delay from the
+  profile window/preset, `max_bots_per_post` cap, one reaction per bot/message.
+- `services/reaction_service.py` — `ReactionService`: profile CRUD + validation,
+  rule CRUD + seeding, `resolve_profile`, `_classify` (DB rules w/ default
+  fallback), `simulate` (no Telegram), `ingest_post`/`plan_post` (durable jobs),
+  `execute_reaction_job` (via provider; FloodWait never bypassed), `recover`,
+  global enable/disable, `stats`.
+- `providers/types.py`/`base.py`/`fake_bot.py`/`aiogram_bot.py` — added
+  `set_reaction`; the fake records `(chat_id, message_id, emoji)` deterministically
+  and can be told to fail per emoji.
+
+### Added — Scheduling
+- `scheduler/scheduler.py` — handlers now receive `(session, job)` so a handler
+  runs in the scheduler's own transaction (fixes a nested-session SQLite deadlock
+  on slow/weak machines).
+- `main.py` — registers the `reaction.job` handler; seeds default rules and a
+  default profile; recovers interrupted reaction jobs on startup.
+
+### Added — API
+- `api/schemas/reactions.py`, `api/v1/reactions.py` — profiles/rules/posts/jobs,
+  `simulate`, `status`, `enable`/`disable`, `categories`; `api/deps.py` gained
+  `get_reaction_service`; router registered in `v1/router.py`.
+- `services/system_service.py` — new `reactions` Setup-Wizard check with
+  plain-language meaning + hint.
+
+### Added — Frontend
+- `views/ReactionsView.vue` — tabs: Обзор (global switch + counters), Профили
+  (editor with sliders/tooltips), Правила (full editor incl. allowed/forbidden
+  reactions), Симуляция (preview table + "ingest & plan"), Очередь (status
+  filter). Reaction types/methods in `api/client.ts`, `/reactions` route, nav
+  link, and a Reactions card on the Dashboard.
+
+### Added — Tests (48 new; suite 60 → 108)
+- `tests/test_rules_engine.py`, `tests/test_delays.py`,
+  `tests/test_reaction_planner.py`, `tests/test_reaction_service.py`,
+  `tests/test_reactions_api.py` — including fake-provider execution, FloodWait
+  handling, restart recovery, determinism, and an end-to-end scheduler→provider
+  test. `ruff check backend tests` clean.
+
+### Changed
+- `tests/test_scheduler.py` updated for the `(session, job)` handler signature.
+
+---
+
 ## [0.2.0] — 2026-10-03 — PHASE 2: Telegram foundation (manager/managed bots)
 
 ### Added — Telegram provider layer (D-001, D-019)

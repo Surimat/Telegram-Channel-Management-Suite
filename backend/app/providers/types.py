@@ -53,3 +53,19 @@ class HealthResult:
     message: str
     how_to_fix: str = ""
     identity: BotIdentity | None = None
+
+
+@dataclass(slots=True)
+class ReactionRecord:
+    """A recorded reaction application (used by the fake provider in tests).
+
+    The fake provider never performs I/O; this dataclass lets tests assert which
+    bot reacted with which emoji on which message and when.
+    """
+
+    chat_id: int | str
+    message_id: int
+    emoji: str
+    applied_at: float
+    bot_id: int | None = None
+    bot_username: str = ""

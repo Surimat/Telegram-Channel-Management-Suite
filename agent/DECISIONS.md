@@ -261,3 +261,60 @@ and gives users an offline/demo mode — without any change to domain code (D-00
 
 **Consequence:** Startup best-effort registers the manager bot from settings;
 failures are logged as events (never fatal). `pytest` never needs real tokens.
+
+---
+
+## D-020 — 2026-10-03 — Rules Engine is deterministic; categories are data — LOCKED
+
+**Decision:** The Rules Engine classifies a post to one of the fixed categories
+(`donation`, `news`, `funny`, `sad`, `angry`, `cute`, `support`,
+`announcement`, `neutral`) using **deterministic** matching on keywords, phrases
+and (optional) regexes, plus exclusions, per-rule `min_confidence`, priority and
+an optional `manual_override` (which always wins). Rules live in the
+`reaction_rules` table and are editable in the Web UI — no code change needed.
+`default_rule_specs()` seeds a working RU+EN rule set once; if the table is empty
+the engine still falls back to those defaults so classification always works.
+
+**Why:** Predictable, testable, and offline-friendly; beginners get a functioning
+classifier out of the box while power users can edit everything (project
+principle: configuration via UI).
+
+**Consequence:** Classification confidence is a transparent score (matched terms
+vs. total), not a probability from a model. The LLM (PHASE 7) is a *fallback*
+classifier only, never the primary path (D-005).
+
+---
+
+## D-021 — 2026-10-03 — Reaction planner is pure with an injectable RNG — LOCKED
+
+**Decision:** `ReactionPlanner` is a pure function of `(bots, PlanParams,
+RuleMatch, base_time, rng)` returning immutable steps. Randomness (participation
+gate, skip gate, weighted emoji choice, delay within the window) is drawn from a
+`random.Random` injected by the caller (`ReactionService._rng_for(seed)`).
+
+**Why:** Makes scheduling reproducible for preview/simulation and tests with a
+fixed seed, while remaining unpredictable in production. Enables the "simulation"
+feature required by PHASE 3 without contacting Telegram.
+
+**Consequence:** Emoji are chosen by weighted deterministic logic, never by an
+LLM (D-005). One bot places at most one reaction per message; `max_bots_per_post`
+caps participation. Delay presets (`early`/`normal`/`spread`) rescale the
+`delay_min`–`delay_max` window deterministically.
+
+---
+
+## D-022 — 2026-10-03 — Reaction profiles are named, with one default — LOCKED
+
+**Decision:** `ReactionProfile` is a named, persisted configuration
+(`allowed_emoji`, `emoji_weights`, `participation_probability`,
+`skip_probability`, `delay_min`/`delay_max`, `delay_preset`,
+`max_bots_per_post`). Exactly one profile is `is_default`; setting a new default
+clears the old one atomically. The Reaction Manager as a whole has a separate
+global switch (the default profile's `enabled` flag).
+
+**Why:** Users want named presets (e.g. "Осторожный", "Активный") they can switch
+between and preview without editing numbers each time.
+
+**Consequence:** Preview/simulation is forgiving: it resolves a usable profile
+(explicit id → active → default → any → create default) even if it is currently
+disabled, because a preview never contacts Telegram.

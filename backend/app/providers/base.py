@@ -39,6 +39,17 @@ class TelegramBotProvider(Protocol):
     async def set_webhook(self, url: str) -> bool:
         """Register a webhook URL (empty url removes it)."""
 
+    async def set_reaction(
+        self, chat_id: int | str, message_id: int, emoji: str
+    ) -> None:
+        """Set a reaction on a message.
+
+        Telegram allows one reaction per bot per message; passing an empty
+        ``emoji`` removes the bot's reaction. Raises
+        :class:`~backend.app.providers.errors.FloodWaitError` when Telegram asks
+        to wait (never bypassed, D-006).
+        """
+
     # --- Managed bots (official Bot API) -------------------------------------
     async def get_managed_bot_token(self, user_id: int) -> str:
         """Return the access token of a managed bot by its user id."""

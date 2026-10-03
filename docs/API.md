@@ -138,18 +138,68 @@ through the link and notifies the manager via a `managed_bot` update.
 
 ---
 
-## Reactions, Rules, AI
+## Reactions & Rules
+
+Implemented in PHASE 3. Reaction execution goes through `TelegramBotProvider`
+(D-001) and the durable queue (D-008); emoji choice is deterministic weighted
+logic, never an LLM (D-005). Preview/simulation never contacts Telegram.
+
+### Reaction profiles
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/v1/reactions/profiles` | list reaction profiles |
-| POST | `/api/v1/reactions/profiles` | create/update profile |
-| POST | `/api/v1/reactions/preview` | preview/simulate plan |
-| GET | `/api/v1/reactions/jobs` | scheduled reaction jobs |
-| GET | `/api/v1/rules` | list category rules |
-| PUT | `/api/v1/rules/{category}` | update a category rule |
+| GET | `/api/v1/reactions/categories` | list classification categories (key + RU title) |
+| GET | `/api/v1/reactions/profiles` | list profiles |
+| POST | `/api/v1/reactions/profiles` | create a profile |
+| PATCH | `/api/v1/reactions/profiles/{id}` | update a profile |
+| DELETE | `/api/v1/reactions/profiles/{id}` | delete a profile |
+| POST | `/api/v1/reactions/simulate` | preview a plan for a text (no Telegram call) |
+| GET | `/api/v1/reactions/status` | status + counters (for Dashboard) |
+| POST | `/api/v1/reactions/enable` | enable the Reaction Manager (global switch) |
+| POST | `/api/v1/reactions/disable` | disable the Reaction Manager |
+
+A profile carries: `allowed_emoji`, `emoji_weights`, `participation_probability`,
+`skip_probability`, `delay_min`/`delay_max`, `delay_preset`
+(`early`/`normal`/`spread`), `max_bots_per_post`, `enabled`, `is_default`.
+Exactly one profile can be the default.
+
+### Rules
+
+Editable classification rules (seeded once, then fully user-editable):
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/reactions/rules` | list rules |
+| POST | `/api/v1/reactions/rules` | create a rule |
+| PATCH | `/api/v1/reactions/rules/{id}` | update a rule |
+| DELETE | `/api/v1/reactions/rules/{id}` | delete a rule |
+
+A rule carries: `category`, `keywords`, `phrases`, `regexes`, `exclusions`,
+`allowed_reactions`, `preferred_reactions`, `forbidden_reactions`,
+`min_confidence`, `priority`, `language`, `manual_override`, `enabled`.
+
+### Posts & reaction jobs
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/reactions/posts` | list ingested posts |
+| POST | `/api/v1/reactions/posts` | ingest a post: classify + (optionally) plan |
+| POST | `/api/v1/reactions/posts/{id}/plan` | (re)plan reactions for a post |
+| GET | `/api/v1/reactions/jobs` | list reaction jobs (`?status=`) |
+
+Each reaction job stores `post_id`, `bot_id`, `reaction`, `scheduled_at`,
+`status`, `attempts`, `error`, `completed_at` — and a matching durable queue row.
+
+---
+
+## AI classifier (optional)
+
+| Method | Path | Purpose |
+|--------|------|---------|
 | GET | `/api/v1/ai/status` | classifier status |
 | POST | `/api/v1/ai/classify` | classify a text (debug) |
+
+_Planned for PHASE 7._
 
 ---
 

@@ -150,6 +150,126 @@ export interface ManagedBotPreview {
   instructions: string
 }
 
+export interface ReactionCategory {
+  key: string
+  title: string
+}
+
+export interface ReactionProfile {
+  id: string
+  name: string
+  description: string
+  enabled: boolean
+  is_default: boolean
+  allowed_emoji: string[]
+  emoji_weights: Record<string, number>
+  participation_probability: number
+  skip_probability: number
+  delay_min: number
+  delay_max: number
+  delay_preset: 'early' | 'normal' | 'spread'
+  max_bots_per_post: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ReactionRule {
+  id: string
+  name: string
+  category: string
+  enabled: boolean
+  priority: number
+  manual_override: boolean
+  language: string
+  keywords: string[]
+  phrases: string[]
+  regexes: string[]
+  exclusions: string[]
+  allowed_reactions: string[]
+  preferred_reactions: string[]
+  forbidden_reactions: string[]
+  min_confidence: number
+  created_at: string
+  updated_at: string
+}
+
+export interface Post {
+  id: string
+  telegram_message_id: number | null
+  channel_id: number | null
+  channel_username: string
+  text: string
+  category: string
+  category_title: string
+  classification_source: string
+  confidence: number
+  matched_terms: string
+  status: string
+  posted_at: string | null
+  processed_at: string | null
+  created_at: string
+}
+
+export interface ReactionJob {
+  id: string
+  post_id: string
+  bot_id: string
+  profile_id: string
+  reaction: string
+  status: string
+  scheduled_at: string | null
+  completed_at: string | null
+  attempts: number
+  error: string
+  created_at: string
+}
+
+export interface SimulationStep {
+  bot_id: string
+  bot_username: string
+  emoji: string
+  delay_seconds: number
+  scheduled_at: string
+  status: string
+  delay_human: string
+}
+
+export interface SimulationResult {
+  text: string
+  category: string
+  category_title: string
+  confidence: number
+  source: string
+  allowed_reactions: string[]
+  preferred_reactions: string[]
+  forbidden_reactions: string[]
+  profile_id: string
+  profile_name: string
+  total_bots: number
+  participating: number
+  skipped: number
+  steps: SimulationStep[]
+}
+
+export interface ReactionLastPost {
+  id: string
+  category: string
+  category_title: string
+  created_at: string
+  reactions: number
+}
+
+export interface ReactionStats {
+  enabled: boolean
+  active_bots: number
+  queue_total: number
+  planned_today: number
+  done_today: number
+  failed_today: number
+  counts: Record<string, number>
+  last_post: ReactionLastPost | null
+}
+
 export const api = {
   health: () => request<Health>('/health'),
   healthDeep: () => request<Record<string, unknown>>('/health/deep'),
@@ -197,4 +317,61 @@ export const api = {
     request<Bot>(`/api/v1/bots/${id}/managed/token`, { method: 'POST' }),
   replaceManagedToken: (id: string) =>
     request<Bot>(`/api/v1/bots/${id}/managed/replace-token`, { method: 'POST' }),
+
+  // Reactions (PHASE 3)
+  reactionCategories: () =>
+    request<ReactionCategory[]>('/api/v1/reactions/categories'),
+  reactionStatus: () => request<ReactionStats>('/api/v1/reactions/status'),
+  enableReactions: () =>
+    request<ReactionStats>('/api/v1/reactions/enable', { method: 'POST' }),
+  disableReactions: () =>
+    request<ReactionStats>('/api/v1/reactions/disable', { method: 'POST' }),
+
+  reactionProfiles: () => request<ReactionProfile[]>('/api/v1/reactions/profiles'),
+  createProfile: (payload: Partial<ReactionProfile>) =>
+    request<ReactionProfile>('/api/v1/reactions/profiles', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateProfile: (id: string, payload: Partial<ReactionProfile>) =>
+    request<ReactionProfile>(`/api/v1/reactions/profiles/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  deleteProfile: (id: string) =>
+    request<null>(`/api/v1/reactions/profiles/${id}`, { method: 'DELETE' }),
+
+  reactionRules: () => request<ReactionRule[]>('/api/v1/reactions/rules'),
+  createRule: (payload: Partial<ReactionRule>) =>
+    request<ReactionRule>('/api/v1/reactions/rules', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateRule: (id: string, payload: Partial<ReactionRule>) =>
+    request<ReactionRule>(`/api/v1/reactions/rules/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  deleteRule: (id: string) =>
+    request<null>(`/api/v1/reactions/rules/${id}`, { method: 'DELETE' }),
+
+  simulate: (payload: { text: string; profile_id?: string; bot_count?: number; seed?: number }) =>
+    request<SimulationResult>('/api/v1/reactions/simulate', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  reactionPosts: (params: Record<string, string> = {}) =>
+    request<Page<Post>>('/api/v1/reactions/posts?' + new URLSearchParams(params).toString()),
+  createPost: (payload: {
+    text: string
+    channel_id?: number
+    telegram_message_id?: number
+    force_category?: string
+    plan?: boolean
+  }) =>
+    request<Post>('/api/v1/reactions/posts', { method: 'POST', body: JSON.stringify(payload) }),
+
+  reactionJobs: (params: Record<string, string> = {}) =>
+    request<Page<ReactionJob>>('/api/v1/reactions/jobs?' + new URLSearchParams(params).toString()),
 }

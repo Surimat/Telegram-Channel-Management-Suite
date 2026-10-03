@@ -21,7 +21,13 @@ from aiogram.exceptions import (
     TelegramRetryAfter,
     TelegramUnauthorizedError,
 )
-from aiogram.types import BotCommand, BotCommandScopeDefault, MenuButtonWebApp, WebAppInfo
+from aiogram.types import (
+    BotCommand,
+    BotCommandScopeDefault,
+    MenuButtonWebApp,
+    ReactionTypeEmoji,
+    WebAppInfo,
+)
 
 from backend.app.providers.errors import (
     FloodWaitError,
@@ -115,6 +121,16 @@ class AiogramBotProvider:
         if url:
             return bool(await self._call(self._bot.set_webhook(url=url)))
         return bool(await self._call(self._bot.delete_webhook()))
+
+    async def set_reaction(self, chat_id: int | str, message_id: int, emoji: str) -> None:
+        # Telegram allows exactly one reaction per bot per message. An empty
+        # emoji removes the bot's current reaction.
+        reaction = [ReactionTypeEmoji(emoji=emoji)] if emoji else None
+        await self._call(
+            self._bot.set_message_reaction(
+                chat_id=chat_id, message_id=message_id, reaction=reaction
+            )
+        )
 
     # --- Optional manager-bot niceties ---------------------------------------
     async def set_commands(self, commands: list[tuple[str, str]]) -> bool:

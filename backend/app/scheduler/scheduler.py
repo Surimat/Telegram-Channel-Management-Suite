@@ -6,7 +6,9 @@ An asyncio-based worker loop (no Redis/Celery) that:
    handlers.
 3. Persists status transitions so progress survives restarts.
 
-Job handlers are registered by ``kind`` and added in later phases.
+Job handlers are registered by ``kind``. A handler receives the *same* database
+session the scheduler uses, so a handler can transact together with the job row
+without opening a second SQLite connection (decisions D-008, D-022).
 """
 
 from __future__ import annotations
@@ -14,6 +16,8 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from collections.abc import Awaitable, Callable
+
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.logging import get_logger
 from backend.app.db.models.event import EventLevel
@@ -24,7 +28,7 @@ from backend.app.services.queue_service import QueueService
 
 logger = get_logger(__name__)
 
-JobHandler = Callable[[Job], Awaitable[None]]
+JobHandler = Callable[[AsyncSession, Job], Awaitable[None]]
 
 
 class Scheduler:
@@ -81,7 +85,7 @@ class Scheduler:
                 job.mark_running()
                 await session.flush()
                 try:
-                    await handler(job)
+                    await handler(session, job)
                     job.mark_done()
                 except Exception as exc:
                     logger.warning("Job %s failed: %s", job.id, exc)

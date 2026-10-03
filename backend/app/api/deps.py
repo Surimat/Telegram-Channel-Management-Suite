@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.db.session import get_session
 from backend.app.providers.registry import build_bot_provider
 from backend.app.services.bot_service import BotService, ProviderFactory
+from backend.app.services.reaction_service import ReactionService
 
 
 def get_provider_factory() -> ProviderFactory:
@@ -25,3 +26,10 @@ def get_bot_service(
     provider_factory: ProviderFactory = Depends(get_provider_factory),
 ) -> BotService:
     return BotService(session, provider_factory=provider_factory)
+
+
+def get_reaction_service(
+    session: AsyncSession = Depends(get_session),
+    provider_factory: ProviderFactory = Depends(get_provider_factory),
+) -> ReactionService:
+    return ReactionService(session, provider_factory=provider_factory)
