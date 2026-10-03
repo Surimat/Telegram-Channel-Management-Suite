@@ -17,9 +17,22 @@ Dates are ISO-8601.
 - `frontend/src/api/client.ts` — audience/source types and methods.
 - Router routes `/sources`, `/audience`; sidebar and Mini App bottom-nav entries.
 
+### Added — Packaging (post-roadmap polish)
+- `scripts/fetch_embedded_python.sh` — stages the official Windows embeddable
+  Python into `runtime/`, writes the `pythonXY._pth`, bootstraps pip and installs
+  dependencies into `runtime/site-packages`. Offline-friendly: `--dry-run` plans
+  without network, `SKIP_RUNTIME=1` opts out, and clear manual steps are printed
+  on failure.
+- `scripts/build_portable.sh` — now fetches/stages the runtime by default
+  (`--no-runtime` / `SKIP_RUNTIME=1` to opt out) and fixed the requirements path.
+- `tests/test_portable_smoke.py` — added tests for the runtime fetcher (dry run,
+  missing arg, skip env) that need no network.
+
 ### Changed — Docs
 - `docs/UI.md` — audience/sources page documentation + running inventory.
-- `docs/ROADMAP.md` — post-roadmap polish section (Audience/Sources views done).
+- `docs/SETUP.md` — zero-setup portable build steps + manual fallback.
+- `docs/ARCHITECTURE.md` — portable build stages the embedded runtime.
+- `docs/ROADMAP.md` — post-roadmap polish section.
 
 ---
 

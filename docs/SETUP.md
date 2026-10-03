@@ -100,11 +100,30 @@ Run the build script from the repository (needs Node once, for the frontend):
 bash scripts/build_portable.sh /path/to/out
 ```
 
-It builds the SPA, copies `backend/` into `app/`, stages `runtime/site-packages`,
-copies `run.bat` / `stop.bat` / `README.txt`, and creates the empty data
-directories. On Windows, drop the official Python **embeddable package** into
-`runtime/` (same version) so `runtime\python.exe` exists; `run.bat` sets
-`PYTHONPATH=app` and `TCMS_ROOT` to the folder so no installation is needed.
+It builds the SPA, copies `backend/` into `app/`, creates the empty data
+directories, copies `run.bat` / `stop.bat` / `README.txt`, and — by default —
+downloads the official Windows **embeddable Python** (matching your host Python
+version) into `runtime/` and installs the dependencies into
+`runtime/site-packages`, so the result is truly zero-setup. The helper is
+`scripts/fetch_embedded_python.sh`; it is also usable on its own:
+
+```bash
+bash scripts/fetch_embedded_python.sh /path/to/out/runtime \
+  --version 3.12.7 --requirements backend/requirements.txt
+```
+
+If the network is restricted, pass `--no-runtime` (or set `SKIP_RUNTIME=1`) to
+stage the code only, then add the runtime manually:
+
+1. Download the "Windows embeddable package" for a matching Python version from
+   <https://www.python.org/downloads/windows/>.
+2. Unzip it into `runtime/` so `runtime\python.exe` exists.
+3. Ensure `runtime\python3xx._pth` lists `../app` and `site-packages`.
+4. Install dependencies:
+   `runtime\python.exe -m pip install --target runtime\site-packages -r backend\requirements.txt`.
+
+`run.bat` sets `PYTHONPATH=app` and `TCMS_ROOT` to the folder, so no installation
+is needed.
 
 ### Backups
 

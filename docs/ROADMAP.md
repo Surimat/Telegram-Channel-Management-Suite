@@ -144,8 +144,10 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 - [x] **Audience & Sources frontend views** (`SourcesView.vue`, `AudienceView.vue`)
       — closes the main UI gap; the PHASE 5 API was already complete. RU-first,
       search/filters/tags/pagination, scan confirmation + progress, export/import.
-- [ ] Fully self-contained Windows binary (stage the Python embeddable package
-      into `runtime/` automatically in `scripts/build_portable.sh`).
+- [x] Fully self-contained Windows portable build: `scripts/fetch_embedded_python.sh`
+      downloads the official embeddable Python, writes the `._pth`, and installs
+      dependencies; wired into `scripts/build_portable.sh` with a
+      `--no-runtime`/`SKIP_RUNTIME=1` offline fallback.
 - [ ] Optional: Alembic migrations; manager-bot command loop / notifications.
 
 ---

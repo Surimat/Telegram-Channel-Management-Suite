@@ -93,3 +93,39 @@ def test_portable_startup_and_graceful_shutdown(tmp_path: Path) -> None:
                 proc.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 proc.kill()
+
+
+def _run_helper(args: list[str], env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["bash", str(REPO_ROOT / "scripts" / "fetch_embedded_python.sh"), *args],
+        capture_output=True,
+        text=True,
+        env={**os.environ, **(env or {})},
+    )
+
+
+def test_fetch_embedded_python_dry_run(tmp_path: Path) -> None:
+    """The runtime fetcher plans a correct embeddable-Python layout offline."""
+    runtime = tmp_path / "runtime"
+    result = _run_helper(
+        [str(runtime), "--version", "3.12.7", "--dry-run"],
+    )
+    assert result.returncode == 0, result.stderr
+    assert "python-3.12.7-embed-amd64.zip" in result.stdout
+    assert "python312._pth" in result.stdout
+    assert "../app" in result.stdout
+    assert "site-packages" in result.stdout
+    # Dry run must not touch the filesystem or the network.
+    assert not runtime.exists()
+
+
+def test_fetch_embedded_python_requires_runtime_dir() -> None:
+    result = _run_helper([])
+    assert result.returncode == 2
+    assert "runtime_dir" in result.stderr
+
+
+def test_fetch_embedded_python_skip_env() -> None:
+    result = _run_helper(["/tmp/ignored-runtime"], env={"SKIP_RUNTIME": "1"})
+    assert result.returncode == 0
+    assert "not fetching" in result.stdout

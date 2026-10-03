@@ -4,36 +4,32 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-03
-**Status:** PHASE 0–11 **and** the Audience/Sources frontend polish are complete.
-Start the next polish task below.
+**Status:** PHASE 0–11 **and** the polish items (Audience/Sources views, automated
+portable runtime staging) are complete. Everything left is optional hardening.
 
 ---
 
-## Active task: Fully self-contained Windows binary (post-roadmap polish)
+## Active task (optional): hardening backlog
 
-**Goal:** make the portable package truly zero-setup. Today `scripts/build_portable.sh`
-stages the code + built SPA and the user must drop a Python embeddable package into
-`runtime/` by hand (D-040). Automate that staging.
+The core product is feature-complete and green. Pick the next item only if asked
+or if it unblocks a real user problem; keep each change a runnable vertical slice.
+
+### Candidates (in rough priority)
+
+1. **Manager-bot runtime** — a command loop + admin whitelist + notification
+   forwarding for the manager bot (today it is only registered from settings).
+   Keep Telegram calls behind the existing providers (D-001).
+2. **Alembic migrations** — replace `create_all` at startup with versioned
+   migrations (do not break the current startup path until migrations are proven).
+3. **Account permission probe** — a standalone "check channel read/post rights"
+   flow using `SessionProvider.resolve_entity` / `get_participants`.
 
 ### What exists (do not rebuild)
 
-- `scripts/build_portable.sh` — stages the portable tree.
-- `portable/run.bat`, `portable/stop.bat`, `portable/README.txt` — launchers.
-- `backend/app/core/paths.py` — `TCMS_ROOT` resolution (D-040).
-- `tests/test_portable_smoke.py` — startup + graceful-shutdown smoke test.
-- Docs: `docs/SETUP.md` (Windows portable section B), `docs/ARCHITECTURE.md` §11.
-
-### Deliverable (one vertical slice)
-
-1. Extend `scripts/build_portable.sh` (or add a small helper) to download the
-   official Windows **embeddable** Python and unpack it into `runtime/`, then
-   `pip install -r backend/requirements.txt` into it (`--target` / get-pip flow),
-   so `run.bat` needs no manual step.
-2. Keep it optional/offline-friendly: if the download is unavailable, fall back to
-   the current manual staging and print a clear message.
-3. Verify: run the portable smoke test; document the exact steps and the expected
-   folder layout in `docs/SETUP.md`.
-4. Update `agent/CURRENT_STATE.md`, `agent/CHANGELOG.md`, `docs/ROADMAP.md`; commit.
+- PHASE 0–11 complete; `agent/CURRENT_STATE.md` §4 lists every remaining gap.
+- Portable build is zero-setup: `scripts/fetch_embedded_python.sh` +
+  `scripts/build_portable.sh` (D-043).
+- Audience/Sources UI: `frontend/src/views/{SourcesView,AudienceView}.vue` (D-042).
 
 ### Do NOT
 
@@ -45,7 +41,7 @@ stages the code + built SPA and the user must drop a Python embeddable package i
 ### Verification checklist for any change
 
 ```bash
-python -m pytest                 # must stay green (currently 330 passed)
+python -m pytest                 # must stay green (currently 333 passed)
 ruff check backend tests         # must stay clean
 cd frontend && npm run build     # must succeed (outputs to backend/app/static)
 ```

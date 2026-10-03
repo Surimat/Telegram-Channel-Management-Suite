@@ -4,8 +4,8 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-03
-**Current phase:** Post-roadmap polish — Audience & Sources frontend views: **COMPLETED**.
-**Next phase:** Fully self-contained Windows binary (embeddable-Python staging).
+**Current phase:** Post-roadmap polish — Audience/Sources views **and** automated portable runtime staging: **COMPLETED**.
+**Next phase:** Optional hardening — Alembic migrations, manager-bot command loop / notifications.
 **Repository status:** `develop` carries PHASE 0–11 + polish; `main` only via pull request.
 **Branch:** `develop` (tracks `origin/develop`); `main` is untouched and only ever updated via pull request.
 
@@ -311,9 +311,11 @@ Layered architecture: **core → db/models → db/repositories → services → 
 - `frontend/src/views/BackupView.vue` (Резервные копии) + route + nav + client
   types/methods.
 - `portable/run.bat` (sets `TCMS_ROOT`/`PYTHONPATH`, opens browser),
-  `portable/stop.bat`, `portable/README.txt`; `scripts/build_portable.sh`.
+  `portable/stop.bat`, `portable/README.txt`; `scripts/build_portable.sh`
+  (now stages the embedded runtime automatically, D-043),
+  `scripts/fetch_embedded_python.sh`.
 - `tests/` — `test_backup_service.py` (9), `test_backup_api.py` (7),
-  `test_portable_smoke.py` (1, spawns the real app with `TCMS_ROOT`).
+  `test_portable_smoke.py` (1 startup smoke + 3 runtime-fetcher tests).
 
 ### PHASE 11 — VPS / Docker production config
 - `docker/Dockerfile` — multi-stage (Node SPA build → `python:3.12-slim`,
@@ -422,19 +424,16 @@ Layered architecture: **core → db/models → db/repositories → services → 
 - Alembic migrations (currently `create_all` at startup).
 - Mini App: BotFather Web App registration and a public HTTPS URL are the owner's
   deployment step (documented; not automated). The Mini App is off by default.
-- A fully self-contained Windows **binary** is still an assembly step (stage the
-  Python embeddable package into `runtime/`); the portable tree and launchers are
-  complete (D-040).
+- Optional hardening only: Alembic migrations, manager-bot command loop /
+  notifications. The portable build now stages the embedded Python automatically
+  (`scripts/fetch_embedded_python.sh`, D-043).
 
 ## 5. Next action
 
-The planned roadmap (PHASE 0–11) is **complete**. Remaining polish, in priority
-order:
+The planned roadmap (PHASE 0–11) and the first polish items are **complete**.
+Remaining polish, in priority order:
 
-1. Dedicated **Audience** and **Sources** frontend views (the API is complete;
-   only the views are missing).
-2. A fully self-contained Windows binary (automate the embeddable-Python staging).
-3. Optional: Alembic migrations, manager-bot command loop / notifications.
+1. Optional hardening: Alembic migrations; manager-bot command loop / notifications.
 
 See `agent/NEXT_TASK.md`. Do **not** re-open PHASE 8–11 — they are complete.
 

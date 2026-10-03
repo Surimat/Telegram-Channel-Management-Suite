@@ -338,8 +338,10 @@ root selected by `TCMS_ROOT` (`data/`, `sessions/`, `backups/`, `logs/`,
 `exports/`, `models/`). `paths.static_dir()` resolves package-relative so the SPA
 is served regardless of layout. `portable/run.bat` sets `TCMS_ROOT` + `PYTHONPATH`
 and opens the browser; `portable/stop.bat` calls the local shutdown endpoint.
-`scripts/build_portable.sh` assembles the tree; a Windows owner only drops the
-Python embeddable package into `runtime/`.
+`scripts/build_portable.sh` assembles the tree and, by default, stages the
+Windows embeddable Python + dependencies via `scripts/fetch_embedded_python.sh`
+so the result is zero-setup (`--no-runtime`/`SKIP_RUNTIME=1` opts out for
+restricted networks).
 
 ---
 

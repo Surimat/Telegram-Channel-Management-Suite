@@ -7,7 +7,11 @@
 # adapt PYTHON to a Windows interpreter path.
 #
 # Usage:
-#   scripts/build_portable.sh [output_dir]
+#   scripts/build_portable.sh [output_dir] [--no-runtime]
+#
+# Options:
+#   --no-runtime   do not fetch an embedded Windows Python (stage code only;
+#                  the user adds a runtime later). Env SKIP_RUNTIME=1 is equivalent.
 #
 # Layout produced:
 #   <output>/
@@ -20,6 +24,15 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="${1:-$ROOT/dist/TelegramChannelManagementSuite}"
 PYTHON="${PYTHON:-python}"
+REQ_FILE="$ROOT/backend/requirements.txt"
+
+FETCH_RUNTIME=1
+for arg in "$@"; do
+  case "$arg" in
+    --no-runtime) FETCH_RUNTIME=0 ;;
+  esac
+done
+[ "${SKIP_RUNTIME:-0}" = "1" ] && FETCH_RUNTIME=0
 
 echo "==> Project root : $ROOT"
 echo "==> Output dir   : $OUT"
@@ -62,22 +75,35 @@ cp "$ROOT/portable/README.txt" "$OUT/README.txt"
 cp "$ROOT/portable/.env.example" "$OUT/.env.example" 2>/dev/null || \
   cp "$ROOT/.env.example" "$OUT/.env.example" 2>/dev/null || true
 
-# 5. Install the Python dependencies into the embedded runtime.
-#    (Real embedding uses the python.org "embeddable" zip on Windows; here we
-#    vendor the current interpreter's site-packages as a portable base.)
-echo "==> Installing Python dependencies into runtime/"
+# 5. Stage the embedded Windows Python so run.bat needs no manual step (D-040).
+if [ "$FETCH_RUNTIME" = "1" ]; then
+  echo "==> Staging embedded Windows Python into runtime/"
+  bash "$ROOT/scripts/fetch_embedded_python.sh" "$OUT/runtime" \
+    --requirements "$REQ_FILE" --app-rel "../app" || {
+      echo "warning: automatic runtime staging failed; see the manual steps above."
+    }
+else
+  echo "==> Skipping runtime fetch (--no-runtime)."
+fi
+
+# Also install deps into runtime/site-packages with the host interpreter as a
+# best-effort fallback, so a manually-provided runtime already has them.
+echo "==> Ensuring dependencies are present in runtime/site-packages"
 "$PYTHON" -m pip install --no-cache-dir --target "$OUT/runtime/site-packages" \
-  -r "$ROOT/requirements.txt"
+  -r "$REQ_FILE" || echo "warning: could not pre-populate site-packages."
 
 cat <<'NOTE'
 
 ==> Portable build staged at the output directory.
 
-To finish on Windows, place a relocatable CPython next to the app:
-  1. Download the "Windows embeddable package" for the same Python version.
+If an embedded Python was staged (runtime/python.exe present), double-click
+run.bat and the app starts with no Python/Node/Docker installed.
+
+If the runtime could not be fetched (offline/restricted network), finish on
+Windows:
+  1. Download the "Windows embeddable package" for a matching Python version.
   2. Unzip it into <output>/runtime/ (python.exe, python3xx.dll, ...).
-  3. Add a runtime/python3xx._pth line:  ../app
-     and:  ../runtime/site-packages
+  3. Ensure <output>/runtime/python3xx._pth lists:  ../app  and  site-packages.
   4. Double-click run.bat.
 
 On Linux/macOS the staged tree also runs via:

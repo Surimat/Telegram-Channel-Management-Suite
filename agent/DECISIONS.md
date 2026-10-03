@@ -657,6 +657,8 @@ every layout (dev, Docker, portable) and removes an accidental coupling to
 adds the Python embeddable package to `runtime/`. The smoke test proves startup +
 graceful shutdown with `TCMS_ROOT` in a temp dir.
 
+**Update (2026-10-03):** runtime staging is now automated — see D-043.
+
 ---
 
 ## D-041 — 2026-10-03 — One image for VPS; TLS terminated by an optional proxy overlay — LOCKED
@@ -701,6 +703,31 @@ path would duplicate logic and risk drift. Keeping the UI thin preserves D-001
 error envelope; Telegram limits (FloodWait, hidden member lists) surface as
 statuses with a suggested fix, never as bypass attempts. If a real gap is found
 later, it is fixed in the service and covered by `tests/test_audience_api.py`.
+
+---
+
+## D-043 — 2026-10-03 — Portable runtime staging is automated, with an offline fallback — LOCKED
+
+**Decision:** `scripts/fetch_embedded_python.sh` stages the official Windows
+**embeddable** Python into `runtime/` during the portable build: it downloads the
+`python-<ver>-embed-<arch>.zip` from python.org, extracts it, writes the matching
+`pythonXY._pth` (adding `../app`, `site-packages`, `import site`), bootstraps pip
+and installs `backend/requirements.txt` into `runtime/site-packages`.
+`scripts/build_portable.sh` calls it by default.
+
+**Why:** The portable promise is "unpack → run.bat → works" with nothing
+installed (D-040). Requiring the owner to hand-download and unzip a runtime broke
+that promise. Automating it is a small, self-contained script with no new
+dependency. It is deliberately best-effort: `--dry-run` plans offline,
+`SKIP_RUNTIME=1`/`--no-runtime` opts out, and on download failure the script
+prints exact manual steps and the caller falls back — so restricted networks and
+non-Windows hosts still produce a usable tree.
+
+**Consequence:** Downloaded runtimes are build artifacts and are never committed
+(the `dist/` output is gitignored). If the embedded `python.exe` cannot run on the
+build host (e.g. Linux), dependencies are not installed there but the manual
+command is printed for Windows. Covered by network-free tests in
+`tests/test_portable_smoke.py`.
 
 ---
 
