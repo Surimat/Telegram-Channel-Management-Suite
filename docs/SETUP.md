@@ -328,11 +328,14 @@ and survive restarts.
 | `DATABASE_URL` | SQLAlchemy URL (default SQLite in `data/`) |
 | `MANAGER_BOT_TOKEN` | manager bot token from @BotFather |
 | `MANAGER_BOT_ADMIN_IDS` | who may control the manager bot |
+| `MANAGER_RUNTIME_ENABLED` / `MANAGER_RUNTIME_POLL_INTERVAL` | manager-bot command loop + notification forwarding (on by default; short-poll seconds) |
 | `TELEGRAM_API_ID` / `TELEGRAM_API_HASH` | from https://my.telegram.org |
 | `SESSIONS_DIR` | where `.session` files live (outside git) |
 | `AI_ENABLED` / `AI_MODEL_PATH` | optional tiny classifier |
 
-See `.env.example` for the full annotated list.
+See `.env.example` for the full annotated list. Notification toggles (master +
+per-category) are edited in the Web UI under Settings; the account permission
+probe lives on the Sessions page.
 
 ---
 

@@ -265,3 +265,21 @@ The **Резервные копии** section lets a non-technical owner protect
   so). Import has a "replace current configuration" toggle.
 - All errors are shown as friendly messages with hints (via the API error
   envelope), never as stack traces.
+
+---
+
+## 9. Hardening additions (post-1.0)
+
+Three owner-facing additions, all RU-first and consistent with §1–§4:
+
+- **Permission probe** (Sessions page): pick an account + a channel and press
+  "Проверить доступ". The result is a plain-language status (`ok`, `partial`,
+  `no_access`, `auth_required`, `admin_required`, `privacy_restricted`,
+  `flood_wait`, `error`) with a "как исправить" hint. Never reveals session
+  content; a FloodWait shows the wait time instead of retrying in a loop.
+- **Notifications** (Settings page): a master switch plus per-category toggles
+  (`system`, `telegram`, `reactions`, `audience`, `invites`, `ai`) forwarded by
+  the manager bot. Each toggle explains what it will send.
+- **Manager bot card** (System page): shows connection state, bot username,
+  admin count, and pending notifications, with a next-step hint when not
+  connected. Tokens are never displayed.

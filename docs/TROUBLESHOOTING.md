@@ -176,6 +176,17 @@ filtering such users out before running the invite job.
 | Mini App says unavailable | `MINIAPP_PUBLIC_URL`/`MINIAPP_ENABLED` not set | Set them to the public HTTPS URL and restart |
 | Permission denied talking to the Docker socket | Not in the `docker` group | `sudo usermod -aG docker $USER` then re-login (or use `sudo`) |
 
+## Hardening problems (post-1.0)
+
+| Symptom | Likely cause | Fix |
+|---------|--------------|-----|
+| Manager bot does not answer commands | runtime off, bot not added/enabled, or your id is not an admin | Set `MANAGER_RUNTIME_ENABLED=true`, add/enable the manager bot in **Боты**, put your numeric id in `MANAGER_BOT_ADMIN_IDS` |
+| No notifications arrive | master switch off, category off, or manager bot not connected | Check **Настройки → Уведомления** and the **Система** page manager-bot card |
+| Permission check says `auth_required` | account not signed in | Re-authorize the account on the Sessions page |
+| Permission check says `privacy_restricted` / `admin_required` | channel hides members or you lack invite rights | Expected Telegram restriction — not a bug; it is never bypassed (D-006) |
+| Permission check says `flood_wait` | too many requests | Wait the shown time; the app resumes automatically, it does not retry in a loop |
+| Settings page shows notifications but none send | runtime disabled in tests/dev, or Telegram unreachable | Confirm the runtime is running (System page) and the network reaches api.telegram.org |
+
 ## Recovering the project after a new chat/session
 
 A new agent must be able to continue from files alone. Run:

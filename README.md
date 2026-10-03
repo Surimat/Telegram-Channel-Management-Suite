@@ -30,14 +30,16 @@ Persistent memory so work can continue across sessions:
 
 ## Status
 
-**PHASE 0–11 complete.** The suite is feature-complete against the planned
-roadmap: manager bot + managed bots, MTProto user sessions, audience parsing,
-invites, automatic reactions with a rules engine and an optional tiny AI
-classifier, analytics, a durable scheduler, one Vue SPA for the Web UI and the
-Telegram Mini App, backup/restore, a portable Windows package, and a VPS/Docker
-deployment. Remaining polish (dedicated Audience/Sources views, a fully
-self-contained Windows binary) is tracked in [agent/NEXT_TASK.md](agent/NEXT_TASK.md).
-See [docs/ROADMAP.md](docs/ROADMAP.md).
+**PHASE 0–11 complete + post-1.0 hardening.** The suite is feature-complete
+against the planned roadmap: manager bot + managed bots, MTProto user sessions,
+audience parsing, invites, automatic reactions with a rules engine and an
+optional tiny AI classifier, analytics, a durable scheduler, one Vue SPA for the
+Web UI and the Telegram Mini App, backup/restore, a portable Windows package, and
+a VPS/Docker deployment. The post-1.0 hardening pass adds a manager-bot runtime
+(command loop + notification forwarding) and a standalone account permission
+probe. Remaining optional items (Alembic migrations, a channel-binding registry,
+a Mini App registration helper) are tracked in [agent/NEXT_TASK.md](agent/NEXT_TASK.md).
+See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
 ## Deployment modes
 

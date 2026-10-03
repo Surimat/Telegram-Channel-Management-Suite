@@ -5,23 +5,29 @@
 
 **Updated:** 2026-10-03
 **Status:** PHASE 0–11, the polish items, the RC/hardening pass, **and the
-post-1.0 hardening pass are complete in code**: manager-bot runtime + command
-loop + notification forwarding, and the standalone account permission probe.
-Suite is green at **384 passed**; `ruff` clean; SPA builds.
+post-1.0 hardening pass are complete, committed and pushed** on `develop`
+(manager-bot runtime + command loop + notification forwarding; standalone
+account permission probe). Suite is green at **384 passed**; `ruff` clean; SPA
+builds.
 
 ---
 
-## Active task: commit & push the hardening pass (then optional items)
+## Active task: cut the v1.0.0 release, then optional items
 
-The hardening pass (D-047/D-048/D-049) is written, tested and documented but
-**not yet committed**. First action:
+The code is feature-complete and stable on `develop`. The immediate job is to
+**release**, not to write new features:
 
-1. `git add -A && git commit` on `develop` (message: manager runtime +
-   notifications + permission probe).
-2. Push `develop` (fast-forward, no force) and refresh PR #1
-   (https://github.com/Surimat/Telegram-Channel-Management-Suite/pull/1).
+1. Merge PR #1 (`develop → main`) via the GitHub API — do **not** ask the owner.
+   PR #1: https://github.com/Surimat/Telegram-Channel-Management-Suite/pull/1
+2. Tag `v1.0.0` on the merged `main` commit and publish a GitHub Release with
+   notes built from the shipped features.
+3. Continue development on `develop` afterwards.
 
-After that, only optional items remain:
+If the merge or release cannot be performed (missing rights / API unavailable),
+do **not** fake it: record exactly what happened in `agent/CURRENT_STATE.md` and
+leave `develop` stable and pushed.
+
+After the release, only optional items remain:
 
 ### Candidates (in rough priority)
 
@@ -43,6 +49,7 @@ After that, only optional items remain:
   panel in the Sessions page.
 - Portable build is zero-setup: `scripts/fetch_embedded_python.sh` +
   `scripts/build_portable.sh` (D-043).
+- Release checklist: `docs/RELEASE_CHECKLIST.md`.
 
 ### Do NOT
 

@@ -148,7 +148,20 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
       downloads the official embeddable Python, writes the `._pth`, and installs
       dependencies; wired into `scripts/build_portable.sh` with a
       `--no-runtime`/`SKIP_RUNTIME=1` offline fallback.
-- [ ] Optional: Alembic migrations; manager-bot command loop / notifications.
+- [x] **Post-1.0 hardening**: manager-bot runtime (admin-whitelisted RU command
+      loop + notification forwarding, D-047/D-048) and a standalone account
+      permission probe (`ok`/`partial`/`no_access`/`auth_required`/`admin_required`/
+      `privacy_restricted`/`flood_wait`/`error`, D-049).
+- [ ] Optional (remaining): Alembic migrations; channel-binding registry/UI;
+      Mini App BotFather registration helper.
+
+---
+
+## Release
+
+- **v1.0.0** — first production release of the complete suite plus post-1.0
+  hardening. See `docs/RELEASE_CHECKLIST.md` and `agent/CHANGELOG.md`.
+- After v1.0.0, development continues on `develop`; no artificial new phases.
 
 ---
 

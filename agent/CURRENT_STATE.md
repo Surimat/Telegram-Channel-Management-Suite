@@ -4,16 +4,18 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-03
-**Current phase:** **Post-1.0 hardening pass — manager-bot runtime + notifications
-+ account permission probe — COMPLETE in code (not yet pushed).**
-Suite is green at **384 passed**; `ruff` clean; SPA builds. This closes the three
-"optional hardening" candidates from the RC note: manager-bot command loop,
-notification forwarding, and the standalone account permission probe (Alembic
-migrations remain the only documented gap).
-**Next phase:** Alembic migrations (optional) or channel-binding UI.
-**Repository status:** `develop` carries the hardening commit `c0174a8` on top of
-`ba30578`; `main` only via pull request.
-**Branch:** `develop` (tracks `origin/develop`); `main` is untouched and only ever updated via pull request.
+**Current phase:** **Release 1.0.** PHASE 0–11, the RC/hardening pass, and the
+post-1.0 hardening pass (manager-bot runtime + notifications + account permission
+probe) are complete, committed and pushed on `develop`. All gates pass:
+`pytest` **384 passed**, `ruff` clean, `vue-tsc` + `npm run build` clean.
+The active task is to merge PR #1 (`develop → main`) and tag `v1.0.0`
+(see `docs/RELEASE_CHECKLIST.md`).
+**Next phase:** optional only — Alembic migrations, channel-binding registry/UI,
+Mini App BotFather registration helper.
+**Repository status:** `develop` (working branch) is ahead of `origin/main`; the
+local `main` still points at the PHASE 3 commit until PR #1 merges. No force push,
+no history rewrite.
+**Branch:** `develop` (tracks `origin/develop`); `main` is updated only via pull request.
 
 ---
 
@@ -473,14 +475,18 @@ Decisions: D-047, D-048, D-049.
 
 ## 5. Next action
 
-The post-1.0 hardening pass is **complete in code** (manager-bot runtime + command
-loop + notifications; standalone permission probe). Remaining, all optional:
+The code is stable and feature-complete; the next action is the **release**, not
+new features:
 
-1. Commit and push this hardening pass on `develop`; refresh PR #1.
-2. Alembic migrations (replace `create_all`) — the last documented gap.
-3. Channel-binding registry/UI.
+1. Merge PR #1 (`develop → main`).
+2. Tag `v1.0.0` on the merged `main` commit + publish a GitHub Release.
+3. Continue on `develop` with optional items only:
+   - Alembic migrations (replace `create_all`) — last documented gap.
+   - Channel-binding registry/UI.
+   - Mini App BotFather registration helper.
 
-See `agent/NEXT_TASK.md`. Do **not** re-open PHASE 8–11 — they are complete.
+See `agent/NEXT_TASK.md` and `docs/RELEASE_CHECKLIST.md`. Do **not** re-open
+PHASE 8–11 — they are complete.
 
 ### RC verification (2026-10-03) — done against a live server in offline mode
 

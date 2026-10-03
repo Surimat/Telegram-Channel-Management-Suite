@@ -5,7 +5,10 @@ Dates are ISO-8601.
 
 ---
 
-## [Unreleased]
+## [1.0.0] — 2026-10-03
+
+First production release: the complete PHASE 0–11 suite plus the RC and post-1.0
+hardening passes. See `docs/RELEASE_CHECKLIST.md`.
 
 ### Added — Post-1.0 hardening: manager-bot runtime, notifications, permission probe
 - **Manager-bot runtime** (`backend/app/manager/`): a single asyncio task
