@@ -842,3 +842,26 @@ and a "how to fix" hint. Results never contain api_hash, phone or session conten
 
 ---
 
+
+---
+
+## D-050 — 2026-10-03 — v1.0.0 released from `develop`; version bumped afterward, tag immutable — LOCKED
+
+**Decision:** Release `v1.0.0` is the `develop → main` **merge commit**
+`82c1059`, tagged `v1.0.0` (annotated) with a GitHub Release. PR #1 was marked
+ready (it had been a draft) and merged via the GitHub API; no force push, no
+history rewrite. `develop` was fast-forwarded to `82c1059` and the stale local
+`main` fast-forwarded to `origin/main`. After the release, `develop` may advance
+(e.g. the application version string `0.1.0 -> 1.0.0`); the published tag is
+**immutable** and `main` stays exactly at the release commit until the next PR.
+
+**Why:** The tag must point at exactly the reviewed, merged code. Bumping the
+version string before the merge would have made the image report `1.0.0` without
+a reviewed release; doing it after keeps the release honest and the tag stable,
+while still aligning the reported version with the release going forward.
+
+**Consequence:** `origin/main` = `82c1059` (the released artifact reports
+`0.1.0`, a cosmetic pre-merge value). `develop` head is `72a432d` and reports
+`1.0.0`. The next `develop -> main` PR will make `main` report `1.0.0`. Fixed
+build hygiene: Vite `emptyOutDir` no longer deletes the tracked
+`backend/app/static/.gitkeep` (a `frontend/public/.gitkeep` is re-emitted).

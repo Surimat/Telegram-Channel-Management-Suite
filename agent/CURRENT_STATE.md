@@ -6,13 +6,17 @@
 **Last updated:** 2026-10-03
 **Current phase:** **v1.0.0 RELEASED.** PHASE 0–11, the RC/hardening pass, and the
 post-1.0 hardening pass (manager-bot runtime + notifications + account permission
-probe) are complete and merged to `main`. `main` and `develop` both point at the
-release commit `82c1059`; tag `v1.0.0` and a GitHub Release are published.
+probe) are complete and merged to `main`. `main` = `origin/main` = the release
+merge commit `82c1059`; tag `v1.0.0` + GitHub Release are published. `develop`
+advances one step ahead of the tag with the version-string bump
+(`0.1.0 → 1.0.0`) and a build-hygiene fix (D-050); it will land in `main` with the
+next PR.
 All gates pass: `pytest` **384 passed**, `ruff` clean, `vue-tsc` + `npm run build`
 clean.
 **Next phase:** optional only — Alembic migrations, channel-binding registry/UI,
 Mini App BotFather registration helper. Development continues on `develop`.
-**Repository status:** `main == develop == 82c1059` (0 ahead / 0 behind).
+**Repository status:** `main == origin/main == 82c1059` (tag `v1.0.0`); `develop`
+is a few commits ahead of `main` (post-release).
 **Branch:** `develop` (working branch); `main` is released and updated only via pull request.
 
 ---

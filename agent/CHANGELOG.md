@@ -5,6 +5,20 @@ Dates are ISO-8601.
 
 ---
 
+## [Unreleased] — after v1.0.0 (on `develop`)
+
+### Changed
+- Application version string bumped `0.1.0 → 1.0.0` (`backend/app/__init__.py`,
+  `pyproject.toml`, `frontend/package.json` + lock). Health/system endpoints now
+  report `1.0.0`. The published `v1.0.0` tag is immutable and still points at the
+  merge commit `82c1059`; the next `develop → main` PR carries this bump (D-050).
+
+### Fixed
+- Vite `emptyOutDir` no longer deletes the tracked `backend/app/static/.gitkeep`
+  on every build (a `frontend/public/.gitkeep` is re-emitted into the output).
+
+---
+
 ## [1.0.0] — 2026-10-03
 
 First production release: the complete PHASE 0–11 suite plus the RC and post-1.0
