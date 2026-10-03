@@ -338,13 +338,13 @@ cd frontend && npm install && npm run build && cd ..
 - First sync (2026-10-03): PHASE 0–3 (commits `0daa91b`…`f06ba53`) pushed to
   `develop`; PR **#1** `develop → main` opened but **not merged** (needs explicit
   owner confirmation).
-- **Second sync (2026-10-03):** PHASE 4–6 pushed to `develop`
-  (`92d94e4`…`3ddc299`, fast-forward, no force). `origin/develop` HEAD is
-  `3ddc299` and contains PHASE 4 (`92d94e4`), PHASE 5 (`8197f33`) and PHASE 6
-  (`3ddc299`). `develop` is **0 ahead / 0 behind** `origin/develop`.
-- PR **#1** (`develop → main`) auto-updated to head `3ddc299`; still **open**,
-  `merged: false`, 9 commits, 0 files behind `main` change — **not merged**
-  (awaiting owner confirmation).
+- **Second sync (2026-10-03):** PHASE 4–6 pushed to `develop` as a fast-forward
+  (`92d94e4`…`3ddc299`; no force). The PHASE 6 push landed at `3ddc299`; the
+  sync-record doc commit sits on top at `2e2d01e`. `origin/develop` contains
+  PHASE 4 (`92d94e4`), PHASE 5 (`8197f33`) and PHASE 6 (`3ddc299`); `develop` is
+  **0 ahead / 0 behind** `origin/develop`.
+- PR **#1** (`develop → main`) auto-updated to head `2e2d01e`; still **open**,
+  `merged: false`, 10 commits — **not merged** (awaiting owner confirmation).
   URL: https://github.com/Surimat/Telegram-Channel-Management-Suite/pull/1
 - **Never push directly to `main`.** All work goes to `develop` (or feature
   branches off it) and lands in `main` only via a reviewed pull request.
