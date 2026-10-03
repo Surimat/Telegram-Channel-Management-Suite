@@ -4,73 +4,68 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-03
-**Status:** PHASE 8 (Analytics) is **COMPLETE**. Start **PHASE 9** below.
+**Status:** PHASE 9 (Mini App) is **COMPLETE**. Start **PHASE 10** below.
 
 ---
 
-## Active task: PHASE 9 — Telegram Mini App
+## Active task: PHASE 10 — Portable Windows packaging
 
-**Goal:** let the *same* Vue SPA run inside Telegram as a Mini App. Do **not**
-create a second interface (decision D-003): reuse `frontend/` and the one API.
+**Goal:** unpack a folder → run `run.bat` → the app starts → the browser opens →
+it works. No Python/Node/npm/Docker/PostgreSQL/Redis installation required.
 
 ### Requirements (from the brief)
 
-- Reuse the existing frontend; no separate Mini App codebase.
-- Telegram authentication via `initData` (verify the HMAC signature server-side;
-  never trust the client).
-- Responsive mobile layout inside the Telegram webview.
-- At minimum expose: Dashboard, Bots, Reactions, Queue, Audience statistics,
-  System health, Settings.
-- Local mode still runs at `http://127.0.0.1:<port>` with **no** public server
-  required; VPS mode uses the HTTPS public URL. A public server must never be a
-  prerequisite for the normal local Web UI.
+- Self-contained: embed the Python runtime and dependencies; the built SPA is
+  already served by FastAPI (no Node at runtime, D-012).
+- Predictable layout, e.g.:
+  ```
+  TelegramChannelManagementSuite/
+      app/        runtime/    data/
+      sessions/   backups/    logs/
+      exports/    run.bat     stop.bat   README.txt
+  ```
+- All mutable state under `data/`, `sessions/`, `backups/`, `logs/`, `exports/`.
+- `run.bat`: start the server and open the browser; `stop.bat`: graceful
+  shutdown. Reuse the existing `TCMS_ROOT`/paths layer (D-004) — do not fork a
+  "portable version" of the backend.
+- Backup/restore: SQLite DB, configuration, rules, reaction profiles, app state;
+  **session files handled separately and safely**. Add Create/Restore backup +
+  Export/Import configuration.
+- A portable **startup smoke test** (starts the app, checks `/health`, stops it).
 
-### Suggested vertical slice (backend + UI + tests + docs)
+### Suggested vertical slice
 
-1. **Backend**
-   - Add a `MiniAppService` / auth dependency that verifies Telegram
-     `initData` (HMAC-SHA256 with the bot token as the secret key, per Telegram
-     docs), checks `auth_date` freshness, and maps the Telegram user id to the
-     configured owner/admin.
-   - Endpoints: `POST /api/v1/miniapp/auth` (verify + establish a local session),
-     `GET /api/v1/miniapp/config` (bot username / feature flags for the client).
-   - Settings: mini-app enable flag, allowed owner id(s), `auth_date` max age.
-     Keep secrets sealed; never log `initData` or the bot token.
-   - Gate mini-app-only access without breaking the local Web UI (local requests
-     from `127.0.0.1` remain trusted; see existing security notes).
-2. **Frontend**
-   - Detect Telegram WebApp (`window.Telegram.WebApp`), call `initData` auth on
-     load, and adjust layout (no sidebar on mobile -> bottom/tab navigation).
-   - Add the Telegram WebApp script (bundled/static, no CDN dependency for the
-     portable runtime) and expand `index.html`/`main.ts` bootstrapping.
-   - Keep the desktop Web UI unchanged when not running inside Telegram.
-3. **Tests**
-   - Unit tests for `initData` verification (valid, tampered, expired, missing).
-   - API tests for `/api/v1/miniapp/auth` + `/config` (fake bot token, no network).
-   - Ensure no secret/`initData` leaks in responses or logs.
-4. **Docs + memory**
-   - Update `docs/UI.md`, `docs/API.md`, `docs/SECURITY.md`, `docs/ROADMAP.md`.
-   - Update `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` (record the Mini App
-     auth decision), `agent/CHANGELOG.md`; then commit.
+1. **Scripts**: finish `portable/run.bat`, `portable/stop.bat`; add a build
+   script that assembles the portable folder from the repo (`scripts/`), copying
+   `backend/`, the built `backend/app/static/`, `runtime/`, and empty data dirs.
+2. **Backup/Restore service + API**: `services/backup_service.py` (zip the DB +
+   settings/rules/profiles/state; sessions optional and separate),
+   `api/v1/backup.py` (`GET/POST create`, `POST restore`, `export/import config`),
+   and a `SettingsView`/`SystemView` control. Never include session files by
+   default; never log secrets.
+3. **Smoke test**: `tests/test_portable_smoke.py` (start app with `TCMS_ROOT` in
+   a temp dir, assert `/health` + SPA serve, clean shutdown).
+4. **Docs + memory**: `docs/SETUP.md`, `docs/TROUBLESHOOTING.md`, `README.txt`
+   (portable), then update `agent/CURRENT_STATE.md`, `agent/DECISIONS.md`,
+   `agent/CHANGELOG.md`, `docs/ROADMAP.md`; commit.
 
 ### Do NOT
 
-- Do not re-open PHASE 8 — it is complete.
+- Do not re-open PHASE 8/PHASE 9 — they are complete.
 - Do not add Redis/Kafka/Celery/PostgreSQL (D-002 / no-heavy-infra).
 - Do not require a public HTTPS server for the local Web UI.
 - Do not store or log bot tokens, `initData`, or session contents.
+- Do not create a second backend for portable mode (D-004).
 
-### After PHASE 9 (later, in order)
+### After PHASE 10
 
-PHASE 10 — Portable Windows packaging (`portable/`, `run.bat`, backup/restore,
-smoke tests) and PHASE 11 — VPS/Docker production config + HTTPS docs. Dedicated
-Audience/Sources frontend views are also still pending and can be folded into the
-UI work.
+PHASE 11 — VPS/Docker production config + HTTPS docs. Dedicated Audience/Sources
+frontend views are still pending and can be folded into UI work.
 
 ### Verification checklist for any phase
 
 ```bash
-python -m pytest                 # must stay green (currently 294 passed)
+python -m pytest                 # must stay green (currently 313 passed)
 ruff check backend tests         # must stay clean
 cd frontend && npm run build     # must succeed (outputs to backend/app/static)
 ```

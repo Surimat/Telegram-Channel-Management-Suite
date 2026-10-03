@@ -591,3 +591,27 @@ design; richer charting would be a deliberate later decision.
 
 ---
 
+## D-038 — 2026-10-03 — Mini App auth verifies `initData` server-side; no second app — LOCKED
+
+**Decision:** The Telegram Mini App reuses the same SPA and the same API (D-003).
+Identity comes only from Telegram `initData`, verified **server-side** with
+`HMAC_SHA256(bot_token, "WebAppData")` over the sorted key/value pairs, a
+constant-time compare, and an `auth_date` freshness check
+(`MINIAPP_INITDATA_MAX_AGE`). On success the server sets a signed `HttpOnly`
+session cookie (`tcms_miniapp`) whose HMAC key is derived from `APP_SECRET_KEY`
+(no JWT dependency). When `MANAGER_BOT_ADMIN_IDS` is set, only those Telegram ids
+may sign in. The feature is off by default and never requires a public server for
+the local Web UI.
+
+**Why:** Telegram's signed `initData` is the only trustworthy identity signal;
+client-supplied ids must never be trusted. Reusing the SPA avoids a second
+codebase (D-003). A cookie + derived-key HMAC keeps the portable runtime
+dependency-free and consistent with the existing crypto (`derive_key`).
+
+**Consequence:** All Mini App business calls use the same endpoints as the Web UI;
+only `/api/v1/miniapp/*` is new. The manager bot token and raw `initData` are
+never logged, stored, or returned (D-010). The Telegram WebApp SDK is loaded from
+`telegram.org` in `index.html` and is inert outside Telegram.
+
+---
+

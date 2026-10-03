@@ -622,6 +622,38 @@ export interface AnalyticsOverview {
   summary: string[]
 }
 
+// Telegram Mini App (PHASE 9)
+export interface MiniAppConfig {
+  enabled: boolean
+  available: boolean
+  bot_username: string
+  public_url: string
+  reason: string
+  how_to_fix: string
+}
+
+export interface MiniAppUser {
+  id: number
+  display_name: string
+  username: string
+  language_code: string
+  photo_url: string
+}
+
+export interface MiniAppAuthResponse {
+  authenticated: boolean
+  is_admin: boolean
+  user: MiniAppUser
+  expires_in: number
+}
+
+export interface MiniAppMe {
+  authenticated: boolean
+  is_admin: boolean
+  telegram_id: number | null
+  expires_at: number | null
+}
+
 export const api = {
   health: () => request<Health>('/health'),
   healthDeep: () => request<Record<string, unknown>>('/health/deep'),
@@ -842,4 +874,14 @@ export const api = {
     request<ReactionsAnalytics>(`/api/v1/analytics/reactions?days=${days}`),
   analyticsAudience: (days = 30) =>
     request<AudienceAnalytics>(`/api/v1/analytics/audience?days=${days}`),
+
+  // Telegram Mini App (PHASE 9)
+  miniappConfig: () => request<MiniAppConfig>('/api/v1/miniapp/config'),
+  miniappAuth: (initData: string) =>
+    request<MiniAppAuthResponse>('/api/v1/miniapp/auth', {
+      method: 'POST',
+      body: JSON.stringify({ init_data: initData }),
+    }),
+  miniappMe: () => request<MiniAppMe>('/api/v1/miniapp/me'),
+  miniappLogout: () => request<{ ok: boolean }>('/api/v1/miniapp/logout', { method: 'POST' }),
 }

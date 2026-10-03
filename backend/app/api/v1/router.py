@@ -11,6 +11,7 @@ from backend.app.api.v1 import (
     bots,
     events,
     invites,
+    miniapp,
     queue,
     reactions,
     sessions,
@@ -28,6 +29,7 @@ api_router.include_router(invites.router)
 api_router.include_router(reactions.router)
 api_router.include_router(ai.router)
 api_router.include_router(analytics.router)
+api_router.include_router(miniapp.router)
 api_router.include_router(events.router)
 api_router.include_router(queue.router)
 

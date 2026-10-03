@@ -4,8 +4,9 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-03
-**Current phase:** PHASE 8 — Analytics: **COMPLETED** (commit pending).
-**Repository status:** `develop` carries PHASE 0–8; `main` only via pull request.
+**Current phase:** PHASE 9 — Telegram Mini App: **COMPLETED** (commit pending).
+**Next phase:** PHASE 10 — Portable Windows packaging.
+**Repository status:** `develop` carries PHASE 0–9; `main` only via pull request.
 **Branch:** `develop` (tracks `origin/develop`); `main` is untouched and only ever updated via pull request.
 
 ---
@@ -270,6 +271,32 @@ Layered architecture: **core → db/models → db/repositories → services → 
   styles appended to `frontend/src/styles.css`.
 - `tests/` — `test_analytics_service.py`, `test_analytics_api.py` (13 tests).
 
+### PHASE 9 — Telegram Mini App (same SPA, one API)
+- `backend/app/miniapp/auth.py` — `verify_init_data()`: HMAC-SHA256
+  (`HMAC_SHA256(bot_token, "WebAppData")`) over sorted pairs, constant-time
+  compare, `auth_date` freshness, user parse. `MiniAppAuthError`, `MiniAppUser`.
+- `backend/app/miniapp/sessions.py` — `issue_session`/`verify_session`: HMAC
+  tokens keyed by `derive_key("miniapp-session")`; `MiniAppSessionError`.
+- `backend/app/miniapp/service.py` — `MiniAppService`: sealed manager-token read,
+  owner allow-list (`settings.admin_ids`), DB-overridable `miniapp_enabled` /
+  `miniapp_public_url`, plain-language `MiniAppStatus`.
+- `backend/app/api/schemas/miniapp.py` + `api/v1/miniapp.py` —
+  `GET /config`, `POST /auth` (sets `HttpOnly` `tcms_miniapp` cookie),
+  `GET /me`, `POST /logout`; registered in `v1/router.py`;
+  `api/deps.py::get_miniapp_service`.
+- `backend/app/services/system_service.py` — `miniapp_check` added to the Setup
+  Wizard checks.
+- `backend/app/core/config.py` + `.env.example` — `miniapp_enabled` (off by
+  default), `miniapp_initdata_max_age`, `miniapp_session_ttl`,
+  `miniapp_public_url`.
+- `frontend/src/telegram.ts` — typed Telegram WebApp SDK wrapper;
+  `frontend/src/stores/miniapp.ts` — Pinia bootstrap store (inert in a browser).
+- `frontend/src/App.vue` — Telegram gate + mobile bottom nav + user line;
+  `index.html` loads the WebApp SDK and uses `viewport-fit=cover`;
+  Mini App types/methods in `api/client.ts`; responsive + dark styles in
+  `styles.css`.
+- `tests/` — `test_miniapp_auth.py`, `test_miniapp_api.py` (19 tests).
+
 ### Frontend (PHASE 1) — Vue 3 + Vite + TypeScript
 - `frontend/` — `package.json`, `vite.config.ts` (builds into
   `backend/app/static/`), `tsconfig.json`, `index.html`.
@@ -310,7 +337,7 @@ Layered architecture: **core → db/models → db/repositories → services → 
   durable jobs, execution via the provider with FloodWait handling, and startup
   recovery — verified live in offline mode (add bot → enable → ingest → job
   created) and covered by 48 tests.
-- `ruff check backend tests` → clean. `pytest` → **294 passed**.
+- `ruff check backend tests` → clean. `pytest` → **313 passed**.
 - Frontend `npm run build` → outputs to `backend/app/static/` successfully
   (`vue-tsc` clean).
 - **Sessions (PHASE 4)**: guided auth wizard (start → code → 2FA), `.session`
@@ -339,11 +366,17 @@ Layered architecture: **core → db/models → db/repositories → services → 
   "Что показывают цифры" block render them. Verified in offline mode (server +
   curl → `/analytics/overview`, SPA `/analytics` → 200) and covered by 13 tests.
   Responses contain only aggregate counts (no secrets/PII).
+- **Mini App (PHASE 9)**: the same SPA detects Telegram WebApp `initData`,
+  authenticates via `/api/v1/miniapp/auth` (server-side HMAC verification),
+  and shows a mobile bottom-nav layout inside Telegram while the desktop Web UI
+  is unchanged. Verified in offline mode (`/miniapp/config` → 200 with a
+  plain-language unavailable reason, `/miniapp/me` → `authenticated:false`, SPA
+  `/` → 200) and covered by 19 tests. No token/`initData` leak in responses.
 
 ## 4. What does NOT exist yet
 
 - Dedicated Audience/Sources **frontend views** (API is complete; views land with
-  the frontend rollout) and the Telegram Mini App.
+  the frontend rollout).
 - Channel binding: there is no dedicated channel registry/binding UI yet, though
   posts carry `channel_id`/`channel_username` and analytics aggregate by channel
   indirectly.
@@ -352,19 +385,18 @@ Layered architecture: **core → db/models → db/repositories → services → 
   use `invite_to_channel`, but there is no standalone "check permissions" flow.
 - Manager-bot runtime: the manager bot is registered from settings, but there is
   no command loop / admin whitelist / notification forwarding yet.
-- Auth for the local UI / Mini App `initData`.
 - Alembic migrations (currently `create_all` at startup).
 - Backup/restore implementation, portable packaging, production HTTPS docs.
+- Mini App: BotFather Web App registration and a public HTTPS URL are the owner's
+  deployment step (documented; not automated). The Mini App is off by default.
 
 ## 5. Next action
 
-Start **PHASE 9 — Telegram Mini App** (see `agent/NEXT_TASK.md` and
-`docs/ROADMAP.md`): reuse the existing SPA (do not build a second interface),
-add Telegram `initData` authentication, and make the mobile/responsive layout
-work inside the Telegram webview for Dashboard, Bots, Reactions, Queue, Audience
-statistics, System health and Settings. If PHASE 9 is deferred, the alternatives
-are PHASE 10 (Portable Windows packaging) or PHASE 11 (VPS/Docker). Do **not**
-start PHASE 8 work again — it is complete.
+Start **PHASE 10 — Portable Windows packaging** (see `agent/NEXT_TASK.md` and
+`docs/ROADMAP.md`): self-contained packaging (embedded Python; no Node/Docker),
+`run.bat`/`stop.bat`, backup/restore, and a portable startup smoke test. Then
+PHASE 11 (VPS/Docker + HTTPS docs). Do **not** start PHASE 8 or PHASE 9 work
+again — they are complete.
 
 ## 6. Locked decisions (do not break)
 
@@ -409,6 +441,9 @@ See `agent/DECISIONS.md`. Key ones:
   the backend, and per-day bucketing is portable (D-036).
 - Charts are dependency-free inline SVG; the SPA stays the single frontend
   (D-037).
+- Mini App auth verifies Telegram `initData` server-side and issues a signed
+  `HttpOnly` cookie; it is the same SPA/API as the Web UI, off by default, and
+  never requires a public server for local use (D-038).
 
 ## 7. How to run / verify after opening a new chat
 

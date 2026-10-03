@@ -290,6 +290,31 @@ no secrets and no per-person PII.
 
 ---
 
+## 8a. Telegram Mini App (PHASE 9)
+
+The Mini App is **not a second application**: the same Vue SPA and the same API
+serve both the local Web UI and Telegram (D-003). Only authentication is added:
+
+- `backend/app/miniapp/auth.py` — `verify_init_data()`: verifies the Telegram
+  `initData` HMAC-SHA256 signature (`HMAC_SHA256(bot_token, "WebAppData")`),
+  rejects stale/future `auth_date`, parses the user. Pure, no FastAPI/Telegram
+  imports, so it is unit-testable in isolation.
+- `backend/app/miniapp/sessions.py` — signed session tokens (HMAC key derived
+  from `APP_SECRET_KEY` via `derive_key`); no JWT dependency.
+- `backend/app/miniapp/service.py` — `MiniAppService`: reads the manager bot
+  token from the sealed DB row, applies the owner allow-list, issues sessions,
+  and reports plain-language availability.
+- `api/v1/miniapp.py` — `GET /config`, `POST /auth`, `GET /me`, `POST /logout`.
+  Business endpoints stay shared with the Web UI.
+
+Frontend: `src/telegram.ts` wraps the Telegram WebApp SDK; `stores/miniapp.ts`
+bootstraps auth only when `initData` is present; `App.vue` shows a friendly gate
+while loading/failing and switches to a mobile bottom-nav layout inside Telegram.
+The Setup Wizard gains a `miniapp` check. Secrets and raw `initData` are never
+logged or returned (D-038).
+
+---
+
 ## 9. Reaction Manager & scheduler
 
 One bot can place **one** reaction per message. A `reaction_job` row stores:

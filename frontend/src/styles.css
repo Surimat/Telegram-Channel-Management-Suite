@@ -326,3 +326,88 @@ h4 {
 }
 
 .plain-list li { margin: 2px 0; }
+
+/* PHASE 9 — Telegram Mini App (mobile-first) */
+.miniapp-gate {
+  max-width: 480px;
+  margin: 40px auto;
+  padding: 0 16px;
+}
+
+.miniapp-user {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+.layout.is-mobile {
+  flex-direction: column;
+  padding-bottom: 64px;
+}
+
+.layout.is-mobile .sidebar {
+  display: none;
+}
+
+.layout.is-mobile .content {
+  padding: 16px 14px;
+  max-width: 100%;
+}
+
+.mobile-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  overflow-x: auto;
+  gap: 4px;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  z-index: 20;
+}
+
+.mobile-nav-item {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.mobile-nav-item.router-link-active {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* Telegram dark theme: honor the client color scheme. */
+:root[data-tg-theme='dark'] {
+  --bg: #17212b;
+  --surface: #1e2c3a;
+  --border: #2b3a49;
+  --text: #e8edf2;
+  --text-muted: #97a6b5;
+}
+
+@media (max-width: 640px) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .content {
+    padding: 16px 14px;
+  }
+}

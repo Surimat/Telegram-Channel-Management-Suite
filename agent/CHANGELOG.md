@@ -11,6 +11,50 @@ _No unreleased changes._
 
 ---
 
+## [0.9.0] — 2026-10-03 — PHASE 9: Telegram Mini App (same SPA, one API)
+
+### Added — Backend
+- `backend/app/miniapp/` package:
+  - `auth.py` — `verify_init_data()` verifies the Telegram `initData`
+    HMAC-SHA256 signature (`HMAC_SHA256(bot_token, "WebAppData")`), rejects
+    stale/future `auth_date`, and parses the Telegram user. Pure and
+    unit-testable (no FastAPI/Telegram imports).
+  - `sessions.py` — signed session tokens (`issue_session`/`verify_session`)
+    using a key derived from `APP_SECRET_KEY` (`derive_key`); no JWT dependency.
+  - `service.py` — `MiniAppService`: reads the sealed manager-bot token, applies
+    the owner allow-list, issues sessions, and reports plain-language
+    availability (`enabled`/`available`/`reason`/`how_to_fix`).
+- `backend/app/api/schemas/miniapp.py` + `api/v1/miniapp.py`:
+  `GET /api/v1/miniapp/config`, `POST /api/v1/miniapp/auth` (sets an `HttpOnly`
+  session cookie), `GET /api/v1/miniapp/me`, `POST /api/v1/miniapp/logout`.
+- Setup Wizard `miniapp` check (`SystemService.miniapp_check`) and
+  `get_miniapp_service` dependency.
+- Settings: `miniapp_enabled` (off by default), `miniapp_initdata_max_age`,
+  `miniapp_session_ttl`, `miniapp_public_url` (env + `.env.example`).
+  `miniapp_enabled` and `miniapp_public_url` are DB-overridable.
+
+### Added — Frontend
+- `src/telegram.ts` — typed wrapper over the Telegram WebApp SDK (`isTelegramMiniApp`,
+  `initTelegramWebApp`).
+- `src/stores/miniapp.ts` — Pinia store that bootstraps auth only when
+  `initData` is present; inert in a normal browser.
+- `App.vue` — friendly loading/error gate inside Telegram; mobile bottom
+  navigation (Панель, Боты, Реакции, Очередь, Аналитика, Система, Настройки);
+  shows the signed-in user.
+- `index.html` — loads the official Telegram WebApp SDK (inert outside Telegram);
+  `viewport-fit=cover` for safe areas.
+- Mini App types + client methods in `api/client.ts`; responsive + Telegram dark
+  theme styles in `styles.css`.
+
+### Tests
+- `tests/test_miniapp_auth.py` — valid/tampered/wrong-token/expired/missing
+  `initData`, and session issue/verify/expiry/tamper.
+- `tests/test_miniapp_api.py` — config/auth/me/logout round-trip, non-owner
+  rejection, and a no-secret/no-`initData`-leak assertion. 313 passed total;
+  `ruff` clean; SPA builds.
+
+---
+
 ## [0.8.0] — 2026-10-03 — PHASE 8: Analytics (content, reactions, audience)
 
 ### Added — Backend

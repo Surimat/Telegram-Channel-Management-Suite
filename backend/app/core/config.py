@@ -121,6 +121,18 @@ class Settings(BaseSettings):
     # How many recent AI inference records to keep for diagnostics (0 = none).
     ai_history_limit: int = 200
 
+    # --- Telegram Mini App (PHASE 9) ---
+    # Master switch. Off by default: the local Web UI is the primary interface.
+    miniapp_enabled: bool = False
+    # Max age (seconds) of Telegram initData before it is rejected as stale.
+    miniapp_initdata_max_age: int = 86400
+    # Lifetime (seconds) of a signed Mini App session cookie.
+    miniapp_session_ttl: int = 86400
+    # Public HTTPS URL the Mini App is served from (e.g. https://example.com).
+    # Empty for local-only installs; shown to the owner so they can register it
+    # as the bot's Web App URL in BotFather.
+    miniapp_public_url: str = ""
+
     # --- Logging ---
     log_level: str = "INFO"
     log_dir: str = "./logs"

@@ -183,3 +183,26 @@ The Dashboard embeds a compact "Что показывают цифры" block (t
 two sparklines) linking to the full page. No charting dependency is added, so the
 portable runtime stays light (D-037). The UI shows only friendly numbers and
 messages — never stack traces.
+
+### Telegram Mini App mode (PHASE 9)
+
+The same SPA runs inside Telegram as a Mini App — there is no second interface
+(D-003). On load, `App.vue` asks the `miniapp` Pinia store to bootstrap:
+
+- If `window.Telegram.WebApp` is present with non-empty `initData`, the store
+  calls `GET /api/v1/miniapp/config`; when available it posts `initData` to
+  `POST /api/v1/miniapp/auth` and shows the app.
+- If Telegram has no `initData` (normal browser) the store stays inert and the
+  desktop layout is unchanged.
+- If config is unavailable or auth fails, a friendly gate screen explains what
+  happened and how to fix it (never a stack trace).
+
+Mobile layout: inside Telegram the sidebar is hidden and a fixed bottom
+navigation bar appears with the sections required by the brief (Панель, Боты,
+Реакции, Очередь, Аналитика, Система, Настройки). The app also honors the
+Telegram dark theme (`data-tg-theme="dark"`). The full desktop Web UI is
+untouched when not running inside Telegram.
+
+The Telegram WebApp SDK is loaded from `telegram.org` in `index.html`; it is only
+used when the page is opened inside Telegram, so the local/portable runtime is
+unaffected.

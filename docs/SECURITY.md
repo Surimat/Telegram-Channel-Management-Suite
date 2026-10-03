@@ -179,7 +179,26 @@ copied into the repository or a shared/public location.
 
 ---
 
-## 10. Pre-commit security checklist
+## 10. Telegram Mini App security
+
+- `initData` is verified **server-side** with `HMAC_SHA256(bot_token,
+  "WebAppData")` over the sorted key/value pairs (constant-time compare). The
+  client is never trusted for identity.
+- Stale `initData` (older than `MINIAPP_INITDATA_MAX_AGE`) is rejected, as is a
+  payload whose `auth_date` is in the future.
+- The manager bot token is used only as the HMAC key. Neither the token nor the
+  raw `initData` is ever logged, stored, or returned in any API response.
+- When `MANAGER_BOT_ADMIN_IDS` is set, only those Telegram ids may sign in;
+  rejected attempts are recorded in the Error Center without exposing secrets.
+- The session cookie (`tcms_miniapp`) is `HttpOnly`, `SameSite=Lax`, and
+  `Secure` in production. Its token is HMAC-signed with a key derived from
+  `APP_SECRET_KEY` (`derive_key`), and expires after `MINIAPP_SESSION_TTL`.
+- The Mini App is off by default. It never requires a public server for the local
+  Web UI, and enabling it does not weaken local (`127.0.0.1`) access.
+
+---
+
+## 11. Pre-commit security checklist
 
 - [ ] `git status` / `git diff --cached` reviewed — no secrets staged.
 - [ ] No new secret printed in code paths (grep for token/hash logging).

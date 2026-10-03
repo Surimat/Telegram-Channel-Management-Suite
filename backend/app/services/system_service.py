@@ -404,6 +404,48 @@ class SystemService:
             "Если модель не загружается, система автоматически использует правила.",
         )
 
+    async def miniapp_check(self, session: AsyncSession) -> Check:
+        """Report whether the Telegram Mini App can be opened (PHASE 9)."""
+        from backend.app.miniapp.service import MiniAppService
+
+        try:
+            status = await MiniAppService(session, settings=self.settings).status()
+        except Exception:  # pragma: no cover - defensive
+            status = None
+        if status is None:
+            return Check(
+                "miniapp",
+                "Мини-приложение",
+                STATUS_WARNING,
+                "Не удалось проверить состояние мини-приложения.",
+                "Откройте раздел «Настройки» и повторите попытку.",
+            )
+        if not status.enabled:
+            return Check(
+                "miniapp",
+                "Мини-приложение (необязательно)",
+                STATUS_OK,
+                "Мини-приложение выключено — это нормально. "
+                "Основной интерфейс открывается в браузере.",
+                "Включите «Мини-приложение» в настройках, если хотите "
+                "пользоваться системой прямо из Telegram.",
+            )
+        if not status.available:
+            return Check(
+                "miniapp",
+                "Мини-приложение",
+                STATUS_WARNING,
+                status.reason,
+                status.how_to_fix,
+            )
+        return Check(
+            "miniapp",
+            "Мини-приложение",
+            STATUS_OK,
+            f"Мини-приложение готово. Бот @{status.bot_username}.",
+            "Откройте его из меню управляющего бота в Telegram.",
+        )
+
     async def reactions_check(self, session: AsyncSession) -> Check:
         """Report the Reaction Manager state in plain language (PHASE 3)."""
         from backend.app.services.reaction_service import ReactionService
@@ -492,6 +534,7 @@ class SystemService:
             checks.append(await self.audience_check(session))
             checks.append(await self.invites_check(session))
             checks.append(await self.ai_check_async(session))
+            checks.append(await self.miniapp_check(session))
         else:
             checks.append(self.manager_bot_check())
             checks.append(self.ai_check())

@@ -102,13 +102,16 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 - [x] Charts (`Sparkline.vue`, `BarList.vue`, dependency-free SVG) + plain-language
       explanations on the Dashboard and the new `AnalyticsView.vue`.
 - [x] API `/api/v1/analytics/{overview,content,reactions,audience}`. Tests. Commit.
-- [ ] Commit pending on `develop`.
+- [x] Committed on `develop` (`f295111`).
 
-## PHASE 9 — Mini App ⬜
-- [ ] Reuse the same SPA for Mini App.
-- [ ] Telegram WebApp authentication (initData validation).
-- [ ] Responsive mobile UI; Dashboard/Bots/Reactions/Queue/Audience/Health/Settings.
-- [ ] Tests. Commit.
+## PHASE 9 — Mini App ✅
+- [x] Reuse the same SPA for Mini App (no second interface; D-003).
+- [x] Telegram WebApp authentication: server-side `initData` HMAC-SHA256
+      verification, freshness check, owner allow-list, signed session cookie.
+- [x] API `/api/v1/miniapp/{config,auth,me,logout}` + Setup Wizard `miniapp` check.
+- [x] Responsive mobile UI (bottom nav) + Telegram dark theme; the same views
+      cover Dashboard/Bots/Reactions/Queue/Analytics/Health/Settings.
+- [x] Tests (auth unit + API). Commit.
 
 ## PHASE 10 — Portable Windows ⬜
 - [ ] Self-contained packaging (embedded Python, no Node/Docker).

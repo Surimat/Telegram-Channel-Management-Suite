@@ -327,12 +327,32 @@ contain tokens, session contents, `api_hash` or raw phone numbers.
 
 ---
 
-## Mini App authentication
+## Mini App authentication (PHASE 9 — implemented)
+
+The Mini App reuses the same SPA and the same API (D-003). These endpoints only
+establish *who* the Telegram caller is; all business endpoints are shared with the
+local Web UI.
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| POST | `/api/v1/auth/telegram` | validate Telegram WebApp `initData`, start session |
-| POST | `/api/v1/auth/logout` | end session |
+| GET | `/api/v1/miniapp/config` | feature flag, manager bot username, plain-language availability + how-to-fix |
+| POST | `/api/v1/miniapp/auth` | verify Telegram WebApp `initData` (HMAC-SHA256), set a signed session cookie |
+| GET | `/api/v1/miniapp/me` | report whether the current session cookie is valid |
+| POST | `/api/v1/miniapp/logout` | clear the session cookie |
+
+Auth details:
+
+- `initData` is verified with `HMAC_SHA256(bot_token, "WebAppData")` over the
+  sorted `key=value` pairs, per Telegram's Mini App spec.
+- Stale payloads (older than `MINIAPP_INITDATA_MAX_AGE`) are rejected.
+- The manager bot token is used only as the HMAC key; it is never logged or
+  returned. The raw `initData` is never logged or returned.
+- When `MANAGER_BOT_ADMIN_IDS` is set, only those Telegram ids may sign in.
+- The session cookie (`tcms_miniapp`) is `HttpOnly`, `SameSite=Lax`, and
+  `Secure` in production; its token is HMAC-signed with a key derived from
+  `APP_SECRET_KEY`.
+- The Mini App is off by default (`MINIAPP_ENABLED=false`); the local Web UI is
+  unaffected and still needs no public server.
 
 ---
 

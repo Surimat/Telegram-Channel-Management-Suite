@@ -11,6 +11,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.session import get_session
+from backend.app.miniapp.service import MiniAppService
 from backend.app.providers.registry import build_bot_provider, build_session_provider
 from backend.app.services.analytics_service import AnalyticsService
 from backend.app.services.audience_service import AudienceService
@@ -67,3 +68,7 @@ def get_invite_service(
 
 def get_analytics_service(session: AsyncSession = Depends(get_session)) -> AnalyticsService:
     return AnalyticsService(session)
+
+
+def get_miniapp_service(session: AsyncSession = Depends(get_session)) -> MiniAppService:
+    return MiniAppService(session)
