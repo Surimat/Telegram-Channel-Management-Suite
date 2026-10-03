@@ -159,9 +159,11 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ## Release
 
-- **v1.0.0** — first production release of the complete suite plus post-1.0
-  hardening. See `docs/RELEASE_CHECKLIST.md` and `agent/CHANGELOG.md`.
-- After v1.0.0, development continues on `develop`; no artificial new phases.
+- **v1.0.0 (2026-10-03):** first production release — the complete PHASE 0–11
+  suite plus RC and post-1.0 hardening. Annotated tag `v1.0.0` + GitHub Release
+  on the `develop → main` merge commit `82c1059`. See `docs/RELEASE_CHECKLIST.md`
+  and `agent/CHANGELOG.md`. After v1.0.0, development continues on `develop`; no
+  artificial new phases.
 
 ---
 

@@ -4,32 +4,18 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-03
-**Status:** PHASE 0–11, the polish items, the RC/hardening pass, **and the
-post-1.0 hardening pass are complete, committed and pushed** on `develop`
-(manager-bot runtime + command loop + notification forwarding; standalone
-account permission probe). Suite is green at **384 passed**; `ruff` clean; SPA
-builds.
+**Status:** **v1.0.0 RELEASED.** PHASE 0–11, the polish items, the RC/hardening
+pass, and the post-1.0 hardening pass are complete, committed, merged to `main`,
+and released. `main` = `develop` = `82c1059`; tag `v1.0.0` + GitHub Release
+published. Suite is green at **384 passed**; `ruff` clean; SPA builds.
 
 ---
 
-## Active task: cut the v1.0.0 release, then optional items
+## Active task: continue on `develop` (optional items)
 
-The code is feature-complete and stable on `develop`. The immediate job is to
-**release**, not to write new features:
-
-1. Merge PR #1 (`develop → main`) via the GitHub API — do **not** ask the owner.
-   PR #1: https://github.com/Surimat/Telegram-Channel-Management-Suite/pull/1
-2. Tag `v1.0.0` on the merged `main` commit and publish a GitHub Release with
-   notes built from the shipped features.
-3. Continue development on `develop` afterwards.
-
-If the merge or release cannot be performed (missing rights / API unavailable),
-do **not** fake it: record exactly what happened in `agent/CURRENT_STATE.md` and
-leave `develop` stable and pushed.
-
-After the release, only optional items remain:
-
-### Candidates (in rough priority)
+The project is released and stable. Continue development on `develop`; pick the
+highest-value optional item, work it as one vertical slice (code + tests + docs +
+memory), keep the suite green, and push `develop` (no force). Candidates:
 
 1. **Alembic migrations** — replace `create_all` at startup with versioned
    migrations (do not break the current startup path until migrations are proven).
@@ -38,6 +24,8 @@ After the release, only optional items remain:
    analytics and permissions share one channel identity.
 3. **Mini App BotFather registration** helper — currently a documented manual
    deployment step.
+
+Do **not** create artificial new phases and do **not** re-open PHASE 8–11.
 
 ### What exists (do not rebuild)
 
@@ -49,7 +37,7 @@ After the release, only optional items remain:
   panel in the Sessions page.
 - Portable build is zero-setup: `scripts/fetch_embedded_python.sh` +
   `scripts/build_portable.sh` (D-043).
-- Release checklist: `docs/RELEASE_CHECKLIST.md`.
+- Release process: `docs/RELEASE_CHECKLIST.md`.
 
 ### Do NOT
 

@@ -4,18 +4,16 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-03
-**Current phase:** **Release 1.0.** PHASE 0–11, the RC/hardening pass, and the
+**Current phase:** **v1.0.0 RELEASED.** PHASE 0–11, the RC/hardening pass, and the
 post-1.0 hardening pass (manager-bot runtime + notifications + account permission
-probe) are complete, committed and pushed on `develop`. All gates pass:
-`pytest` **384 passed**, `ruff` clean, `vue-tsc` + `npm run build` clean.
-The active task is to merge PR #1 (`develop → main`) and tag `v1.0.0`
-(see `docs/RELEASE_CHECKLIST.md`).
+probe) are complete and merged to `main`. `main` and `develop` both point at the
+release commit `82c1059`; tag `v1.0.0` and a GitHub Release are published.
+All gates pass: `pytest` **384 passed**, `ruff` clean, `vue-tsc` + `npm run build`
+clean.
 **Next phase:** optional only — Alembic migrations, channel-binding registry/UI,
-Mini App BotFather registration helper.
-**Repository status:** `develop` (working branch) is ahead of `origin/main`; the
-local `main` still points at the PHASE 3 commit until PR #1 merges. No force push,
-no history rewrite.
-**Branch:** `develop` (tracks `origin/develop`); `main` is updated only via pull request.
+Mini App BotFather registration helper. Development continues on `develop`.
+**Repository status:** `main == develop == 82c1059` (0 ahead / 0 behind).
+**Branch:** `develop` (working branch); `main` is released and updated only via pull request.
 
 ---
 
@@ -475,15 +473,13 @@ Decisions: D-047, D-048, D-049.
 
 ## 5. Next action
 
-The code is stable and feature-complete; the next action is the **release**, not
-new features:
+**v1.0.0 is released** (`main` = `develop` = `82c1059`, tag + GitHub Release
+published). The project is stable; the next action is to continue on `develop`
+with optional items only:
 
-1. Merge PR #1 (`develop → main`).
-2. Tag `v1.0.0` on the merged `main` commit + publish a GitHub Release.
-3. Continue on `develop` with optional items only:
-   - Alembic migrations (replace `create_all`) — last documented gap.
-   - Channel-binding registry/UI.
-   - Mini App BotFather registration helper.
+1. Alembic migrations (replace `create_all`) — last documented gap.
+2. Channel-binding registry/UI.
+3. Mini App BotFather registration helper.
 
 See `agent/NEXT_TASK.md` and `docs/RELEASE_CHECKLIST.md`. Do **not** re-open
 PHASE 8–11 — they are complete.
@@ -588,7 +584,8 @@ cd frontend && npm install && npm run build && cd ..
   URL: https://github.com/Surimat/Telegram-Channel-Management-Suite/pull/1
 - **Never push directly to `main`.** All work goes to `develop` (or feature
   branches off it) and lands in `main` only via a reviewed pull request.
-- `main` still points at the PHASE 3 commit (`f06ba53`) until PR #1 merges.
+- `main` was at the PHASE 3 commit (`f06ba53`) until PR #1 merged; it now points
+  at the release merge commit `82c1059` (same as `develop`).
 - **RC sync (2026-10-03):** PHASE 7–11 + polish + RC hardening pushed to
   `develop` (`fd53ad1`…`e65a374`; fast-forward, no force). `origin/develop` is
   now at `e65a374` (RC hardening). PR #1 retitled to **"Full roadmap (PHASE 0–11)
@@ -598,8 +595,17 @@ cd frontend && npm install && npm run build && cd ..
   notifications + permission probe) pushed to `develop` as a fast-forward
   (`ba30578`…`727b0f8`; no force). Functional commit `c0174a8`; `origin/develop`
   is now at `727b0f8`. PR #1 retitled to **"Full roadmap (PHASE 0–11) + RC &
-  post-1.0 hardening"** with an updated body; still **open**, `merged: false` —
-  **not merged** (awaiting owner confirmation).
+  post-1.0 hardening"** with an updated body.
+- **Release v1.0.0 (2026-10-03):** release-prep commits `b442e08` (build fix:
+  keep `backend/app/static/.gitkeep` across Vite builds), `f53cadf` (memory/docs
+  sync to actual state, new `docs/RELEASE_CHECKLIST.md`) and `6a45e0a`
+  (AGENTS release section) pushed to `develop`. PR #1 was marked ready and
+  **merged into `main`** with merge commit `82c1059` (no force, no history
+  rewrite). `develop` fast-forwarded to `82c1059` (both branches 0 ahead / 0
+  behind). Local stale `main` (`f06ba53`) fast-forwarded to `origin/main`.
+  Annotated tag **`v1.0.0`** created on `82c1059` and pushed; **GitHub Release
+  `v1.0.0`** published:
+  https://github.com/Surimat/Telegram-Channel-Management-Suite/releases/tag/v1.0.0
 - No history rewrite, no force push.
 - Secret audit before push: `.env`, `data/*.db`, session files and portable
   runtimes are git-ignored and confirmed absent from the remote; the mutable
