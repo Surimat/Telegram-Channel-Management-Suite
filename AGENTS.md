@@ -45,9 +45,16 @@ cd frontend && npm install && npm run build   # outputs to backend/app/static
   scheduler, providers).
 - `frontend/` — Vue 3 + Vite + TypeScript SPA; builds into `backend/app/static`.
 - `tests/` — unit + db + api + scheduler + smoke, using a temporary SQLite DB.
-- `docs/` — architecture, roadmap, setup, security, UI, API, troubleshooting.
+- `docs/` — architecture, roadmap, setup, security, UI, API, troubleshooting,
+  release checklist.
 - `agent/` — persistent project memory (the source of truth for continuity).
 - `scripts/`, `docker/`, `portable/` — run/build/packaging.
+
+## Releasing
+
+See `docs/RELEASE_CHECKLIST.md`. A release requires all gates green (`pytest`,
+`ruff`, `vue-tsc`/`npm run build`), a clean secret scan, memory/docs updated, and
+PR `develop → main` merged (never a direct push to `main`).
 
 ## Security (non-negotiable)
 
