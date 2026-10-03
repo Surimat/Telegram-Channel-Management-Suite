@@ -588,6 +588,12 @@ cd frontend && npm install && npm run build && cd ..
   now at `e65a374` (RC hardening). PR #1 retitled to **"Full roadmap (PHASE 0–11)
   + release-candidate hardening"** with a full body; still **open**, `merged:
   false` — **not merged** (awaiting owner confirmation).
+- **Hardening sync (2026-10-03):** post-1.0 hardening (manager-bot runtime +
+  notifications + permission probe) pushed to `develop` as a fast-forward
+  (`ba30578`…`727b0f8`; no force). Functional commit `c0174a8`; `origin/develop`
+  is now at `727b0f8`. PR #1 retitled to **"Full roadmap (PHASE 0–11) + RC &
+  post-1.0 hardening"** with an updated body; still **open**, `merged: false` —
+  **not merged** (awaiting owner confirmation).
 - No history rewrite, no force push.
 - Secret audit before push: `.env`, `data/*.db`, session files and portable
   runtimes are git-ignored and confirmed absent from the remote; the mutable
