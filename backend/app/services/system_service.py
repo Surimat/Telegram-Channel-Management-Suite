@@ -1,0 +1,174 @@
+"""System service: setup checks and health verification.
+
+Produces beginner-friendly checks consumed by the Setup Wizard (see docs/UI.md).
+Messages are deliberately human-readable; raw error codes are avoided.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from sqlalchemy import text
+
+from backend.app.core import paths
+from backend.app.core.config import Settings, get_settings
+from backend.app.db.session import get_engine
+
+STATUS_OK = "ok"
+STATUS_WARNING = "warning"
+STATUS_ERROR = "error"
+STATUS_UNKNOWN = "unknown"
+
+
+@dataclass
+class Check:
+    key: str
+    title: str
+    status: str
+    meaning: str
+    how_to_fix: str = ""
+
+
+class SystemService:
+    def __init__(self, settings: Settings | None = None) -> None:
+        self.settings = settings or get_settings()
+
+    async def database_check(self) -> Check:
+        try:
+            engine = get_engine()
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+            return Check(
+                "database",
+                "База данных",
+                STATUS_OK,
+                "Хранилище данных работает и доступно.",
+            )
+        except Exception:  # pragma: no cover - depends on environment
+            return Check(
+                "database",
+                "База данных",
+                STATUS_ERROR,
+                "Не удалось подключиться к хранилищу данных.",
+                "Проверьте папку data/ и права на запись.",
+            )
+
+    def filesystem_check(self) -> Check:
+        dirs = {
+            "data": paths.data_dir(),
+            "sessions": paths.sessions_dir(),
+            "backups": paths.backups_dir(),
+            "logs": paths.logs_dir(),
+            "exports": paths.exports_dir(),
+        }
+        bad = [name for name, path in dirs.items() if not paths.is_writable(path)]
+        if bad:
+            return Check(
+                "filesystem",
+                "Файловая система",
+                STATUS_ERROR,
+                "Некоторые папки недоступны для записи: " + ", ".join(bad) + ".",
+                "Запустите программу из папки, куда есть права на запись.",
+            )
+        return Check(
+            "filesystem",
+            "Файловая система",
+            STATUS_OK,
+            "Папки для данных, сессий, резервных копий и журналов доступны.",
+        )
+
+    def secret_key_check(self) -> Check:
+        key = self.settings.app_secret_key.get_secret_value()
+        if len(key) >= 16:
+            return Check(
+                "secret_key",
+                "Ключ безопасности",
+                STATUS_OK,
+                "Ключ безопасности настроен.",
+            )
+        status = STATUS_ERROR if self.settings.is_production else STATUS_WARNING
+        return Check(
+            "secret_key",
+            "Ключ безопасности",
+            status,
+            "Ключ безопасности не настроен или слишком короткий.",
+            'Сгенерируйте ключ: python -c "import secrets; '
+            'print(secrets.token_urlsafe(48))" и укажите его в файле .env (APP_SECRET_KEY).',
+        )
+
+    def manager_bot_check(self) -> Check:
+        token = self.settings.manager_bot_token.get_secret_value()
+        if token:
+            return Check(
+                "manager_bot",
+                "Управляющий бот",
+                STATUS_OK,
+                "Управляющий бот подключён.",
+            )
+        return Check(
+            "manager_bot",
+            "Управляющий бот",
+            STATUS_WARNING,
+            "Управляющий бот ещё не подключён.",
+            "Создайте бота через @BotFather и добавьте его токен в разделе «Боты».",
+        )
+
+    def telegram_api_check(self) -> Check:
+        if self.settings.telegram_api_id and self.settings.telegram_api_hash.get_secret_value():
+            return Check(
+                "telegram_api",
+                "Доступ к Telegram API",
+                STATUS_OK,
+                "API ID и API Hash указаны.",
+            )
+        return Check(
+            "telegram_api",
+            "Доступ к Telegram API",
+            STATUS_WARNING,
+            "Не указаны API ID и API Hash (нужны для работы с аккаунтами).",
+            "Получите их на https://my.telegram.org и добавьте в разделе «Аккаунты».",
+        )
+
+    def ai_check(self) -> Check:
+        if not self.settings.ai_enabled:
+            return Check(
+                "ai",
+                "Мини-ИИ (необязательно)",
+                STATUS_OK,
+                "ИИ выключен. Система использует только правила — это нормально.",
+            )
+        if self.settings.ai_model_path:
+            return Check(
+                "ai",
+                "Мини-ИИ",
+                STATUS_OK,
+                "ИИ включён и модель указана.",
+            )
+        return Check(
+            "ai",
+            "Мини-ИИ",
+            STATUS_WARNING,
+            "ИИ включён, но путь к модели не указан.",
+            "Укажите путь к модели .gguf в разделе «AI» или выключите ИИ.",
+        )
+
+    async def setup_checks(self) -> list[Check]:
+        checks: list[Check] = [
+            Check("runtime", "Среда выполнения", STATUS_OK, "Программа запущена правильно."),
+            await self.database_check(),
+            self.filesystem_check(),
+            self.secret_key_check(),
+            self.telegram_api_check(),
+            self.manager_bot_check(),
+            self.ai_check(),
+        ]
+        return checks
+
+    @staticmethod
+    def overall_status(checks: list[Check]) -> str:
+        statuses = {c.status for c in checks}
+        if STATUS_ERROR in statuses:
+            return STATUS_ERROR
+        if STATUS_WARNING in statuses:
+            return STATUS_WARNING
+        return STATUS_OK

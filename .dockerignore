@@ -1,0 +1,38 @@
+# Keep the Docker build context small and secret-free.
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+# Sessions and mutable data must never enter the image.
+sessions/
+data/
+backups/
+logs/
+exports/
+
+# Python / Node caches and virtualenvs.
+.venv/
+venv/
+__pycache__/
+*.pyc
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Models (large binaries).
+models/
+*.gguf
+*.bin
+
+# Docs / agent memory are not needed at runtime.
+docs/
+agent/
+tests/
+.github/
+
+# IDE / OS noise.
+.idea/
+.vscode/
+.DS_Store

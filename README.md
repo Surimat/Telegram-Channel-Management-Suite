@@ -30,8 +30,11 @@ Persistent memory so work can continue across sessions:
 
 ## Status
 
-**PHASE 0 complete** — repository audit, architecture, and persistent project
-memory. Next: PHASE 1 (application skeleton). See [docs/ROADMAP.md](docs/ROADMAP.md).
+**PHASE 1 complete** — a runnable skeleton: FastAPI backend (config, logging with
+secret redaction, SQLite + SQLAlchemy, health checks, Setup Wizard checks,
+durable queue + asyncio scheduler), a Vue 3 + TypeScript SPA served by the
+backend, Docker foundation, portable launcher skeleton, and a passing test suite.
+Next: PHASE 2 (Telegram foundation). See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Quick start (development)
 

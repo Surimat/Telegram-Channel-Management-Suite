@@ -7,10 +7,55 @@ Dates are ISO-8601.
 
 ## [Unreleased]
 
-### PHASE 1 — Application skeleton
-_Planned._ FastAPI app, config, logging, SQLAlchemy/SQLite, health checks,
-settings/events/queue, Vue 3 UI foundation, run scripts, Docker foundation,
-tests.
+_No unreleased changes._
+
+---
+
+## [0.1.0] — 2026-10-03 — PHASE 1: application skeleton (runnable)
+
+### Added — Backend
+- `backend/app/main.py` FastAPI app factory + lifespan (starts/stops the
+  scheduler, initialises the DB, mounts the built SPA); `/health`, `/health/deep`.
+- `core/`: `paths.py` (predictable runtime dirs via `TCMS_ROOT`), `config.py`
+  (pydantic-settings + `SecretStr`), `logging.py` (structured logging + secret
+  redaction filter), `security.py` (secret-key validation, key derivation, HMAC).
+- `db/`: declarative base + naming convention, async engine/session, models
+  (`Setting`, `Event`, `Job`), repositories (`settings`, `events`, `jobs`).
+- `services/`: `settings_service`, `events_service` (log/error center),
+  `queue_service`, `system_service` (Setup Wizard checks with plain-language
+  "what it means / how to fix").
+- `api/`: uniform error envelope + handlers (no stack traces to clients),
+  schemas, and v1 routers `system`, `settings`, `events`, `queue`.
+- `scheduler/`: durable asyncio scheduler that recovers unfinished jobs on start,
+  claims due jobs, runs registered handlers, and records failures as events.
+- `providers/`: package + contracts placeholder (implementations in PHASE 2).
+
+### Added — Frontend
+- Vue 3 + Vite + TypeScript SPA: app shell with sidebar, router, typed API
+  client, Pinia store, RU-first styles; views Dashboard, System (Setup Wizard
+  table), Settings, Logs, Queue, NotFound.
+- Build outputs to `backend/app/static/` (served by FastAPI; no Node in prod).
+
+### Added — Ops / packaging
+- `backend/requirements.txt`, `backend/requirements-dev.txt`.
+- `scripts/run_dev.sh`, `scripts/build_frontend.sh`.
+- `portable/run.bat`, `portable/stop.bat` (skeleton; full packaging PHASE 10).
+- `docker/Dockerfile` (multi-stage Node→Python, non-root),
+  `docker/docker-compose.yml`, root `.dockerignore`.
+- `pyproject.toml` (ruff), `pytest.ini`.
+
+### Added — Tests
+- config, logging-redaction, database/queue/events, scheduler, and API tests
+  with isolated temporary SQLite databases. **31 tests pass; ruff clean.**
+
+### Changed
+- Dropped APScheduler from runtime requirements in favour of the minimal asyncio
+  scheduler (see D-015). Anchored the AI-models `.gitignore` rule to `/models/`
+  so backend source packages are no longer accidentally ignored.
+
+### Security
+- Secret redaction filter masks registered secrets in all log output.
+- Settings API returns masked values for secrets; errors never expose internals.
 
 ---
 

@@ -1,0 +1,23 @@
+[project]
+name = "telegram-channel-management-suite"
+version = "0.1.0"
+description = "Local-first Telegram channel management suite."
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".venv", "backend/app/static"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "C4", "SIM", "RUF"]
+# B008: FastAPI intentionally uses function calls (Depends/Query) as defaults.
+# RUF001/2/3: the UI is Russian-first; Cyrillic strings are intentional.
+ignore = ["B008", "RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["SIM117"]
+"backend/app/scheduler/scheduler.py" = ["B023"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend"]

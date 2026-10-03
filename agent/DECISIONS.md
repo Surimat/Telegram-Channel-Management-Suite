@@ -177,3 +177,32 @@ explanations, tooltips, and safe defaults.
 **Why:** Target user profile; explicit requirement.
 
 **Consequence:** i18n structure prepared for future languages but RU default.
+
+---
+
+## D-015 — 2026-10-03 — Minimal asyncio scheduler (no APScheduler) — LOCKED for now
+
+**Decision:** The scheduler is a small hand-written asyncio worker loop over the
+durable DB job queue (no APScheduler, no Celery).
+
+**Why:** Keeps the dependency footprint tiny for the weak-Windows/portable
+target, avoids a second scheduling abstraction, and the DB queue already
+provides restart recovery. APScheduler was dropped from requirements in PHASE 1.
+
+**Consequence:** Job handlers register by `kind` on the `Scheduler`. If complex
+cron needs appear later, APScheduler can be layered *on top* of the same job
+queue without changing domain logic. Revisit only when a real need appears.
+
+---
+
+## D-016 — 2026-10-03 — Uniform error envelope; no stack traces to clients — LOCKED
+
+**Decision:** All API errors use `{"error": {"code", "message", "hint",
+"details"}}` with a friendly RU message and an actionable hint. Unhandled
+exceptions are logged server-side and returned as a generic message.
+
+**Why:** Requirement: never show stack traces as primary UI information; be
+beginner-friendly.
+
+**Consequence:** New endpoints must raise `HTTPException` with a friendly
+`detail`; the handler maps status → code. Technical detail stays in logs/events.

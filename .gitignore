@@ -91,6 +91,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# --- Built SPA output (reproducible: cd frontend && npm run build) ---
+backend/app/static/*
+!backend/app/static/.gitkeep
+
 # --- Portable runtime (downloaded/embedded) ---
 portable/runtime/
 portable/app/
@@ -98,8 +102,10 @@ portable/build/
 runtime/
 
 # --- AI models (large binaries) ---
-models/
+# Only ignore a top-level models/ directory, never source packages.
+/models/
 *.gguf
+*.ggml
 *.bin
 *.onnx
 

@@ -3,55 +3,55 @@
 > The single "what to do next" pointer. Update at the end of every phase.
 
 **Updated:** 2026-10-03
-**Active phase:** PHASE 1 — Application skeleton
+**Active phase:** PHASE 2 — Telegram foundation
+**Previous phase:** PHASE 1 — completed (runnable backend + UI + tests, committed)
 
 ---
 
 ## Goal of this phase
 
-Leave the project **runnable** with a solid backend + DB + config + logging +
-health checks + a minimal UI foundation + Windows scripts + Docker foundation,
-covered by tests.
+Give the system a real, testable connection to Telegram: a manager bot, a Bot
+API adapter behind the provider interface, channel connection, managed-bot
+support, and a **bot inventory** (model → repository → service → API → UI), all
+covered by tests using a **fake provider** (no real account/token required).
+
+## Constraints / reminders
+
+- Follow **D-001**: all Telegram access behind `TelegramBotProvider`; add a
+  `FakeTelegramBotProvider` for tests. Domain/services must not import aiogram
+  directly.
+- Never log or return bot tokens; store tokens encrypted or in `.env` only
+  (see `docs/SECURITY.md`, decisions D-009/D-010).
+- No FloodWait / privacy bypass (D-006).
+- Keep the app runnable at the end (`python -m pytest` passes, app starts).
 
 ## Deliverables
 
-### Backend
-- [ ] `backend/app/main.py` — FastAPI app factory, lifespan (startup/shutdown).
-- [ ] `backend/app/core/config.py` — pydantic-settings, reads `.env`, `SecretStr`
-      for secrets, paths for data/sessions/logs/backups.
-- [ ] `backend/app/core/logging.py` — structured logging + **secret redaction**.
-- [ ] `backend/app/core/paths.py` — resolves predictable runtime directories.
-- [ ] `backend/app/core/security.py` — secret key handling, hashing helpers.
-- [ ] `backend/app/db/base.py` — declarative Base, naming convention.
-- [ ] `backend/app/db/session.py` — async engine + session factory.
-- [ ] `backend/app/db/models/` — `settings`, `events`, `job_queue` (start here;
-      more models per phase).
-- [ ] `backend/app/db/repositories/` — repository layer (no raw SQL in services).
-- [ ] `backend/app/services/settings_service.py`, `events_service.py`,
-      `queue_service.py`.
-- [ ] `backend/app/api/v1/` — `system`, `settings`, `events`, `queue` routers.
-- [ ] `backend/app/api/schemas/` — pydantic request/response models.
-- [ ] `backend/app/api/errors.py` — uniform error envelope + handlers.
-- [ ] Health endpoints `/health`, `/health/deep`.
-- [ ] Static file hosting for the built SPA.
-- [ ] Alembic scaffold.
+### Provider layer
+- [ ] `providers/base.py` — `TelegramBotProvider` interface (get_me, get_bot,
+      send_message, set_webhook, health).
+- [ ] `providers/fake_bot.py` — deterministic fake for tests/dev.
+- [ ] `providers/aiogram_bot.py` — real implementation (aiogram) wrapped so the
+      interface stays library-agnostic.
+- [ ] `providers/registry.py` — resolve providers from configuration.
 
-### Frontend
-- [ ] `frontend/` Vue 3 + Vite + TS.
-- [ ] App shell, routing, API client.
-- [ ] Sections scaffolding: Dashboard, System, Settings, Logs, Queue (placeholders
-      wired to real endpoints where available).
-- [ ] Build output → `backend/app/static/`.
+### Domain
+- [ ] `db/models/bot.py` — Bot model: id, kind (manager|managed|reaction),
+      username, title, enabled, token_ref (NOT the raw token), health status,
+      last_health_at, timestamps.
+- [ ] `db/repositories/bots.py`.
+- [ ] `services/bot_service.py` — add/enable/disable/remove, health check,
+      list managed bots via the manager bot.
 
-### Ops / packaging
-- [ ] `backend/requirements.txt` + `requirements-dev.txt`.
-- [ ] `scripts/run_dev.sh`, `scripts/build_frontend.sh`.
-- [ ] `portable/run.bat`, `portable/stop.bat` (skeleton; full packaging PHASE 10).
-- [ ] `docker/Dockerfile`, `docker/docker-compose.yml`, `docker/.dockerignore`.
+### API / UI
+- [ ] `api/schemas/bots.py`, `api/v1/bots.py` (list, add, detail, health,
+      disable, delete, managed).
+- [ ] Frontend `views/BotsView.vue` + route + nav item (plain-language,
+      tooltips, confirmation dialogs).
 
 ### Tests
-- [ ] config, db, health, settings/events/queue API smoke tests.
-- [ ] Pytest fixtures with a temporary SQLite DB.
+- [ ] provider contract tests (fake), bot service tests, bots API tests.
+- [ ] ensure no token value can leak into events/logs/API responses.
 
 ### Finish
 - [ ] Update `agent/CURRENT_STATE.md`, `NEXT_TASK.md`, `DECISIONS.md`,
@@ -59,12 +59,7 @@ covered by tests.
 - [ ] `git diff` review + security checklist.
 - [ ] Commit.
 
-## Constraints / reminders
+## After PHASE 2
 
-- Do not add Redis/Kafka/Celery/PostgreSQL.
-- Do not hardcode credentials; never log secrets.
-- Keep it runnable: the app must start and serve `/health` at the end.
-
-## After PHASE 1
-
-Proceed to **PHASE 2 — Telegram foundation** (see `docs/ROADMAP.md`).
+PHASE 3 — Reaction Manager (rules, profiles, scheduler, queue, delays,
+simulation, logs, UI). See `docs/ROADMAP.md`.
