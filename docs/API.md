@@ -122,18 +122,50 @@ flow is reset to `auth_required` on startup (`SessionService.recover()`).
 
 ---
 
-## Audience & Sources
+## Audience & Sources — PHASE 5 (implemented)
+
+All paths are under `/api/v1/audience`. Sources:
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/v1/sources` | list sources |
-| POST | `/api/v1/sources` | add source |
-| POST | `/api/v1/sources/{id}/scan` | scan source |
-| GET | `/api/v1/sources/{id}/stats` | source statistics |
-| GET | `/api/v1/audience` | list users (search/filter/sort/tags) |
-| PATCH | `/api/v1/audience/{id}` | edit tags/status |
-| POST | `/api/v1/audience/export` | export |
-| POST | `/api/v1/audience/import` | import |
+| GET | `/dashboard` | aggregate audience statistics |
+| GET | `/filters/presets` | ready-made filter presets |
+| GET | `/sources` | list sources (`enabled`,`status`,`search`,`limit`,`offset`) |
+| POST | `/sources` | add source (`reference`: @user, t.me link or id) |
+| GET | `/sources/{id}` | source detail |
+| PATCH | `/sources/{id}` | edit title/enabled/account/type |
+| DELETE | `/sources/{id}` | delete source (+ its links) |
+| POST | `/sources/{id}/check` | resolve source, report reachability |
+| POST | `/sources/{id}/scan/preview` | dry-run summary before scanning |
+| POST | `/sources/{id}/scan` | start a durable scan job |
+| GET | `/sources/{id}/scan/progress` | live scan progress + completeness |
+| POST | `/sources/{id}/scan/pause` | pause |
+| POST | `/sources/{id}/scan/resume` | resume from stored offset |
+| POST | `/sources/{id}/scan/cancel` | cancel |
+
+Audience users:
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/users` | list users (`search`, `source_id`, `tag`, `status`, `is_bot`, `is_deleted`, `has_username`, `is_premium`, `telegram_user_id`, `sort`, `order`, `limit`, `offset`) |
+| GET | `/users/{id}` | user detail (+ sources, score components) |
+| POST | `/users/bulk-status` | bulk status update |
+| GET | `/tags` | list tags with counts |
+| POST | `/tags/assign` \| `/tags/remove` | bulk tag edit |
+| POST | `/tags/rename` | rename a tag |
+| DELETE | `/tags/{tag}` | delete a tag |
+
+Export / import:
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/export/preview` | preview row count + fields (+ PII flag) |
+| POST | `/export` | write CSV/JSON to the local `exports/` dir |
+| POST | `/import` | import CSV/JSON text with dedup |
+
+Notes: responses never contain raw phone numbers or secrets; PII export is off by
+default and gated by the `AUDIENCE_STORE_PII` setting. Scan completeness values:
+`complete`, `partial`, `no_access`, `failed`, `unknown`.
 
 ---
 

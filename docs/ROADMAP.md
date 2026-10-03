@@ -57,12 +57,21 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
       git-ignored `sessions/` (out of the Docker image); never in logs/UI/errors.
 - [x] API `/api/v1/sessions/*` + UI (`SessionsView` wizard). Tests. Commit.
 
-## PHASE 5 — Audience ⬜
-- [ ] Sources CRUD + scan (public channel/group/entity).
-- [ ] `audience_users` storage, dedup, filters, tags, search, sort.
-- [ ] Import/export, source statistics.
-- [ ] Robust Telegram error handling.
-- [ ] API + UI (Audience, Sources). Tests. Commit.
+## PHASE 5 — Audience ✅
+- [x] Sources CRUD (`/api/v1/audience/sources`) + scan of public channel/group/
+      entity; source `check` (resolve + reachability) and scan `preview` (dry-run).
+- [x] `audience_sources` + `audience_users` + `source_user_links` (many-to-many);
+      dedup is enforced by a unique `telegram_user_id`.
+- [x] Bounded, restart-safe streaming scan (durable job, per-chunk commits,
+      `scanned_offset` progress, recover→pause on restart).
+- [x] Honest completeness: `complete` / `partial` / `no_access` / `failed`,
+      explained in plain language; FloodWait pauses, never bypassed.
+- [x] Filters, tags (assign/remove/rename/delete), search, sort, pagination.
+- [x] CSV/JSON export (streaming; PII off by default, gated by setting) and
+      CSV/JSON import with dedup + invalid-row counting.
+- [x] Audience dashboard + per-source statistics.
+- [x] API `/api/v1/audience/*` + Setup Wizard `audience` check. Tests. Commit.
+- [ ] Dedicated Audience/Sources UI views — deferred to the frontend rollout.
 
 ## PHASE 6 — Invite Manager ⬜
 - [ ] Invite queue, account/source/target selection, filters.

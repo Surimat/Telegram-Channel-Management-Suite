@@ -61,6 +61,22 @@ class Settings(BaseSettings):
     # --- Sessions ---
     sessions_dir: str = "./sessions"
 
+    # --- Audience (PHASE 5) ---
+    # Where generated exports are written (git-ignored, outside the DB).
+    exports_dir: str = "./exports"
+    # Delete export files older than this many days (0 disables cleanup).
+    export_retention_days: int = 30
+    # Store masked phone numbers for audience members when Telegram exposes them.
+    # Off by default: collect only the personal data that is actually needed.
+    audience_store_pii: bool = False
+    # How many users to process per scheduler tick while scanning a source. Keeps
+    # memory flat on weak machines and makes pause/cancel responsive.
+    audience_scan_chunk_size: int = 500
+    # Participants requested per Telegram page during a scan.
+    audience_scan_batch_size: int = 100
+    # Safety cap on users per scan (0 = no cap; Telegram usually caps anyway).
+    audience_scan_max_users: int = 0
+
     # --- Scheduler ---
     scheduler_enabled: bool = True
     scheduler_timezone: str = "UTC"
@@ -121,6 +137,10 @@ class Settings(BaseSettings):
 
     def resolve_backup_dir(self) -> Path:
         p = Path(self.backup_dir)
+        return p if p.is_absolute() else (paths.project_root() / p).resolve()
+
+    def resolve_exports_dir(self) -> Path:
+        p = Path(self.exports_dir)
         return p if p.is_absolute() else (paths.project_root() / p).resolve()
 
     def resolve_database_url(self) -> str:

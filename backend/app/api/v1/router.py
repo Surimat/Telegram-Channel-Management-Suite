@@ -4,13 +4,23 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from backend.app.api.v1 import bots, events, queue, reactions, sessions, settings, system
+from backend.app.api.v1 import (
+    audience,
+    bots,
+    events,
+    queue,
+    reactions,
+    sessions,
+    settings,
+    system,
+)
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(system.router)
 api_router.include_router(settings.router)
 api_router.include_router(bots.router)
 api_router.include_router(sessions.router)
+api_router.include_router(audience.router)
 api_router.include_router(reactions.router)
 api_router.include_router(events.router)
 api_router.include_router(queue.router)

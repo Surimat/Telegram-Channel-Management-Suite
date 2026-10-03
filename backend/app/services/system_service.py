@@ -295,6 +295,38 @@ class SystemService:
             f"Готовых аккаунтов: {online} из {len(accounts)}.",
         )
 
+    async def audience_check(self, session: AsyncSession) -> Check:
+        """Report the audience subsystem state in plain language (PHASE 5)."""
+        from backend.app.services.audience_service import AudienceService
+
+        service = AudienceService(session, settings=self.settings)
+        sources_total = await service.sources.count()
+        users_total = await service.users.count()
+        partial = await service.sources.partial_count()
+        if sources_total == 0:
+            return Check(
+                "audience",
+                "Аудитория",
+                STATUS_WARNING,
+                "Источники аудитории ещё не добавлены.",
+                "Откройте раздел «Аудитория» и добавьте канал или группу для анализа.",
+            )
+        if partial:
+            return Check(
+                "audience",
+                "Аудитория",
+                STATUS_WARNING,
+                f"Источников: {sources_total}, пользователей: {users_total}. "
+                f"Частичных результатов: {partial}.",
+                "Откройте источники со статусом «Частично»: Telegram не отдал полный список.",
+            )
+        return Check(
+            "audience",
+            "Аудитория",
+            STATUS_OK,
+            f"Источников: {sources_total}, уникальных пользователей: {users_total}.",
+        )
+
     def ai_check(self) -> Check:
         if not self.settings.ai_enabled:
             return Check(
@@ -363,6 +395,7 @@ class SystemService:
             checks.append(await self.managed_bots_check(session))
             checks.append(await self.reactions_check(session))
             checks.append(await self.accounts_check(session))
+            checks.append(await self.audience_check(session))
         else:
             checks.append(self.manager_bot_check())
         checks.append(self.ai_check())

@@ -156,3 +156,49 @@ class ApiCredentialsInvalidError(TelegramProviderError):
         super().__init__(
             message or "API ID или API Hash указаны неверно.", **kwargs  # type: ignore[arg-type]
         )
+
+
+# --- Audience / entity errors (PHASE 5) --------------------------------------
+
+
+class EntityNotFoundError(TelegramProviderError):
+    """The channel/group/entity could not be resolved."""
+
+    def __init__(self, message: str = "", **kwargs: object) -> None:
+        kwargs.setdefault(
+            "how_to_fix",
+            "Проверьте username или ссылку. Для закрытых источников аккаунт "
+            "должен состоять в них.",
+        )
+        super().__init__(
+            message or "Не удалось найти этот канал, группу или пользователя.",
+            **kwargs,  # type: ignore[arg-type]
+        )
+
+
+class PrivacyRestrictedError(TelegramProviderError):
+    """Telegram hides the data (participant list hidden, privacy settings)."""
+
+    def __init__(self, message: str = "", **kwargs: object) -> None:
+        kwargs.setdefault(
+            "how_to_fix",
+            "Telegram не раскрывает этот список для данного аккаунта. "
+            "Используйте публичный источник или аккаунт с доступом.",
+        )
+        super().__init__(
+            message or "Telegram ограничил доступ к этим данным.",
+            **kwargs,  # type: ignore[arg-type]
+        )
+
+
+class ChatAdminRequiredError(TelegramProviderError):
+    """The action requires admin rights in the target chat."""
+
+    def __init__(self, message: str = "", **kwargs: object) -> None:
+        kwargs.setdefault(
+            "how_to_fix",
+            "Для этого действия аккаунт должен быть администратором источника.",
+        )
+        super().__init__(
+            message or "Требуются права администратора в этом чате.", **kwargs  # type: ignore[arg-type]
+        )

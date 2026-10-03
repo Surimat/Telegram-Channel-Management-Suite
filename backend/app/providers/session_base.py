@@ -15,6 +15,7 @@ from typing import Protocol, runtime_checkable
 
 from backend.app.providers.types import (
     EntityRef,
+    ParticipantPage,
     SendCodeResult,
     SignInResult,
     UserIdentity,
@@ -69,6 +70,22 @@ class SessionProvider(Protocol):
         self, entity: str | int, *, limit: int = 0
     ) -> list[UserIdentity]:
         """Return participants of a group/channel (subset implemented in PHASE 5)."""
+
+    async def iter_participant_pages(
+        self,
+        entity: str | int,
+        *,
+        batch_size: int = 100,
+        offset: int = 0,
+        limit: int = 0,
+    ) -> list[ParticipantPage]:  # pragma: no cover - protocol declaration
+        """Fetch participants in pages (streaming scan, PHASE 5).
+
+        Implementations should return one call's worth of pages without holding
+        the whole member list in memory. ``offset`` allows a scan to resume from
+        where it stopped.
+        """
+        ...
 
     async def invite_to_channel(self, entity: str | int, user_id: int) -> None:
         """Invite a user to a channel (implemented in PHASE 6)."""

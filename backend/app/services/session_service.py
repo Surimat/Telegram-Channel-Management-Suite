@@ -150,6 +150,12 @@ class SessionService:
                 candidate.unlink(missing_ok=True)
 
     # --- provider helpers ----------------------------------------------------
+    def provider_for(
+        self, account: UserSession, provider_name: str | None = None
+    ) -> SessionProvider:
+        """Public wrapper: build a provider for ``account`` (PHASE 5 reuses this)."""
+        return self._provider_for(account, provider_name)
+
     def _provider_for(
         self, account: UserSession, provider_name: str | None = None
     ) -> SessionProvider:

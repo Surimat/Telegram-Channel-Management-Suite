@@ -128,6 +128,29 @@ class EntityRef:
     title: str = ""
     kind: str = ""  # "user" | "group" | "channel"
     participants_count: int | None = None
+    # Access flags observed while resolving the entity (PHASE 5).
+    is_admin: bool = False
+    # True when Telegram refused to expose the participant list (privacy / not a
+    # member / admin-only). The scan then reports NO_ACCESS instead of pretending
+    # an empty list means "nobody here".
+    participants_hidden: bool = False
+
+
+@dataclass(slots=True)
+class ParticipantPage:
+    """One page of participants returned by a streaming scan (PHASE 5).
+
+    ``total`` is Telegram's reported participant count when known; ``exhausted``
+    is True when the iterator can yield no more. A page may be empty while the
+    scan is not exhausted (e.g. a page of only bots that the caller filtered).
+    """
+
+    users: list[UserIdentity] = field(default_factory=list)
+    total: int | None = None
+    exhausted: bool = False
+    # Telegram silently truncates large member lists; the scanner sets this when
+    # a page was returned but no further pages are available (partial result).
+    truncated: bool = False
 
 
 @dataclass(slots=True)

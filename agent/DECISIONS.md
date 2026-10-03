@@ -379,3 +379,75 @@ string passed straight into the provider. Losing/changing `APP_SECRET_KEY` makes
 sealed values unreadable — surfaced as a friendly "add the account again" error,
 never a stack trace.
 
+---
+
+## D-026 — 2026-10-03 — Audience parsing goes through `AudienceProvider` over the session provider — LOCKED
+
+**Decision:** PHASE 5 introduces `AudienceProvider` (`providers/audience_base.py`)
+with `resolve_entity` and `iter_participant_pages`. The real implementation
+(`SessionAudienceProvider`) is a thin adapter that delegates to the PHASE 4
+`SessionProvider`, so there is still exactly one place that talks MTProto
+(Telethon) and the audience code never imports Telethon.
+`registry.build_audience_provider` selects the real adapter or the pure
+`FakeAudienceProvider` from config (`offline_mode` / `provider=fake`).
+
+**Why:** Keeps the D-001 rule (Telegram details stay behind interfaces), keeps
+tests/offline mode account-free, and matches the requirement that a partial
+library swap is a config/DI concern.
+
+**Consequence:** Scans are consumed one bounded `ParticipantPage` at a time and
+the member list is never fully buffered in memory. Deterministic failure
+injection (FloodWait/privacy/admin) is possible in tests via `FakeAudienceScenario`.
+
+---
+
+## D-027 — 2026-10-03 — Audiences are scanned in restart-safe chunks with honest completeness — LOCKED
+
+**Decision:** A scan is a durable `job_queue` job (`audience.scan`) driven one
+chunk at a time, committing `scanned_offset` and counters after each chunk so
+progress survives a crash. Pause/resume/cancel are explicit source states, and
+`AudienceService.recover()` resets scans interrupted mid-flight to `paused` on
+startup. Completeness is reported honestly as `complete`, `partial` (Telegram
+returned only part of the list), `no_access` (list hidden from this account),
+`failed` or `unknown`, each with a plain-language explanation. FloodWait pauses
+the scan and shows the wait time; it is never bypassed (D-006).
+
+**Why:** The target machine is weak and the app must survive restarts; the owner
+must never be told a partial list is complete, and server limits must be
+respected.
+
+**Consequence:** Results are produced incrementally during a long scan and the UI
+has a truthful `scan_status`/`completeness` to display.
+
+---
+
+## D-028 — 2026-10-03 — Dedup by `telegram_user_id`; membership is many-to-many — LOCKED
+
+**Decision:** `audience_users` is unique on `telegram_user_id` so a person found
+in several sources is stored once. Membership in a source is modelled by the
+`source_user_links` join table (unique per `(source_id, user_id)`), which also
+records `discovery_method` and timestamps.
+
+**Why:** Prevents duplicate rows and lets one person belong to many sources
+without corrupting filters/statistics; mirrors normal relational modelling
+(D-002).
+
+**Consequence:** Source statistics use the link table; deleting a source removes
+its links (cascade) but not the global user unless explicitly purged. Adding a
+new DB port (PostgreSQL) requires no business-logic change.
+
+---
+
+## D-029 — 2026-10-03 — Audience PII is masked; exports are local and PII-off by default — LOCKED
+
+**Decision:** The audience subsystem stores only `phone_masked` (never a full
+phone number). CSV/JSON export writes to the local, gitignored `exports/`
+directory (never automatically uploaded/sent), excludes PII columns by default,
+and requires the `AUDIENCE_STORE_PII` setting to include them. API responses and
+event logs never contain secrets, session strings or raw phones.
+
+**Why:** Satisfies the hard security rule while still allowing legitimate
+owner-controlled exports.
+
+**Consequence:** `tests/test_audience_security.py` asserts no secret/PII leaks in
+responses, exports and events, and that error messages stay human-readable.

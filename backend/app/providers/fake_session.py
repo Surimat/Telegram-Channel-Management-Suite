@@ -24,6 +24,7 @@ from backend.app.providers.errors import (
 )
 from backend.app.providers.types import (
     EntityRef,
+    ParticipantPage,
     SendCodeResult,
     SignInResult,
     UserIdentity,
@@ -62,6 +63,52 @@ class FakeAuthScenario:
     health_error: Exception | None = None
 
 
+@dataclass
+class FakeAudienceScenario:
+    """Controls the fake participant scan (PHASE 5).
+
+    ``participants`` is the full list the fake pretends to hold; pages are served
+    from it in ``page_size`` chunks. When ``reported_total`` is larger than the
+    served list, the fake simulates Telegram hiding part of the audience so the
+    ``PARTIAL`` completeness path can be exercised without a real account.
+    """
+
+    participants: list[UserIdentity] = field(default_factory=list)
+    reported_total: int | None = None
+    page_size: int = 100
+    # When set, resolving the entity raises this (e.g. EntityNotFoundError).
+    resolve_error: Exception | None = None
+    # When set, fetching participants raises this (e.g. FloodWaitError).
+    participants_error: Exception | None = None
+    # When True, the entity reports a hidden participant list (NO_ACCESS).
+    participants_hidden: bool = False
+    # Entity title/kind returned by resolve for any input.
+    title: str = "Fake Source"
+    kind: str = "channel"
+
+
+def make_fake_users(count: int, *, start_id: int = 1) -> list[UserIdentity]:
+    """Build a deterministic list of fake users for scan tests."""
+    users: list[UserIdentity] = []
+    for i in range(count):
+        uid = start_id + i
+        users.append(
+            UserIdentity(
+                id=uid,
+                username=f"user{uid}",
+                first_name="User",
+                last_name=str(uid),
+            )
+        )
+    return users
+
+
+def _page(
+    users: list[UserIdentity], total: int | None, exhausted: bool
+) -> ParticipantPage:
+    return ParticipantPage(users=users, total=total, exhausted=exhausted)
+
+
 class FakeSessionProvider:
     """In-memory :class:`SessionProvider` implementation."""
 
@@ -72,11 +119,13 @@ class FakeSessionProvider:
         api_hash: str = "",
         session_path: Path | None = None,
         scenario: FakeAuthScenario | None = None,
+        audience: FakeAudienceScenario | None = None,
     ) -> None:
         self._api_id = api_id
         self._api_hash = api_hash
         self._session_path = session_path
         self.scenario = scenario or FakeAuthScenario()
+        self.audience = audience or FakeAudienceScenario()
         self.connected = False
         self.closed = True
         self.export_calls = 0
@@ -149,19 +198,55 @@ class FakeSessionProvider:
 
     # --- extension points (subset; full behaviour lands in PHASE 5/6) --------
     async def resolve_entity(self, username_or_id: str | int) -> EntityRef:
+        if self.audience.resolve_error is not None:
+            raise self.audience.resolve_error
         raw = str(username_or_id).lstrip("@")
         return EntityRef(
             id=abs(hash(raw)) % 10**10,
             username=raw if not raw.lstrip("-").isdigit() else "",
-            title=raw,
-            kind="channel",
-            participants_count=0,
+            title=self.audience.title or raw,
+            kind=self.audience.kind,
+            participants_count=self._reported_total(),
+            participants_hidden=self.audience.participants_hidden,
         )
 
     async def get_participants(
         self, entity: str | int, *, limit: int = 0
     ) -> list[UserIdentity]:
-        return []
+        users = list(self.audience.participants)
+        if limit > 0:
+            users = users[:limit]
+        return users
+
+    async def iter_participant_pages(
+        self,
+        entity: str | int,
+        *,
+        batch_size: int = 100,
+        offset: int = 0,
+        limit: int = 0,
+    ) -> list[ParticipantPage]:
+        if self.audience.participants_error is not None:
+            raise self.audience.participants_error
+        if self.audience.participants_hidden:
+            return [_page([], self._reported_total(), exhausted=True)]
+        users = list(self.audience.participants)
+        page_size = max(1, min(batch_size, self.audience.page_size))
+        if limit > 0:
+            users = users[:limit]
+        total = self._reported_total()
+        if offset >= len(users):
+            return [_page([], total, exhausted=True)]
+        window = users[offset : offset + page_size]
+        exhausted = offset + len(window) >= len(users)
+        return [_page(window, total, exhausted=exhausted)]
+
+    def _reported_total(self) -> int | None:
+        if self.audience.reported_total is not None:
+            return self.audience.reported_total
+        if self.audience.participants:
+            return len(self.audience.participants)
+        return None
 
     async def invite_to_channel(self, entity: str | int, user_id: int) -> None:
         return None
@@ -184,10 +269,33 @@ def fake_provider_factory(scenario: FakeAuthScenario | None = None):
     return _factory
 
 
+def fake_audience_factory(
+    audience: FakeAudienceScenario | None = None,
+    scenario: FakeAuthScenario | None = None,
+):
+    """Return a session-provider factory whose fake serves ``audience``.
+
+    Letting the same shared provider back both the Session Manager and the
+    Audience Scanner mirrors production, where one account drives both.
+    """
+    shared = FakeSessionProvider(scenario=scenario, audience=audience)
+
+    def _factory(*, api_id="", api_hash="", session_path=None, provider_name="auto", settings=None):
+        shared._api_id = api_id
+        shared._api_hash = api_hash
+        shared._session_path = session_path
+        return shared
+
+    return _factory
+
+
 __all__ = [
     "DEFAULT_CODE",
     "DEFAULT_PASSWORD",
+    "FakeAudienceScenario",
     "FakeAuthScenario",
     "FakeSessionProvider",
+    "fake_audience_factory",
     "fake_provider_factory",
+    "make_fake_users",
 ]

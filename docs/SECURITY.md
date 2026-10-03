@@ -119,6 +119,27 @@ Before any bulk operation (invites, reactions) the UI shows a mandatory
 confirmation summary: source, target, user count, account count, applied
 filters, planned operation count. The user must confirm.
 
+Audience scans also use a dry-run **preview** (account, batch/chunk sizes,
+estimated total, notes) before any job is queued.
+
+---
+
+## 7a. Audience data (PHASE 5)
+
+- **No raw PII at rest**: only `phone_masked` may be stored, and only when the
+  `AUDIENCE_STORE_PII` setting is enabled; full phone numbers are never persisted
+  by the audience subsystem.
+- **Exports are local-only**: CSV/JSON files are written to the gitignored
+  `exports/` directory and are never uploaded or sent anywhere automatically. PII
+  columns are excluded by default and exporting them requires the setting above.
+- **Completeness honesty**: when Telegram exposes only part of an audience the
+  source is marked `partial` / `no_access` and explained in plain language; a
+  partial list is never presented as complete.
+- **FloodWait / privacy / admin** during a scan pause or fail the source with a
+  visible wait/status — never bypassed (see section 6).
+- **Responses/logs** never contain session strings, tokens, api_hash, or raw
+  phones (verified by `tests/test_audience_security.py`).
+
 ---
 
 ## 8. Principle of least privilege

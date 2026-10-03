@@ -4,8 +4,8 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-03
-**Current phase:** PHASE 4 — User Session Manager: **COMPLETED** (commit pending).
-**Repository status:** `develop` carries PHASE 0–4; `main` only via pull request.
+**Current phase:** PHASE 5 — Audience: **COMPLETED** (commit pending).
+**Repository status:** `develop` carries PHASE 0–5; `main` only via pull request.
 **Branch:** `develop` (tracks `origin/develop`); `main` is untouched and only ever updated via pull request.
 
 ---
@@ -138,6 +138,42 @@ Layered architecture: **core → db/models → db/repositories → services → 
   `test_sessions_api.py`, `test_session_security.py`; `conftest.py` gained a
   `session_client` fixture (fake session provider).
 
+### PHASE 5 — Audience (sources + parsing + database + export)
+- `backend/app/providers/audience_base.py` — `AudienceProvider` protocol
+  (`resolve_entity`, `iter_participant_pages`).
+- `backend/app/providers/session_audience.py` — `SessionAudienceProvider`: thin
+  adapter over the PHASE 4 `SessionProvider` (no Telethon import here).
+- `backend/app/providers/fake_audience.py` — `FakeAudienceProvider` +
+  `FakeAudienceScenario` (pure, offline); `fake_session.py` gained
+  `FakeAudienceScenario` + `make_fake_users` and participant-page support.
+- `backend/app/providers/registry.py` — `build_audience_provider(...)`; `errors.py`
+  + `types.py` gained audience errors/DTOs (`EntityNotFoundError`,
+  `PrivacyRestrictedError`, `ChatAdminRequiredError`; `EntityRef` extended with
+  `participants_count`/`participants_hidden`, `ParticipantPage`).
+- `backend/app/db/models/audience.py` — `AudienceSource`, `AudienceUser`,
+  `SourceUserLink` (+ enums `SourceType`, `ScanStatus`, `Completeness`,
+  `MemberStatus`); dedup via unique `telegram_user_id` and unique
+  `(source_id, user_id)` links.
+- `backend/app/db/repositories/audience.py` — `AudienceSourceRepository`,
+  `AudienceUserRepository`, `SourceUserLinkRepository` (filters, pagination,
+  sorting, counts, batch streaming, bulk ops; enum-key normalization).
+- `backend/app/services/audience_service.py` — `AudienceService`: sources CRUD,
+  `check_source`, `preview_scan` (dry-run), durable scanning with per-chunk
+  commits, completeness logic, pause/resume/cancel, `recover()`, tags, explainable
+  scoring, dashboard/statistics, streaming CSV/JSON export, CSV/JSON import.
+- `backend/app/api/schemas/audience.py`, `backend/app/api/v1/audience.py`,
+  `api/deps.py::get_audience_service`, router registration. Responses never
+  expose secrets or raw phones; PII export gated by settings.
+- `backend/app/services/system_service.py` — new Setup-Wizard `audience` check.
+- `backend/app/main.py` lifespan — `AudienceService.recover()` (pauses
+  interrupted scans) + registered the `audience.scan` durable job handler.
+- `backend/app/db/session.py` — SQLite `lower`/`upper` registered as Python
+  functions so case-insensitive Cyrillic search works (SQLite's built-in `lower`
+  is ASCII-only).
+- `tests/` — `test_audience_models.py`, `test_audience_service.py`,
+  `test_audience_api.py`, `test_audience_providers.py`,
+  `test_audience_security.py`; `conftest.py` gained an `audience_client` fixture.
+
 ### Frontend (PHASE 1) — Vue 3 + Vite + TypeScript
 - `frontend/` — `package.json`, `vite.config.ts` (builds into
   `backend/app/static/`), `tsconfig.json`, `index.html`.
@@ -178,21 +214,27 @@ Layered architecture: **core → db/models → db/repositories → services → 
   durable jobs, execution via the provider with FloodWait handling, and startup
   recovery — verified live in offline mode (add bot → enable → ingest → job
   created) and covered by 48 tests.
-- `ruff check backend tests` → clean. `pytest` → **153 passed**.
+- `ruff check backend tests` → clean. `pytest` → **212 passed**.
 - Frontend `npm run build` → outputs to `backend/app/static/` successfully
   (`vue-tsc` clean).
 - **Sessions (PHASE 4)**: guided auth wizard (start → code → 2FA), `.session`
   import (+ rollback), health, enable/disable, delete, logout, startup recovery —
   verified live in offline mode (start → code → list; no secret in responses) and
   covered by 45 tests.
+- **Audience (PHASE 5)**: sources CRUD, `check`, dry-run preview, chunked durable
+  scan (pause/resume/cancel, restart recovery), dedup, filters/search/sort/tags,
+  bulk status, dashboard/statistics, streaming export, import — verified in
+  offline mode and covered by API/service/model/provider/security tests. No
+  secret or raw phone appears in responses, exports default to no PII.
 
 ## 4. What does NOT exist yet
 
-- Channel binding, audience parsing, invites, analytics APIs/UI, Tiny AI
-  classifier (PHASE 7).
+- Dedicated Audience/Sources **frontend views** (API is complete; views land with
+  the frontend rollout) and the Telegram Mini App.
+- Channel binding, invites, analytics APIs/UI, Tiny AI classifier (PHASE 7).
 - Account permission probe (read/post rights on a channel) — the SessionProvider
   exposes `resolve_entity`/`get_participants`/`invite_to_channel` but the service
-  does not yet surface a permissions check (arrives with PHASE 5/6).
+  does not yet surface a permissions check (arrives with PHASE 6).
 - Manager-bot runtime: the manager bot is registered from settings, but there is
   no command loop / admin whitelist / notification forwarding yet.
 - Auth for the local UI / Mini App `initData`.
@@ -201,9 +243,10 @@ Layered architecture: **core → db/models → db/repositories → services → 
 
 ## 5. Next action
 
-Start **PHASE 5 — Audience** (see `agent/NEXT_TASK.md` and `docs/ROADMAP.md`):
-audience sources, parsing via the user-account provider, the audience database
-with dedup/filters/tags/search, exports and source statistics.
+Start **PHASE 6 — Invite Manager** (see `agent/NEXT_TASK.md` and
+`docs/ROADMAP.md`): an invite queue over the parsed audience, dry-run +
+mandatory confirmation summary, per-account/per-user status, FloodWait/privacy
+handling (pause, never bypass), pause/resume/stop, logs, safe retry.
 
 ## 6. Locked decisions (do not break)
 
@@ -227,6 +270,14 @@ See `agent/DECISIONS.md`. Key ones:
 - User accounts use lazy, per-operation MTProto connections (D-023).
 - The auth wizard is a durable, resumable state machine (D-024).
 - Account secrets are sealed; the API exposes only presence (D-025).
+- Audience parsing goes through `AudienceProvider`, a thin adapter over the
+  PHASE 4 `SessionProvider`; scans are chunked and restart-safe (D-026).
+- Audience scans have a dry-run preview; completeness is reported honestly
+  (`complete`/`partial`/`no_access`) and FloodWait pauses rather than loops (D-027).
+- Audience dedup key is the unique `telegram_user_id`; membership is a
+  many-to-many `source_user_links` table (D-028).
+- Audience PII is masked at rest, exports are local-only and PII-off by default
+  (D-029).
 
 ## 7. How to run / verify after opening a new chat
 

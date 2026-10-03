@@ -11,6 +11,57 @@ _No unreleased changes._
 
 ---
 
+## [0.5.0] — 2026-10-03 — PHASE 5: Audience (sources, parsing, database, export)
+
+### Added — provider abstraction (Telethon stays isolated)
+- `backend/app/providers/audience_base.py` — `AudienceProvider` protocol
+  (`resolve_entity`, `iter_participant_pages`).
+- `backend/app/providers/session_audience.py` — `SessionAudienceProvider`, a thin
+  adapter over the PHASE 4 `SessionProvider` (no Telethon import here).
+- `backend/app/providers/fake_audience.py` — pure `FakeAudienceProvider` +
+  `FakeAudienceScenario` (deterministic paging, hidden participants, injectable
+  FloodWait/privacy errors). `fake_session.py` gained `FakeAudienceScenario` +
+  `make_fake_users` and participant-page support.
+- `providers/registry.py` — `build_audience_provider(...)`; new audience errors
+  (`EntityNotFoundError`, `PrivacyRestrictedError`, `ChatAdminRequiredError`) and
+  extended DTOs (`EntityRef.participants_count/hidden`, `ParticipantPage`).
+
+### Added — DB
+- `backend/app/db/models/audience.py` — `AudienceSource`, `AudienceUser`,
+  `SourceUserLink` (+ `SourceType`, `ScanStatus`, `Completeness`, `MemberStatus`);
+  dedup via unique `telegram_user_id`, membership via unique `(source_id, user_id)`.
+- `backend/app/db/repositories/audience.py` — source/user/link repositories
+  (filters, search, sort, pagination, batch streaming, counts, bulk tag ops).
+- `backend/app/db/session.py` — Unicode-aware SQLite `lower`/`upper` so
+  case-insensitive Cyrillic search works.
+
+### Added — service & API
+- `backend/app/services/audience_service.py` — `AudienceService`: sources CRUD,
+  `check_source`, `preview_scan` (dry-run), chunked durable scanning with per-chunk
+  commits, honest completeness, pause/resume/cancel, `recover()`, tags, explainable
+  scoring, dashboard/statistics, streaming CSV/JSON export, CSV/JSON import.
+- `backend/app/api/schemas/audience.py`, `backend/app/api/v1/audience.py`,
+  `api/deps.py`, router registration. Responses never leak secrets/raw phones; PII
+  export is off by default and gated by the `AUDIENCE_STORE_PII` setting.
+- `backend/app/services/system_service.py` — Setup-Wizard `audience` check.
+- `backend/app/main.py` — registered the `audience.scan` durable job handler and
+  best-effort `AudienceService.recover()` (interrupted scans → paused).
+
+### Added — tests
+- `tests/test_audience_models.py`, `test_audience_service.py`,
+  `test_audience_api.py`, `test_audience_providers.py`,
+  `test_audience_security.py`; `conftest.py` gained an `audience_client` fixture.
+
+### Fixed
+- Empty final scan page no longer misreported as `NO_ACCESS`.
+- Enum-name normalization in repository counts so status tallies are correct.
+
+### Notes
+- Suite: **212 passed**; `ruff check backend tests` clean.
+- Dedicated Audience/Sources frontend views deferred to the frontend rollout.
+
+---
+
 ## [0.4.0] — 2026-10-03 — PHASE 4: User Session Manager (MTProto accounts)
 
 ### Added — provider abstraction (Telethon isolated)

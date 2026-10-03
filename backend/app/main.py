@@ -33,10 +33,11 @@ logger = get_logger(__name__)
 
 
 def _register_handlers(scheduler: Scheduler) -> None:
-    """Register durable-queue job handlers (PHASE 3: reaction execution)."""
+    """Register durable-queue job handlers (PHASE 3/5)."""
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from backend.app.db.models.job import Job
+    from backend.app.services.audience_service import SCAN_JOB_KIND, AudienceService
     from backend.app.services.reaction_service import REACTION_JOB_KIND, ReactionService
 
     async def handle_reaction(session: AsyncSession, job: Job) -> None:
@@ -45,7 +46,13 @@ def _register_handlers(scheduler: Scheduler) -> None:
         if reaction_job_id:
             await ReactionService(session).execute_reaction_job(reaction_job_id)
 
+    async def handle_scan(session: AsyncSession, job: Job) -> None:
+        # The service streams one bounded chunk per tick, committing progress so
+        # an interrupted scan can resume (decision D-028).
+        await AudienceService(session).run_scan_chunk()
+
     scheduler.register(REACTION_JOB_KIND, handle_reaction)
+    scheduler.register(SCAN_JOB_KIND, handle_scan)
 
 
 @contextlib.asynccontextmanager
@@ -99,6 +106,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             reset = await SessionService(session).recover()
             if reset:
                 logger.info("Reset %d unfinished account authorization(s)", reset)
+
+    # Safely pause audience scans interrupted by a restart (PHASE 5).
+    with contextlib.suppress(Exception):
+        from backend.app.db.session import session_scope
+        from backend.app.services.audience_service import AudienceService
+
+        async with session_scope() as session:
+            paused = await AudienceService(session).recover()
+            if paused:
+                logger.info("Paused %d interrupted audience scan(s) after restart", paused)
 
     scheduler: Scheduler | None = None
     if settings.scheduler_enabled:

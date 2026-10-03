@@ -23,17 +23,21 @@ from backend.app.providers.errors import (
     ApiCredentialsInvalidError,
     AuthCodeExpiredError,
     AuthCodeInvalidError,
+    ChatAdminRequiredError,
+    EntityNotFoundError,
     FloodWaitError,
     NetworkError,
     PasswordInvalidError,
     PasswordRequiredError,
     PhoneNumberBannedError,
     PhoneNumberInvalidError,
+    PrivacyRestrictedError,
     SessionInvalidError,
     TelegramProviderError,
 )
 from backend.app.providers.types import (
     EntityRef,
+    ParticipantPage,
     SendCodeResult,
     SignInResult,
     UserIdentity,
@@ -124,11 +128,15 @@ class TelethonSessionProvider:
         from telethon.errors import (
             ApiIdInvalidError,
             AuthKeyUnregisteredError,
+            ChannelPrivateError,
             PasswordHashInvalidError,
             PhoneCodeExpiredError,
             PhoneCodeInvalidError,
             SessionPasswordNeededError,
             SessionRevokedError,
+        )
+        from telethon.errors import (
+            ChatAdminRequiredError as TelethonAdminRequired,
         )
         from telethon.errors import (
             FloodWaitError as TelethonFloodWait,
@@ -138,6 +146,12 @@ class TelethonSessionProvider:
         )
         from telethon.errors import (
             PhoneNumberInvalidError as TelethonPhoneInvalid,
+        )
+        from telethon.errors import (
+            UsernameInvalidError as TelethonUsernameInvalid,
+        )
+        from telethon.errors import (
+            UsernameNotOccupiedError as TelethonUsernameNotOccupied,
         )
 
         if isinstance(exc, TelethonFloodWait):
@@ -156,6 +170,12 @@ class TelethonSessionProvider:
             return PhoneNumberBannedError(technical=type(exc).__name__)
         if isinstance(exc, ApiIdInvalidError):
             return ApiCredentialsInvalidError(technical=type(exc).__name__)
+        if isinstance(exc, (TelethonUsernameInvalid, TelethonUsernameNotOccupied)):
+            return EntityNotFoundError(technical=type(exc).__name__)
+        if isinstance(exc, ChannelPrivateError):
+            return PrivacyRestrictedError(technical=type(exc).__name__)
+        if isinstance(exc, TelethonAdminRequired):
+            return ChatAdminRequiredError(technical=type(exc).__name__)
         if isinstance(exc, (AuthKeyUnregisteredError, SessionRevokedError)):
             return SessionInvalidError(technical=type(exc).__name__)
         if isinstance(exc, (ConnectionError, TimeoutError, OSError)):
@@ -265,12 +285,24 @@ class TelethonSessionProvider:
                 kind = "group"
             elif getattr(entity, "broadcast", False):
                 kind = "channel"
+            # Channels/groups may hide their member list; report that instead of
+            # letting an empty scan look like "no participants" (SETUP/UI D-00x).
+            hidden = bool(
+                getattr(entity, "participants_hidden", False)
+                or getattr(entity, "join_to_send", False)
+            )
+            is_admin = bool(
+                getattr(getattr(entity, "admin_rights", None), "is_admin", False)
+                or getattr(entity, "creator", False)
+            )
             return EntityRef(
                 id=int(getattr(entity, "id", 0)),
                 username=str(getattr(entity, "username", "") or ""),
                 title=str(getattr(entity, "title", "") or getattr(entity, "first_name", "") or ""),
                 kind=kind,
                 participants_count=getattr(entity, "participants_count", None),
+                is_admin=is_admin,
+                participants_hidden=hidden,
             )
 
         return await self._call(_run)
@@ -284,6 +316,59 @@ class TelethonSessionProvider:
             async for user in client.iter_participants(entity, **kwargs):
                 result.append(self._identity(user))
             return result
+
+        return await self._call(_run)
+
+    async def iter_participant_pages(
+        self,
+        entity: str | int,
+        *,
+        batch_size: int = 100,
+        offset: int = 0,
+        limit: int = 0,
+    ) -> list[ParticipantPage]:
+        """Return up to one in-memory page of participants starting at ``offset``.
+
+        The caller (AudienceService) drives the scan one page at a time so the
+        full member list is never held in RAM on a weak machine. ``exhausted``
+        marks the final page; ``truncated`` is set when Telegram reported more
+        participants than it was willing to expose (partial result, never hidden
+        from the user — decision D-026).
+        """
+
+        async def _run(client):  # type: ignore[no-untyped-def]
+            resolved = await client.get_entity(entity)
+            total: int | None = getattr(resolved, "participants_count", None)
+            taken: list[UserIdentity] = []
+            exhausted = True
+            batch = max(1, batch_size)
+            # Fetch a bounded window so a single call cannot grow without limit.
+            fetch_limit = batch
+            if limit > 0:
+                remaining = limit - offset
+                if remaining <= 0:
+                    return [
+                        ParticipantPage(users=[], total=total, exhausted=True)
+                    ]
+                fetch_limit = min(batch, remaining)
+            seen = 0
+            async for user in client.iter_participants(resolved):
+                if seen < offset:
+                    seen += 1
+                    continue
+                taken.append(self._identity(user))
+                seen += 1
+                if len(taken) >= fetch_limit:
+                    exhausted = False
+                    break
+            return [
+                ParticipantPage(
+                    users=taken,
+                    total=total,
+                    exhausted=exhausted,
+                    truncated=bool(total and len(taken) < total and exhausted),
+                )
+            ]
 
         return await self._call(_run)
 

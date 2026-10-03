@@ -94,6 +94,59 @@ def make_fake_session_factory(scenario=None):
     return _factory
 
 
+def make_fake_audience_service_factory(audience=None, scenario=None):
+    """Return a session-provider factory whose fake also serves audience data."""
+    from backend.app.providers.fake_session import (
+        FakeAudienceScenario,
+        FakeAuthScenario,
+        FakeSessionProvider,
+    )
+
+    shared = FakeSessionProvider(
+        scenario=scenario or FakeAuthScenario(),
+        audience=audience or FakeAudienceScenario(),
+    )
+
+    def _factory(*, api_id="", api_hash="", session_path=None, provider_name="auto", settings=None):
+        shared._api_id = api_id
+        shared._api_hash = api_hash
+        shared._session_path = session_path
+        return shared
+
+    return _factory
+
+
+@pytest_asyncio.fixture
+async def audience_client() -> AsyncIterator[AsyncClient]:
+    """API client with sessions+audience wired to a fake that serves members."""
+    from backend.app.api.deps import get_session_provider_factory
+    from backend.app.db.models.session import SessionStatus, UserSession
+    from backend.app.db.session import init_models, session_scope
+    from backend.app.main import create_app
+    from backend.app.providers.fake_session import FakeAudienceScenario, make_fake_users
+
+    await init_models()
+    async with session_scope() as session:
+        session.add(
+            UserSession(
+                telegram_user_id=1000001,
+                username="fake_user",
+                display_name="Fake User",
+                status=SessionStatus.ONLINE,
+                enabled=True,
+                api_id="1",
+            )
+        )
+    app = create_app()
+    factory = make_fake_audience_service_factory(
+        audience=FakeAudienceScenario(participants=make_fake_users(120), page_size=50)
+    )
+    app.dependency_overrides[get_session_provider_factory] = lambda: factory
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+
 @pytest_asyncio.fixture
 async def bot_client() -> AsyncIterator[AsyncClient]:
     """API client with Telegram access wired to the fake provider.

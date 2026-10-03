@@ -168,6 +168,14 @@ PHASE 5/6 need (`resolve_entity`, `get_participants`, `invite_to_channel`), so
 audience parsing and invites build on the same interface rather than adding new
 Telegram touch-points.
 
+Implemented (PHASE 5): `AudienceProvider` (`providers/audience_base.py`) with
+`SessionAudienceProvider` (`providers/session_audience.py`) — a thin adapter that
+delegates to the PHASE 4 `SessionProvider` (so it never imports Telethon itself)
+— and `FakeAudienceProvider` (pure, offline). `registry.build_audience_provider`
+selects the real adapter or the fake from config. The scanner consumes the
+interface one bounded page at a time, so the member list is never fully
+buffered.
+
 ---
 
 ## 6. Data model (initial)
@@ -185,9 +193,22 @@ Core tables (SQLAlchemy models in `backend/app/db/models/`):
   `status` (`online|auth_required|disconnected|flood_wait|error|disabled`),
   `auth_step` (`idle|code|password|done`), `enabled`, `last_error`,
   `last_checked_at`. **Implemented (PHASE 4).**
-- `sources` — audience sources (channel/group/entity, scan stats).
-- `audience_users` — parsed users (dedup key = telegram_user_id).
-- `audience_tags` / `audience_user_tags` — tagging.
+- `sources` — audience sources. Fields: `reference`, `username`, `telegram_id`
+  (unique), `source_type` (`channel|group|entity|unknown`), `enabled`,
+  `account_id`, `scan_status` (`idle|scanning|paused|completed|failed|cancelled`),
+  `completeness` (`unknown|complete|partial|no_access|failed`), `scanned_offset`
+  (resume point), `discovered_count`/`new_count`/`duplicate_count`/`error_count`,
+  `reported_total`, `scan_job_id`, `last_error`, scan timestamps.
+  **Implemented (PHASE 5).**
+- `audience_users` — parsed users (dedup key = unique `telegram_user_id`).
+  Fields: `username`, names, `phone_masked` (masked only; full phones never
+  stored), `is_bot`/`is_deleted`/`is_premium`, `status`
+  (`active|blocked|deleted|unknown`), `score` + `score_reason`, `tags` (JSON
+  list), plus neutral `invite_*` extension fields for PHASE 6.
+  **Implemented (PHASE 5).**
+- `source_user_links` — many-to-many membership (`source_id`, `user_id`,
+  `discovery_method`, timestamps; unique per pair) so a person found in several
+  sources stays a single row. **Implemented (PHASE 5).**
 - `invite_jobs` / `invite_tasks` — invite queue with per-user status.
 - `posts` — channel posts (content, category, tone, confidence).
 - `reaction_jobs` — per post/bot/reaction scheduled reaction (section 8).

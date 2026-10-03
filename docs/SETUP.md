@@ -157,6 +157,31 @@ account can be health-checked, disabled, re-authorized or deleted from the list.
 
 ---
 
+## Parsing an audience (PHASE 5)
+
+Open the Web UI → **Аудитория** (or use the API) and:
+
+1. **Add a source** — a public channel/group `@username`, a `t.me/...` link, or
+   a numeric Telegram ID. Pick which user account performs the scan.
+2. **Check** the source — the system resolves it and reports whether Telegram
+   exposes the member list.
+3. **Preview scan** — a dry run shows the account, batch/chunk sizes and any
+   Telegram-reported total. Nothing runs until you confirm.
+4. **Start scan** — the scan runs in small chunks (weak-machine friendly) and can
+   be **paused / resumed / cancelled** at any time; progress survives a restart.
+5. **Review results** — filter, search, sort, tag and bulk-update users; export
+   to CSV/JSON or import an existing list.
+
+Completeness is reported honestly: `complete`, `partial` (Telegram returned only
+part of the list), or `no_access` (Telegram hides the list for that account).
+FloodWait pauses the scan and shows the wait time — limits are never bypassed.
+
+Exports are written to the local, gitignored `exports/` directory and never sent
+anywhere. Phone numbers are never stored in full; PII columns are excluded from
+exports unless `AUDIENCE_STORE_PII` is enabled.
+
+---
+
 ## Configuration
 
 All configuration is available through:

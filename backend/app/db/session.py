@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -23,6 +24,21 @@ _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
+def _register_sqlite_functions(dbapi_connection, _record) -> None:  # type: ignore[no-untyped-def]
+    """Make SQLite's ``lower`` Unicode-aware (needed for RU search).
+
+    SQLite's built-in ``lower()`` only folds ASCII, so ``lower('Новости')`` is
+    unchanged and case-insensitive Cyrillic search would silently fail. Registering
+    a Python ``lower``/``upper`` keeps the same SQL working on SQLite and later on
+    PostgreSQL (which is already Unicode-aware).
+    """
+    try:
+        dbapi_connection.create_function("lower", 1, lambda s: s.lower() if s else s)
+        dbapi_connection.create_function("upper", 1, lambda s: s.upper() if s else s)
+    except Exception:  # pragma: no cover - defensive; never block startup
+        pass
+
+
 def get_engine() -> AsyncEngine:
     """Return the process-wide async engine (creating it on first use)."""
     global _engine
@@ -34,6 +50,8 @@ def get_engine() -> AsyncEngine:
             # Allow use across asyncio tasks/threads used by the app + scheduler.
             connect_args = {"check_same_thread": False}
         _engine = create_async_engine(url, echo=False, future=True, connect_args=connect_args)
+        if url.startswith("sqlite"):
+            event.listen(_engine.sync_engine, "connect", _register_sqlite_functions)
     return _engine
 
 

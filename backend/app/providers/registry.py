@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from backend.app.core.config import Settings, get_settings
+from backend.app.providers.audience_base import AudienceProvider
 from backend.app.providers.base import TelegramBotProvider
 from backend.app.providers.session_base import SessionProvider
 
@@ -73,4 +74,34 @@ def build_session_provider(
     )
 
 
-__all__ = ["SessionProvider", "TelegramBotProvider", "build_bot_provider", "build_session_provider"]
+def build_audience_provider(
+    session_provider: SessionProvider,
+    *,
+    provider_name: str = "auto",
+    settings: Settings | None = None,
+) -> AudienceProvider:
+    """Return an :class:`AudienceProvider` for scanning (PHASE 5).
+
+    The real adapter delegates to ``session_provider`` (so MTProto access stays
+    behind the PHASE 4 interface); offline/test mode uses a pure fake when
+    ``offline_mode`` is on or ``provider_name == "fake"``.
+    """
+    settings = settings or get_settings()
+
+    if provider_name == "fake" or (provider_name == "auto" and settings.offline_mode):
+        from backend.app.providers.fake_audience import FakeAudienceProvider
+
+        return FakeAudienceProvider()
+
+    from backend.app.providers.session_audience import SessionAudienceProvider
+
+    return SessionAudienceProvider(session_provider)
+
+
+__all__ = [
+    "SessionProvider",
+    "TelegramBotProvider",
+    "build_audience_provider",
+    "build_bot_provider",
+    "build_session_provider",
+]
