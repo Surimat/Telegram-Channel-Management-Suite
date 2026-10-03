@@ -22,38 +22,54 @@ from backend.app.services.analytics_service import AnalyticsService
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 _DAYS = Query(default=30, ge=1, le=365, description="Период в днях (1–365).")
+_CHANNEL = Query(
+    default="",
+    description="ID канала в реестре «Каналы» (пусто — по всем каналам).",
+)
 
 
 @router.get("/overview", response_model=AnalyticsOverviewOut)
 async def analytics_overview(
     days: int = _DAYS,
+    channel_id: str = _CHANNEL,
     session: AsyncSession = Depends(get_session),
 ) -> AnalyticsOverviewOut:
-    return AnalyticsOverviewOut(**await AnalyticsService(session).overview(days=days))
+    return AnalyticsOverviewOut(
+        **await AnalyticsService(session).overview(days=days, channel_id=channel_id or None)
+    )
 
 
 @router.get("/content", response_model=ContentAnalyticsOut)
 async def analytics_content(
     days: int = _DAYS,
+    channel_id: str = _CHANNEL,
     session: AsyncSession = Depends(get_session),
 ) -> ContentAnalyticsOut:
-    return ContentAnalyticsOut(**await AnalyticsService(session).content(days=days))
+    return ContentAnalyticsOut(
+        **await AnalyticsService(session).content(days=days, channel_id=channel_id or None)
+    )
 
 
 @router.get("/reactions", response_model=ReactionsAnalyticsOut)
 async def analytics_reactions(
     days: int = _DAYS,
+    channel_id: str = _CHANNEL,
     session: AsyncSession = Depends(get_session),
 ) -> ReactionsAnalyticsOut:
-    return ReactionsAnalyticsOut(**await AnalyticsService(session).reactions(days=days))
+    return ReactionsAnalyticsOut(
+        **await AnalyticsService(session).reactions(days=days, channel_id=channel_id or None)
+    )
 
 
 @router.get("/audience", response_model=AudienceAnalyticsOut)
 async def analytics_audience(
     days: int = _DAYS,
+    channel_id: str = _CHANNEL,
     session: AsyncSession = Depends(get_session),
 ) -> AudienceAnalyticsOut:
-    return AudienceAnalyticsOut(**await AnalyticsService(session).audience(days=days))
+    return AudienceAnalyticsOut(
+        **await AnalyticsService(session).audience(days=days, channel_id=channel_id or None)
+    )
 
 
 __all__ = ["router"]

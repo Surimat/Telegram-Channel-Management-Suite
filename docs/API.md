@@ -275,10 +275,14 @@ per-person PII (D-010/D-029). `days` is clamped to `1..365` (default `30`).
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/v1/analytics/overview?days=` | headline + content + reactions + audience + a list of takeaways |
-| GET | `/api/v1/analytics/content?days=` | posts total/window, per-day series, category/source/status mix, summary |
-| GET | `/api/v1/analytics/reactions?days=` | status mix, success rate, planned/completed per day, emoji/bot/category mix |
-| GET | `/api/v1/analytics/audience?days=` | audience total, new 7d, per-day growth, status mix, top sources, source effectiveness, invite outcomes |
+| GET | `/api/v1/analytics/overview?days=&channel_id=` | headline + content + reactions + audience + a list of takeaways |
+| GET | `/api/v1/analytics/content?days=&channel_id=` | posts total/window, per-day series, category/source/status mix, summary |
+| GET | `/api/v1/analytics/reactions?days=&channel_id=` | status mix, success rate, planned/completed per day, emoji/bot/category mix |
+| GET | `/api/v1/analytics/audience?days=&channel_id=` | audience total, new 7d, per-day growth, status mix, top sources, source effectiveness, invite outcomes |
+
+`channel_id` optionally scopes every analytics view to one registry channel
+(`/api/v1/channels`). Omit it for global aggregates; the Analytics page defaults
+to the channel marked as default in the registry.
 
 `by_category`/`by_source`/`by_status` entries are titled for the UI. Charts in the
 frontend are dependency-free inline SVG (`Sparkline.vue`, `BarList.vue`, D-037).

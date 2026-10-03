@@ -67,16 +67,16 @@ class AnalyticsService:
     # ==================================================================
     # Content
     # ==================================================================
-    async def content(self, *, days: int = 30) -> dict[str, Any]:
+    async def content(self, *, days: int = 30, channel_id: str | None = None) -> dict[str, Any]:
         days = _clamp_days(days)
-        total = await self.repo.posts_total()
-        per_day = await self.repo.posts_per_day(days)
-        by_category = await self.repo.posts_by_category()
-        by_source = await self.repo.posts_by_source()
-        by_status = await self.repo.posts_by_status()
+        total = await self.repo.posts_total(channel_id)
+        per_day = await self.repo.posts_per_day(days, channel_id)
+        by_category = await self.repo.posts_by_category(channel_id)
+        by_source = await self.repo.posts_by_source(channel_id)
+        by_status = await self.repo.posts_by_status(channel_id)
 
         window_total = sum(int(point["count"]) for point in per_day)
-        previous_total = await self._posts_previous_window(days, window_total)
+        previous_total = await self._posts_previous_window(days, window_total, channel_id)
         change = _percent_change(window_total, previous_total)
 
         return {
@@ -93,11 +93,13 @@ class AnalyticsService:
             "summary": self._content_summary(total, window_total, change, by_category),
         }
 
-    async def _posts_previous_window(self, days: int, current_total: int) -> int:
+    async def _posts_previous_window(
+        self, days: int, current_total: int, channel_id: str | None = None
+    ) -> int:
         now = datetime.now(UTC)
         start = now - timedelta(days=days * 2)
         # posts_since(start) counts both windows; subtract the current one.
-        two_windows = await self.repo.posts_since(start)
+        two_windows = await self.repo.posts_since(start, channel_id)
         return max(two_windows - current_total, 0)
 
     @staticmethod
@@ -121,15 +123,15 @@ class AnalyticsService:
     # ==================================================================
     # Reactions
     # ==================================================================
-    async def reactions(self, *, days: int = 30) -> dict[str, Any]:
+    async def reactions(self, *, days: int = 30, channel_id: str | None = None) -> dict[str, Any]:
         days = _clamp_days(days)
-        total = await self.repo.reactions_total()
-        by_status = await self.repo.reactions_by_status()
-        per_day = await self.repo.reactions_per_day(days)
-        completed_per_day = await self.repo.reactions_completed_per_day(days)
-        by_emoji = await self.repo.reactions_by_emoji()
-        by_category = await self.repo.reactions_by_category()
-        by_bot = await self.repo.reactions_by_bot()
+        total = await self.repo.reactions_total(channel_id)
+        by_status = await self.repo.reactions_by_status(channel_id)
+        per_day = await self.repo.reactions_per_day(days, channel_id)
+        completed_per_day = await self.repo.reactions_completed_per_day(days, channel_id)
+        by_emoji = await self.repo.reactions_by_emoji(channel_id=channel_id)
+        by_category = await self.repo.reactions_by_category(channel_id)
+        by_bot = await self.repo.reactions_by_bot(channel_id=channel_id)
 
         done = by_status.get(ReactionJobStatus.DONE.value, 0)
         failed = by_status.get(ReactionJobStatus.FAILED.value, 0)
@@ -175,18 +177,18 @@ class AnalyticsService:
     # ==================================================================
     # Audience
     # ==================================================================
-    async def audience(self, *, days: int = 30) -> dict[str, Any]:
+    async def audience(self, *, days: int = 30, channel_id: str | None = None) -> dict[str, Any]:
         days = _clamp_days(days)
-        total = await self.repo.audience_total()
+        total = await self.repo.audience_total(channel_id)
         since = datetime.now(UTC) - timedelta(days=7)
-        new_7d = await self.repo.audience_since(since)
-        per_day = await self.repo.audience_per_day(days)
-        by_status = await self.repo.audience_by_status()
-        sources_total = await self.repo.audience_sources_total()
-        links_total = await self.repo.audience_links_total()
-        top_sources = await self.repo.top_sources()
-        effectiveness = await self.repo.source_effectiveness()
-        invites = await self.repo.invite_totals()
+        new_7d = await self.repo.audience_since(since, channel_id)
+        per_day = await self.repo.audience_per_day(days, channel_id)
+        by_status = await self.repo.audience_by_status(channel_id)
+        sources_total = await self.repo.audience_sources_total(channel_id)
+        links_total = await self.repo.audience_links_total(channel_id)
+        top_sources = await self.repo.top_sources(channel_id=channel_id)
+        effectiveness = await self.repo.source_effectiveness(channel_id=channel_id)
+        invites = await self.repo.invite_totals(channel_id)
 
         return {
             "days": days,
@@ -222,12 +224,13 @@ class AnalyticsService:
     # ==================================================================
     # Overview (Dashboard)
     # ==================================================================
-    async def overview(self, *, days: int = 30) -> dict[str, Any]:
-        content = await self.content(days=days)
-        reactions = await self.reactions(days=days)
-        audience = await self.audience(days=days)
+    async def overview(self, *, days: int = 30, channel_id: str | None = None) -> dict[str, Any]:
+        content = await self.content(days=days, channel_id=channel_id)
+        reactions = await self.reactions(days=days, channel_id=channel_id)
+        audience = await self.audience(days=days, channel_id=channel_id)
         return {
             "days": days,
+            "channel_id": channel_id or "",
             "generated_at": datetime.now(UTC),
             "headline": {
                 "posts_total": content["posts_total"],

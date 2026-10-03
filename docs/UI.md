@@ -213,7 +213,9 @@ friendly messages with a suggested fix.
 ### Analytics page (`AnalyticsView.vue`, PHASE 8)
 
 A read-only page that explains the numbers in plain Russian. A period switch
-(7/14/30/90/365 дней) reloads `GET /api/v1/analytics/overview`. Content:
+(7/14/30/90/365 дней) and a channel selector (registry channels + "Все каналы",
+defaulting to the registry's default channel) reload
+`GET /api/v1/analytics/overview`. Content:
 
 - **Кратко о главном** — the backend's plain-language takeaways (bulleted).
 - **Headline cards** — posts, planned reactions (+ success rate), audience (+ new

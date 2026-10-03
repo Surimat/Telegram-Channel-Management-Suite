@@ -10,13 +10,13 @@ hardening work: (1) **versioned Alembic migrations** replace `create_all` at
 startup (with baseline-aware adoption, D-052); (2) a **shared Channel Registry** (`channels` table + `/api/v1/channels`
 + RU-first "Каналы" page) so invites,
 post ingestion, audience sources and the permission probe all share one channel
-identity via nullable backfilled links.
-All gates pass: `pytest` **418 passed**, `ruff` clean, `vue-tsc` + `npm run build`
+identity via nullable backfilled links; analytics can now be scoped per channel
+(D-055).
+All gates pass: `pytest` **422 passed**, `ruff` clean, `vue-tsc` + `npm run build`
 clean, no Alembic drift; **GitHub Actions CI** (D-053) enforces the backend and
 frontend gates on `main`/`develop`.
-**Next phase:** optional only — analytics still aggregates globally (no
-per-channel target yet). Development continues on `develop`; land via reviewed PR
-(never push `main`). Open PR: #2 (draft).
+**Next phase:** optional only — no remaining known gaps. Development continues on
+`develop`; land via reviewed PR (never push `main`). Open PR: #2 (draft).
 **Repository status:** `main == origin/main == 82c1059` (tag `v1.0.0`); `develop`
 is 8 commits ahead of `main` (post-release hardening).
 **Branch:** `develop` (working branch); `main` is released and updated only via pull request.
@@ -266,17 +266,21 @@ Layered architecture: **core → db/models → db/repositories → services → 
 - `backend/app/db/repositories/analytics.py` — `AnalyticsRepository`: read-only
   aggregates over posts, reaction jobs, audience sources/users/links and invite
   tasks. Per-day series are bucketed in Python (`_buckets`/`_day_key`) for
-  portability; helpers `_rows`/`_scalar`/`_scalars`/`_value`.
+  portability; helpers `_rows`/`_scalar`/`_scalars`/`_value`. Every query takes an
+  optional `channel_id` (D-055) and scopes via `_scoped_posts`/`_scoped_reactions`/
+  `_scoped_audience_users`/`_channel_source_ids`.
 - `backend/app/services/analytics_service.py` — `AnalyticsService`:
-  `content()`/`reactions()`/`audience()`/`overview()`, RU plain-language
-  summaries, percent-change vs. the previous window, titled counts
-  (`_CATEGORY_TITLES`/`_SOURCE_TITLES`/`_AUDIENCE_STATUS_TITLES`), `_clamp_days`.
+  `content()`/`reactions()`/`audience()`/`overview()` (all accept `channel_id`),
+  RU plain-language summaries, percent-change vs. the previous window, titled
+  counts (`_CATEGORY_TITLES`/`_SOURCE_TITLES`/`_AUDIENCE_STATUS_TITLES`),
+  `_clamp_days`.
 - `backend/app/api/schemas/analytics.py` + `api/v1/analytics.py` —
-  `GET /api/v1/analytics/overview|content|reactions|audience?days=1..365`;
+  `GET /api/v1/analytics/overview|content|reactions|audience?days=1..365&channel_id=`;
   registered in `v1/router.py`; `api/deps.py::get_analytics_service`.
-- `frontend/src/views/AnalyticsView.vue` — period switch, headline metrics,
-  sparklines, category/emoji bars, audience status, source effectiveness table;
-  `/analytics` route + sidebar «Аналитика».
+  `AnalyticsOverviewOut` echoes `channel_id`.
+- `frontend/src/views/AnalyticsView.vue` — channel + period switches, headline
+  metrics, sparklines, category/emoji bars, audience status, source effectiveness
+  table; `/analytics` route + sidebar «Аналитика».
 - `frontend/src/components/Sparkline.vue` + `BarList.vue` — dependency-free
   inline-SVG/CSS charts (D-037).
 - `frontend/src/views/DashboardView.vue` — new "Что показывают цифры" block

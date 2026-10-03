@@ -104,6 +104,7 @@ class AnalyticsHeadline(BaseModel):
 
 class AnalyticsOverviewOut(BaseModel):
     days: int
+    channel_id: str = ""
     generated_at: datetime
     headline: AnalyticsHeadline
     content: ContentAnalyticsOut

@@ -47,6 +47,14 @@ Dates are ISO-8601.
   invalid URLs and provider errors are reported in plain RU. Tests:
   `tests/test_miniapp_setup.py`.
 
+- **Per-channel analytics.** Every analytics view (`/api/v1/analytics/*`) now
+  accepts an optional `channel_id` that scopes posts, reactions, audience and
+  invite metrics to one Channel Registry channel (posts by
+  `registry_channel_id`, reactions/audience/invites via their existing links).
+  Omitting it keeps the previous global aggregates. The Analytics page gained a
+  channel selector defaulting to the registry's default channel. Tests:
+  `tests/test_analytics_channels.py`.
+
 ### Changed
 - Application version string bumped `0.1.0 → 1.0.0` (`backend/app/__init__.py`,
   `pyproject.toml`, `frontend/package.json` + lock). Health/system endpoints now

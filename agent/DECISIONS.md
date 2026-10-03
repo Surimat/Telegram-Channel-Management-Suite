@@ -972,3 +972,28 @@ in the service (Telegram will not open non-HTTPS Web Apps), so a plain local
 `http://127.0.0.1` install still works but cannot be a Mini App target. The URL
 is normalised (trailing slash trimmed) and stored as a non-secret setting; the
 bot token is never read into the response or logs.
+
+---
+
+## D-055 — 2026-10-03 — Analytics can be scoped per registry channel — LOCKED
+
+**Decision:** Every analytics view (`/api/v1/analytics/overview|content|reactions|audience`)
+accepts an optional `channel_id` (a Channel Registry row id, D-051). Posts are
+scoped by `posts.registry_channel_id`; reaction jobs are scoped by joining their
+post; audience users by joining the sources linked to that channel; invite
+outcomes by joining the invite job's `channel_id`. Omitting the parameter keeps
+the original global aggregates exactly as before. The Analytics page exposes a
+channel selector and defaults to the registry's default channel.
+
+**Why:** The registry was wired into ingestion, sources, invites and the
+permission probe, but analytics still summed every channel together — the last
+gap in the "one shared channel identity" work. Scoping is read-only and purely
+additive, so no existing behaviour or API contract changes for callers that omit
+`channel_id`.
+
+**Consequence:** `AnalyticsRepository` query methods take an optional
+`channel_id`; `AnalyticsService.content/reactions/audience/overview` thread it
+through; `AnalyticsOverviewOut` gained a `channel_id` field (defaults to `""`).
+Audience scoping relies on sources having a `channel_id`, so unlinked sources are
+only counted globally — acceptable for a single-owner install and honest about
+what the data supports.

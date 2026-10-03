@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { api, type AnalyticsOverview } from '@/api/client'
+import { api, type AnalyticsOverview, type Channel } from '@/api/client'
 import Sparkline from '@/components/Sparkline.vue'
 import BarList from '@/components/BarList.vue'
 
 const days = ref(30)
+const channelId = ref('')
+const channels = ref<Channel[]>([])
 const data = ref<AnalyticsOverview | null>(null)
 const loading = ref(false)
 const error = ref('')
@@ -22,7 +24,7 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    data.value = await api.analyticsOverview(days.value)
+    data.value = await api.analyticsOverview(days.value, channelId.value)
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Не удалось загрузить аналитику.'
     data.value = null
@@ -31,7 +33,21 @@ async function load() {
   }
 }
 
-onMounted(load)
+async function loadChannels() {
+  try {
+    const list = await api.channels({ limit: '100' })
+    channels.value = list.items
+    const preferred = list.items.find((c) => c.is_default)
+    if (preferred) channelId.value = preferred.id
+  } catch {
+    channels.value = []
+  }
+}
+
+onMounted(async () => {
+  await loadChannels()
+  await load()
+})
 
 function changeLabel(percent: number | null): string {
   if (percent === null) return 'нет данных для сравнения'
@@ -77,6 +93,15 @@ function audienceStatusCount(key: string): number {
     </p>
 
     <div class="toolbar">
+      <label v-if="channels.length" class="field" style="margin: 0">
+        <span>Канал</span>
+        <select v-model="channelId" @change="load">
+          <option value="">Все каналы</option>
+          <option v-for="c in channels" :key="c.id" :value="c.id">
+            {{ c.title || c.username || c.reference }}
+          </option>
+        </select>
+      </label>
       <label class="field" style="margin: 0">
         <span>Период</span>
         <select v-model.number="days" @change="load">

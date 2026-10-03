@@ -779,6 +779,7 @@ export interface AnalyticsHeadline {
 
 export interface AnalyticsOverview {
   days: number
+  channel_id: string
   generated_at: string
   headline: AnalyticsHeadline
   content: ContentAnalytics
@@ -1284,14 +1285,22 @@ export const api = {
     }),
 
   // Analytics (PHASE 8)
-  analyticsOverview: (days = 30) =>
-    request<AnalyticsOverview>(`/api/v1/analytics/overview?days=${days}`),
-  analyticsContent: (days = 30) =>
-    request<ContentAnalytics>(`/api/v1/analytics/content?days=${days}`),
-  analyticsReactions: (days = 30) =>
-    request<ReactionsAnalytics>(`/api/v1/analytics/reactions?days=${days}`),
-  analyticsAudience: (days = 30) =>
-    request<AudienceAnalytics>(`/api/v1/analytics/audience?days=${days}`),
+  analyticsOverview: (days = 30, channelId = '') =>
+    request<AnalyticsOverview>(
+      `/api/v1/analytics/overview?days=${days}&channel_id=${encodeURIComponent(channelId)}`,
+    ),
+  analyticsContent: (days = 30, channelId = '') =>
+    request<ContentAnalytics>(
+      `/api/v1/analytics/content?days=${days}&channel_id=${encodeURIComponent(channelId)}`,
+    ),
+  analyticsReactions: (days = 30, channelId = '') =>
+    request<ReactionsAnalytics>(
+      `/api/v1/analytics/reactions?days=${days}&channel_id=${encodeURIComponent(channelId)}`,
+    ),
+  analyticsAudience: (days = 30, channelId = '') =>
+    request<AudienceAnalytics>(
+      `/api/v1/analytics/audience?days=${days}&channel_id=${encodeURIComponent(channelId)}`,
+    ),
 
   // Telegram Mini App (PHASE 9)
   miniappConfig: () => request<MiniAppConfig>('/api/v1/miniapp/config'),
