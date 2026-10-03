@@ -11,6 +11,46 @@ _No unreleased changes._
 
 ---
 
+## [0.2.0] — 2026-10-03 — PHASE 2: Telegram foundation (manager/managed bots)
+
+### Added — Telegram provider layer (D-001, D-019)
+- `providers/base.py` — `TelegramBotProvider` Protocol: `get_me`, `get_bot`,
+  `send_message`, `get_managed_bots`, `get_managed_bot_token`,
+  `replace_managed_bot_token`, `get/set_managed_bot_access_settings`, `close`.
+- `providers/fake_bot.py` — `FakeTelegramBotProvider` (deterministic, no network).
+- `providers/aiogram_bot.py` — `AiogramBotProvider` (the only aiogram importer;
+  wraps the official managed-bot methods; translates exceptions).
+- `providers/errors.py` / `types.py` — friendly, library-agnostic error types and
+  DTOs; `providers/registry.py` — `build_bot_provider` from config.
+
+### Added — Bots vertical slice (DB → service → API → UI)
+- `db/models/bot.py` (`Bot`, `BotKind`, `BotHealth`), `db/repositories/bots.py`.
+- `services/bot_service.py` — add/validate/seal, enable/disable/remove,
+  `health_check`, `ensure_manager_bot`, managed-bot register/token/replace,
+  `manager_link`, `summary`.
+- `api/deps.py`, `api/schemas/bots.py`, `api/v1/bots.py` — bot inventory +
+  managed-bot endpoints; tokens are never returned (only `has_token`).
+- `ApiError` (message + actionable hint) in `api/errors.py`.
+- Setup Wizard: DB-backed `manager_bot` + `managed_bots` checks in
+  `/api/v1/system/{status,setup}` and `/health/deep`.
+- `main.py` lifespan registers the manager bot from settings (best-effort).
+
+### Added — Security
+- Bot tokens **sealed at rest** with Fernet keyed from `APP_SECRET_KEY`
+  (`core/security.py::seal_secret/open_secret`) — D-017.
+
+### Added — Frontend
+- `views/BotsView.vue` (inventory, health, enable/disable, add, managed-bot
+  workflow), bot types/methods in `api/client.ts`, `/bots` route + nav link, and
+  a Telegram summary card on the Dashboard.
+
+### Added — Tests
+- `tests/test_providers.py`, `tests/test_bot_service.py`, `tests/test_bots_api.py`
+  and a `bot_client` fixture overriding the provider factory with the fake.
+- Suite: **60 passed**; `ruff check backend tests` clean.
+
+---
+
 ## [0.1.0] — 2026-10-03 — PHASE 1: application skeleton (runnable)
 
 ### Added — Backend

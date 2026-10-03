@@ -69,16 +69,29 @@ Health endpoints live at the root (`/health`, `/health/deep`) for probes.
 
 ## Bots
 
+Implemented in PHASE 2. A bot token is verified with Telegram (`getMe`) before
+being stored, and is persisted **sealed** (encrypted at rest with a key derived
+from `APP_SECRET_KEY`). Responses expose `has_token` but never the token itself.
+
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/v1/bots` | list manager + managed bots |
-| POST | `/api/v1/bots` | add a bot (token) |
-| GET | `/api/v1/bots/{id}` | bot detail / health |
-| POST | `/api/v1/bots/{id}/health` | run health check |
+| GET | `/api/v1/bots` | list bots (`?kind=&enabled=`) |
+| POST | `/api/v1/bots` | add a bot (validate token, seal, store) |
+| GET | `/api/v1/bots/summary` | counts + manager-bot state (for Dashboard) |
+| GET | `/api/v1/bots/{id}` | bot detail |
+| POST | `/api/v1/bots/{id}/health` | run health check (getMe) |
+| POST | `/api/v1/bots/{id}/enable` | enable |
 | POST | `/api/v1/bots/{id}/disable` | disable |
 | DELETE | `/api/v1/bots/{id}` | remove from active config |
-| GET | `/api/v1/bots/managed` | list managed bots via Telegram |
-| POST | `/api/v1/bots/managed/import` | import a managed bot |
+| GET | `/api/v1/bots/managed/all` | list managed bots recorded locally |
+| GET | `/api/v1/bots/managed/preview` | build the official create link (`?username=&name=`) |
+| POST | `/api/v1/bots/managed/register` | record a managed bot (from a `managed_bot` update) |
+| POST | `/api/v1/bots/{id}/managed/token` | fetch managed-bot token (`getManagedBotToken`) |
+| POST | `/api/v1/bots/{id}/managed/replace-token` | revoke + regenerate (`replaceManagedBotToken`) |
+
+Managed bots use the official Telegram API only. The manager bot must have
+"Bot Management Mode" enabled in @BotFather; Telegram creates the child bot
+through the link and notifies the manager via a `managed_bot` update.
 
 ---
 

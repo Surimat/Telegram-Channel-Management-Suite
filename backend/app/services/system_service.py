@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core import paths
 from backend.app.core.config import Settings, get_settings
@@ -113,6 +114,82 @@ class SystemService:
             "Создайте бота через @BotFather и добавьте его токен в разделе «Боты».",
         )
 
+    async def manager_bot_db_check(self, session: AsyncSession) -> Check:
+        """DB-backed manager bot check with a plain-language result and hint."""
+        from backend.app.db.models.bot import BotHealth
+        from backend.app.db.repositories.bots import BotRepository
+
+        manager = await BotRepository(session).get_manager()
+        if manager is None:
+            return Check(
+                "manager_bot",
+                "Управляющий бот",
+                STATUS_WARNING,
+                "Управляющий бот ещё не подключён.",
+                "Создайте бота через @BotFather и добавьте его токен в разделе «Боты».",
+            )
+        if not manager.enabled:
+            return Check(
+                "manager_bot",
+                "Управляющий бот",
+                STATUS_WARNING,
+                f"Управляющий бот @{manager.username} отключён.",
+                "Включите бота в разделе «Боты», чтобы система могла им управлять.",
+            )
+        if manager.health == BotHealth.ERROR:
+            return Check(
+                "manager_bot",
+                "Управляющий бот",
+                STATUS_ERROR,
+                f"Управляющий бот @{manager.username} не отвечает.",
+                manager.health_hint
+                or "Проверьте токен бота и повторите проверку в разделе «Боты».",
+            )
+        if manager.health == BotHealth.OK:
+            return Check(
+                "manager_bot",
+                "Управляющий бот",
+                STATUS_OK,
+                f"Управляющий бот @{manager.username} подключён и отвечает.",
+            )
+        return Check(
+            "manager_bot",
+            "Управляющий бот",
+            STATUS_WARNING,
+            f"Управляющий бот @{manager.username} добавлен, но ещё не проверялся.",
+            "Нажмите «Проверить» в разделе «Боты».",
+        )
+
+    async def managed_bots_check(self, session: AsyncSession) -> Check:
+        """Report how many Telegram managed bots are registered locally."""
+        from backend.app.db.models.bot import BotKind
+        from backend.app.db.repositories.bots import BotRepository
+
+        bots, count = await BotRepository(session).list(kind=BotKind.MANAGED)
+        if count == 0:
+            return Check(
+                "managed_bots",
+                "Управляемые боты",
+                STATUS_OK,
+                "Управляемые боты не добавлены — это необязательно.",
+                "Создать нового бота можно в разделе «Боты» → «Управляемые боты».",
+            )
+        without_token = sum(1 for b in bots if not b.has_token)
+        if without_token:
+            return Check(
+                "managed_bots",
+                "Управляемые боты",
+                STATUS_WARNING,
+                f"Зарегистрировано ботов: {count}. Без токена: {without_token}.",
+                "Нажмите «Получить токен» для ботов без токена.",
+            )
+        return Check(
+            "managed_bots",
+            "Управляемые боты",
+            STATUS_OK,
+            f"Управляемых ботов готово: {count}.",
+        )
+
     def telegram_api_check(self) -> Check:
         if self.settings.telegram_api_id and self.settings.telegram_api_hash.get_secret_value():
             return Check(
@@ -152,16 +229,20 @@ class SystemService:
             "Укажите путь к модели .gguf в разделе «AI» или выключите ИИ.",
         )
 
-    async def setup_checks(self) -> list[Check]:
+    async def setup_checks(self, session: AsyncSession | None = None) -> list[Check]:
         checks: list[Check] = [
             Check("runtime", "Среда выполнения", STATUS_OK, "Программа запущена правильно."),
             await self.database_check(),
             self.filesystem_check(),
             self.secret_key_check(),
             self.telegram_api_check(),
-            self.manager_bot_check(),
-            self.ai_check(),
         ]
+        if session is not None:
+            checks.append(await self.manager_bot_db_check(session))
+            checks.append(await self.managed_bots_check(session))
+        else:
+            checks.append(self.manager_bot_check())
+        checks.append(self.ai_check())
         return checks
 
     @staticmethod

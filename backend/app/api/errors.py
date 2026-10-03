@@ -15,6 +15,15 @@ from backend.app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
+class ApiError(StarletteHTTPException):
+    """An HTTP error carrying a friendly message and an actionable hint."""
+
+    def __init__(self, status_code: int, message: str, hint: str = "") -> None:
+        super().__init__(status_code=status_code, detail=message)
+        self.hint = hint
+
+
 # Map HTTP status codes to short machine codes.
 _CODE_BY_STATUS = {
     400: "bad_request",
@@ -38,9 +47,10 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def http_exception_handler(_: Request, exc: StarletteHTTPException) -> JSONResponse:
         code = _CODE_BY_STATUS.get(exc.status_code, "error")
         message = exc.detail if isinstance(exc.detail, str) else "Произошла ошибка."
+        hint = getattr(exc, "hint", "") or ""
         return JSONResponse(
             status_code=exc.status_code,
-            content=_envelope(code, message),
+            content=_envelope(code, message, hint),
         )
 
     @app.exception_handler(RequestValidationError)

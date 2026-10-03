@@ -3,63 +3,67 @@
 > The single "what to do next" pointer. Update at the end of every phase.
 
 **Updated:** 2026-10-03
-**Active phase:** PHASE 2 — Telegram foundation
-**Previous phase:** PHASE 1 — completed (runnable backend + UI + tests, committed)
+**Active phase:** PHASE 3 — Reaction Manager
+**Previous phase:** PHASE 2 — completed (Telegram foundation / bots, committed)
 
 ---
 
 ## Goal of this phase
 
-Give the system a real, testable connection to Telegram: a manager bot, a Bot
-API adapter behind the provider interface, channel connection, managed-bot
-support, and a **bot inventory** (model → repository → service → API → UI), all
-covered by tests using a **fake provider** (no real account/token required).
+Let the owner configure **automatic reactions** on channel posts, executed by
+several bot identities, each bot adding at most one reaction per message, with
+deterministic-but-randomized scheduling over the durable queue.
+
+The phase delivers a full vertical slice: **rules + reaction profiles -> planner
+-> scheduler/queue -> provider (TelegramBotProvider.set_reaction) -> API -> Web
+UI**, with simulation/preview and logs. All of it testable with the fake provider.
 
 ## Constraints / reminders
 
-- Follow **D-001**: all Telegram access behind `TelegramBotProvider`; add a
-  `FakeTelegramBotProvider` for tests. Domain/services must not import aiogram
-  directly.
-- Never log or return bot tokens; store tokens encrypted or in `.env` only
-  (see `docs/SECURITY.md`, decisions D-009/D-010).
-- No FloodWait / privacy bypass (D-006).
-- Keep the app runnable at the end (`python -m pytest` passes, app starts).
+- **D-001**: reaction application goes through `TelegramBotProvider` (extend it
+  with `set_reaction`); `FakeTelegramBotProvider` gets a deterministic recorder.
+  No aiogram import outside the provider adapter.
+- **D-006**: never bypass FloodWait; on `FloodWaitError`, pause the affected bot
+  and surface the wait time.
+- **D-008**: reaction jobs are durable DB rows (`reaction_jobs`) and are recovered
+  after restart.
+- **D-005**: emoji choice is **deterministic weighted logic**, never the LLM.
+- **D-014**: UI is RU-first, plain language, with help/tooltips.
+- Keep the app runnable at the end (`pytest` passes, app starts).
 
 ## Deliverables
 
-### Provider layer
-- [ ] `providers/base.py` — `TelegramBotProvider` interface (get_me, get_bot,
-      send_message, set_webhook, health).
-- [ ] `providers/fake_bot.py` — deterministic fake for tests/dev.
-- [ ] `providers/aiogram_bot.py` — real implementation (aiogram) wrapped so the
-      interface stays library-agnostic.
-- [ ] `providers/registry.py` — resolve providers from configuration.
+### Domain / DB
+- [ ] `db/models/reaction.py` — `ReactionProfile` (named config) and
+      `ReactionJob` with fields: `post_id`, `bot_id`, `reaction`, `scheduled_at`,
+      `status`, `attempts`, `error`, `completed_at`.
+- [ ] Repositories + `ReactionService` (profiles CRUD, plan, enqueue, pause).
 
-### Domain
-- [ ] `db/models/bot.py` — Bot model: id, kind (manager|managed|reaction),
-      username, title, enabled, token_ref (NOT the raw token), health status,
-      last_health_at, timestamps.
-- [ ] `db/repositories/bots.py`.
-- [ ] `services/bot_service.py` — add/enable/disable/remove, health check,
-      list managed bots via the manager bot.
+### Planner / scheduler
+- [ ] Deterministic weighted emoji selection (weights, allowed/forbidden,
+      skip probability, probability gate).
+- [ ] Delay randomization (min/max, ranges) so reactions are not simultaneous.
+- [ ] Simulation/preview: given a post + profile, return the planned jobs
+      without contacting Telegram.
+- [ ] Queue integration + retry/error handling on the durable scheduler.
 
-### API / UI
-- [ ] `api/schemas/bots.py`, `api/v1/bots.py` (list, add, detail, health,
-      disable, delete, managed).
-- [ ] Frontend `views/BotsView.vue` + route + nav item (plain-language,
-      tooltips, confirmation dialogs).
+### Provider / API / UI
+- [ ] `TelegramBotProvider.set_reaction(...)` + fake + aiogram impl.
+- [ ] `api/v1/reactions.py` — profiles CRUD, preview/simulate, queue list,
+      start/pause/stop.
+- [ ] Frontend `ReactionsView.vue` — profile editor (weights, delays, skip),
+      simulation panel, queue status, plain-language help.
 
 ### Tests
-- [ ] provider contract tests (fake), bot service tests, bots API tests.
-- [ ] ensure no token value can leak into events/logs/API responses.
+- [ ] planner tests (weights/distribution, skip, delays, forbidden emoji).
+- [ ] reaction service + scheduler tests.
+- [ ] reactions API tests (using `bot_client` fake-provider fixture).
 
 ### Finish
 - [ ] Update `agent/CURRENT_STATE.md`, `NEXT_TASK.md`, `DECISIONS.md`,
-      `CHANGELOG.md`.
-- [ ] `git diff` review + security checklist.
-- [ ] Commit.
+      `CHANGELOG.md`; run `ruff` + `pytest`; `git diff` review; commit.
 
-## After PHASE 2
+## After PHASE 3
 
-PHASE 3 — Reaction Manager (rules, profiles, scheduler, queue, delays,
-simulation, logs, UI). See `docs/ROADMAP.md`.
+PHASE 4 — User Session Manager (Telethon, interactive auth, secure session
+storage, health). See `docs/ROADMAP.md`.

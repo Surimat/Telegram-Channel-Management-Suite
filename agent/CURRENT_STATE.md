@@ -4,8 +4,8 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-03
-**Current phase:** PHASE 1 — completed. Next: PHASE 2 (Telegram foundation).
-**Repository status:** clean, committed.
+**Current phase:** PHASE 2 — completed. Next: PHASE 3 (Reaction Manager).
+**Repository status:** committed (PHASE 2).
 **Branch:** `main`
 
 ---
@@ -49,8 +49,32 @@ Layered architecture: **core → db/models → db/repositories → services → 
 - `backend/app/scheduler/` — `scheduler.py`: pure-asyncio durable scheduler;
   recovers RUNNING jobs on startup, claims due jobs, runs registered handlers,
   records failures to the Event Center.
-- `backend/app/providers/` — package + contracts placeholder (implementations in
-  PHASE 2+).
+- `backend/app/providers/` — **PHASE 2**: `base.py` (`TelegramBotProvider`
+  Protocol), `types.py` (DTOs), `errors.py` (friendly provider errors),
+  `fake_bot.py` (`FakeTelegramBotProvider`, deterministic, no I/O),
+  `aiogram_bot.py` (`AiogramBotProvider`, the only aiogram importer; covers the
+  official managed-bot methods), `registry.py` (`build_bot_provider`).
+
+### PHASE 2 — Telegram foundation (bots)
+- `backend/app/db/models/bot.py` — `Bot` model (`kind` = manager|managed|ordinary,
+  `enabled`, `telegram_id`, `username`, `title`, `token_encrypted` (sealed),
+  `provider_name`, `owner_id`/`owner_username`, `can_manage_bots`,
+  `health` enum, `health_message`/`health_hint`/`last_error`, `last_health_at`).
+- `backend/app/db/repositories/bots.py` — CRUD + `get_manager`, `count_by_kind`.
+- `backend/app/services/bot_service.py` — `BotService`: add (validate+seal),
+  enable/disable, remove, `health_check`, `ensure_manager_bot`,
+  `register_managed_bot`, `fetch_managed_bot_token`,
+  `replace_managed_bot_token`, `manager_link`, `summary`.
+- `backend/app/api/deps.py` — `get_provider_factory` (overridable in tests),
+  `get_bot_service`.
+- `backend/app/api/schemas/bots.py`, `backend/app/api/v1/bots.py` — full bot
+  inventory + managed-bot endpoints (tokens never returned; `has_token` only).
+- `backend/app/core/security.py` — `seal_secret`/`open_secret` (Fernet, key from
+  `APP_SECRET_KEY`).
+- `backend/app/api/errors.py` — `ApiError` carrying a friendly message + hint.
+- `SystemService` — DB-backed `manager_bot_db_check`, `managed_bots_check`; wired
+  into `/api/v1/system/status`, `/api/v1/system/setup`, `/health/deep`.
+- `main.py` lifespan — best-effort `ensure_manager_bot()` from settings.
 
 ### Frontend (PHASE 1) — Vue 3 + Vite + TypeScript
 - `frontend/` — `package.json`, `vite.config.ts` (builds into
@@ -60,6 +84,9 @@ Layered architecture: **core → db/models → db/repositories → services → 
   (Pinia), `styles.css` (modern desktop look, responsive), views:
   `DashboardView`, `SystemView` (Setup Wizard table), `SettingsView`,
   `LogsView`, `QueueView`, `NotFoundView`.
+- **PHASE 2**: `src/views/BotsView.vue` (inventory, health, enable/disable,
+  add, managed-bot workflow), bot types + methods in `api/client.ts`, `/bots`
+  route, nav link, and a Telegram summary card on the Dashboard.
 
 ### Ops / packaging (PHASE 1 foundation)
 - `backend/requirements.txt`, `backend/requirements-dev.txt`.
@@ -69,32 +96,40 @@ Layered architecture: **core → db/models → db/repositories → services → 
   `docker/docker-compose.yml`, root `.dockerignore`.
 - `pyproject.toml` (ruff config), `pytest.ini`.
 - `tests/` — config, logging redaction, db/queue/events, API, scheduler.
+- **PHASE 2 tests**: `tests/test_providers.py`, `tests/test_bot_service.py`,
+  `tests/test_bots_api.py`; `tests/conftest.py` gained a `bot_client` fixture
+  that overrides `get_provider_factory` with the fake provider.
 
 ## 3. What works (verified)
 
 - App starts and serves `/health`, `/health/deep`, `/api/v1/*`, and the SPA.
 - Setup Wizard checks return plain-language status for: runtime, database,
-  filesystem, secret key, Telegram API, manager bot, AI.
+  filesystem, secret key, Telegram API, manager bot, managed bots, AI.
 - Settings CRUD, events (log/error center) list + resolve, queue list +
   retry/cancel.
 - Durable queue recovers jobs after restart; scheduler executes handlers.
-- `ruff check backend tests` → clean. `pytest` → **31 passed**.
+- **Bots**: add (validated + sealed), list/summary, enable/disable, remove,
+  health check, managed-bot preview/register/fetch-token — verified live in
+  offline mode (server + curl) and covered by tests.
+- `ruff check backend tests` → clean. `pytest` → **60 passed**.
 - Frontend `npm run build` → outputs to `backend/app/static/` successfully.
 
 ## 4. What does NOT exist yet
 
-- Any real Telegram integration (bot/MTProto providers are contracts only).
-- Bots, sessions, audience, invites, reactions, rules, AI, analytics APIs/UI.
+- MTProto/user accounts (PHASE 4), channel binding, audience, invites,
+  reactions, rules, AI, analytics APIs/UI.
+- Telegram `managed_bot` update ingestion (currently registration is manual by
+  Telegram ID); a webhook/polling ingestion task lands with the manager-bot
+  runtime in a later phase.
 - Auth for the local UI / Mini App `initData`.
 - Alembic migrations (currently `create_all` at startup).
 - Backup/restore implementation, portable packaging, production HTTPS docs.
 
 ## 5. Next action
 
-Start **PHASE 2 — Telegram foundation** (see `agent/NEXT_TASK.md` and
-`docs/ROADMAP.md`): manager bot, Bot API adapter behind `TelegramBotProvider`,
-channel connection, managed-bot support, bot inventory (model + repository +
-service + API + UI), health checks, tests with a fake provider.
+Start **PHASE 3 — Reaction Manager** (see `agent/NEXT_TASK.md` and
+`docs/ROADMAP.md`): rules, reaction profiles, per-bot reaction scheduler over
+the durable queue, weighted/randomized delays, simulation, logs, and UI.
 
 ## 6. Locked decisions (do not break)
 
@@ -109,6 +144,9 @@ See `agent/DECISIONS.md`. Key ones:
 - Durable DB-backed queue; recover unfinished jobs on startup (D-008).
 - Secrets never committed or displayed; logging redaction mandatory (D-010).
 - Frontend builds to static; no Node.js in production (D-012).
+- Bot tokens sealed at rest with Fernet; never returned by the API (D-017).
+- Managed bots only via the official API + user confirmation (D-018).
+- Provider selection via config; `offline_mode`/`fake` for tests (D-019).
 
 ## 7. How to run / verify after opening a new chat
 

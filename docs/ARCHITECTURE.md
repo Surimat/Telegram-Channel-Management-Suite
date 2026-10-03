@@ -142,16 +142,23 @@ Interfaces (abstract base classes / Protocols) live in `backend/app/providers/`:
 
 | Interface             | Responsibility | Real impl | Test impl |
 |-----------------------|----------------|-----------|-----------|
-| `TelegramBotProvider` | Bot API: send, react, getMe, managed bots | aiogram | `FakeBotProvider` |
-| `TelegramUserProvider`| MTProto: auth, resolve, parse, invite | Telethon | `FakeUserProvider` |
-| `SessionProvider`     | create/list/revoke/health of sessions | Telethon files | `FakeSessionProvider` |
-| `AudienceProvider`    | enumerate members of a source | Telethon | `FakeAudienceProvider` |
-| `ReactionProvider`    | apply a reaction to a message | aiogram | `FakeReactionProvider` |
+| `TelegramBotProvider` | Bot API: getMe, send, health, managed bots | `AiogramBotProvider` (aiogram) | `FakeTelegramBotProvider` |
+| `TelegramUserProvider`| MTProto: auth, resolve, parse, invite | Telethon (PHASE 4) | `FakeUserProvider` |
+| `SessionProvider`     | create/list/revoke/health of sessions | Telethon files (PHASE 4) | `FakeSessionProvider` |
+| `AudienceProvider`    | enumerate members of a source | Telethon (PHASE 5) | `FakeAudienceProvider` |
+| `ReactionProvider`    | apply a reaction to a message | aiogram (PHASE 3) | `FakeReactionProvider` |
 
-A single `providers/registry.py` resolves the correct implementation based on
-config (real vs fake/test mode). Domain services **only** depend on interfaces.
-Swapping Telegram libraries or running the whole business logic against fakes is
-therefore a config/DI concern, not a code rewrite.
+`providers/registry.py` resolves the correct implementation from config
+(`telegram_provider`: `auto` | `aiogram` | `fake`; `offline_mode` forces the
+fake). Providers translate library exceptions into `providers/errors.py`
+(`InvalidTokenError`, `FloodWaitError`, `UnauthorizedError`, …) carrying a
+friendly message and a how-to-fix hint, so no library type or raw error leaks
+into services. Domain services **only** depend on interfaces, so swapping
+Telegram libraries or running everything against fakes is a config/DI concern.
+
+Implemented (PHASE 2): `TelegramBotProvider` only. `AiogramBotProvider` wraps
+aiogram and covers the official managed-bot methods (`getManagedBotToken`,
+`replaceManagedBotToken`, `get/setManagedBotAccessSettings`).
 
 ---
 
@@ -159,7 +166,11 @@ therefore a config/DI concern, not a code rewrite.
 
 Core tables (SQLAlchemy models in `backend/app/db/models/`):
 
-- `bots` — manager + managed bots (token ref, status, username, health).
+- `bots` — manager + managed + ordinary bots. Fields: `kind`, `enabled`,
+  `telegram_id`, `username`, `title`, `token_encrypted` (sealed, never plain),
+  `provider_name`, `owner_id`/`owner_username`, `can_manage_bots`,
+  `health` (`unknown|ok|warning|error`), `health_message`, `health_hint`,
+  `last_error`, `last_health_at`. **Implemented (PHASE 2).**
 - `accounts` — user accounts (session ref, username, user_id, rights, health).
 - `sources` — audience sources (channel/group/entity, scan stats).
 - `audience_users` — parsed users (dedup key = telegram_user_id).

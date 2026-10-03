@@ -7,11 +7,13 @@ import os
 import signal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app import __version__
 from backend.app.api.schemas.system import SetupCheck, SystemStatus
 from backend.app.core.config import Settings, get_settings
 from backend.app.core.logging import get_logger
+from backend.app.db.session import get_session
 from backend.app.services.system_service import SystemService
 
 logger = get_logger(__name__)
@@ -22,9 +24,12 @@ _LOCAL_HOSTS = {"127.0.0.1", "::1", "localhost", "testclient"}
 
 
 @router.get("/status", response_model=SystemStatus)
-async def system_status(settings: Settings = Depends(get_settings)) -> SystemStatus:
+async def system_status(
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> SystemStatus:
     service = SystemService(settings)
-    checks = await service.setup_checks()
+    checks = await service.setup_checks(session)
     return SystemStatus(
         version=__version__,
         environment=settings.app_env,
@@ -43,10 +48,13 @@ async def system_status(settings: Settings = Depends(get_settings)) -> SystemSta
 
 
 @router.get("/setup", response_model=list[SetupCheck])
-async def setup_checks(settings: Settings = Depends(get_settings)) -> list[SetupCheck]:
+async def setup_checks(
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> list[SetupCheck]:
     """Run all Setup Wizard checks (same data as status, list form)."""
     service = SystemService(settings)
-    checks = await service.setup_checks()
+    checks = await service.setup_checks(session)
     return [
         SetupCheck(
             key=c.key,

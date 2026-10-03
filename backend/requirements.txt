@@ -8,3 +8,7 @@ pydantic-settings>=2.3,<3.0
 SQLAlchemy>=2.0,<2.1
 aiosqlite>=0.20,<1.0
 python-multipart>=0.0.9
+# Telegram Bot API adapter (PHASE 2). Business logic stays behind providers/.
+aiogram>=3.13,<4.0
+# At-rest encryption for sealed bot tokens (Fernet).
+cryptography>=42,<47

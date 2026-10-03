@@ -1,14 +1,21 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAppStore } from '@/stores/app'
+import { api, type BotSummary } from '@/api/client'
 
 const store = useAppStore()
 const { status, loading, error } = storeToRefs(store)
+const bots = ref<BotSummary | null>(null)
 
-onMounted(() => {
+onMounted(async () => {
   if (!store.status) store.loadStatus()
+  try {
+    bots.value = await api.botsSummary()
+  } catch {
+    bots.value = null
+  }
 })
 
 const overallLabel = (value: string | undefined) => {
@@ -16,6 +23,12 @@ const overallLabel = (value: string | undefined) => {
   if (value === 'warning') return 'Требуется внимание'
   if (value === 'error') return 'Есть проблемы'
   return 'Проверяем…'
+}
+
+const managerLabel = (s: BotSummary | null) => {
+  if (!s || !s.manager_connected) return 'Управляющий бот ещё не подключён.'
+  if (s.manager_health === 'ok') return `Управляющий бот @${s.manager_username} работает.`
+  return `Управляющий бот @${s.manager_username}: ${s.manager_health}.`
 }
 </script>
 
@@ -43,6 +56,17 @@ const overallLabel = (value: string | undefined) => {
       </div>
 
       <div class="grid">
+        <div class="card">
+          <div>
+            <span class="status-dot" :class="'status-' + (bots?.manager_health ?? 'unknown')"></span>
+            <strong>Telegram</strong>
+          </div>
+          <p>{{ managerLabel(bots) }}</p>
+          <p v-if="bots" class="muted">
+            Всего ботов: {{ bots.total }} · управляемых: {{ bots.by_kind['managed'] ?? 0 }}
+          </p>
+          <RouterLink to="/bots">Управление ботами →</RouterLink>
+        </div>
         <div v-for="check in status.checks" :key="check.key" class="card">
           <div>
             <span class="status-dot" :class="'status-' + check.status"></span>

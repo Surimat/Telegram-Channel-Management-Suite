@@ -52,6 +52,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     await init_models()
 
+    # Register the manager bot from .env/settings if configured (best effort).
+    with contextlib.suppress(Exception):
+        from backend.app.db.session import session_scope
+        from backend.app.services.bot_service import BotService
+
+        async with session_scope() as session:
+            await BotService(session).ensure_manager_bot()
+
     scheduler: Scheduler | None = None
     if settings.scheduler_enabled:
         scheduler = Scheduler()
@@ -93,10 +101,12 @@ def create_app() -> FastAPI:
 
     @app.get("/health/deep", tags=["health"])
     async def health_deep() -> JSONResponse:
+        from backend.app.db.session import session_scope
         from backend.app.services.system_service import SystemService
 
         service = SystemService(settings)
-        checks = await service.setup_checks()
+        async with session_scope() as session:
+            checks = await service.setup_checks(session)
         overall = service.overall_status(checks)
         return JSONResponse(
             {

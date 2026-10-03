@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     manager_bot_token: SecretStr = SecretStr("")
     manager_bot_admin_ids: str = ""
     manager_bot_webhook_url: str = ""
+    # "auto" (real), "aiogram", or "fake". "auto" uses the fake provider when
+    # offline_mode is enabled, so the app runs without any credentials.
+    telegram_provider: str = "auto"
+    offline_mode: bool = False
 
     # --- Telegram user API ---
     telegram_api_id: str = ""

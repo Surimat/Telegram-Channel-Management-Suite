@@ -63,3 +63,32 @@ async def client() -> AsyncIterator[AsyncClient]:
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         # Trigger lifespan-less startup work needed for DB models.
         yield ac
+
+
+def make_fake_provider_factory():
+    """Return a provider factory that always builds the deterministic fake."""
+    from backend.app.providers.fake_bot import FakeTelegramBotProvider
+
+    def _factory(token, *, provider_name="auto", settings=None):
+        return FakeTelegramBotProvider(token)
+
+    return _factory
+
+
+@pytest_asyncio.fixture
+async def bot_client() -> AsyncIterator[AsyncClient]:
+    """API client with Telegram access wired to the fake provider.
+
+    Real credentials and network are never needed (decision D-001).
+    """
+    from backend.app.api.deps import get_provider_factory
+    from backend.app.db.session import init_models
+    from backend.app.main import create_app
+
+    await init_models()
+    app = create_app()
+    factory = make_fake_provider_factory()
+    app.dependency_overrides[get_provider_factory] = lambda: factory
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac

@@ -11,8 +11,12 @@ import base64
 import hashlib
 import hmac
 import secrets
+from typing import TYPE_CHECKING
 
 from backend.app.core.config import Settings, get_settings
+
+if TYPE_CHECKING:
+    from cryptography.fernet import Fernet
 
 _MIN_SECRET_BYTES = 16
 
@@ -58,3 +62,48 @@ def sign_value(value: str, settings: Settings | None = None) -> str:
     key = derive_key("signing", settings)
     digest = hmac.new(key, value.encode("utf-8"), hashlib.sha256).digest()
     return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
+
+
+# --- At-rest secret sealing (bot tokens, etc.) -------------------------------
+
+_SEAL_PREFIX = "enc:"
+
+
+def _fernet(settings: Settings | None = None) -> Fernet:
+    from cryptography.fernet import Fernet
+
+    raw = derive_key("secret-storage", settings)
+    return Fernet(base64.urlsafe_b64encode(raw))
+
+
+def seal_secret(plaintext: str, settings: Settings | None = None) -> str:
+    """Encrypt a secret for storage in the database.
+
+    Returns an ``enc:``-prefixed Fernet token. Never log the result.
+    """
+    if not plaintext:
+        return ""
+    token = _fernet(settings).encrypt(plaintext.encode("utf-8")).decode("ascii")
+    return _SEAL_PREFIX + token
+
+
+def open_secret(stored: str, settings: Settings | None = None) -> str:
+    """Decrypt a value produced by :func:`seal_secret`.
+
+    Plain (unprefixed) values are returned unchanged for backward compatibility.
+    Raises ``ValueError`` if the ciphertext is corrupt or the key changed.
+    """
+    if not stored:
+        return ""
+    if not stored.startswith(_SEAL_PREFIX):
+        return stored
+    from cryptography.fernet import InvalidToken
+
+    raw = stored[len(_SEAL_PREFIX) :]
+    try:
+        return _fernet(settings).decrypt(raw.encode("ascii")).decode("utf-8")
+    except (InvalidToken, ValueError) as exc:
+        raise ValueError(
+            "Не удалось расшифровать сохранённый секрет. "
+            "Возможно, изменился APP_SECRET_KEY."
+        ) from exc

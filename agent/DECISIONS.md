@@ -206,3 +206,58 @@ beginner-friendly.
 
 **Consequence:** New endpoints must raise `HTTPException` with a friendly
 `detail`; the handler maps status → code. Technical detail stays in logs/events.
+Endpoints wrap `BotServiceError` in `ApiError(status, message, hint)` so the
+`hint` reaches the client envelope.
+
+---
+
+## D-017 — 2026-10-03 — Bot tokens sealed at rest (Fernet) — LOCKED
+
+**Decision:** Bot tokens added through the app (including manager and managed
+bots) are stored **encrypted** in the `bots.token_encrypted` column using Fernet
+with a key derived from `APP_SECRET_KEY` (`core.security.seal_secret`/
+`open_secret`). The manager bot may still be bootstrapped from `.env`
+(`MANAGER_BOT_TOKEN`), which is also sealed into the DB on first startup.
+
+**Why:** Requirement D-010 (secrets never committed/displayed) plus the need to
+persist multiple bot tokens without keeping them in plaintext in SQLite.
+
+**Consequence:** `cryptography` is a runtime dependency. Sealed values carry an
+`enc:` prefix so a plaintext fallback stays readable. Changing `APP_SECRET_KEY`
+invalidates stored tokens (clear error, no data corruption). API responses only
+ever expose `has_token`, never the value.
+
+---
+
+## D-018 — 2026-10-03 — Managed bots via the official API only — LOCKED
+
+**Decision:** Managed-bot support uses only documented Bot API methods:
+`getManagedBotToken`, `replaceManagedBotToken`,
+`getManagedBotAccessSettings`, `setManagedBotAccessSettings`, and the official
+user link `https://t.me/newbot/<manager>/<username>?name=<name>`. The manager bot
+must have "Bot Management Mode" enabled in @BotFather. We never invent methods
+or bypass the user-confirmation flow.
+
+**Why:** Correctness; the feature requires a user action (confirming bot
+creation), so the app provides a clear workflow instead of hacking around it.
+Telegram delivers `managed_bot` updates rather than offering a list endpoint.
+
+**Consequence:** Managed-bot creation is a two-step UX: (1) open the generated
+link, confirm in Telegram; (2) the app records the bot (from the update or by
+Telegram ID) and fetches its token. `AiogramBotProvider` implements the four
+methods; the fake provider returns deterministic values for tests.
+
+---
+
+## D-019 — 2026-10-03 — Provider selection via config; fake for offline/tests
+
+**Decision:** `telegram_provider` (`auto` | `aiogram` | `fake`) and
+`offline_mode` select the provider in `providers/registry.py`. `auto` uses the
+real aiogram adapter unless `offline_mode` is set. Tests inject a fake provider
+factory through `api/deps.get_provider_factory`.
+
+**Why:** Lets the whole app and its tests run with no real credentials/network,
+and gives users an offline/demo mode — without any change to domain code (D-001).
+
+**Consequence:** Startup best-effort registers the manager bot from settings;
+failures are logged as events (never fatal). `pytest` never needs real tokens.

@@ -8,6 +8,7 @@ import { RouterView, RouterLink } from 'vue-router'
       <h1>Telegram Channel<br />Management Suite</h1>
       <nav>
         <RouterLink class="nav-item" to="/">Панель</RouterLink>
+        <RouterLink class="nav-item" to="/bots">Боты</RouterLink>
         <RouterLink class="nav-item" to="/system">Система</RouterLink>
         <RouterLink class="nav-item" to="/queue">Очередь</RouterLink>
         <RouterLink class="nav-item" to="/logs">Логи</RouterLink>
