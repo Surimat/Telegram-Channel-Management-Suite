@@ -11,6 +11,52 @@ _No unreleased changes._
 
 ---
 
+## [0.6.0] — 2026-10-03 — PHASE 6: Invite Manager
+
+### Added — DB
+- `backend/app/db/models/invite.py` — `InviteJob` (target, account/source
+  selection, filter snapshot, status, counters, confirmation, `wait_until`) and
+  `InviteTask` (per-user status, attempts, scheduled/completed, `wait_until`,
+  error); `InviteJobStatus`, `InviteStatus`, `TERMINAL_INVITE_STATUSES`.
+- `backend/app/db/repositories/invites.py` — `InviteJobRepository` (CRUD, list,
+  active, count_by_status), `InviteTaskRepository` (listing, status counts,
+  `claim_batch`, `pending_count`, `unfinished_count`, `next_due`, `retry_failed`).
+
+### Added — service
+- `backend/app/services/invite_service.py` — `InviteService`: `preview` (dry-run
+  summary), `create_job` (draft + task planning, per-account randomized spacing),
+  `confirm_and_start`, `start/pause/resume/stop`, `retry_failed`, `run_tick`
+  (bounded durable batch, returns `done`/`more`/`paused`), `recover`, `summary`,
+  `explain_job`. FloodWait pauses the run + records the wait; privacy/admin become
+  per-user statuses; transient network errors stay pending.
+
+### Added — API + setup
+- `backend/app/api/schemas/invites.py`, `backend/app/api/v1/invites.py` —
+  preview, summary, list, create, detail, confirm, pause/resume/stop, retry,
+  tasks. Friendly envelope; no secret leaks.
+- `api/deps.py::get_invite_service`; router registered in `v1/router.py`.
+- `main.py` lifespan — `InviteService.recover()` (pauses interrupted runs) and the
+  `invite.batch` durable job handler (re-schedules while work remains).
+- `services/system_service.py` — new Setup-Wizard `invites` check (plain language).
+- `providers/errors.py` / `fake_session.py` / `telethon_session.py` — invite error
+  coverage (`ChatAdminRequiredError`, `AlreadyParticipantError` mapping, fake
+  `FakeInviteScenario`).
+- `core/config.py` — invite settings (`invite_delay_min/max`, `invite_batch_size`,
+  `invite_max_total`, `invite_max_per_account`).
+
+### Added — frontend
+- `frontend/src/views/InvitesView.vue` — build a run (target, accounts, filters,
+  limits, dry-run) → preview summary → create draft → confirm/start → monitor with
+  per-status counters and task table; pause/resume/stop/retry. Invite types +
+  methods in `api/client.ts`; `/invites` route; sidebar «Приглашения».
+
+### Tests
+- `tests/test_invite_service.py`, `tests/test_invite_api.py`; `conftest.py` gained
+  an `invite_client` fixture. Suite: **238 passed**; `ruff check backend tests`
+  clean.
+
+---
+
 ## [0.5.0] — 2026-10-03 — PHASE 5: Audience (sources, parsing, database, export)
 
 ### Added — provider abstraction (Telethon stays isolated)

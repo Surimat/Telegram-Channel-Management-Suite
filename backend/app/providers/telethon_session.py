@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 
 from backend.app.core.config import Settings, get_settings
 from backend.app.providers.errors import (
+    AlreadyParticipantError,
     ApiCredentialsInvalidError,
     AuthCodeExpiredError,
     AuthCodeInvalidError,
@@ -134,6 +135,7 @@ class TelethonSessionProvider:
             PhoneCodeInvalidError,
             SessionPasswordNeededError,
             SessionRevokedError,
+            UserAlreadyParticipantError,
         )
         from telethon.errors import (
             ChatAdminRequiredError as TelethonAdminRequired,
@@ -176,6 +178,8 @@ class TelethonSessionProvider:
             return PrivacyRestrictedError(technical=type(exc).__name__)
         if isinstance(exc, TelethonAdminRequired):
             return ChatAdminRequiredError(technical=type(exc).__name__)
+        if isinstance(exc, UserAlreadyParticipantError):
+            return AlreadyParticipantError(technical=type(exc).__name__)
         if isinstance(exc, (AuthKeyUnregisteredError, SessionRevokedError)):
             return SessionInvalidError(technical=type(exc).__name__)
         if isinstance(exc, (ConnectionError, TimeoutError, OSError)):

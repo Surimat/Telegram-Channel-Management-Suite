@@ -19,6 +19,7 @@ from pathlib import Path
 from backend.app.providers.errors import (
     AuthCodeExpiredError,
     AuthCodeInvalidError,
+    FloodWaitError,
     PasswordInvalidError,
     SessionInvalidError,
 )
@@ -87,6 +88,23 @@ class FakeAudienceScenario:
     kind: str = "channel"
 
 
+@dataclass
+class FakeInviteScenario:
+    """Controls how the fake reacts to :meth:`invite_to_channel` (PHASE 6).
+
+    ``default_error`` fails every invite by default; ``errors_by_user`` overrides
+    that for specific Telegram user ids (e.g. a privacy-restricted user), and
+    ``error_after`` fails only once the given number of invites has succeeded —
+    handy for exercising a FloodWait partway through a run. ``record`` captures
+    the invited user ids so tests can assert exactly what was attempted.
+    """
+
+    default_error: Exception | None = None
+    errors_by_user: dict[int, Exception] = field(default_factory=dict)
+    error_after: int | None = None
+    record: list[int] = field(default_factory=list)
+
+
 def make_fake_users(count: int, *, start_id: int = 1) -> list[UserIdentity]:
     """Build a deterministic list of fake users for scan tests."""
     users: list[UserIdentity] = []
@@ -120,12 +138,14 @@ class FakeSessionProvider:
         session_path: Path | None = None,
         scenario: FakeAuthScenario | None = None,
         audience: FakeAudienceScenario | None = None,
+        invite: FakeInviteScenario | None = None,
     ) -> None:
         self._api_id = api_id
         self._api_hash = api_hash
         self._session_path = session_path
         self.scenario = scenario or FakeAuthScenario()
         self.audience = audience or FakeAudienceScenario()
+        self.invite = invite or FakeInviteScenario()
         self.connected = False
         self.closed = True
         self.export_calls = 0
@@ -249,6 +269,16 @@ class FakeSessionProvider:
         return None
 
     async def invite_to_channel(self, entity: str | int, user_id: int) -> None:
+        scenario = self.invite
+        self.invite.record.append(int(user_id))
+        if user_id in scenario.errors_by_user:
+            raise scenario.errors_by_user[user_id]
+        if scenario.default_error is not None:
+            raise scenario.default_error
+        if scenario.error_after is not None:
+            ok = sum(1 for uid in scenario.record if uid not in scenario.errors_by_user)
+            if ok > scenario.error_after:
+                raise scenario.default_error or FloodWaitError(30)
         return None
 
 

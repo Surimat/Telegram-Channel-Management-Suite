@@ -166,6 +166,67 @@ async def bot_client() -> AsyncIterator[AsyncClient]:
         yield ac
 
 
+def make_fake_invite_session_factory(invite=None, audience=None, scenario=None):
+    """Return a session-provider factory whose fake serves audience + invites."""
+    from backend.app.providers.fake_session import (
+        FakeAudienceScenario,
+        FakeAuthScenario,
+        FakeInviteScenario,
+        FakeSessionProvider,
+    )
+
+    shared = FakeSessionProvider(
+        scenario=scenario or FakeAuthScenario(),
+        audience=audience or FakeAudienceScenario(),
+        invite=invite or FakeInviteScenario(),
+    )
+
+    def _factory(*, api_id="", api_hash="", session_path=None, provider_name="auto", settings=None):
+        return shared
+
+    return _factory
+
+
+@pytest_asyncio.fixture
+async def invite_client() -> AsyncIterator[AsyncClient]:
+    """API client with sessions/audience/invites wired to a deterministic fake."""
+    from backend.app.api.deps import get_session_provider_factory
+    from backend.app.db.models.audience import AudienceUser
+    from backend.app.db.models.session import SessionStatus, UserSession
+    from backend.app.db.session import init_models, session_scope
+    from backend.app.main import create_app
+    from backend.app.providers.fake_session import FakeAudienceScenario, make_fake_users
+
+    await init_models()
+    async with session_scope() as session:
+        session.add(
+            UserSession(
+                telegram_user_id=1000001,
+                username="fake_user",
+                display_name="Fake User",
+                status=SessionStatus.ONLINE,
+                enabled=True,
+                api_id="1",
+            )
+        )
+        for i in range(5):
+            session.add(
+                AudienceUser(
+                    telegram_user_id=2000 + i,
+                    username=f"member{i}",
+                    display_name=f"Member {i}",
+                )
+            )
+    app = create_app()
+    factory = make_fake_invite_session_factory(
+        audience=FakeAudienceScenario(participants=make_fake_users(5), page_size=50)
+    )
+    app.dependency_overrides[get_session_provider_factory] = lambda: factory
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+
 @pytest_asyncio.fixture
 async def session_client() -> AsyncIterator[AsyncClient]:
     """API client with MTProto access wired to the fake session provider."""

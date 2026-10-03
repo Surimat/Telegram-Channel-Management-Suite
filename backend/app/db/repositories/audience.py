@@ -218,6 +218,7 @@ class AudienceUserRepository:
         *,
         search: str = "",
         source_id: str | None = None,
+        source_ids: list[str] | None = None,
         tag: str | None = None,
         status: MemberStatus | None = None,
         is_bot: bool | None = None,
@@ -237,6 +238,7 @@ class AudienceUserRepository:
         conditions = self._conditions(
             search=search,
             source_id=source_id,
+            source_ids=source_ids,
             tag=tag,
             status=status,
             is_bot=is_bot,
@@ -293,6 +295,12 @@ class AudienceUserRepository:
         if kw["source_id"]:
             sub = select(SourceUserLink.user_id).where(
                 SourceUserLink.source_id == kw["source_id"]
+            )
+            conditions.append(AudienceUser.id.in_(sub))
+        source_ids = kw.get("source_ids")
+        if source_ids:
+            sub = select(SourceUserLink.user_id).where(
+                SourceUserLink.source_id.in_(source_ids)
             )
             conditions.append(AudienceUser.id.in_(sub))
         return conditions

@@ -278,6 +278,28 @@ _Planned for PHASE 7._
 
 ---
 
+## Invites (PHASE 6)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/api/v1/invites/preview` | dry-run summary (counts, accounts, sources, filters) |
+| GET | `/api/v1/invites/summary` | job counts by status |
+| GET | `/api/v1/invites` | list invite jobs (status/search, pagination) |
+| POST | `/api/v1/invites` | create a draft job (plans tasks; runs nothing) |
+| GET | `/api/v1/invites/{id}` | job detail + plain-language explanation |
+| POST | `/api/v1/invites/{id}/confirm` | confirm the summary **and** start the run |
+| POST | `/api/v1/invites/{id}/pause` | pause the run |
+| POST | `/api/v1/invites/{id}/resume` | resume a paused run |
+| POST | `/api/v1/invites/{id}/stop` | stop the run |
+| POST | `/api/v1/invites/{id}/retry` | re-queue technically retryable tasks |
+| GET | `/api/v1/invites/{id}/tasks` | per-user tasks (status filter, counts) |
+
+A run never starts without confirmation (`confirm` records `confirmed_at`). On
+restart, running jobs are paused rather than silently resumed. Responses never
+contain tokens, session contents, `api_hash` or raw phone numbers.
+
+---
+
 ## Mini App authentication
 
 | Method | Path | Purpose |

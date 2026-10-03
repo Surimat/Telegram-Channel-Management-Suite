@@ -77,6 +77,16 @@ class Settings(BaseSettings):
     # Safety cap on users per scan (0 = no cap; Telegram usually caps anyway).
     audience_scan_max_users: int = 0
 
+    # --- Invites (PHASE 6) ---
+    # Spacing between invites for a single account (seconds), randomized.
+    invite_delay_min: float = 20.0
+    invite_delay_max: float = 60.0
+    # Tasks processed per scheduler tick (keeps memory/CPU low on weak machines).
+    invite_batch_size: int = 5
+    # Default caps when a job does not specify its own (0 = no cap).
+    invite_max_total: int = 0
+    invite_max_per_account: int = 0
+
     # --- Scheduler ---
     scheduler_enabled: bool = True
     scheduler_timezone: str = "UTC"

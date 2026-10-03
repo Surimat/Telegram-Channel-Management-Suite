@@ -202,3 +202,16 @@ class ChatAdminRequiredError(TelegramProviderError):
         super().__init__(
             message or "Требуются права администратора в этом чате.", **kwargs  # type: ignore[arg-type]
         )
+
+
+# --- Invite errors (PHASE 6) -------------------------------------------------
+
+
+class AlreadyParticipantError(TelegramProviderError):
+    """The user is already a member of the target chat (not a failure)."""
+
+    def __init__(self, message: str = "", **kwargs: object) -> None:
+        kwargs.setdefault("how_to_fix", "")
+        super().__init__(
+            message or "Пользователь уже состоит в целевом канале.", **kwargs  # type: ignore[arg-type]
+        )

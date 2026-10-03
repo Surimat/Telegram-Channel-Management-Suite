@@ -380,6 +380,46 @@ class SystemService:
             f"Реакции включены. Готовых ботов: {active_bots}.",
         )
 
+    async def invites_check(self, session: AsyncSession) -> Check:
+        """Report the Invite Manager state in plain language (PHASE 6)."""
+        from backend.app.services.invite_service import InviteService
+
+        service = InviteService(session, settings=self.settings)
+        summary = await service.summary()
+        counts = summary.get("by_status", {})
+        active = counts.get("running", 0) + counts.get("paused", 0)
+        total = sum(int(v) for v in counts.values())
+        waiting = counts.get("paused", 0)
+        if total == 0:
+            return Check(
+                "invites",
+                "Приглашения",
+                STATUS_OK,
+                "Задания приглашений ещё не создавались.",
+                "Раздел «Приглашения» позволяет приглашать людей из аудитории в канал.",
+            )
+        if waiting:
+            return Check(
+                "invites",
+                "Приглашения",
+                STATUS_WARNING,
+                f"Всего заданий: {total}, на паузе: {waiting}.",
+                "Откройте «Приглашения»: возможно, Telegram попросил подождать.",
+            )
+        if active:
+            return Check(
+                "invites",
+                "Приглашения",
+                STATUS_OK,
+                f"Выполняется заданий: {active}.",
+            )
+        return Check(
+            "invites",
+            "Приглашения",
+            STATUS_OK,
+            f"Заданий приглашений: {total}.",
+        )
+
     async def setup_checks(self, session: AsyncSession | None = None) -> list[Check]:
         checks: list[Check] = [
             Check("runtime", "Среда выполнения", STATUS_OK, "Программа запущена правильно."),
@@ -396,6 +436,7 @@ class SystemService:
             checks.append(await self.reactions_check(session))
             checks.append(await self.accounts_check(session))
             checks.append(await self.audience_check(session))
+            checks.append(await self.invites_check(session))
         else:
             checks.append(self.manager_bot_check())
         checks.append(self.ai_check())

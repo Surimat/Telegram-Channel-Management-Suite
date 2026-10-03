@@ -124,7 +124,27 @@ estimated total, notes) before any job is queued.
 
 ---
 
-## 7a. Audience data (PHASE 5)
+## 7a. Invites (PHASE 6)
+
+- **Confirmation is enforced server-side**: a job is created as `draft` and only
+  `POST /confirm` (which records `confirmed_at`) can start it — the summary cannot
+  be skipped by calling the API directly.
+- **Limits are configurable, never bypassed**: per-account spacing
+  (`INVITE_DELAY_MIN/MAX`), `INVITE_MAX_TOTAL`, `INVITE_MAX_PER_ACCOUNT`,
+  `INVITE_BATCH_SIZE`. The planner spaces tasks per account; a bulk run is not
+  one burst.
+- **FloodWait** pauses the whole run, records `wait_until`, and surfaces the
+  waiting account — the system never retries in a loop. **Privacy** becomes a
+  per-user `privacy` status; **admin-required** becomes an error status. Neither
+  is retried automatically.
+- **Restart safety**: an interrupted run is paused on startup, never resumed
+  silently; the operator resumes explicitly (`recover()`).
+- **Responses/logs/UI** expose only `telegram_user_id`, `username`, statuses and
+  counts — never session strings, tokens, api_hash or raw phones.
+
+---
+
+## 7b. Audience data (PHASE 5)
 
 - **No raw PII at rest**: only `phone_masked` may be stored, and only when the
   `AUDIENCE_STORE_PII` setting is enabled; full phone numbers are never persisted

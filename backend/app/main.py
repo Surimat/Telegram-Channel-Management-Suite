@@ -38,6 +38,7 @@ def _register_handlers(scheduler: Scheduler) -> None:
 
     from backend.app.db.models.job import Job
     from backend.app.services.audience_service import SCAN_JOB_KIND, AudienceService
+    from backend.app.services.invite_service import INVITE_JOB_KIND, InviteService
     from backend.app.services.reaction_service import REACTION_JOB_KIND, ReactionService
 
     async def handle_reaction(session: AsyncSession, job: Job) -> None:
@@ -51,8 +52,32 @@ def _register_handlers(scheduler: Scheduler) -> None:
         # an interrupted scan can resume (decision D-028).
         await AudienceService(session).run_scan_chunk()
 
+    async def handle_invite(session: AsyncSession, job: Job) -> None:
+        # One bounded batch per tick. While work remains, re-schedule a follow-up
+        # job at the next due time so per-account delays are honoured and the run
+        # stays restart-safe (decision D-008).
+        payload = json.loads(job.payload or "{}")
+        invite_job_id = payload.get("invite_job_id")
+        if not invite_job_id:
+            return
+        from datetime import timedelta
+
+        from backend.app.db.base import utcnow
+        from backend.app.services.queue_service import QueueService
+
+        action, delay = await InviteService(session).run_tick(invite_job_id)
+        if action == "more":
+            await QueueService(session).enqueue(
+                kind=INVITE_JOB_KIND,
+                payload={"invite_job_id": invite_job_id},
+                scheduled_at=utcnow() + timedelta(seconds=delay),
+                group_key=invite_job_id,
+                max_attempts=1,
+            )
+
     scheduler.register(REACTION_JOB_KIND, handle_reaction)
     scheduler.register(SCAN_JOB_KIND, handle_scan)
+    scheduler.register(INVITE_JOB_KIND, handle_invite)
 
 
 @contextlib.asynccontextmanager
@@ -116,6 +141,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             paused = await AudienceService(session).recover()
             if paused:
                 logger.info("Paused %d interrupted audience scan(s) after restart", paused)
+
+    # Pause invite runs interrupted by a restart — never resume a bulk action
+    # silently; the operator resumes explicitly (PHASE 6).
+    with contextlib.suppress(Exception):
+        from backend.app.db.session import session_scope
+        from backend.app.services.invite_service import InviteService
+
+        async with session_scope() as session:
+            paused = await InviteService(session).recover()
+            if paused:
+                logger.info("Paused %d interrupted invite run(s) after restart", paused)
 
     scheduler: Scheduler | None = None
     if settings.scheduler_enabled:

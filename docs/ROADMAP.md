@@ -73,13 +73,15 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 - [x] API `/api/v1/audience/*` + Setup Wizard `audience` check. Tests. Commit.
 - [ ] Dedicated Audience/Sources UI views — deferred to the frontend rollout.
 
-## PHASE 6 — Invite Manager ⬜
-- [ ] Invite queue, account/source/target selection, filters.
-- [ ] Dry-run, manual approval, start/pause/stop.
-- [ ] Per-account and per-user status, logs, safe retry.
-- [ ] FloodWait / privacy / admin handling (pause + show wait).
-- [ ] Mandatory pre-run confirmation summary.
-- [ ] API + UI (Invites). Tests. Commit.
+## PHASE 6 — Invite Manager ✅
+- [x] Invite queue, account/source/target selection, filters.
+- [x] Dry-run preview + mandatory pre-run confirmation summary.
+- [x] Start/pause/resume/stop, per-account and per-user status, logs,
+      safe retry (only technically retryable failures).
+- [x] FloodWait / privacy / admin handling (pause + show wait; never bypassed).
+- [x] Durable queue: one bounded batch per tick, restart-safe; recover→pause.
+- [x] API `/api/v1/invites/*` + Setup Wizard `invites` check + `InvitesView.vue`.
+- [x] Tests. Commit.
 
 ## PHASE 7 — Tiny AI ⬜
 - [ ] Classifier interface + rules fast path.

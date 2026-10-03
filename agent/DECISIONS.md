@@ -451,3 +451,26 @@ owner-controlled exports.
 
 **Consequence:** `tests/test_audience_security.py` asserts no secret/PII leaks in
 responses, exports and events, and that error messages stay human-readable.
+
+---
+
+## D-030 — 2026-10-03 — Invites require confirmation and run as bounded durable batches — LOCKED
+
+**Decision:** An invite run is created as a `draft` `InviteJob`; it can only start
+via `POST /confirm`, which records `confirmed_at` server-side (the mandatory
+confirmation cannot be skipped by calling the API directly). Execution is a durable
+queue job that processes one configurable batch per scheduler tick and re-schedules
+itself at the next due time, committing after every batch. The planner spaces tasks
+per account (`INVITE_DELAY_MIN/MAX`, randomized); FloodWait pauses the whole run and
+records `wait_until`; privacy/admin restrictions become per-user non-retryable
+statuses. On restart a running job is paused, never resumed silently.
+
+**Why:** Mass invites must never happen in one burst, must never be resumable
+without the owner's knowledge, and must respect Telegram server limits
+unconditionally (D-006). Bounded batches keep memory/CPU low on a weak Windows PC
+and make the run restart-safe (D-008).
+
+**Consequence:** Per-account and per-user statuses are queryable through the API/UI;
+`retry_failed` only re-queues technically retryable failures (generic provider
+errors / FloodWait), never privacy or admin restrictions.
+

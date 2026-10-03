@@ -336,6 +336,87 @@ export interface SessionHealth {
   how_to_fix: string
 }
 
+// Invite Manager (PHASE 6)
+export interface InvitePreviewSample {
+  id: string
+  telegram_user_id: number
+  username: string
+  display_name: string
+}
+
+export interface InvitePreview {
+  target: string
+  source_ids: string[]
+  source_labels: string[]
+  account_ids: string[]
+  account_labels: string[]
+  filters: Record<string, unknown>
+  total_candidates: number
+  planned_operations: number
+  accounts_count: number
+  max_total: number
+  sample: InvitePreviewSample[]
+  explanation: string
+  requires_confirmation: boolean
+}
+
+export interface InviteJob {
+  id: string
+  name: string
+  target: string
+  target_title: string
+  status: string
+  dry_run: boolean
+  confirmed_at: string | null
+  account_ids: string[]
+  source_ids: string[]
+  filters: Record<string, unknown>
+  total_tasks: number
+  processed_count: number
+  invited_count: number
+  already_count: number
+  privacy_count: number
+  flood_count: number
+  error_count: number
+  waiting_account_id: string
+  wait_until: string | null
+  started_at: string | null
+  finished_at: string | null
+  last_error: string
+  explanation: string
+  created_at: string
+  updated_at: string
+}
+
+export interface InviteJobList {
+  items: InviteJob[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export interface InviteTask {
+  id: string
+  job_id: string
+  user_id: string
+  telegram_user_id: number
+  account_id: string
+  status: string
+  attempts: number
+  scheduled_at: string | null
+  completed_at: string | null
+  wait_until: string | null
+  error: string
+}
+
+export interface InviteTaskList {
+  items: InviteTask[]
+  total: number
+  limit: number
+  offset: number
+  status_counts: Record<string, number>
+}
+
 export const api = {
   health: () => request<Health>('/health'),
   healthDeep: () => request<Record<string, unknown>>('/health/deep'),
@@ -481,4 +562,47 @@ export const api = {
     request<UserSession>(`/api/v1/sessions/${id}/logout`, { method: 'POST' }),
   removeSession: (id: string) =>
     request<null>(`/api/v1/sessions/${id}`, { method: 'DELETE' }),
+
+  // Invite Manager (PHASE 6)
+  invitePreview: (payload: {
+    target: string
+    account_ids?: string[]
+    source_ids?: string[]
+    filters?: Record<string, unknown>
+    max_total?: number
+  }) =>
+    request<InvitePreview>('/api/v1/invites/preview', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  inviteJobs: (params: Record<string, string> = {}) =>
+    request<InviteJobList>('/api/v1/invites?' + new URLSearchParams(params).toString()),
+  createInviteJob: (payload: {
+    name?: string
+    target: string
+    account_ids?: string[]
+    source_ids?: string[]
+    filters?: Record<string, unknown>
+    dry_run?: boolean
+    per_account_delay_min?: number
+    per_account_delay_max?: number
+    max_per_account?: number
+    max_total?: number
+  }) =>
+    request<InviteJob>('/api/v1/invites', { method: 'POST', body: JSON.stringify(payload) }),
+  getInviteJob: (id: string) => request<InviteJob>(`/api/v1/invites/${id}`),
+  confirmInviteJob: (id: string) =>
+    request<InviteJob>(`/api/v1/invites/${id}/confirm`, { method: 'POST' }),
+  pauseInviteJob: (id: string) =>
+    request<InviteJob>(`/api/v1/invites/${id}/pause`, { method: 'POST' }),
+  resumeInviteJob: (id: string) =>
+    request<InviteJob>(`/api/v1/invites/${id}/resume`, { method: 'POST' }),
+  stopInviteJob: (id: string) =>
+    request<InviteJob>(`/api/v1/invites/${id}/stop`, { method: 'POST' }),
+  retryInviteJob: (id: string) =>
+    request<InviteJob>(`/api/v1/invites/${id}/retry`, { method: 'POST' }),
+  inviteTasks: (id: string, params: Record<string, string> = {}) =>
+    request<InviteTaskList>(
+      `/api/v1/invites/${id}/tasks?` + new URLSearchParams(params).toString(),
+    ),
 }

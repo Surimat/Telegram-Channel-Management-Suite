@@ -4,8 +4,8 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-03
-**Current phase:** PHASE 5 — Audience: **COMPLETED** (commit pending).
-**Repository status:** `develop` carries PHASE 0–5; `main` only via pull request.
+**Current phase:** PHASE 6 — Invite Manager: **COMPLETED** (commit pending).
+**Repository status:** `develop` carries PHASE 0–6; `main` only via pull request.
 **Branch:** `develop` (tracks `origin/develop`); `main` is untouched and only ever updated via pull request.
 
 ---
@@ -174,6 +174,34 @@ Layered architecture: **core → db/models → db/repositories → services → 
   `test_audience_api.py`, `test_audience_providers.py`,
   `test_audience_security.py`; `conftest.py` gained an `audience_client` fixture.
 
+### PHASE 6 — Invite Manager (queue + confirmation + safe execution)
+- `backend/app/db/models/invite.py` — `InviteJob` (`target`, `account_ids`/
+  `source_ids`/`filters` snapshots, `status`, counters, `confirmed_at`/
+  `confirmed_summary`, `waiting_account_id`/`wait_until`, `queue_job_id`) and
+  `InviteTask` (`job_id`, `user_id`, `telegram_user_id`, `account_id`, `status`,
+  `attempts`, `scheduled_at`, `completed_at`, `wait_until`, `error`); enums
+  `InviteJobStatus`, `InviteStatus`, `TERMINAL_INVITE_STATUSES`.
+- `backend/app/db/repositories/invites.py` — `InviteJobRepository` and
+  `InviteTaskRepository` (list/filter, status counts, `claim_batch`, `pending_count`,
+  `unfinished_count`, `next_due`, `retry_failed`).
+- `backend/app/services/invite_service.py` — `InviteService`: `preview` (dry-run
+  summary: source/target/users/accounts/filters/planned ops), `create_job` (draft +
+  task planning with randomized per-account spacing), `confirm_and_start`,
+  `start`/`pause`/`resume`/`stop`, `retry_failed`, `run_tick` (one bounded batch per
+  tick → `done`/`more`/`paused`), `recover`, `summary`, `explain_job`. FloodWait
+  pauses + records the wait; privacy/admin become non-retryable user statuses.
+- `backend/app/api/schemas/invites.py`, `backend/app/api/v1/invites.py`,
+  `api/deps.py::get_invite_service`, router registration. No secret leaks.
+- `providers/errors.py` + `fake_session.py` (`FakeInviteScenario`) +
+  `telethon_session.py` — invite error coverage.
+- `main.py` lifespan — `InviteService.recover()` + `invite.batch` durable handler
+  (re-schedules itself while work remains).
+- `services/system_service.py` — Setup-Wizard `invites` check.
+- `frontend/src/views/InvitesView.vue` + invite types/methods in `api/client.ts`,
+  `/invites` route, sidebar «Приглашения».
+- `tests/` — `test_invite_service.py`, `test_invite_api.py`; `conftest.py` gained an
+  `invite_client` fixture.
+
 ### Frontend (PHASE 1) — Vue 3 + Vite + TypeScript
 - `frontend/` — `package.json`, `vite.config.ts` (builds into
   `backend/app/static/`), `tsconfig.json`, `index.html`.
@@ -214,7 +242,7 @@ Layered architecture: **core → db/models → db/repositories → services → 
   durable jobs, execution via the provider with FloodWait handling, and startup
   recovery — verified live in offline mode (add bot → enable → ingest → job
   created) and covered by 48 tests.
-- `ruff check backend tests` → clean. `pytest` → **212 passed**.
+- `ruff check backend tests` → clean. `pytest` → **238 passed**.
 - Frontend `npm run build` → outputs to `backend/app/static/` successfully
   (`vue-tsc` clean).
 - **Sessions (PHASE 4)**: guided auth wizard (start → code → 2FA), `.session`
@@ -226,15 +254,21 @@ Layered architecture: **core → db/models → db/repositories → services → 
   bulk status, dashboard/statistics, streaming export, import — verified in
   offline mode and covered by API/service/model/provider/security tests. No
   secret or raw phone appears in responses, exports default to no PII.
+- **Invites (PHASE 6)**: dry-run preview, draft→confirm→start, bounded durable
+  execution (one batch per tick, re-scheduled), per-account/per-user statuses,
+  pause/resume/stop, safe retry, FloodWait pause + recorded wait, privacy/admin
+  statuses, and restart recovery (`recover()` pauses running jobs) — covered by
+  `test_invite_service.py` + `test_invite_api.py`; responses never leak secrets.
 
 ## 4. What does NOT exist yet
 
 - Dedicated Audience/Sources **frontend views** (API is complete; views land with
   the frontend rollout) and the Telegram Mini App.
-- Channel binding, invites, analytics APIs/UI, Tiny AI classifier (PHASE 7).
+- Channel binding and Analytics APIs/UI; Tiny AI classifier (PHASE 7). (Invites
+  now exist — PHASE 6 complete.)
 - Account permission probe (read/post rights on a channel) — the SessionProvider
-  exposes `resolve_entity`/`get_participants`/`invite_to_channel` but the service
-  does not yet surface a permissions check (arrives with PHASE 6).
+  exposes `resolve_entity`/`get_participants`/`invite_to_channel`, and invites now
+  use `invite_to_channel`, but there is no standalone "check permissions" flow.
 - Manager-bot runtime: the manager bot is registered from settings, but there is
   no command loop / admin whitelist / notification forwarding yet.
 - Auth for the local UI / Mini App `initData`.
@@ -243,10 +277,11 @@ Layered architecture: **core → db/models → db/repositories → services → 
 
 ## 5. Next action
 
-Start **PHASE 6 — Invite Manager** (see `agent/NEXT_TASK.md` and
-`docs/ROADMAP.md`): an invite queue over the parsed audience, dry-run +
-mandatory confirmation summary, per-account/per-user status, FloodWait/privacy
-handling (pause, never bypass), pause/resume/stop, logs, safe retry.
+Start **PHASE 7 — Tiny AI** (see `agent/NEXT_TASK.md` and `docs/ROADMAP.md`): a
+classifier interface with the Rules Engine fast path, an optional tiny GGUF
+classifier behind it (strict JSON output, confidence routing), and AI
+enable/disable + model path configuration. The rules engine must remain the
+deterministic default; AI is additive-only.
 
 ## 6. Locked decisions (do not break)
 
@@ -278,6 +313,8 @@ See `agent/DECISIONS.md`. Key ones:
   many-to-many `source_user_links` table (D-028).
 - Audience PII is masked at rest, exports are local-only and PII-off by default
   (D-029).
+- Invites require server-side confirmation and run as bounded durable batches;
+  limits are never bypassed (D-030).
 
 ## 7. How to run / verify after opening a new chat
 
