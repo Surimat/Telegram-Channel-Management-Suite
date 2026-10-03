@@ -3,13 +3,21 @@ import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAppStore } from '@/stores/app'
-import { api, type BotSummary, type ReactionStats, type SessionSummary } from '@/api/client'
+import {
+  api,
+  type AnalyticsOverview,
+  type BotSummary,
+  type ReactionStats,
+  type SessionSummary,
+} from '@/api/client'
+import Sparkline from '@/components/Sparkline.vue'
 
 const store = useAppStore()
 const { status, loading, error } = storeToRefs(store)
 const bots = ref<BotSummary | null>(null)
 const reactions = ref<ReactionStats | null>(null)
 const accounts = ref<SessionSummary | null>(null)
+const analytics = ref<AnalyticsOverview | null>(null)
 
 onMounted(async () => {
   if (!store.status) store.loadStatus()
@@ -27,6 +35,11 @@ onMounted(async () => {
     accounts.value = await api.sessionsSummary()
   } catch {
     accounts.value = null
+  }
+  try {
+    analytics.value = await api.analyticsOverview(30)
+  } catch {
+    analytics.value = null
   }
 })
 
@@ -123,6 +136,22 @@ const managerLabel = (s: BotSummary | null) => {
           </div>
           <p>{{ check.meaning }}</p>
           <p v-if="check.how_to_fix" class="muted">{{ check.how_to_fix }}</p>
+        </div>
+      </div>
+
+      <div v-if="analytics" class="card">
+        <div class="row-between">
+          <h3>Что показывают цифры</h3>
+          <RouterLink to="/analytics">Подробная аналитика →</RouterLink>
+        </div>
+        <p v-for="(note, i) in analytics.summary" :key="i" class="summary-note">{{ note }}</p>
+        <div class="two-cols">
+          <Sparkline :points="analytics.content.per_day" label="Публикации за 30 дней" />
+          <Sparkline
+            :points="analytics.reactions.completed_per_day"
+            label="Выполненные реакции за 30 дней"
+            color="var(--ok)"
+          />
         </div>
       </div>
 

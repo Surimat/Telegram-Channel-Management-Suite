@@ -555,16 +555,39 @@ change.
 
 ---
 
-## D-035 — 2026-10-03 — Single-concurrency, bounded AI inference — LOCKED
+## D-036 — 2026-10-03 — Analytics is a read-only aggregate layer with plain-language summaries — LOCKED
 
-**Decision:** All model inference runs through one shared executor with a single
-worker (`backend/app/ai/inference.py`, `run_bounded`). At most one generation
-runs at a time; a timeout raises `InferenceTimeoutError` and never blocks the
-caller indefinitely. The `llama_cpp` backend loads lazily and, unless
-`ai_keep_loaded`, unloads after each call. The executor is shut down on app exit.
+**Decision:** PHASE 8 analytics is implemented as a read-only repository
+(`repositories/analytics.py`) plus a service (`services/analytics_service.py`)
+that only aggregates data the suite already stores (posts, reaction jobs,
+audience sources/users/links, invite tasks). It has no Telegram imports and no
+write path. Per-day series are bucketed in Python from a bounded time window
+instead of using database-specific date functions, keeping the queries portable
+for a future PostgreSQL move (D-002).
 
-**Why:** Bounds CPU/RAM on a weak Windows PC and prevents several posts from
-loading/running a model simultaneously.
+**Why:** The brief demands that the Dashboard "explain numbers, not just show
+them". Putting the plain-language `summary` in the backend keeps one source of
+truth for both the Web UI and the Mini App (D-003) and avoids duplicating copy in
+the frontend.
 
-**Consequence:** Throughput is intentionally serialized; the UI must never assume
-concurrent AI classification.
+**Consequence:** Adding a new metric means adding a repository query + a service
+key; the UI stays a thin renderer. The response carries only aggregate counts —
+never secrets or per-person PII (D-010/D-029).
+
+---
+
+## D-037 — 2026-10-03 — Charts are dependency-free inline SVG — LOCKED
+
+**Decision:** The Analytics/Dashboard charts use two small Vue components
+(`Sparkline.vue`, `BarList.vue`) that render inline SVG/CSS with no charting
+library. The SPA remains the single frontend (D-003) and still builds to static
+files served by FastAPI.
+
+**Why:** Keeps the portable Windows runtime and low-end machines light (no extra
+JS bundle weight) and avoids a heavyweight dependency for simple line/bar charts.
+
+**Consequence:** Only simple line and horizontal-bar charts are supported by
+design; richer charting would be a deliberate later decision.
+
+---
+

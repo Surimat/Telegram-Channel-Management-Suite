@@ -92,13 +92,17 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
       AI enable/disable, DB-overridable model path + settings with UI help.
 - [x] API `/api/v1/ai/*` + Setup Wizard `ai` check + `AiView.vue`. Tests. Commit.
       Models are user-provided `.gguf` assets in gitignored `/models/`.
-- [ ] Commit pending on `develop`.
+- [x] Committed on `develop` (`4b42fcb`).
 
-## PHASE 8 — Analytics ⬜
-- [ ] Content analytics (posts, time, reactions, type, category).
-- [ ] Audience analytics (sources, growth, engagement available via API).
-- [ ] Charts + plain-language explanations on Dashboard.
-- [ ] API + UI (Analytics, Dashboard). Tests. Commit.
+## PHASE 8 — Analytics ✅
+- [x] Content analytics (posts, time, reactions, type, category) —
+      `AnalyticsRepository` + `AnalyticsService.content()`.
+- [x] Audience analytics (sources, growth, source effectiveness, invite outcomes).
+- [x] Reaction analytics (status mix, success rate, emoji, per-bot, per-category).
+- [x] Charts (`Sparkline.vue`, `BarList.vue`, dependency-free SVG) + plain-language
+      explanations on the Dashboard and the new `AnalyticsView.vue`.
+- [x] API `/api/v1/analytics/{overview,content,reactions,audience}`. Tests. Commit.
+- [ ] Commit pending on `develop`.
 
 ## PHASE 9 — Mini App ⬜
 - [ ] Reuse the same SPA for Mini App.

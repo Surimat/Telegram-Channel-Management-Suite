@@ -520,6 +520,108 @@ export interface AiHistory {
   total: number
 }
 
+// Analytics (PHASE 8) — read-only aggregates with plain-language summaries.
+export interface DayPoint {
+  date: string
+  count: number
+}
+
+export interface TitledCount {
+  key: string
+  title: string
+  count: number
+}
+
+export interface EmojiCount {
+  reaction: string
+  count: number
+}
+
+export interface BotCount {
+  bot_id: string
+  count: number
+}
+
+export interface SourceCount {
+  id: string
+  title: string
+  username: string
+  users: number
+}
+
+export interface SourceEffectiveness {
+  id: string
+  title: string
+  username: string
+  discovered: number
+  new: number
+  duplicates: number
+  errors: number
+  completeness: string
+}
+
+export interface ContentAnalytics {
+  days: number
+  posts_total: number
+  posts_window: number
+  posts_previous_window: number
+  change_percent: number | null
+  average_per_day: number
+  per_day: DayPoint[]
+  by_category: TitledCount[]
+  by_source: TitledCount[]
+  by_status: Record<string, number>
+  summary: string
+}
+
+export interface ReactionsAnalytics {
+  days: number
+  reactions_total: number
+  by_status: Record<string, number>
+  success_rate: number | null
+  per_day: DayPoint[]
+  completed_per_day: DayPoint[]
+  by_emoji: EmojiCount[]
+  by_category: TitledCount[]
+  by_bot: BotCount[]
+  summary: string
+}
+
+export interface AudienceAnalytics {
+  days: number
+  audience_total: number
+  new_7d: number
+  per_day: DayPoint[]
+  by_status: TitledCount[]
+  sources_total: number
+  links_total: number
+  top_sources: SourceCount[]
+  source_effectiveness: SourceEffectiveness[]
+  invites: Record<string, number>
+  summary: string
+}
+
+export interface AnalyticsHeadline {
+  posts_total: number
+  posts_window: number
+  posts_change_percent: number | null
+  reactions_total: number
+  reaction_success_rate: number | null
+  audience_total: number
+  audience_new_7d: number
+  sources_total: number
+}
+
+export interface AnalyticsOverview {
+  days: number
+  generated_at: string
+  headline: AnalyticsHeadline
+  content: ContentAnalytics
+  reactions: ReactionsAnalytics
+  audience: AudienceAnalytics
+  summary: string[]
+}
+
 export const api = {
   health: () => request<Health>('/health'),
   healthDeep: () => request<Record<string, unknown>>('/health/deep'),
@@ -730,4 +832,14 @@ export const api = {
   aiMetrics: () => request<AiMetrics>('/api/v1/ai/metrics'),
   aiHistory: (params: Record<string, string> = {}) =>
     request<AiHistory>('/api/v1/ai/history?' + new URLSearchParams(params).toString()),
+
+  // Analytics (PHASE 8)
+  analyticsOverview: (days = 30) =>
+    request<AnalyticsOverview>(`/api/v1/analytics/overview?days=${days}`),
+  analyticsContent: (days = 30) =>
+    request<ContentAnalytics>(`/api/v1/analytics/content?days=${days}`),
+  analyticsReactions: (days = 30) =>
+    request<ReactionsAnalytics>(`/api/v1/analytics/reactions?days=${days}`),
+  analyticsAudience: (days = 30) =>
+    request<AudienceAnalytics>(`/api/v1/analytics/audience?days=${days}`),
 }

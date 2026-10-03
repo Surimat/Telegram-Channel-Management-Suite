@@ -4,8 +4,8 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-03
-**Current phase:** PHASE 7 — Tiny AI classifier: **COMPLETED** (commit pending).
-**Repository status:** `develop` carries PHASE 0–7; `main` only via pull request.
+**Current phase:** PHASE 8 — Analytics: **COMPLETED** (commit pending).
+**Repository status:** `develop` carries PHASE 0–8; `main` only via pull request.
 **Branch:** `develop` (tracks `origin/develop`); `main` is untouched and only ever updated via pull request.
 
 ---
@@ -23,7 +23,7 @@ Git: shallow clone → history may be incomplete. Run
 ### Documentation & memory (PHASE 0)
 - `docs/` — `ARCHITECTURE.md`, `ROADMAP.md`, `SETUP.md`, `SECURITY.md`,
   `UI.md`, `API.md`, `TROUBLESHOOTING.md`.
-- `agent/` — this file, `NEXT_TASK.md`, `DECISIONS.md` (D-001…D-016),
+- `agent/` — this file, `NEXT_TASK.md`, `DECISIONS.md` (D-001…D-037),
   `CHANGELOG.md`.
 - `.gitignore` (secrets/sessions/data/logs/backups/models protected),
   `.env.example`, `README.md`.
@@ -247,6 +247,29 @@ Layered architecture: **core → db/models → db/repositories → services → 
 - `tests/` — `test_ai_classifier.py` (schema/classifiers/routing/inference) and
   `test_ai_api.py` (service + API + reaction simulation AI fields + setup check).
 
+### PHASE 8 — Analytics (content, reactions, audience + Dashboard insight)
+- `backend/app/db/repositories/analytics.py` — `AnalyticsRepository`: read-only
+  aggregates over posts, reaction jobs, audience sources/users/links and invite
+  tasks. Per-day series are bucketed in Python (`_buckets`/`_day_key`) for
+  portability; helpers `_rows`/`_scalar`/`_scalars`/`_value`.
+- `backend/app/services/analytics_service.py` — `AnalyticsService`:
+  `content()`/`reactions()`/`audience()`/`overview()`, RU plain-language
+  summaries, percent-change vs. the previous window, titled counts
+  (`_CATEGORY_TITLES`/`_SOURCE_TITLES`/`_AUDIENCE_STATUS_TITLES`), `_clamp_days`.
+- `backend/app/api/schemas/analytics.py` + `api/v1/analytics.py` —
+  `GET /api/v1/analytics/overview|content|reactions|audience?days=1..365`;
+  registered in `v1/router.py`; `api/deps.py::get_analytics_service`.
+- `frontend/src/views/AnalyticsView.vue` — period switch, headline metrics,
+  sparklines, category/emoji bars, audience status, source effectiveness table;
+  `/analytics` route + sidebar «Аналитика».
+- `frontend/src/components/Sparkline.vue` + `BarList.vue` — dependency-free
+  inline-SVG/CSS charts (D-037).
+- `frontend/src/views/DashboardView.vue` — new "Что показывают цифры" block
+  (backend summary + two sparklines) linking to `/analytics`.
+- Analytics types + client methods in `frontend/src/api/client.ts`; analytics
+  styles appended to `frontend/src/styles.css`.
+- `tests/` — `test_analytics_service.py`, `test_analytics_api.py` (13 tests).
+
 ### Frontend (PHASE 1) — Vue 3 + Vite + TypeScript
 - `frontend/` — `package.json`, `vite.config.ts` (builds into
   `backend/app/static/`), `tsconfig.json`, `index.html`.
@@ -287,7 +310,7 @@ Layered architecture: **core → db/models → db/repositories → services → 
   durable jobs, execution via the provider with FloodWait handling, and startup
   recovery — verified live in offline mode (add bot → enable → ingest → job
   created) and covered by 48 tests.
-- `ruff check backend tests` → clean. `pytest` → **281 passed**.
+- `ruff check backend tests` → clean. `pytest` → **294 passed**.
 - Frontend `npm run build` → outputs to `backend/app/static/` successfully
   (`vue-tsc` clean).
 - **Sessions (PHASE 4)**: guided auth wizard (start → code → 2FA), `.session`
@@ -310,12 +333,20 @@ Layered architecture: **core → db/models → db/repositories → services → 
   settings, metrics/history, and an `ai` Setup-Wizard check — verified live in
   offline mode (status → enable fake → classify via rules and via AI) and covered
   by 43 AI tests. The SPA builds with the new «Мини-ИИ» page.
+- **Analytics (PHASE 8)**: read-only `/api/v1/analytics/*` aggregates over posts,
+  reactions, audience and invites, with RU plain-language summaries and
+  percent-change; the «Аналитика» page (charts, bars, tables) and a Dashboard
+  "Что показывают цифры" block render them. Verified in offline mode (server +
+  curl → `/analytics/overview`, SPA `/analytics` → 200) and covered by 13 tests.
+  Responses contain only aggregate counts (no secrets/PII).
 
 ## 4. What does NOT exist yet
 
 - Dedicated Audience/Sources **frontend views** (API is complete; views land with
   the frontend rollout) and the Telegram Mini App.
-- Channel binding and Analytics APIs/UI (PHASE 8).
+- Channel binding: there is no dedicated channel registry/binding UI yet, though
+  posts carry `channel_id`/`channel_username` and analytics aggregate by channel
+  indirectly.
 - Account permission probe (read/post rights on a channel) — the SessionProvider
   exposes `resolve_entity`/`get_participants`/`invite_to_channel`, and invites now
   use `invite_to_channel`, but there is no standalone "check permissions" flow.
@@ -327,12 +358,13 @@ Layered architecture: **core → db/models → db/repositories → services → 
 
 ## 5. Next action
 
-Start **PHASE 8 — Analytics** (see `agent/NEXT_TASK.md` and `docs/ROADMAP.md`):
-content analytics (posts, reactions, categories, activity over time), audience
-analytics (sources, growth, engagement indicators available via the Telegram API),
-charts in the Web UI, and a plain-language Dashboard that explains the numbers.
-Reuse the existing data (posts, reaction jobs, audience sources/users) — no new
-infrastructure.
+Start **PHASE 9 — Telegram Mini App** (see `agent/NEXT_TASK.md` and
+`docs/ROADMAP.md`): reuse the existing SPA (do not build a second interface),
+add Telegram `initData` authentication, and make the mobile/responsive layout
+work inside the Telegram webview for Dashboard, Bots, Reactions, Queue, Audience
+statistics, System health and Settings. If PHASE 9 is deferred, the alternatives
+are PHASE 10 (Portable Windows packaging) or PHASE 11 (VPS/Docker). Do **not**
+start PHASE 8 work again — it is complete.
 
 ## 6. Locked decisions (do not break)
 
@@ -373,6 +405,10 @@ See `agent/DECISIONS.md`. Key ones:
   user-provided `.gguf` assets, never committed/downloaded (D-034).
 - AI inference is single-concurrency and bounded, and always degrades gracefully
   (D-035).
+- Analytics is a read-only aggregate layer; plain-language summaries are owned by
+  the backend, and per-day bucketing is portable (D-036).
+- Charts are dependency-free inline SVG; the SPA stays the single frontend
+  (D-037).
 
 ## 7. How to run / verify after opening a new chat
 

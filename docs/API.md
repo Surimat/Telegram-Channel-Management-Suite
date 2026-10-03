@@ -265,13 +265,23 @@ automatically.
 
 ---
 
-## Analytics
+## Analytics — PHASE 8 (implemented)
+
+Read-only aggregates over data the suite already stores (posts, reaction jobs,
+audience sources/users/links, invite tasks). Every response carries a
+plain-language RU `summary`; the backend owns the copy so the Web UI and the Mini
+App share it (D-036). Responses contain only aggregate counts — no secrets or
+per-person PII (D-010/D-029). `days` is clamped to `1..365` (default `30`).
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/v1/analytics/content` | posts, time, reactions, type, category |
-| GET | `/api/v1/analytics/audience` | sources, growth, engagement |
-| GET | `/api/v1/analytics/dashboard` | dashboard summary + explanations |
+| GET | `/api/v1/analytics/overview?days=` | headline + content + reactions + audience + a list of takeaways |
+| GET | `/api/v1/analytics/content?days=` | posts total/window, per-day series, category/source/status mix, summary |
+| GET | `/api/v1/analytics/reactions?days=` | status mix, success rate, planned/completed per day, emoji/bot/category mix |
+| GET | `/api/v1/analytics/audience?days=` | audience total, new 7d, per-day growth, status mix, top sources, source effectiveness, invite outcomes |
+
+`by_category`/`by_source`/`by_status` entries are titled for the UI. Charts in the
+frontend are dependency-free inline SVG (`Sparkline.vue`, `BarList.vue`, D-037).
 
 ---
 

@@ -1,91 +1,76 @@
 # NEXT TASK — Telegram Channel Management Suite
 
-> The single "what to do next" pointer. Update at the end of every phase.
+> **The single active task.** A new agent resumes here after reading
+> `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-03
-**Active phase:** PHASE 8 — Analytics (content + audience, charts, plain-language Dashboard)
-**Previous phase:** PHASE 7 — Tiny AI classifier (completed; commit pending on `develop`).
+**Status:** PHASE 8 (Analytics) is **COMPLETE**. Start **PHASE 9** below.
 
 ---
 
-## Repository sync status (2026-10-03)
+## Active task: PHASE 9 — Telegram Mini App
 
-PHASE 0–7 live on the `develop` branch. A PR (`develop → main`, #1) is open —
-**not merged** pending owner confirmation. Continue on `develop` (feature
-branches off it as needed). **Never push directly to `main`.**
+**Goal:** let the *same* Vue SPA run inside Telegram as a Mini App. Do **not**
+create a second interface (decision D-003): reuse `frontend/` and the one API.
 
----
+### Requirements (from the brief)
 
-## PHASE 7 — done (checklist)
+- Reuse the existing frontend; no separate Mini App codebase.
+- Telegram authentication via `initData` (verify the HMAC signature server-side;
+  never trust the client).
+- Responsive mobile layout inside the Telegram webview.
+- At minimum expose: Dashboard, Bots, Reactions, Queue, Audience statistics,
+  System health, Settings.
+- Local mode still runs at `http://127.0.0.1:<port>` with **no** public server
+  required; VPS mode uses the HTTPS public URL. A public server must never be a
+  prerequisite for the normal local Web UI.
 
-- [x] `backend/app/ai/` — `Classifier` Protocol + `RulesClassifier`,
-      `LlmClassifier`, `FakeClassifier`; `RoutingClassifier` (rules-first);
-      strict-JSON `schema.py`; friendly `errors.py`; bounded `inference.py`.
-- [x] `backends/` registry with `fake` and optional `llama_cpp`; model is a
-      user asset (never committed/downloaded), lazy load, single-concurrency.
-- [x] `AiMetric`/`AiRecord` models + `AiRepository`; `AiService` (effective
-      DB-overridable config, status, model check/load/unload, classify, metrics,
-      history, events); `ai_help.py` plain-language copy.
-- [x] API `/api/v1/ai/*` (status/overview/settings/classify/test/models/
-      model-ops/metrics/history) + schemas + router registration.
-- [x] Wired into `ReactionService._classify`; `simulate`/`ingest_post` accept a
-      mode; Setup-Wizard `ai` check; inference executor shutdown on exit.
-- [x] `AiView.vue` + client types/methods + `/ai` route + sidebar «Мини-ИИ».
-- [x] Tests: **281 passed**; `ruff check backend tests` clean; SPA builds.
-- [ ] **Commit PHASE 7** on `develop` (single stable commit; do not push to `main`).
+### Suggested vertical slice (backend + UI + tests + docs)
 
----
+1. **Backend**
+   - Add a `MiniAppService` / auth dependency that verifies Telegram
+     `initData` (HMAC-SHA256 with the bot token as the secret key, per Telegram
+     docs), checks `auth_date` freshness, and maps the Telegram user id to the
+     configured owner/admin.
+   - Endpoints: `POST /api/v1/miniapp/auth` (verify + establish a local session),
+     `GET /api/v1/miniapp/config` (bot username / feature flags for the client).
+   - Settings: mini-app enable flag, allowed owner id(s), `auth_date` max age.
+     Keep secrets sealed; never log `initData` or the bot token.
+   - Gate mini-app-only access without breaking the local Web UI (local requests
+     from `127.0.0.1` remain trusted; see existing security notes).
+2. **Frontend**
+   - Detect Telegram WebApp (`window.Telegram.WebApp`), call `initData` auth on
+     load, and adjust layout (no sidebar on mobile -> bottom/tab navigation).
+   - Add the Telegram WebApp script (bundled/static, no CDN dependency for the
+     portable runtime) and expand `index.html`/`main.ts` bootstrapping.
+   - Keep the desktop Web UI unchanged when not running inside Telegram.
+3. **Tests**
+   - Unit tests for `initData` verification (valid, tampered, expired, missing).
+   - API tests for `/api/v1/miniapp/auth` + `/config` (fake bot token, no network).
+   - Ensure no secret/`initData` leaks in responses or logs.
+4. **Docs + memory**
+   - Update `docs/UI.md`, `docs/API.md`, `docs/SECURITY.md`, `docs/ROADMAP.md`.
+   - Update `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` (record the Mini App
+     auth decision), `agent/CHANGELOG.md`; then commit.
 
-## Goal of PHASE 8 — Analytics
+### Do NOT
 
-Turn the data the system already stores into understandable insight. No new
-infrastructure: aggregate the existing `posts`, `reaction_jobs`, `audience_sources`
-and `audience_users` tables. The Dashboard must explain numbers in plain language
-(what changed, why it matters, what to look at), not just display them.
+- Do not re-open PHASE 8 — it is complete.
+- Do not add Redis/Kafka/Celery/PostgreSQL (D-002 / no-heavy-infra).
+- Do not require a public HTTPS server for the local Web UI.
+- Do not store or log bot tokens, `initData`, or session contents.
 
-## Constraints / reminders
+### After PHASE 9 (later, in order)
 
-- **D-002**: analytics are read-only queries over SQLite; no schema rewrite, no
-  new service. Keep queries efficient (aggregate in SQL, not in Python loops).
-- **D-010/D-029**: never expose secrets or PII in analytics responses or exports;
-  audience figures are aggregate counts, not personal data.
-- **D-003**: one API serves both the Web UI and the Mini App.
-- Keep the app runnable at the end (`pytest` passes, app starts, SPA builds).
-- Prefer no new heavy dependency; charts should be lightweight (a small inline
-  SVG/canvas component or a tiny chart lib, not a large framework).
+PHASE 10 — Portable Windows packaging (`portable/`, `run.bat`, backup/restore,
+smoke tests) and PHASE 11 — VPS/Docker production config + HTTPS docs. Dedicated
+Audience/Sources frontend views are also still pending and can be folded into the
+UI work.
 
-## Deliverables
+### Verification checklist for any phase
 
-### Backend
-- [ ] `backend/app/db/repositories/analytics.py` (or extend existing repos) with
-      aggregate queries: posts per day, reactions per category, reaction success
-      rate, per-bot participation, audience growth over time, source effectiveness
-      (found → invited → joined where known), top sources.
-- [ ] `backend/app/services/analytics_service.py` — `AnalyticsService` composing
-      the queries into content / audience / reaction overviews with plain-language
-      summaries.
-- [ ] `backend/app/api/schemas/analytics.py` + `api/v1/analytics.py`
-      (`/analytics/overview`, `/analytics/content`, `/analytics/audience`,
-      `/analytics/reactions`) + router registration + `api/deps.py` service getter.
-
-### Frontend
-- [ ] `AnalyticsView.vue` — charts (posts/reactions over time, category mix,
-      audience growth, source effectiveness) with date-range selection, loading/
-      empty states, and plain-language explanations under each chart.
-- [ ] Upgrade `DashboardView.vue` to pull from the analytics overview and explain
-      the headline numbers in words.
-- [ ] Client types/methods in `api/client.ts`, `/analytics` route, sidebar link.
-
-### Tests
-- [ ] analytics repository/service/API tests over seeded data (deterministic);
-      empty-database behaviour; no-PII/secret leak assertions.
-
-### Finish
-- [ ] Update `agent/CURRENT_STATE.md`, `NEXT_TASK.md`, `DECISIONS.md`,
-      `CHANGELOG.md`, and the relevant `docs/*`; run `ruff` + `pytest`; build the
-      SPA; `git diff` review; commit on `develop`.
-
-## After PHASE 8
-
-PHASE 9 — Telegram Mini App (reuse the same SPA + API; Telegram `initData` auth).
-See `docs/ROADMAP.md`.
+```bash
+python -m pytest                 # must stay green (currently 294 passed)
+ruff check backend tests         # must stay clean
+cd frontend && npm run build     # must succeed (outputs to backend/app/static)
+```

@@ -268,7 +268,29 @@ defaults (D-034). Models are user-provided `.gguf` assets in the gitignored
 
 ---
 
-## 8. Reaction Manager & scheduler
+## 8. Analytics
+
+Analytics is a **read-only** layer over data the suite already stores; it has no
+Telegram imports and no write path (D-036):
+
+- `db/repositories/analytics.py` — `AnalyticsRepository`: aggregates over
+  `posts`, `reaction_jobs`, `audience_sources`/`audience_users`/
+  `audience_source_users`, and `invite_tasks`. Per-day series are bucketed in
+  Python from a bounded window (`_buckets`/`_day_key`) so the same queries work on
+  SQLite today and PostgreSQL later (D-002).
+- `services/analytics_service.py` — `AnalyticsService`: `content()`,
+  `reactions()`, `audience()`, `overview()`; RU plain-language summaries,
+  percent-change vs. the previous window, titled counts.
+- `api/v1/analytics.py` — `GET /api/v1/analytics/{overview,content,reactions,audience}`.
+
+The backend owns the explanatory copy, so the Web UI and the Mini App render the
+same wording from one API (D-003). Charts are dependency-free inline SVG
+(`Sparkline.vue`, `BarList.vue`, D-037). Responses contain only aggregate counts —
+no secrets and no per-person PII.
+
+---
+
+## 9. Reaction Manager & scheduler
 
 One bot can place **one** reaction per message. A `reaction_job` row stores:
 `post_id, bot_id, reaction, scheduled_at, status, attempts, error, completed_at`.
@@ -283,7 +305,7 @@ pending work (`pending`/`scheduled` rows are re-hydrated on startup).
 
 ---
 
-## 9. Reliability principles
+## 10. Reliability principles
 
 1. Telegram specifics stay behind providers.
 2. AI is optional and replaceable.
@@ -303,7 +325,7 @@ time is shown to the user. Privacy errors are stored as the user's status.
 
 ---
 
-## 10. Deployment targets
+## 11. Deployment targets
 
 | Target            | Entry point            | Notes |
 |-------------------|------------------------|-------|
@@ -322,7 +344,7 @@ TelegramChannelManagementSuite/
 
 ---
 
-## 11. Security model
+## 12. Security model
 
 - Secrets never committed (`.gitignore` + `.env.example`).
 - Tokens/sessions never printed to console, UI, logs, exceptions, or API responses.
@@ -334,7 +356,7 @@ TelegramChannelManagementSuite/
 
 ---
 
-## 12. Extension points
+## 13. Extension points
 
 - New Telegram provider implementations (e.g. a second Bot API library).
 - New classification backends behind the same classifier interface.

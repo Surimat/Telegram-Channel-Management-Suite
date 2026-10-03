@@ -11,6 +11,39 @@ _No unreleased changes._
 
 ---
 
+## [0.8.0] — 2026-10-03 — PHASE 8: Analytics (content, reactions, audience)
+
+### Added — Backend
+- `backend/app/db/repositories/analytics.py` (`AnalyticsRepository`): read-only
+  aggregate queries over posts, reaction jobs, audience sources/users/links and
+  invite tasks, with portable Python-side per-day bucketing.
+- `backend/app/services/analytics_service.py` (`AnalyticsService`): `content()`,
+  `reactions()`, `audience()` and `overview()`; RU plain-language summaries,
+  percent-change vs. the previous window, titled category/source/status counts.
+- `backend/app/api/schemas/analytics.py` + `api/v1/analytics.py`:
+  `GET /api/v1/analytics/overview|content|reactions|audience?days=1..365`.
+- Registered the analytics router; added `get_analytics_service` dependency.
+
+### Added — Frontend
+- `AnalyticsView.vue` (period switch, headline metrics, charts, category/emoji
+  bars, audience status, source effectiveness) + `/analytics` route and nav link.
+- Dependency-free `Sparkline.vue` and `BarList.vue` inline-SVG chart components.
+- Dashboard now shows a "Что показывают цифры" block with the backend summary and
+  two sparklines, linking to the full Analytics page.
+- Analytics types + client methods in `api/client.ts`; analytics UI styles.
+
+### Tests
+- `tests/test_analytics_service.py` (content/reactions/audience/overview, empty
+  DB, day clamping, percent-change helpers) and `tests/test_analytics_api.py`
+  (all four endpoints, `days` validation, no secret/PII leak). 294 passed total;
+  `ruff` clean; SPA builds.
+
+### Decisions
+- D-036 (read-only aggregate analytics + backend-owned plain-language summaries),
+  D-037 (dependency-free inline-SVG charts).
+
+---
+
 ## [0.7.0] — 2026-10-03 — PHASE 7: Tiny AI classifier (rules-first, optional)
 
 ### Added — Backend

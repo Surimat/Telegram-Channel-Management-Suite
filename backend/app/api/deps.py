@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.session import get_session
 from backend.app.providers.registry import build_bot_provider, build_session_provider
+from backend.app.services.analytics_service import AnalyticsService
 from backend.app.services.audience_service import AudienceService
 from backend.app.services.bot_service import BotService, ProviderFactory
 from backend.app.services.invite_service import InviteService
@@ -62,3 +63,7 @@ def get_invite_service(
     provider_factory: SessionProviderFactory = Depends(get_session_provider_factory),
 ) -> InviteService:
     return InviteService(session, session_provider_factory=provider_factory)
+
+
+def get_analytics_service(session: AsyncSession = Depends(get_session)) -> AnalyticsService:
+    return AnalyticsService(session)

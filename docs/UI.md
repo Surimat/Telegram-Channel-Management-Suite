@@ -140,6 +140,7 @@ Wording rule — instead of `BOT_TOKEN missing`, write:
 | `/sessions` | `SessionsView` | 4 |
 | `/invites` | `InvitesView` | 6 |
 | `/ai` | `AiView` (Обзор / Модель / Настройки / Проверка / Диагностика) | 7 |
+| `/analytics` | `AnalyticsView` | 8 |
 | `/settings` | `SettingsView` | 1 |
 | `/logs` | `LogsView` | 1 |
 | `/queue` | `QueueView` | 1 |
@@ -162,3 +163,23 @@ the AI is optional and that the system works on rules alone when it is off. Tabs
 
 The UI never shows stack traces or model internals; AI problems appear as
 friendly messages with a suggested fix.
+
+### Analytics page (`AnalyticsView.vue`, PHASE 8)
+
+A read-only page that explains the numbers in plain Russian. A period switch
+(7/14/30/90/365 дней) reloads `GET /api/v1/analytics/overview`. Content:
+
+- **Кратко о главном** — the backend's plain-language takeaways (bulleted).
+- **Headline cards** — posts, planned reactions (+ success rate), audience (+ new
+  7d), sources; each links to the relevant section.
+- **Charts** — dependency-free inline SVG: posts per day, reactions planned and
+  completed per day, new users per day (`Sparkline.vue`).
+- **Bars** — post categories, who classified (rules vs. AI), popular reactions,
+  reactions by category, largest sources (`BarList.vue`).
+- **Tables/lists** — audience status breakdown, invite outcomes, per-source scan
+  effectiveness (discovered/new/duplicates/errors/completeness).
+
+The Dashboard embeds a compact "Что показывают цифры" block (the same summary +
+two sparklines) linking to the full page. No charting dependency is added, so the
+portable runtime stays light (D-037). The UI shows only friendly numbers and
+messages — never stack traces.
