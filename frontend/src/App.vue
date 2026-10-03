@@ -44,6 +44,7 @@ onMounted(() => {
       <nav>
         <RouterLink class="nav-item" to="/">Панель</RouterLink>
         <RouterLink class="nav-item" to="/bots">Боты</RouterLink>
+        <RouterLink class="nav-item" to="/channels">Каналы</RouterLink>
         <RouterLink class="nav-item" to="/sessions">Аккаунты</RouterLink>
         <RouterLink class="nav-item" to="/sources">Источники</RouterLink>
         <RouterLink class="nav-item" to="/audience">Аудитория</RouterLink>

@@ -84,6 +84,8 @@ class InviteJob(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # Target channel/group (what people are invited *to*).
     target: Mapped[str] = mapped_column(String(255), default="", nullable=False)
     target_title: Mapped[str] = mapped_column(String(255), default="", nullable=False)
+    # Optional link to the shared Channel Registry (decision D-051).
+    channel_id: Mapped[str] = mapped_column(String(64), default="", index=True, nullable=False)
 
     # Chosen accounts (JSON list of session ids) and sources (JSON list of ids).
     account_ids: Mapped[str] = mapped_column(Text, default="[]", nullable=False)

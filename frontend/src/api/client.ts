@@ -909,6 +909,57 @@ export interface NotificationSettings {
   categories: NotificationCategory[]
 }
 
+// Channel Registry (hardening: one shared channel identity, decision D-051)
+export interface Channel {
+  id: string
+  reference: string
+  telegram_id: number | null
+  username: string
+  title: string
+  kind: string
+  status: string
+  is_default: boolean
+  modules: Record<string, boolean>
+  verification_status: string
+  verification_message: string
+  verification_hint: string
+  participants_count: number | null
+  last_verified_at: string | null
+  note: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ChannelList {
+  items: Channel[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export interface ChannelSummary {
+  total: number
+  verified: number
+  with_warning: number
+  with_error: number
+  default_channel_id: string | null
+  default_channel_label: string
+}
+
+export interface ChannelVerification {
+  channel_id: string
+  status: string
+  status_label: string
+  found: boolean
+  title: string
+  username: string
+  kind: string
+  participants_count: number | null
+  message: string
+  how_to_fix: string
+  retry_after: number | null
+}
+
 export const api = {
   health: () => request<Health>('/health'),
   healthDeep: () => request<Record<string, unknown>>('/health/deep'),
@@ -1057,7 +1108,8 @@ export const api = {
 
   // Invite Manager (PHASE 6)
   invitePreview: (payload: {
-    target: string
+    target?: string
+    channel_id?: string
     account_ids?: string[]
     source_ids?: string[]
     filters?: Record<string, unknown>
@@ -1071,7 +1123,8 @@ export const api = {
     request<InviteJobList>('/api/v1/invites?' + new URLSearchParams(params).toString()),
   createInviteJob: (payload: {
     name?: string
-    target: string
+    target?: string
+    channel_id?: string
     account_ids?: string[]
     source_ids?: string[]
     filters?: Record<string, unknown>
@@ -1278,4 +1331,36 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(payload),
     }),
+
+  // Channel Registry (hardening: one shared channel identity)
+  channels: (params: Record<string, string> = {}) =>
+    request<ChannelList>('/api/v1/channels?' + new URLSearchParams(params).toString()),
+  channel: (id: string) => request<Channel>(`/api/v1/channels/${id}`),
+  channelsSummary: () => request<ChannelSummary>('/api/v1/channels/summary'),
+  addChannel: (payload: {
+    reference: string
+    title?: string
+    kind?: string
+    make_default?: boolean
+    note?: string
+  }) => request<Channel>('/api/v1/channels', { method: 'POST', body: JSON.stringify(payload) }),
+  updateChannel: (id: string, payload: Record<string, unknown>) =>
+    request<Channel>(`/api/v1/channels/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  setChannelDefault: (id: string) =>
+    request<Channel>(`/api/v1/channels/${id}/default`, { method: 'POST' }),
+  setChannelModules: (id: string, modules: Record<string, boolean>) =>
+    request<Channel>(`/api/v1/channels/${id}/modules`, {
+      method: 'POST',
+      body: JSON.stringify({ modules }),
+    }),
+  verifyChannel: (id: string, accountId: string) =>
+    request<ChannelVerification>(`/api/v1/channels/${id}/verify`, {
+      method: 'POST',
+      body: JSON.stringify({ account_id: accountId }),
+    }),
+  removeChannel: (id: string) =>
+    request<null>(`/api/v1/channels/${id}`, { method: 'DELETE' }),
 }

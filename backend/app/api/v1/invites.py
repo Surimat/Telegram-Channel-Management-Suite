@@ -56,6 +56,7 @@ def _job_out(service: InviteService, job) -> InviteJobOut:  # type: ignore[no-un
         name=job.name,
         target=job.target,
         target_title=job.target_title,
+        channel_id=getattr(job, "channel_id", "") or "",
         status=job.status.value,
         dry_run=job.dry_run,
         confirmed_at=job.confirmed_at,
@@ -88,6 +89,7 @@ async def preview(
     try:
         result = await service.preview(
             target=payload.target,
+            channel_id=payload.channel_id,
             account_ids=payload.account_ids,
             source_ids=payload.source_ids,
             filters=payload.filters,
@@ -141,6 +143,7 @@ async def create_job(
         job = await service.create_job(
             name=payload.name,
             target=payload.target,
+            channel_id=payload.channel_id,
             account_ids=payload.account_ids,
             source_ids=payload.source_ids,
             filters=payload.filters,

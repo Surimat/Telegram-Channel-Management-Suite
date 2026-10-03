@@ -865,3 +865,31 @@ while still aligning the reported version with the release going forward.
 `1.0.0`. The next `develop -> main` PR will make `main` report `1.0.0`. Fixed
 build hygiene: Vite `emptyOutDir` no longer deletes the tracked
 `backend/app/static/.gitkeep` (a `frontend/public/.gitkeep` is re-emitted).
+
+---
+
+## D-051 — 2026-10-03 — Versioned migrations at startup; one shared Channel Registry — LOCKED
+
+**Decision:** (a) Startup applies **Alembic** versioned migrations instead of
+`create_all`; the runner (`backend/app/db/migrate.py`) is guarded so a fresh
+install, an existing `create_all` database (adopt + stamp) and a normal upgrade
+all converge, with a pre-migration backup and transaction-per-migration. (b) The
+suite keeps **one shared channel identity**: a `channels` table
+(`Channel`, `ChannelKind`, `ChannelStatus`) is the single source for a channel's
+reference/title/kind/verification/module toggles, exposed at `/api/v1/channels`.
+Modules (reactions/audience/invites/analytics) reference a channel by `channel_id`
+instead of each storing its own target string; the first channel becomes the
+default and a default is always promoted when the current one is removed.
+
+**Why:** `create_all` cannot evolve an installed schema and silently drifts from
+the models; a real migration path is required before the schema grows. A single
+channel registry removes duplicated, inconsistent target strings across modules
+and lets the UI offer one channel picker everywhere, which is the RU-first,
+low-friction experience the owner needs.
+
+**Consequence:** Schema changes ship as migrations under `migrations/versions/`;
+the baseline revision is regenerated (not shipped) until the next release, so
+`channels` and `invite_jobs.channel_id` are part of the baseline. The invite
+manager resolves its target from `channel_id` when a registry channel is chosen,
+falling back to a manually typed target. Docker and the portable build copy
+`alembic.ini` + `migrations/`.

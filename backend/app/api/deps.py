@@ -18,6 +18,7 @@ from backend.app.services.analytics_service import AnalyticsService
 from backend.app.services.audience_service import AudienceService
 from backend.app.services.backup_service import BackupService
 from backend.app.services.bot_service import BotService, ProviderFactory
+from backend.app.services.channel_service import ChannelService
 from backend.app.services.invite_service import InviteService
 from backend.app.services.permission_service import PermissionService
 from backend.app.services.reaction_service import ReactionService
@@ -93,3 +94,10 @@ def get_manager_service(
     provider_factory: ProviderFactory = Depends(get_provider_factory),
 ) -> ManagerBotService:
     return ManagerBotService(session, provider_factory=provider_factory)
+
+
+def get_channel_service(
+    session: AsyncSession = Depends(get_session),
+    provider_factory: SessionProviderFactory = Depends(get_session_provider_factory),
+) -> ChannelService:
+    return ChannelService(session, session_provider_factory=provider_factory)

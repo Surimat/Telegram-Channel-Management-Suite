@@ -137,6 +137,7 @@ Wording rule — instead of `BOT_TOKEN missing`, write:
 |-------|------|-------|
 | `/` | `DashboardView` | 1 |
 | `/bots` | `BotsView` | 2 |
+| `/channels` | `ChannelsView` | hardening |
 | `/reactions` | `ReactionsView` | 3 |
 | `/sessions` | `SessionsView` | 4 |
 | `/sources` | `SourcesView` | 5 |
@@ -270,8 +271,13 @@ The **Резервные копии** section lets a non-technical owner protect
 
 ## 9. Hardening additions (post-1.0)
 
-Three owner-facing additions, all RU-first and consistent with §1–§4:
-
+Four owner-facing additions, all RU-first and consistent with §1–§4:
+- **Channels page** (`ChannelsView.vue`, `/channels`): the shared channel
+  registry. Add a channel once (@username, t.me link or numeric ID), verify it
+  with a chosen account, toggle which modules it feeds (реакции/аудитория/
+  приглашения/аналитика), and mark a default. The default is auto-promoted when
+  the current one is removed. Verification is honest — a privacy/FloodWait result
+  shows a plain-language status and hint, never bypassing Telegram.
 - **Permission probe** (Sessions page): pick an account + a channel and press
   "Проверить доступ". The result is a plain-language status (`ok`, `partial`,
   `no_access`, `auth_required`, `admin_required`, `privacy_restricted`,

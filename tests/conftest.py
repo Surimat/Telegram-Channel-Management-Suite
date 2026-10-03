@@ -281,3 +281,24 @@ async def manager_client() -> AsyncIterator[AsyncClient]:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+
+
+@pytest_asyncio.fixture
+async def channel_client() -> AsyncIterator[AsyncClient]:
+    """API client for the Channel Registry, wired to a fake with real access.
+
+    Uses the same fake session provider as the permission probe so verification
+    succeeds without any network or real Telegram account.
+    """
+    from backend.app.api.deps import get_session_provider_factory
+    from backend.app.db.session import init_models
+    from backend.app.main import create_app
+    from backend.app.providers.fake_session import FakePermissionScenario
+
+    await init_models()
+    app = create_app()
+    factory = make_fake_session_factory(permission=FakePermissionScenario(can_invite=True))
+    app.dependency_overrides[get_session_provider_factory] = lambda: factory
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac

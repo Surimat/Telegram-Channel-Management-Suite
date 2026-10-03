@@ -10,6 +10,7 @@ from backend.app.api.v1 import (
     audience,
     backup,
     bots,
+    channels,
     events,
     invites,
     manager,
@@ -26,6 +27,7 @@ api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(system.router)
 api_router.include_router(settings.router)
 api_router.include_router(bots.router)
+api_router.include_router(channels.router)
 api_router.include_router(manager.router)
 api_router.include_router(sessions.router)
 api_router.include_router(audience.router)

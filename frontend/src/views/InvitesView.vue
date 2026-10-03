@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import {
   api,
+  type Channel,
   type InviteJob,
   type InvitePreview,
   type InviteTask,
@@ -10,12 +11,14 @@ import {
 
 const jobs = ref<InviteJob[]>([])
 const sessions = ref<UserSession[]>([])
+const channels = ref<Channel[]>([])
 const loading = ref(true)
 const error = ref('')
 const notice = ref('')
 
 // Builder state.
 const target = ref('')
+const channelId = ref('')
 const name = ref('')
 const accountIds = ref<string[]>([])
 const search = ref('')
@@ -66,14 +69,25 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [list, sess] = await Promise.all([api.inviteJobs(), api.sessions()])
+    const [list, sess, chans] = await Promise.all([
+      api.inviteJobs(),
+      api.sessions(),
+      api.channels({ limit: '200' }),
+    ])
     jobs.value = list.items
     sessions.value = sess.filter((s) => s.enabled && s.status === 'online')
+    channels.value = chans.items
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Не удалось загрузить приглашения.'
   } finally {
     loading.value = false
   }
+}
+
+// Selecting a registry channel fills the target, so it is not retyped.
+function onChannelChange() {
+  const chosen = channels.value.find((c) => c.id === channelId.value)
+  if (chosen) target.value = chosen.reference
 }
 
 async function doPreview() {
@@ -82,6 +96,7 @@ async function doPreview() {
   notice.value = ''
   try {
     const payload: Parameters<typeof api.invitePreview>[0] = { target: target.value }
+    if (channelId.value) payload.channel_id = channelId.value
     if (accountIds.value.length) payload.account_ids = accountIds.value
     const filters: Record<string, unknown> = {}
     if (search.value) filters.search = search.value
@@ -106,6 +121,7 @@ async function createJob() {
       per_account_delay_min: delayMin.value,
       per_account_delay_max: delayMax.value,
     }
+    if (channelId.value) payload.channel_id = channelId.value
     if (accountIds.value.length) payload.account_ids = accountIds.value
     const filters: Record<string, unknown> = {}
     if (search.value) filters.search = search.value
@@ -166,6 +182,15 @@ onMounted(load)
     <div class="card">
       <h3>Новое приглашение</h3>
       <div class="grid">
+        <label class="field">
+          Канал из списка (необязательно)
+          <select v-model="channelId" @change="onChannelChange">
+            <option value="">— ввести вручную —</option>
+            <option v-for="c in channels" :key="c.id" :value="c.id">
+              {{ c.title || c.reference }}<span v-if="c.is_default"> (основной)</span>
+            </option>
+          </select>
+        </label>
         <label class="field">
           Целевой канал (username, ссылка или ID)
           <input v-model="target" placeholder="@my_channel" />

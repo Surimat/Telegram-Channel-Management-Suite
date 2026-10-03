@@ -14,6 +14,7 @@ from backend.app.db.models.audience import (
     SourceUserLink,
 )
 from backend.app.db.models.bot import Bot, BotHealth, BotKind
+from backend.app.db.models.channel import Channel, ChannelKind, ChannelStatus
 from backend.app.db.models.event import Event, EventLevel
 from backend.app.db.models.invite import (
     TERMINAL_INVITE_STATUSES,
@@ -44,6 +45,9 @@ __all__ = [
     "Bot",
     "BotHealth",
     "BotKind",
+    "Channel",
+    "ChannelKind",
+    "ChannelStatus",
     "Completeness",
     "DelayPresetDB",
     "Event",

@@ -1,8 +1,8 @@
 """baseline schema
 
-Revision ID: af257e56264e
+Revision ID: d53f17ddba97
 Revises: 
-Create Date: 2026-10-03 20:46:23.549033
+Create Date: 2026-10-03 20:56:04.857913
 
 """
 from __future__ import annotations
@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'af257e56264e'
+revision: str = 'd53f17ddba97'
 down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -114,6 +114,31 @@ def upgrade() -> None:
     with op.batch_alter_table('bots', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_bots_kind'), ['kind'], unique=False)
 
+    op.create_table('channels',
+    sa.Column('reference', sa.String(length=255), nullable=False),
+    sa.Column('telegram_id', sa.BigInteger(), nullable=True),
+    sa.Column('username', sa.String(length=64), nullable=False),
+    sa.Column('title', sa.String(length=255), nullable=False),
+    sa.Column('kind', sa.Enum('CHANNEL', 'GROUP', 'SUPERGROUP', 'UNKNOWN', name='channel_kind'), nullable=False),
+    sa.Column('status', sa.Enum('NEW', 'VERIFIED', 'WARNING', 'ERROR', 'DISABLED', name='channel_status'), nullable=False),
+    sa.Column('is_default', sa.Boolean(), nullable=False),
+    sa.Column('modules', sa.Text(), nullable=False),
+    sa.Column('verification_status', sa.String(length=32), nullable=False),
+    sa.Column('verification_message', sa.Text(), nullable=False),
+    sa.Column('verification_hint', sa.Text(), nullable=False),
+    sa.Column('participants_count', sa.BigInteger(), nullable=True),
+    sa.Column('last_verified_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('note', sa.Text(), nullable=False),
+    sa.Column('id', sa.String(length=32), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_channels'))
+    )
+    with op.batch_alter_table('channels', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_channels_reference'), ['reference'], unique=False)
+        batch_op.create_index(batch_op.f('ix_channels_status'), ['status'], unique=False)
+        batch_op.create_index(batch_op.f('ix_channels_telegram_id'), ['telegram_id'], unique=False)
+
     op.create_table('events',
     sa.Column('level', sa.Enum('INFO', 'WARNING', 'ERROR', 'CRITICAL', name='event_level'), nullable=False),
     sa.Column('module', sa.String(length=64), nullable=False),
@@ -137,6 +162,7 @@ def upgrade() -> None:
     sa.Column('name', sa.String(length=160), nullable=False),
     sa.Column('target', sa.String(length=255), nullable=False),
     sa.Column('target_title', sa.String(length=255), nullable=False),
+    sa.Column('channel_id', sa.String(length=64), nullable=False),
     sa.Column('account_ids', sa.Text(), nullable=False),
     sa.Column('source_ids', sa.Text(), nullable=False),
     sa.Column('filters', sa.Text(), nullable=False),
@@ -167,6 +193,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_invite_jobs'))
     )
     with op.batch_alter_table('invite_jobs', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_invite_jobs_channel_id'), ['channel_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_invite_jobs_status'), ['status'], unique=False)
         batch_op.create_index('ix_invite_jobs_status_created', ['status', 'created_at'], unique=False)
 
@@ -503,12 +530,19 @@ def downgrade() -> None:
     with op.batch_alter_table('invite_jobs', schema=None) as batch_op:
         batch_op.drop_index('ix_invite_jobs_status_created')
         batch_op.drop_index(batch_op.f('ix_invite_jobs_status'))
+        batch_op.drop_index(batch_op.f('ix_invite_jobs_channel_id'))
 
     op.drop_table('invite_jobs')
     with op.batch_alter_table('events', schema=None) as batch_op:
         batch_op.drop_index('ix_events_level_created')
 
     op.drop_table('events')
+    with op.batch_alter_table('channels', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_channels_telegram_id'))
+        batch_op.drop_index(batch_op.f('ix_channels_status'))
+        batch_op.drop_index(batch_op.f('ix_channels_reference'))
+
+    op.drop_table('channels')
     with op.batch_alter_table('bots', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_bots_kind'))
 

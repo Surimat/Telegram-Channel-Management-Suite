@@ -418,6 +418,31 @@ the manager bot only while the app runs and never blocks the durable scheduler.
 
 ---
 
+## Channel Registry (hardening)
+
+One shared channel identity for every module. A channel stores its reference
+(normalized `@username` / numeric ID), resolved title/kind, verification state and
+per-module toggles. `reference` accepts `@name`, `name`, `t.me/name` or a numeric
+ID and is normalized on input. Verification reuses the permission probe and never
+bypasses Telegram limits.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/channels?search=&status=&limit=&offset=` | list channels |
+| GET | `/api/v1/channels/summary` | counts + default channel |
+| GET | `/api/v1/channels/{id}` | one channel |
+| POST | `/api/v1/channels` | add (`reference`, optional `title`/`kind`/`make_default`/`note`) |
+| PATCH | `/api/v1/channels/{id}` | update editable fields |
+| POST | `/api/v1/channels/{id}/verify` | verify with an account (`account_id`) |
+| POST | `/api/v1/channels/{id}/modules` | set module toggles (`modules`) |
+| POST | `/api/v1/channels/{id}/default` | make this the default channel |
+| DELETE | `/api/v1/channels/{id}` | remove (a default is promoted if needed) |
+
+The first channel added becomes the default. Invite create/preview accept an
+optional `channel_id`; when set, the target and title come from the registry.
+
+---
+
 ## Versioning
 
 The API is versioned (`/api/v1`). Breaking changes go to a new version path.
