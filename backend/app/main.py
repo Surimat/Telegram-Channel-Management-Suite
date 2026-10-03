@@ -90,6 +90,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             if recovered:
                 logger.info("Recovered %d reaction job(s) after restart", recovered)
 
+    # Reset user accounts stuck mid-authorization after a restart (PHASE 4).
+    with contextlib.suppress(Exception):
+        from backend.app.db.session import session_scope
+        from backend.app.services.session_service import SessionService
+
+        async with session_scope() as session:
+            reset = await SessionService(session).recover()
+            if reset:
+                logger.info("Reset %d unfinished account authorization(s)", reset)
+
     scheduler: Scheduler | None = None
     if settings.scheduler_enabled:
         scheduler = Scheduler()

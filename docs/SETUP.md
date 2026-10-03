@@ -138,6 +138,25 @@ with human-friendly wording instead of raw error codes.
 
 ---
 
+## Adding a Telegram user account
+
+Open the Web UI → **Аккаунты → + Добавить аккаунт** and follow the wizard:
+
+1. **API ID / API Hash** — from https://my.telegram.org → *API development tools*.
+2. **Phone number** in international format (e.g. `+79991234567`).
+3. **Login code** — sent by Telegram to your app/service chat.
+4. **2FA password** — only if the account has two-step verification enabled.
+5. The session is created in `SESSIONS_DIR` and the account is checked; its
+   username/user ID are shown.
+
+Alternatively, **Import .session** registers an existing `.session` file by path.
+The file is copied into `SESSIONS_DIR`; on import failure nothing is registered.
+
+Secrets are stored sealed (Fernet via `APP_SECRET_KEY`) and never shown. The
+account can be health-checked, disabled, re-authorized or deleted from the list.
+
+---
+
 ## Configuration
 
 All configuration is available through:

@@ -160,6 +160,14 @@ Implemented (PHASE 2): `TelegramBotProvider` only. `AiogramBotProvider` wraps
 aiogram and covers the official managed-bot methods (`getManagedBotToken`,
 `replaceManagedBotToken`, `get/setManagedBotAccessSettings`).
 
+Implemented (PHASE 4): `SessionProvider` (`providers/session_base.py`) with
+`TelethonSessionProvider` (the **only** Telethon importer; builds a client,
+connects, runs one operation, disconnects — lazy per-operation, D-023) and
+`FakeSessionProvider` (deterministic, no I/O). It already exposes the operations
+PHASE 5/6 need (`resolve_entity`, `get_participants`, `invite_to_channel`), so
+audience parsing and invites build on the same interface rather than adding new
+Telegram touch-points.
+
 ---
 
 ## 6. Data model (initial)
@@ -171,7 +179,12 @@ Core tables (SQLAlchemy models in `backend/app/db/models/`):
   `provider_name`, `owner_id`/`owner_username`, `can_manage_bots`,
   `health` (`unknown|ok|warning|error`), `health_message`, `health_hint`,
   `last_error`, `last_health_at`. **Implemented (PHASE 2).**
-- `accounts` — user accounts (session ref, username, user_id, rights, health).
+- `accounts` — user accounts. Fields: `phone_encrypted` + `phone_masked`,
+  `api_id`, `api_hash_encrypted` (sealed), `session_ref` (UUID basename in
+  `SESSIONS_DIR`), `telegram_user_id`, `username`, `display_name`,
+  `status` (`online|auth_required|disconnected|flood_wait|error|disabled`),
+  `auth_step` (`idle|code|password|done`), `enabled`, `last_error`,
+  `last_checked_at`. **Implemented (PHASE 4).**
 - `sources` — audience sources (channel/group/entity, scan stats).
 - `audience_users` — parsed users (dedup key = telegram_user_id).
 - `audience_tags` / `audience_user_tags` — tagging.

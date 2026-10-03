@@ -206,6 +206,95 @@ class SystemService:
             "Получите их на https://my.telegram.org и добавьте в разделе «Аккаунты».",
         )
 
+    def telethon_check(self) -> Check:
+        """Check that the MTProto library is importable (PHASE 4)."""
+        try:
+            import telethon  # noqa: F401
+
+            return Check(
+                "telethon",
+                "Библиотека для аккаунтов",
+                STATUS_OK,
+                "Компонент для работы с пользовательскими аккаунтами установлен.",
+            )
+        except Exception:  # pragma: no cover - depends on environment
+            return Check(
+                "telethon",
+                "Библиотека для аккаунтов",
+                STATUS_ERROR,
+                "Компонент для работы с аккаунтами не установлен.",
+                "Установите зависимости: pip install -r backend/requirements.txt.",
+            )
+
+    def sessions_dir_check(self) -> Check:
+        """Check the sessions directory is present and writable (PHASE 4)."""
+        session_dir = self.settings.resolve_sessions_dir()
+        if paths.is_writable(session_dir):
+            return Check(
+                "sessions_dir",
+                "Папка сессий",
+                STATUS_OK,
+                "Папка для файлов аккаунтов доступна.",
+            )
+        return Check(
+            "sessions_dir",
+            "Папка сессий",
+            STATUS_ERROR,
+            "Папка для файлов аккаунтов недоступна для записи.",
+            "Запустите программу из папки, куда есть права на запись.",
+        )
+
+    async def accounts_check(self, session: AsyncSession) -> Check:
+        """Report the user-account state in plain language (PHASE 4)."""
+        from backend.app.services.session_service import SessionService
+
+        service = SessionService(session, settings=self.settings)
+        accounts = await service.list_accounts()
+        if not accounts:
+            return Check(
+                "accounts",
+                "Пользовательские аккаунты",
+                STATUS_WARNING,
+                "Пользовательские аккаунты ещё не добавлены.",
+                "Добавьте аккаунт в разделе «Аккаунты» (нужно для парсинга и приглашений).",
+            )
+        online = sum(1 for a in accounts if a.status.value == "online")
+        need_auth = sum(1 for a in accounts if a.status.value == "auth_required")
+        missing_files = 0
+        for account in accounts:
+            if account.has_session and not service.session_file_info(account).exists:
+                missing_files += 1
+        if missing_files:
+            return Check(
+                "accounts",
+                "Пользовательские аккаунты",
+                STATUS_WARNING,
+                f"Аккаунтов: {len(accounts)}. У {missing_files} отсутствует файл сессии.",
+                "Проверьте аккаунты в разделе «Аккаунты» и при необходимости добавьте заново.",
+            )
+        if online == 0:
+            return Check(
+                "accounts",
+                "Пользовательские аккаунты",
+                STATUS_WARNING,
+                f"Аккаунтов: {len(accounts)}, но ни один не авторизован.",
+                "Проверьте аккаунты в разделе «Аккаунты» (кнопка «Проверить»).",
+            )
+        if need_auth:
+            return Check(
+                "accounts",
+                "Пользовательские аккаунты",
+                STATUS_WARNING,
+                f"Аккаунтов: {len(accounts)}, требуется авторизация: {need_auth}.",
+                "Запустите мастер повторной авторизации в разделе «Аккаунты».",
+            )
+        return Check(
+            "accounts",
+            "Пользовательские аккаунты",
+            STATUS_OK,
+            f"Готовых аккаунтов: {online} из {len(accounts)}.",
+        )
+
     def ai_check(self) -> Check:
         if not self.settings.ai_enabled:
             return Check(
@@ -266,11 +355,14 @@ class SystemService:
             self.filesystem_check(),
             self.secret_key_check(),
             self.telegram_api_check(),
+            self.telethon_check(),
+            self.sessions_dir_check(),
         ]
         if session is not None:
             checks.append(await self.manager_bot_db_check(session))
             checks.append(await self.managed_bots_check(session))
             checks.append(await self.reactions_check(session))
+            checks.append(await self.accounts_check(session))
         else:
             checks.append(self.manager_bot_check())
         checks.append(self.ai_check())

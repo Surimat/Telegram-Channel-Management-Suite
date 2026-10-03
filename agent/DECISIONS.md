@@ -318,3 +318,64 @@ between and preview without editing numbers each time.
 **Consequence:** Preview/simulation is forgiving: it resolves a usable profile
 (explicit id → active → default → any → create default) even if it is currently
 disabled, because a preview never contacts Telegram.
+
+---
+
+## D-023 — 2026-10-03 — User accounts use lazy, per-operation MTProto connections — LOCKED
+
+**Decision:** The Session Manager does not keep long-lived MTProto clients. The
+`SessionProvider` abstraction (`providers/session_base.py`) exposes async
+operations (`send_code`, `sign_in`, `sign_in_password`, `get_me`, `health`,
+`export_session`, `aclose`). The Telethon implementation
+(`providers/telethon_session.py` — the only module that imports Telethon) builds a
+client, connects, runs one operation and disconnects inside each call.
+
+**Why:** Keeps idle resource use minimal on weak Windows machines and the future
+portable runtime, avoids background reconnection loops, and keeps the surface that
+must handle Telegram exceptions tiny and testable.
+
+**Consequence:** All business logic is provider-agnostic and covered by
+`FakeSessionProvider` (tests/offline mode). Real credentials and network are never
+needed by `pytest`. Monitoring, if ever needed, is done by periodic `health()`
+calls (scheduler), not by holding connections.
+
+---
+
+## D-024 — 2026-10-03 — The auth wizard is a durable, resumable state machine — LOCKED
+
+**Decision:** Adding an account persists an intermediate `UserSession` row with an
+`auth_step` (`idle` → `code` → `password` → `done`) and the Telegram
+`phone_code_hash`. Each HTTP request advances the wizard by one step. On startup,
+`SessionService.recover()` resets any account left in `code`/`password` back to
+`auth_required`/`idle` so an interrupted or crashed flow can be retried from the UI
+instead of getting stuck.
+
+**Why:** The multi-step flow spans several requests and the app may be restarted
+between them. Matches the project rule that state survives restarts and that a new
+agent/owner can recover from repo + DB alone.
+
+**Consequence:** The wizard is idempotent to restart and needs no in-memory session
+store. A stale `phone_code_hash` surfaces as a friendly "code expired" error,
+prompting a fresh `start`.
+
+---
+
+## D-025 — 2026-10-03 — Account secrets are sealed; the API exposes only presence — LOCKED
+
+**Decision:** The `api_hash` and the full phone number are stored **sealed**
+(Fernet, via `core.security`, same mechanism as the bot token) in
+`api_hash_encrypted` / `phone_encrypted`. Only `phone_masked` (e.g.
+`+7999***4567`) and the non-secret `api_id` are stored in plaintext. The session
+file is referenced by a UUID basename (`session_ref`) resolved against the
+configured `sessions/` directory; its contents are never read, returned or logged.
+API responses expose `has_session`, `has_api_hash` and `session_file_exists`
+booleans instead of any value.
+
+**Why:** Satisfies the hard project security rule (never leak secrets in UI, logs,
+errors or API responses) while still letting the UI show meaningful state.
+
+**Consequence:** The api_hash never leaves the service layer except as a sealed
+string passed straight into the provider. Losing/changing `APP_SECRET_KEY` makes
+sealed values unreadable — surfaced as a friendly "add the account again" error,
+never a stack trace.
+

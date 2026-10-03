@@ -1,0 +1,297 @@
+"""Real MTProto user-account provider backed by Telethon.
+
+This is the **only** module that imports Telethon (decision D-001). It translates
+library exceptions into :mod:`backend.app.providers.errors`, never logs or
+returns session contents / api_hash, and uses **lazy connections**: a client is
+created and connected only for the duration of one operation, then closed. This
+keeps background work minimal — important for weak Windows machines and the
+future portable runtime (decision D-023).
+
+Session storage: a Telethon SQLite session file inside the configured sessions
+directory (outside git, excluded from the Docker image). The API hash is sealed
+at rest by the service layer and only ever passed in here as a plain string.
+"""
+
+from __future__ import annotations
+
+import contextlib
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+from backend.app.core.config import Settings, get_settings
+from backend.app.providers.errors import (
+    ApiCredentialsInvalidError,
+    AuthCodeExpiredError,
+    AuthCodeInvalidError,
+    FloodWaitError,
+    NetworkError,
+    PasswordInvalidError,
+    PasswordRequiredError,
+    PhoneNumberBannedError,
+    PhoneNumberInvalidError,
+    SessionInvalidError,
+    TelegramProviderError,
+)
+from backend.app.providers.types import (
+    EntityRef,
+    SendCodeResult,
+    SignInResult,
+    UserIdentity,
+)
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from telethon import TelegramClient
+
+
+def _normalize_path(session_path: Path | None) -> str:
+    """Return a Telethon session file path (Telethon appends ``.session``)."""
+    if session_path is None:
+        raise SessionInvalidError(
+            "Не задан файл сессии.",
+            how_to_fix="Добавьте аккаунт заново через мастер.",
+            technical="TelethonSessionProvider:no_path",
+        )
+    path = str(session_path)
+    if path.endswith(".session"):
+        path = path[: -len(".session")]
+    return path
+
+
+class TelethonSessionProvider:
+    """Concrete :class:`SessionProvider` using Telethon (lazy per-operation)."""
+
+    def __init__(
+        self,
+        *,
+        api_id: str = "",
+        api_hash: str = "",
+        session_path: Path | None = None,
+        provider_name: str = "auto",
+        settings: Settings | None = None,
+    ) -> None:
+        self._settings = settings or get_settings()
+        self._api_id_raw = str(api_id or "").strip()
+        self._api_hash = api_hash or ""
+        self._session_path = session_path
+        self._provider_name = provider_name
+        self._client: TelegramClient | None = None
+        self._connected = False
+
+    # --- lifecycle -----------------------------------------------------------
+    def _build_client(self) -> TelegramClient:
+        if not self._api_id_raw.isdigit():
+            raise ApiCredentialsInvalidError(
+                technical="TelethonSessionProvider:api_id_not_numeric"
+            )
+        if not self._api_hash:
+            raise ApiCredentialsInvalidError(technical="TelethonSessionProvider:no_api_hash")
+        from telethon import TelegramClient
+
+        return TelegramClient(
+            _normalize_path(self._session_path), int(self._api_id_raw), self._api_hash
+        )
+
+    async def connect(self) -> None:
+        if self._connected:
+            return
+        self._client = self._build_client()
+        try:
+            await self._client.connect()
+        except Exception as exc:
+            await self._safe_disconnect()
+            raise self._translate(exc) from exc
+        self._connected = True
+
+    async def aclose(self) -> None:
+        await self._safe_disconnect()
+
+    async def _safe_disconnect(self) -> None:
+        self._connected = False
+        if self._client is not None:
+            with contextlib.suppress(Exception):
+                await self._client.disconnect()
+            self._client = None
+
+    async def __aenter__(self) -> TelethonSessionProvider:
+        await self.connect()
+        return self
+
+    async def __aexit__(self, *exc: object) -> None:
+        await self.aclose()
+
+    # --- error translation ---------------------------------------------------
+    def _translate(self, exc: Exception) -> TelegramProviderError:
+        from telethon.errors import (
+            ApiIdInvalidError,
+            AuthKeyUnregisteredError,
+            PasswordHashInvalidError,
+            PhoneCodeExpiredError,
+            PhoneCodeInvalidError,
+            SessionPasswordNeededError,
+            SessionRevokedError,
+        )
+        from telethon.errors import (
+            FloodWaitError as TelethonFloodWait,
+        )
+        from telethon.errors import (
+            PhoneNumberBannedError as TelethonPhoneBanned,
+        )
+        from telethon.errors import (
+            PhoneNumberInvalidError as TelethonPhoneInvalid,
+        )
+
+        if isinstance(exc, TelethonFloodWait):
+            return FloodWaitError(int(exc.seconds), technical=type(exc).__name__)
+        if isinstance(exc, SessionPasswordNeededError):
+            return PasswordRequiredError(technical=type(exc).__name__)
+        if isinstance(exc, PasswordHashInvalidError):
+            return PasswordInvalidError(technical=type(exc).__name__)
+        if isinstance(exc, PhoneCodeInvalidError):
+            return AuthCodeInvalidError(technical=type(exc).__name__)
+        if isinstance(exc, PhoneCodeExpiredError):
+            return AuthCodeExpiredError(technical=type(exc).__name__)
+        if isinstance(exc, TelethonPhoneInvalid):
+            return PhoneNumberInvalidError(technical=type(exc).__name__)
+        if isinstance(exc, TelethonPhoneBanned):
+            return PhoneNumberBannedError(technical=type(exc).__name__)
+        if isinstance(exc, ApiIdInvalidError):
+            return ApiCredentialsInvalidError(technical=type(exc).__name__)
+        if isinstance(exc, (AuthKeyUnregisteredError, SessionRevokedError)):
+            return SessionInvalidError(technical=type(exc).__name__)
+        if isinstance(exc, (ConnectionError, TimeoutError, OSError)):
+            return NetworkError(
+                "Не удалось связаться с Telegram.",
+                how_to_fix="Проверьте интернет-соединение и повторите попытку.",
+                technical=type(exc).__name__,
+            )
+        return TelegramProviderError(
+            "Непредвиденная ошибка при работе с аккаунтом.",
+            technical=type(exc).__name__,
+        )
+
+    async def _call(self, factory):  # type: ignore[no-untyped-def]
+        """Run ``factory(client)`` on a lazily connected client, then close."""
+        await self.connect()
+        try:
+            return await factory(self._client)
+        except TelegramProviderError:
+            raise
+        except Exception as exc:
+            raise self._translate(exc) from exc
+        finally:
+            await self.aclose()
+
+    # --- identity ------------------------------------------------------------
+    @staticmethod
+    def _identity(me: object) -> UserIdentity:
+        return UserIdentity(
+            id=int(getattr(me, "id", 0)),
+            username=str(getattr(me, "username", "") or ""),
+            first_name=str(getattr(me, "first_name", "") or ""),
+            last_name=str(getattr(me, "last_name", "") or ""),
+            phone=str(getattr(me, "phone", "") or ""),
+            is_premium=getattr(me, "premium", None),
+            is_bot=bool(getattr(me, "bot", False)),
+        )
+
+    async def get_me(self) -> UserIdentity:
+        async def _run(client):  # type: ignore[no-untyped-def]
+            me = await client.get_me()
+            if me is None:
+                raise SessionInvalidError(technical="TelethonSessionProvider:no_me")
+            return self._identity(me)
+
+        return await self._call(_run)
+
+    async def health(self) -> UserIdentity:
+        return await self.get_me()
+
+    # --- authorization flow --------------------------------------------------
+    async def send_code(self, phone: str) -> SendCodeResult:
+        async def _run(client):  # type: ignore[no-untyped-def]
+            sent = await client.send_code_request(phone)
+            code_type = type(getattr(sent, "type", None)).__name__
+            return SendCodeResult(
+                phone_code_hash=str(sent.phone_code_hash),
+                code_type=code_type,
+                next_step="code",
+                timeout=getattr(sent, "timeout", None),
+            )
+
+        return await self._call(_run)
+
+    async def sign_in(self, phone: str, code: str, phone_code_hash: str) -> SignInResult:
+        async def _run(client):  # type: ignore[no-untyped-def]
+            try:
+                await client.sign_in(
+                    phone=phone, code=code, phone_code_hash=phone_code_hash
+                )
+            except Exception as exc:
+                from telethon.errors import SessionPasswordNeededError
+
+                if isinstance(exc, SessionPasswordNeededError):
+                    return SignInResult(ok=False, needs_password=True)
+                raise
+            me = await client.get_me()
+            return SignInResult(ok=True, identity=self._identity(me) if me else None)
+
+        return await self._call(_run)
+
+    async def sign_in_password(self, password: str) -> SignInResult:
+        async def _run(client):  # type: ignore[no-untyped-def]
+            await client.sign_in(password=password)
+            me = await client.get_me()
+            return SignInResult(ok=True, identity=self._identity(me) if me else None)
+
+        return await self._call(_run)
+
+    # --- session file --------------------------------------------------------
+    async def export_session(self) -> None:
+        async def _run(client):  # type: ignore[no-untyped-def]
+            # Telethon persists the SQLite session on write; saving is a no-op
+            # for file sessions but guarantees the auth key is flushed.
+            save = getattr(client.session, "save", None)
+            if callable(save):
+                save()
+
+        await self._call(_run)
+
+    # --- extension points for PHASE 5 / PHASE 6 ------------------------------
+    async def resolve_entity(self, username_or_id: str | int) -> EntityRef:
+        async def _run(client):  # type: ignore[no-untyped-def]
+            entity = await client.get_entity(username_or_id)
+            kind = "user"
+            if getattr(entity, "megagroup", False):
+                kind = "group"
+            elif getattr(entity, "broadcast", False):
+                kind = "channel"
+            return EntityRef(
+                id=int(getattr(entity, "id", 0)),
+                username=str(getattr(entity, "username", "") or ""),
+                title=str(getattr(entity, "title", "") or getattr(entity, "first_name", "") or ""),
+                kind=kind,
+                participants_count=getattr(entity, "participants_count", None),
+            )
+
+        return await self._call(_run)
+
+    async def get_participants(
+        self, entity: str | int, *, limit: int = 0
+    ) -> list[UserIdentity]:
+        async def _run(client):  # type: ignore[no-untyped-def]
+            result: list[UserIdentity] = []
+            kwargs = {} if limit <= 0 else {"limit": limit}
+            async for user in client.iter_participants(entity, **kwargs):
+                result.append(self._identity(user))
+            return result
+
+        return await self._call(_run)
+
+    async def invite_to_channel(self, entity: str | int, user_id: int) -> None:
+        async def _run(client):
+            await client.invite_to_channel(entity, user_id)
+
+        await self._call(_run)
+
+
+__all__ = ["TelethonSessionProvider"]

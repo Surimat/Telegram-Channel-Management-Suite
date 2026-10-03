@@ -59,6 +59,18 @@ Rules for implementers:
 - Health-checkable (still authorized? rights available?).
 - Session **contents** are never displayed, logged, or returned.
 
+Implementation (PHASE 4, D-025):
+
+- The API hash and the **full phone number** are stored **sealed** (Fernet, key
+  derived from `APP_SECRET_KEY`) in `api_hash_encrypted` / `phone_encrypted`.
+  Only `phone_masked` (e.g. `+7999***4567`) and the non-secret `api_id` are stored
+  in plaintext. The API never returns the api_hash or the full phone number.
+- A session file is referenced by a UUID basename (`session_ref`) resolved against
+  `SESSIONS_DIR`; the file is never read, exported or shown. The API exposes only
+  `has_session`, `has_api_hash` and `session_file_exists` booleans.
+- If `APP_SECRET_KEY` is lost/changed, sealed values become unreadable; the UI
+  shows a friendly "add the account again" message (never a stack trace).
+
 ---
 
 ## 4. Secret storage by platform

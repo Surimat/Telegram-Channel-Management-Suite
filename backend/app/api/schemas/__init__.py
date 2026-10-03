@@ -27,10 +27,28 @@ from backend.app.api.schemas.reactions import (
     SimulationOut,
     SimulationStepOut,
 )
+from backend.app.api.schemas.sessions import (
+    AccountIdentityOut,
+    AuthCodeIn,
+    AuthPasswordIn,
+    AuthStartIn,
+    AuthStartOut,
+    AuthStepOut,
+    SessionHealthOut,
+    SessionImportIn,
+    SessionOut,
+    SessionSummary,
+)
 from backend.app.api.schemas.settings import SettingOut, SettingsUpdate
 from backend.app.api.schemas.system import SetupCheck, SystemStatus
 
 __all__ = [
+    "AccountIdentityOut",
+    "AuthCodeIn",
+    "AuthPasswordIn",
+    "AuthStartIn",
+    "AuthStartOut",
+    "AuthStepOut",
     "BotCreate",
     "BotHealthOut",
     "BotOut",
@@ -54,6 +72,10 @@ __all__ = [
     "ReactionRuleOut",
     "ReactionSettingHelp",
     "ReactionStats",
+    "SessionHealthOut",
+    "SessionImportIn",
+    "SessionOut",
+    "SessionSummary",
     "SettingOut",
     "SettingsUpdate",
     "SetupCheck",

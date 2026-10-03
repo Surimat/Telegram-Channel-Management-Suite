@@ -7,8 +7,11 @@ lets tests and the offline demo run without real credentials (D-001).
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from backend.app.core.config import Settings, get_settings
 from backend.app.providers.base import TelegramBotProvider
+from backend.app.providers.session_base import SessionProvider
 
 
 def build_bot_provider(
@@ -36,4 +39,38 @@ def build_bot_provider(
     return AiogramBotProvider(token)
 
 
-__all__ = ["TelegramBotProvider", "build_bot_provider"]
+def build_session_provider(
+    *,
+    api_id: str = "",
+    api_hash: str = "",
+    session_path: Path | None = None,
+    provider_name: str = "auto",
+    settings: Settings | None = None,
+) -> SessionProvider:
+    """Return an MTProto :class:`SessionProvider` (PHASE 4).
+
+    ``provider_name`` values match :func:`build_bot_provider`. The fake provider
+    is selected when ``offline_mode`` is on or when ``provider_name == "fake"``,
+    so tests and the offline demo never touch the network (D-001, D-019).
+    """
+    settings = settings or get_settings()
+
+    if provider_name == "fake" or (provider_name == "auto" and settings.offline_mode):
+        from backend.app.providers.fake_session import FakeSessionProvider
+
+        return FakeSessionProvider(
+            api_id=api_id, api_hash=api_hash, session_path=session_path
+        )
+
+    from backend.app.providers.telethon_session import TelethonSessionProvider
+
+    return TelethonSessionProvider(
+        api_id=api_id,
+        api_hash=api_hash,
+        session_path=session_path,
+        provider_name=provider_name,
+        settings=settings,
+    )
+
+
+__all__ = ["SessionProvider", "TelegramBotProvider", "build_bot_provider", "build_session_provider"]

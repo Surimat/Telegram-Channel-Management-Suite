@@ -11,6 +11,63 @@ _No unreleased changes._
 
 ---
 
+## [0.4.0] — 2026-10-03 — PHASE 4: User Session Manager (MTProto accounts)
+
+### Added — provider abstraction (Telethon isolated)
+- `backend/app/providers/session_base.py` — `SessionProvider` protocol (send_code,
+  sign_in, sign_in_password, get_me, health, export_session, resolve_entity,
+  get_participants, invite_to_channel, aclose) mirroring `TelegramBotProvider`.
+- `backend/app/providers/telethon_session.py` — the **only** module that imports
+  Telethon; lazy per-operation connect/disconnect; friendly translation of
+  Telethon errors (FloodWait, code/password invalid/expired, api credentials,
+  phone banned/invalid, session invalid).
+- `backend/app/providers/fake_session.py` — deterministic `FakeSessionProvider` +
+  `FakeAuthScenario` for tests and offline mode (no network).
+- `providers/registry.py` — `build_session_provider(...)`; new user-account
+  errors/DTOs in `providers/errors.py` and `providers/types.py`.
+
+### Added — DB & service
+- `db/models/session.py` — `UserSession` + `SessionStatus` enum (online,
+  auth_required, disconnected, flood_wait, error, disabled); registered in
+  `db/models/__init__.py`.
+- `db/repositories/sessions.py` — `SessionRepository` (list/count/by-status/
+  by-telegram-id/delete).
+- `services/session_service.py` — `SessionService`: durable guided auth wizard
+  (api_id/hash + phone → code → optional 2FA), `.session` import with rollback,
+  health checks, enable/disable, delete (+ file removal), logout/re-auth,
+  `recover()` for interrupted flows. Secrets sealed via `core.security`; full
+  phone stored sealed, only masked form in plaintext.
+
+### Added — API & Setup Wizard
+- `api/schemas/sessions.py` + `api/v1/sessions.py`:
+  `GET /sessions`, `/sessions/summary`, `/sessions/{id}`,
+  `POST /sessions/auth/start`, `/sessions/{id}/code`, `/sessions/{id}/password`,
+  `/sessions/import`, `/sessions/{id}/health`, `/enable`, `/disable`, `/logout`,
+  `DELETE /sessions/{id}`. Responses never contain api_hash, session contents or
+  the full phone number (only `phone_masked` + `has_*` booleans).
+- `system_service.py` — new Setup-Wizard checks `telethon`, `sessions_dir`,
+  `accounts` (plain-language, with "what to do").
+- `main.py` lifespan — best-effort `SessionService.recover()` on startup.
+
+### Added — Frontend
+- `SessionsView.vue` — guided wizard (API ID/Hash → phone → code → 2FA),
+  `.session` import, account list with owner/health/last-check, check/enable/
+  disable/re-auth/delete actions, plain-language hints.
+- Route `/sessions`, sidebar link «Аккаунты», Dashboard accounts card; new API
+  types/methods in `api/client.ts`.
+
+### Added — Tests
+- `test_fake_session_provider.py`, `test_session_service.py`,
+  `test_sessions_api.py`, `test_session_security.py` (auth flows incl. 2FA,
+  import + rollback, health, enable/disable, delete, logout, restart recovery,
+  secret redaction, secret-never-leaked-in-API). Total suite: **153 passed**.
+
+### Notes
+- `requirements.txt` adds `telethon` (installed 1.45.0).
+- No functional change to PHASE 1–3 behaviour; all prior tests stay green.
+
+---
+
 ## [0.3.1] — 2026-10-03 — First GitHub sync (develop branch + PR)
 
 ### Added / Changed

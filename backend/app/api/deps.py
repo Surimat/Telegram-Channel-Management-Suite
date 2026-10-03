@@ -11,14 +11,20 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.session import get_session
-from backend.app.providers.registry import build_bot_provider
+from backend.app.providers.registry import build_bot_provider, build_session_provider
 from backend.app.services.bot_service import BotService, ProviderFactory
 from backend.app.services.reaction_service import ReactionService
+from backend.app.services.session_service import SessionProviderFactory, SessionService
 
 
 def get_provider_factory() -> ProviderFactory:
     """Return the factory used to build Telegram bot providers."""
     return build_bot_provider
+
+
+def get_session_provider_factory() -> SessionProviderFactory:
+    """Return the factory used to build MTProto user-account providers."""
+    return build_session_provider
 
 
 def get_bot_service(
@@ -33,3 +39,10 @@ def get_reaction_service(
     provider_factory: ProviderFactory = Depends(get_provider_factory),
 ) -> ReactionService:
     return ReactionService(session, provider_factory=provider_factory)
+
+
+def get_session_service(
+    session: AsyncSession = Depends(get_session),
+    provider_factory: SessionProviderFactory = Depends(get_session_provider_factory),
+) -> SessionService:
+    return SessionService(session, provider_factory=provider_factory)

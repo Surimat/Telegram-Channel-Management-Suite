@@ -41,22 +41,21 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
       forwarding, `managed_bot` update ingestion) — deferred into PHASE 3+/manager
       runtime work.
 
-## PHASE 3 — Reaction Manager 🟨
+## PHASE 3 — Reaction Manager ✅
 - [x] Reaction planner (weights, probability, delays, skip, profiles).
 - [x] Scheduler + durable queue + restart recovery.
 - [x] `reaction_jobs` model + per-job status/attempts/error.
 - [x] Rules Engine (categories, allowed/preferred/forbidden, confidence, priority).
 - [x] Preview/simulation.
 - [x] API + UI (Reactions: profiles, rules, simulation, queue). Tests. Commit.
-- [ ] Manager-bot runtime (command loop, admin whitelist, notifications, error
-      forwarding, `managed_bot` update ingestion) — deferred; tracked here.
 
-## PHASE 4 — User Session Manager ⬜
-- [ ] `SessionProvider` + Telethon impl + fake.
-- [ ] Interactive auth wizard (api id/hash, phone, code, 2FA).
-- [ ] Session import, list, revoke, health check, owner labelling.
-- [ ] Secure storage (OS store on Windows, env/secrets on VPS).
-- [ ] API + UI (Sessions wizard). Tests. Commit.
+## PHASE 4 — User Session Manager ✅
+- [x] `SessionProvider` + Telethon impl + fake.
+- [x] Interactive auth wizard (api id/hash, phone, code, 2FA).
+- [x] Session import, list, re-auth (logout), health check, owner labelling.
+- [x] Secure storage: api_hash + full phone sealed (Fernet); session files in
+      git-ignored `sessions/` (out of the Docker image); never in logs/UI/errors.
+- [x] API `/api/v1/sessions/*` + UI (`SessionsView` wizard). Tests. Commit.
 
 ## PHASE 5 — Audience ⬜
 - [ ] Sources CRUD + scan (public channel/group/entity).

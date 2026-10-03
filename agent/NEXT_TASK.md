@@ -3,86 +3,103 @@
 > The single "what to do next" pointer. Update at the end of every phase.
 
 **Updated:** 2026-10-03
-**Active phase:** PHASE 4 — User Session Manager
-**Previous phase:** PHASE 3 — Reaction Manager (completed, committed, pushed to `develop`).
+**Active phase:** PHASE 5 — Audience (sources, parsing, database, filters, tags, exports)
+**Previous phase:** PHASE 4 — User Session Manager (completed; commit pending on `develop`).
 
 ---
 
 ## Repository sync status (2026-10-03)
 
-PHASE 0–3 are committed, pushed to the remote `develop` branch, and a PR
-(`develop → main`, #1) is open — **not merged** pending owner confirmation.
-Continue development on `develop` (create feature branches off it as needed).
-Never push directly to `main`.
+PHASE 0–4 live on the `develop` branch. A PR (`develop → main`, #1) is open —
+**not merged** pending owner confirmation. Continue on `develop` (feature
+branches off it as needed). **Never push directly to `main`.**
 
 ---
 
-## Finish PHASE 3 first (done)
+## Finish PHASE 4 first (checklist)
 
-- [x] Rules Engine (`rules/engine.py`, `rules/delays.py`, `rules/defaults.py`).
-- [x] Models/repos: `Post`, `ReactionProfile`, `ReactionRule`, `ReactionJob`.
-- [x] Pure `ReactionPlanner` (weights, probability, skip, delays, cap) with RNG.
-- [x] `ReactionService`: CRUD, classify, simulate, ingest/plan, execute, recover.
-- [x] Provider `set_reaction` (fake + aiogram); durable-queue execution.
-- [x] Scheduler handler signature `(session, job)`; startup seeding + recovery.
-- [x] API (`/api/v1/reactions/*`) + `reactions` Setup-Wizard check.
-- [x] Frontend `ReactionsView.vue` + route + nav + Dashboard card.
-- [x] Tests: **108 passed**; `ruff check backend tests` clean; SPA builds.
-- [x] **Committed** PHASE 3 (`f06ba53`) and pushed to `origin/develop`.
+- [x] `SessionProvider` protocol + DTOs/errors (user accounts).
+- [x] `TelethonSessionProvider` (only Telethon importer) + `FakeSessionProvider`.
+- [x] `UserSession` model + `SessionStatus` + repository (secrets sealed).
+- [x] `SessionService`: auth wizard (start → code → 2FA), import (+rollback),
+      health, enable/disable, delete, logout, `recover()`.
+- [x] API `/api/v1/sessions/*` + schemas + deps + router registration.
+- [x] Setup-Wizard checks: `telethon`, `sessions_dir`, `accounts`; startup recovery.
+- [x] Frontend `SessionsView.vue` + route + nav + Dashboard card; SPA builds.
+- [x] Tests: **153 passed**; `ruff check backend tests` clean; live smoke test.
+- [ ] **Commit PHASE 4** on `develop` (single stable commit; do not push to `main`).
 
 ---
 
-## Goal of PHASE 4
+## Goal of PHASE 5
 
-Let the owner add a **Telegram user account (MTProto)** through a guided wizard
-in the Web UI, store its session securely, and monitor its health — all through
-the `SessionProvider` abstraction so tests never need a real account.
+Let the owner register **audience sources** (public channels/groups, entities by
+username/ID), **parse** their participants through a user account, store them in
+the **audience database** with de-duplication, and explore them via filters, tags,
+search, sorting, export/import and per-source statistics — all through provider
+abstractions so tests never need a real account.
 
 ## Constraints / reminders
 
-- **D-001**: all MTProto access goes through `SessionProvider`; exactly one
-  Telethon module imports Telethon (`providers/telethon_user.py`); a
-  `FakeSessionProvider` backs tests and offline mode.
-- **D-010 / D-017**: session files and api_hash live only outside git, in
-  `sessions/` (git-ignored, excluded from the Docker image), never printed in UI,
-  logs, errors or API responses. Store api_hash sealed like the bot token.
-- **D-006**: never bypass FloodWait / privacy / admin restrictions.
-- Keep the app runnable at the end (`pytest` passes, app starts).
+- **D-001**: all Telegram access goes through providers. Audience parsing uses the
+  `SessionProvider` already added in PHASE 4 (`resolve_entity`, `get_participants`);
+  `FakeSessionProvider` must be extended to serve deterministic participant lists
+  for tests/offline mode.
+- **D-006**: never bypass Telegram FloodWait / privacy / admin restrictions. On
+  FloodWait, stop the affected queue/account and surface the wait time; store
+  privacy errors as a user status, never work around them.
+- **D-010 / D-017 / D-025**: never store or display session contents, api_hash or
+  full phone numbers; keep secrets sealed and out of logs/UI/errors.
+- Keep the app runnable at the end (`pytest` passes, app starts, SPA builds).
 
 ## Deliverables
 
-### Provider / DB
-- [ ] `providers/base.py` — `SessionProvider` protocol (send_code, sign_in,
-      sign_in_password, get_me, health, export_session, close).
-- [ ] `providers/telethon_user.py` — Telethon impl (the only Telethon importer);
-      friendly error translation. `providers/fake_session.py` for tests/offline.
-- [ ] `db/models/session.py` — `UserSession` (phone, api_id, api_hash_encrypted,
-      session_path, owner username/user_id, health, last_health_at, enabled).
-- [ ] `db/repositories/sessions.py`, `services/session_service.py`.
+### Providers
+- [ ] Extend `SessionProvider` / `FakeSessionProvider` with deterministic
+      participant iteration + entity resolution used by parsing (limit/paging,
+      injectable FloodWait/privacy failures).
+- [ ] Map Telegram errors to friendly provider errors (`FloodWaitError`,
+      `PrivacyRestrictedError`, `EntityNotFoundError`, ...).
 
-### Auth wizard (stateful, resumable)
-- [ ] API: `POST /api/v1/sessions/start` (api_id/hash + phone → code sent),
-      `POST /api/v1/sessions/{id}/code`, `POST /api/v1/sessions/{id}/password`
-      (2FA), `POST /api/v1/sessions/{id}/import` (existing `.session` file).
-- [ ] Never return secrets or session contents; expose `has_session` + status.
+### DB
+- [ ] `db/models/audience.py` — `AudienceSource` (title, username, type, status,
+      last_scan, participants_found, errors) and `AudienceMember`
+      (telegram_user_id, username, first/last name, source, date_found, is_bot,
+      is_deleted, is_mutual, tags, score, invite_status, last_error) with a unique
+      constraint for de-duplication.
+- [ ] `db/repositories/audience.py` — CRUD, upsert/dedup, filtered+searched+
+      sorted+paginated queries, tag operations, per-source statistics.
 
-### Management / health
-- [ ] List with owner labels, enable/disable, delete + best-effort revoke,
-      `POST /api/v1/sessions/{id}/health`, permissions probe (read/post rights).
+### Service
+- [ ] `services/audience_service.py` — add/remove sources; parse a source through
+      the account provider with error handling; dedup on upsert; filters, tags,
+      search, export (CSV/JSON) and import; source statistics. Long scans run as
+      durable queue jobs (recover on restart, D-008).
+
+### API
+- [ ] `api/schemas/audience.py` + `api/v1/audience.py`: sources (`GET/POST/DELETE`),
+      parse (`POST /sources/{id}/scan`), members (`GET` with filters/sort/page),
+      tags, `GET /members/export`, `POST /members/import`, `GET /sources/stats`.
+      Uniform friendly error envelope; never leak account/session details.
+
+### Setup Wizard
+- [ ] Add an `audience` check (sources present / members found) in plain language.
 
 ### Frontend
-- [ ] `SessionsView.vue` — guided wizard (api id/hash → phone → code → 2FA),
-      import, list with owner/health, revoke/delete, plain-language help.
+- [ ] `SourcesView.vue` (add/manage sources, scan, per-source stats) and
+      `AudienceView.vue` (member table: filters, search, sort, pagination, tags,
+      export/import, empty/loading states). Routes + nav + Dashboard card.
 
 ### Tests
-- [ ] `FakeSessionProvider` tests + `session_service` + sessions API tests
-      (start → code → password flows, import, health, secret-never-leaked).
+- [ ] audience model/repo, fake-provider parsing, service (dedup, filters, tags,
+      export/import, FloodWait/privacy handling), API, restart recovery.
 
 ### Finish
 - [ ] Update `agent/CURRENT_STATE.md`, `NEXT_TASK.md`, `DECISIONS.md`,
-      `CHANGELOG.md`; run `ruff` + `pytest`; `git diff` review; commit.
+      `CHANGELOG.md`, and the relevant `docs/*`; run `ruff` + `pytest`; build the
+      SPA; `git diff` review; commit on `develop`.
 
-## After PHASE 4
+## After PHASE 5
 
-PHASE 5 — Audience (sources, parsing, database, filters, tags, search, export).
-See `docs/ROADMAP.md`.
+PHASE 6 — Invite Manager (queue, dry-run, manual approval, account assignment,
+error handling, pause/resume, UI). See `docs/ROADMAP.md`.

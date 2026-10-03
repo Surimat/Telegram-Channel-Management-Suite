@@ -270,6 +270,72 @@ export interface ReactionStats {
   last_post: ReactionLastPost | null
 }
 
+// Sessions / user accounts (PHASE 4)
+export interface UserSession {
+  id: string
+  telegram_user_id: number | null
+  username: string
+  display_name: string
+  phone_masked: string
+  api_id: string
+  status: string
+  enabled: boolean
+  auth_step: string
+  has_session: boolean
+  has_api_hash: boolean
+  session_file_exists: boolean
+  session_file_size: number
+  status_message: string
+  status_hint: string
+  last_error: string
+  last_checked_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface SessionSummary {
+  total: number
+  active: number
+  online: number
+  auth_required: number
+  disabled: number
+  error: number
+  by_status: Record<string, number>
+}
+
+export interface AccountIdentity {
+  id: number
+  username: string
+  first_name: string
+  last_name: string
+  display_name: string
+}
+
+export interface AuthStartResult {
+  account_id: string | null
+  next_step: string
+  message: string
+  how_to_fix: string
+  phone_masked: string
+}
+
+export interface AuthStepResult {
+  account_id: string
+  next_step: string
+  done: boolean
+  message: string
+  how_to_fix: string
+  identity: AccountIdentity | null
+}
+
+export interface SessionHealth {
+  account_id: string
+  ok: boolean
+  status: string
+  message: string
+  how_to_fix: string
+}
+
 export const api = {
   health: () => request<Health>('/health'),
   healthDeep: () => request<Record<string, unknown>>('/health/deep'),
@@ -374,4 +440,45 @@ export const api = {
 
   reactionJobs: (params: Record<string, string> = {}) =>
     request<Page<ReactionJob>>('/api/v1/reactions/jobs?' + new URLSearchParams(params).toString()),
+
+  // Sessions / user accounts (PHASE 4)
+  sessions: (params: Record<string, string> = {}) =>
+    request<UserSession[]>('/api/v1/sessions?' + new URLSearchParams(params).toString()),
+  sessionsSummary: () => request<SessionSummary>('/api/v1/sessions/summary'),
+  authStart: (payload: { api_id: string; api_hash: string; phone: string; display_name?: string }) =>
+    request<AuthStartResult>('/api/v1/sessions/auth/start', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  authCode: (id: string, code: string) =>
+    request<AuthStepResult>(`/api/v1/sessions/${id}/code`, {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    }),
+  authPassword: (id: string, password: string) =>
+    request<AuthStepResult>(`/api/v1/sessions/${id}/password`, {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    }),
+  importSession: (payload: {
+    api_id: string
+    api_hash: string
+    phone?: string
+    session_file_path: string
+    display_name?: string
+  }) =>
+    request<UserSession>('/api/v1/sessions/import', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  checkSession: (id: string) =>
+    request<SessionHealth>(`/api/v1/sessions/${id}/health`, { method: 'POST' }),
+  enableSession: (id: string) =>
+    request<UserSession>(`/api/v1/sessions/${id}/enable`, { method: 'POST' }),
+  disableSession: (id: string) =>
+    request<UserSession>(`/api/v1/sessions/${id}/disable`, { method: 'POST' }),
+  logoutSession: (id: string) =>
+    request<UserSession>(`/api/v1/sessions/${id}/logout`, { method: 'POST' }),
+  removeSession: (id: string) =>
+    request<null>(`/api/v1/sessions/${id}`, { method: 'DELETE' }),
 }

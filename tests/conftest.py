@@ -75,6 +75,25 @@ def make_fake_provider_factory():
     return _factory
 
 
+def make_fake_session_factory(scenario=None):
+    """Return a session-provider factory building a shared fake provider.
+
+    A single provider instance is reused across requests so a multi-step wizard
+    flow (start → code → password) keeps its state, exactly like the real one.
+    """
+    from backend.app.providers.fake_session import FakeAuthScenario, FakeSessionProvider
+
+    shared = FakeSessionProvider(scenario=scenario or FakeAuthScenario())
+
+    def _factory(*, api_id="", api_hash="", session_path=None, provider_name="auto", settings=None):
+        shared._api_id = api_id
+        shared._api_hash = api_hash
+        shared._session_path = session_path
+        return shared
+
+    return _factory
+
+
 @pytest_asyncio.fixture
 async def bot_client() -> AsyncIterator[AsyncClient]:
     """API client with Telegram access wired to the fake provider.
@@ -89,6 +108,22 @@ async def bot_client() -> AsyncIterator[AsyncClient]:
     app = create_app()
     factory = make_fake_provider_factory()
     app.dependency_overrides[get_provider_factory] = lambda: factory
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+
+@pytest_asyncio.fixture
+async def session_client() -> AsyncIterator[AsyncClient]:
+    """API client with MTProto access wired to the fake session provider."""
+    from backend.app.api.deps import get_session_provider_factory
+    from backend.app.db.session import init_models
+    from backend.app.main import create_app
+
+    await init_models()
+    app = create_app()
+    factory = make_fake_session_factory()
+    app.dependency_overrides[get_session_provider_factory] = lambda: factory
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac

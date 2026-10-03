@@ -7,21 +7,37 @@ be tested without a real account or network access.
 
 from backend.app.providers.base import TelegramBotProvider
 from backend.app.providers.errors import (
+    ApiCredentialsInvalidError,
+    AuthCodeExpiredError,
+    AuthCodeInvalidError,
     FloodWaitError,
     InvalidTokenError,
     NetworkError,
+    PasswordInvalidError,
+    PasswordRequiredError,
+    PhoneNumberBannedError,
+    PhoneNumberInvalidError,
+    SessionInvalidError,
     TelegramProviderError,
     UnauthorizedError,
     UnsupportedOperationError,
 )
+from backend.app.providers.session_base import SessionProvider
 from backend.app.providers.types import (
     BotIdentity,
     HealthResult,
     ManagedBotAccess,
     ManagedBotRef,
+    SendCodeResult,
+    SessionFileInfo,
+    SignInResult,
+    UserIdentity,
 )
 
 __all__ = [
+    "ApiCredentialsInvalidError",
+    "AuthCodeExpiredError",
+    "AuthCodeInvalidError",
     "BotIdentity",
     "FloodWaitError",
     "HealthResult",
@@ -29,8 +45,18 @@ __all__ = [
     "ManagedBotAccess",
     "ManagedBotRef",
     "NetworkError",
+    "PasswordInvalidError",
+    "PasswordRequiredError",
+    "PhoneNumberBannedError",
+    "PhoneNumberInvalidError",
+    "SendCodeResult",
+    "SessionFileInfo",
+    "SessionInvalidError",
+    "SessionProvider",
+    "SignInResult",
     "TelegramBotProvider",
     "TelegramProviderError",
     "UnauthorizedError",
     "UnsupportedOperationError",
+    "UserIdentity",
 ]

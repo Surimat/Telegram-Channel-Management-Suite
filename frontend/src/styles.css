@@ -160,6 +160,7 @@ button.primary:hover { background: var(--primary-dark); }
 .muted { color: var(--text-muted); }
 .empty { text-align: center; padding: 32px; color: var(--text-muted); }
 .error-text { color: var(--error); }
+.success-text { color: var(--ok, #1b8a4b); }
 
 .toolbar {
   display: flex;

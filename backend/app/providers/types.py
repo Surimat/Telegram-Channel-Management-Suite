@@ -69,3 +69,71 @@ class ReactionRecord:
     applied_at: float
     bot_id: int | None = None
     bot_username: str = ""
+
+
+# --- MTProto user accounts (PHASE 4) -----------------------------------------
+
+
+@dataclass(slots=True)
+class UserIdentity:
+    """Minimal identity of a Telegram *user* account (MTProto ``get_me``).
+
+    Never carries session contents, api_hash or any credential.
+    """
+
+    id: int
+    username: str = ""
+    first_name: str = ""
+    last_name: str = ""
+    phone: str = ""
+    is_premium: bool | None = None
+    is_bot: bool = False
+
+    @property
+    def display_name(self) -> str:
+        full = f"{self.first_name} {self.last_name}".strip()
+        return full or self.username or str(self.id)
+
+
+@dataclass(slots=True)
+class SendCodeResult:
+    """Outcome of requesting an authorization code for a phone number."""
+
+    phone_code_hash: str
+    code_type: str = ""
+    # Which verification step comes next: "code" or "password".
+    next_step: str = "code"
+    timeout: int | None = None
+
+
+@dataclass(slots=True)
+class SignInResult:
+    """Outcome of submitting a code (or 2FA password).
+
+    When ``needs_password`` is True the caller must collect the account's
+    two-factor password and call ``sign_in_password``.
+    """
+
+    ok: bool
+    needs_password: bool = False
+    identity: UserIdentity | None = None
+
+
+@dataclass(slots=True)
+class EntityRef:
+    """A resolved Telegram entity (channel/group/user) reference."""
+
+    id: int
+    username: str = ""
+    title: str = ""
+    kind: str = ""  # "user" | "group" | "channel"
+    participants_count: int | None = None
+
+
+@dataclass(slots=True)
+class SessionFileInfo:
+    """Diagnostic information about a Telethon session file (never its content)."""
+
+    exists: bool
+    size_bytes: int = 0
+    is_readable: bool = False

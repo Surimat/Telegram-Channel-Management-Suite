@@ -1,0 +1,384 @@
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { api, type SessionSummary, type UserSession } from '@/api/client'
+
+const accounts = ref<UserSession[]>([])
+const summary = ref<SessionSummary | null>(null)
+const loading = ref(true)
+const busyId = ref('')
+const error = ref('')
+const notice = ref('')
+
+// Wizard state
+const showWizard = ref(false)
+const wStep = ref<'credentials' | 'code' | 'password' | 'done'>('credentials')
+const wBusy = ref(false)
+const wError = ref('')
+const wAccountId = ref('')
+const wPhoneMasked = ref('')
+const wIdentity = ref('')
+
+const form = ref({ api_id: '', api_hash: '', phone: '', display_name: '' })
+const codeInput = ref('')
+const passwordInput = ref('')
+
+// Import state
+const showImport = ref(false)
+const importForm = ref({ api_id: '', api_hash: '', phone: '', session_file_path: '' })
+
+const STATUS_LABEL: Record<string, string> = {
+  online: 'Авторизован',
+  auth_required: 'Нужна авторизация',
+  disconnected: 'Нет сессии',
+  flood_wait: 'Ожидание Telegram',
+  error: 'Ошибка',
+  disabled: 'Выключен',
+}
+
+const statusLabel = (s: string) => STATUS_LABEL[s] ?? s
+const statusClass = (s: string) =>
+  s === 'online'
+    ? 'status-ok'
+    : s === 'auth_required' || s === 'flood_wait'
+      ? 'status-warning'
+      : s === 'error'
+        ? 'status-error'
+        : 'status-unknown'
+
+function friendlyError(e: unknown): string {
+  const err = e as { message?: string; hint?: string }
+  return [err?.message, err?.hint].filter(Boolean).join(' ') || 'Произошла ошибка.'
+}
+
+async function load() {
+  loading.value = true
+  error.value = ''
+  try {
+    accounts.value = await api.sessions()
+    summary.value = await api.sessionsSummary()
+  } catch (e) {
+    error.value = friendlyError(e)
+  } finally {
+    loading.value = false
+  }
+}
+
+function resetWizard() {
+  wStep.value = 'credentials'
+  wAccountId.value = ''
+  wPhoneMasked.value = ''
+  wIdentity.value = ''
+  codeInput.value = ''
+  passwordInput.value = ''
+  wError.value = ''
+  form.value = { api_id: '', api_hash: '', phone: '', display_name: '' }
+}
+
+function openWizard() {
+  resetWizard()
+  showWizard.value = true
+  showImport.value = false
+}
+
+async function startAuth() {
+  wBusy.value = true
+  wError.value = ''
+  try {
+    const res = await api.authStart({
+      api_id: form.value.api_id,
+      api_hash: form.value.api_hash,
+      phone: form.value.phone,
+      display_name: form.value.display_name,
+    })
+    wAccountId.value = res.account_id ?? ''
+    wPhoneMasked.value = res.phone_masked
+    wStep.value = res.next_step === 'code' ? 'code' : 'code'
+    notice.value = res.message
+  } catch (e) {
+    wError.value = friendlyError(e)
+  } finally {
+    wBusy.value = false
+  }
+}
+
+async function submitCode() {
+  wBusy.value = true
+  wError.value = ''
+  try {
+    const res = await api.authCode(wAccountId.value, codeInput.value)
+    if (res.done) {
+      wStep.value = 'done'
+      wIdentity.value = res.identity ? `${res.identity.display_name}${res.identity.username ? ' (@' + res.identity.username + ')' : ''}` : ''
+    } else if (res.next_step === 'password') {
+      wStep.value = 'password'
+    }
+  } catch (e) {
+    wError.value = friendlyError(e)
+  } finally {
+    wBusy.value = false
+  }
+}
+
+async function submitPassword() {
+  wBusy.value = true
+  wError.value = ''
+  try {
+    const res = await api.authPassword(wAccountId.value, passwordInput.value)
+    if (res.done) {
+      wStep.value = 'done'
+      wIdentity.value = res.identity ? `${res.identity.display_name}${res.identity.username ? ' (@' + res.identity.username + ')' : ''}` : ''
+    }
+  } catch (e) {
+    wError.value = friendlyError(e)
+  } finally {
+    wBusy.value = false
+  }
+}
+
+async function finishWizard() {
+  showWizard.value = false
+  resetWizard()
+  notice.value = 'Аккаунт добавлен.'
+  await load()
+}
+
+async function submitImport() {
+  wBusy.value = true
+  wError.value = ''
+  try {
+    await api.importSession({
+      api_id: importForm.value.api_id,
+      api_hash: importForm.value.api_hash,
+      phone: importForm.value.phone,
+      session_file_path: importForm.value.session_file_path,
+    })
+    showImport.value = false
+    importForm.value = { api_id: '', api_hash: '', phone: '', session_file_path: '' }
+    notice.value = 'Аккаунт импортирован.'
+    await load()
+  } catch (e) {
+    wError.value = friendlyError(e)
+  } finally {
+    wBusy.value = false
+  }
+}
+
+async function withAccount(id: string, fn: () => Promise<unknown>) {
+  busyId.value = id
+  error.value = ''
+  try {
+    await fn()
+    await load()
+  } catch (e) {
+    error.value = friendlyError(e)
+  } finally {
+    busyId.value = ''
+  }
+}
+
+const check = (a: UserSession) => withAccount(a.id, () => api.checkSession(a.id))
+const toggle = (a: UserSession) =>
+  withAccount(a.id, () => (a.enabled ? api.disableSession(a.id) : api.enableSession(a.id)))
+const logout = (a: UserSession) => {
+  if (!confirm('Начать повторную авторизацию этого аккаунта?')) return
+  return withAccount(a.id, () => api.logoutSession(a.id))
+}
+const remove = (a: UserSession) => {
+  if (!confirm(`Удалить аккаунт ${a.username ? '@' + a.username : a.phone_masked} и его файл сессии?`)) return
+  return withAccount(a.id, () => api.removeSession(a.id))
+}
+
+onMounted(load)
+</script>
+
+<template>
+  <div>
+    <h2 class="page-title">Аккаунты</h2>
+    <p class="page-subtitle">
+      Пользовательские аккаунты Telegram нужны для анализа аудитории и приглашений.
+      Файлы сессий хранятся локально и никогда не попадают в git, а секреты — только
+      в зашифрованном виде.
+    </p>
+
+    <div v-if="error" class="card error-text">{{ error }}</div>
+    <div v-if="notice" class="card success-text">{{ notice }}</div>
+
+    <div v-if="summary" class="grid">
+      <div class="card">
+        <strong>Всего аккаунтов</strong>
+        <p class="muted">{{ summary.total }} · готовых: {{ summary.active }}</p>
+      </div>
+      <div class="card">
+        <strong>Состояние</strong>
+        <p class="muted">
+          Авторизовано: {{ summary.online }} · нужна авторизация: {{ summary.auth_required }} ·
+          выключено: {{ summary.disabled }}
+        </p>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <button class="primary" @click="openWizard">
+        {{ showWizard || showImport ? 'Отмена' : '+ Добавить аккаунт' }}
+      </button>
+      <button @click="showImport = !showImport; showWizard = false">
+        Импортировать .session
+      </button>
+      <button @click="load">Обновить</button>
+    </div>
+
+    <!-- Wizard -->
+    <div v-if="showWizard" class="card">
+      <h3>Мастер добавления аккаунта</h3>
+
+      <div v-if="wStep === 'credentials'">
+        <p class="muted">
+          API ID и API Hash выдаются Telegram на странице
+          <a href="https://my.telegram.org" target="_blank" rel="noopener">my.telegram.org</a>
+          в разделе «API development tools». Они нужны, чтобы программа могла работать
+          от имени вашего аккаунта.
+        </p>
+        <label class="field">
+          <span>API ID</span>
+          <input v-model="form.api_id" placeholder="1234567" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>API Hash</span>
+          <input v-model="form.api_hash" type="password" placeholder="abcdef0123456789" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>Номер телефона</span>
+          <input v-model="form.phone" placeholder="+79991234567" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>Название (необязательно)</span>
+          <input v-model="form.display_name" placeholder="Основной аккаунт" />
+        </label>
+        <div v-if="wError" class="error-text">{{ wError }}</div>
+        <button class="primary" :disabled="wBusy || !form.api_id || !form.api_hash || !form.phone" @click="startAuth">
+          {{ wBusy ? 'Отправляем код…' : 'Получить код' }}
+        </button>
+      </div>
+
+      <div v-else-if="wStep === 'code'">
+        <p class="muted">
+          Код отправлен в Telegram на номер {{ wPhoneMasked }}. Откройте приложение
+          Telegram и введите код (в служебном чате «Telegram»).
+        </p>
+        <label class="field">
+          <span>Код подтверждения</span>
+          <input v-model="codeInput" placeholder="12345" autocomplete="off" />
+        </label>
+        <div v-if="wError" class="error-text">{{ wError }}</div>
+        <button class="primary" :disabled="wBusy || !codeInput" @click="submitCode">
+          {{ wBusy ? 'Проверяем…' : 'Подтвердить' }}
+        </button>
+      </div>
+
+      <div v-else-if="wStep === 'password'">
+        <p class="muted">
+          У аккаунта включена двухэтапная аутентификация. Введите облачный пароль,
+          который вы задавали в настройках Telegram.
+        </p>
+        <label class="field">
+          <span>Пароль 2FA</span>
+          <input v-model="passwordInput" type="password" autocomplete="off" />
+        </label>
+        <div v-if="wError" class="error-text">{{ wError }}</div>
+        <button class="primary" :disabled="wBusy || !passwordInput" @click="submitPassword">
+          {{ wBusy ? 'Проверяем…' : 'Войти' }}
+        </button>
+      </div>
+
+      <div v-else>
+        <h4>Готово</h4>
+        <p>Аккаунт авторизован<span v-if="wIdentity">: {{ wIdentity }}</span>.</p>
+        <button class="primary" @click="finishWizard">Завершить</button>
+      </div>
+    </div>
+
+    <!-- Import -->
+    <div v-if="showImport" class="card">
+      <h3>Импорт существующей сессии</h3>
+      <p class="muted">
+        Укажите путь к файлу <code>.session</code> на этом компьютере. Файл будет
+        скопирован в защищённую папку сессий. Его содержимое нигде не показывается и не
+        записывается в логи.
+      </p>
+      <label class="field">
+        <span>API ID</span>
+        <input v-model="importForm.api_id" placeholder="1234567" autocomplete="off" />
+      </label>
+      <label class="field">
+        <span>API Hash</span>
+        <input v-model="importForm.api_hash" type="password" autocomplete="off" />
+      </label>
+      <label class="field">
+        <span>Номер телефона (необязательно)</span>
+        <input v-model="importForm.phone" placeholder="+79991234567" />
+      </label>
+      <label class="field">
+        <span>Путь к файлу .session</span>
+        <input v-model="importForm.session_file_path" placeholder="C:\\path\\to\\account.session" />
+      </label>
+      <div v-if="wError" class="error-text">{{ wError }}</div>
+      <button
+        class="primary"
+        :disabled="wBusy || !importForm.api_id || !importForm.api_hash || !importForm.session_file_path"
+        @click="submitImport"
+      >
+        {{ wBusy ? 'Импортируем…' : 'Импортировать' }}
+      </button>
+    </div>
+
+    <div v-if="loading" class="card">Загрузка…</div>
+    <div v-else-if="accounts.length === 0" class="card empty">
+      Пока нет ни одного аккаунта. Нажмите «+ Добавить аккаунт», чтобы подключить
+      пользовательский аккаунт Telegram.
+    </div>
+    <table v-else>
+      <thead>
+        <tr>
+          <th>Аккаунт</th>
+          <th>Телефон</th>
+          <th>Состояние</th>
+          <th>Проверка</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="a in accounts" :key="a.id">
+          <td>
+            <strong>{{ a.username ? '@' + a.username : a.display_name || 'Без имени' }}</strong>
+            <div class="muted">
+              ID: {{ a.telegram_user_id ?? '—' }}
+              <span v-if="!a.has_session"> · нет сессии</span>
+              <span v-if="!a.session_file_exists && a.has_session"> · файл не найден</span>
+            </div>
+          </td>
+          <td class="muted">{{ a.phone_masked || '—' }}</td>
+          <td>
+            <span class="status-dot" :class="statusClass(a.status)"></span>
+            {{ statusLabel(a.status) }}
+            <span v-if="!a.enabled" class="badge warning">выключен</span>
+            <div v-if="a.status_message" class="muted">{{ a.status_message }}</div>
+            <div v-if="a.status_hint" class="muted">{{ a.status_hint }}</div>
+          </td>
+          <td class="muted">
+            {{ a.last_checked_at ? new Date(a.last_checked_at).toLocaleString() : '—' }}
+          </td>
+          <td>
+            <div class="actions">
+              <button :disabled="busyId === a.id" @click="check(a)">Проверить</button>
+              <button :disabled="busyId === a.id" @click="toggle(a)">
+                {{ a.enabled ? 'Выключить' : 'Включить' }}
+              </button>
+              <button :disabled="busyId === a.id" @click="logout(a)">Переавторизовать</button>
+              <button class="danger" :disabled="busyId === a.id" @click="remove(a)">Удалить</button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</template>

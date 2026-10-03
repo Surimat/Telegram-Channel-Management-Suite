@@ -3,12 +3,13 @@ import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAppStore } from '@/stores/app'
-import { api, type BotSummary, type ReactionStats } from '@/api/client'
+import { api, type BotSummary, type ReactionStats, type SessionSummary } from '@/api/client'
 
 const store = useAppStore()
 const { status, loading, error } = storeToRefs(store)
 const bots = ref<BotSummary | null>(null)
 const reactions = ref<ReactionStats | null>(null)
+const accounts = ref<SessionSummary | null>(null)
 
 onMounted(async () => {
   if (!store.status) store.loadStatus()
@@ -22,7 +23,18 @@ onMounted(async () => {
   } catch {
     reactions.value = null
   }
+  try {
+    accounts.value = await api.sessionsSummary()
+  } catch {
+    accounts.value = null
+  }
 })
+
+const accountsLabel = (s: SessionSummary | null) => {
+  if (!s || s.total === 0) return 'Пользовательские аккаунты ещё не добавлены.'
+  if (s.online > 0) return `Готовых аккаунтов: ${s.online} из ${s.total}.`
+  return `Аккаунтов: ${s.total}, ни один не авторизован.`
+}
 
 const overallLabel = (value: string | undefined) => {
   if (value === 'ok') return 'Всё в порядке'
@@ -89,6 +101,20 @@ const managerLabel = (s: BotSummary | null) => {
             сегодня выполнено: {{ reactions.done_today }}
           </p>
           <RouterLink to="/reactions">Настроить реакции →</RouterLink>
+        </div>
+        <div v-if="accounts" class="card">
+          <div>
+            <span
+              class="status-dot"
+              :class="accounts.online > 0 ? 'status-ok' : accounts.total > 0 ? 'status-warning' : 'status-unknown'"
+            ></span>
+            <strong>Аккаунты</strong>
+          </div>
+          <p>{{ accountsLabel(accounts) }}</p>
+          <p class="muted">
+            Авторизовано: {{ accounts.online }} · нужна авторизация: {{ accounts.auth_required }}
+          </p>
+          <RouterLink to="/sessions">Управление аккаунтами →</RouterLink>
         </div>
         <div v-for="check in status.checks" :key="check.key" class="card">
           <div>

@@ -95,17 +95,30 @@ through the link and notifies the manager via a `managed_bot` update.
 
 ---
 
-## Sessions (user accounts)
+## Sessions (user accounts) — PHASE 4
+
+All Telegram access goes through the `SessionProvider` abstraction. Responses
+expose only `phone_masked` (e.g. `+7999***4567`) and `has_session` /
+`has_api_hash` / `session_file_exists` booleans — never the api_hash, the full
+phone number or the session file contents.
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/v1/sessions` | list accounts (owner labels) |
-| POST | `/api/v1/sessions/start` | start auth wizard (api id/hash, phone) |
-| POST | `/api/v1/sessions/verify` | submit code |
-| POST | `/api/v1/sessions/password` | submit 2FA password |
-| POST | `/api/v1/sessions/import` | import existing `.session` |
-| POST | `/api/v1/sessions/{id}/health` | health check |
-| DELETE | `/api/v1/sessions/{id}` | revoke + delete |
+| GET | `/api/v1/sessions` | list accounts (`status`, `enabled` filters) |
+| GET | `/api/v1/sessions/summary` | counts by status (total/active/online/...) |
+| GET | `/api/v1/sessions/{id}` | one account |
+| POST | `/api/v1/sessions/auth/start` | start wizard (api_id, api_hash, phone) → code sent |
+| POST | `/api/v1/sessions/{id}/code` | submit login code (may advance to 2FA) |
+| POST | `/api/v1/sessions/{id}/password` | submit 2FA password |
+| POST | `/api/v1/sessions/import` | import an existing `.session` file by path |
+| POST | `/api/v1/sessions/{id}/health` | health check (updates status) |
+| POST | `/api/v1/sessions/{id}/enable` | enable the account |
+| POST | `/api/v1/sessions/{id}/disable` | disable the account |
+| POST | `/api/v1/sessions/{id}/logout` | reset local session → re-authorize |
+| DELETE | `/api/v1/sessions/{id}` | delete the account + its session file |
+
+Wizard steps: `idle` → `code` → `password` (optional 2FA) → `done`. An interrupted
+flow is reset to `auth_required` on startup (`SessionService.recover()`).
 
 ---
 

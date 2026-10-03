@@ -4,8 +4,8 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-03
-**Current phase:** PHASE 3 — Reaction Manager: **COMPLETED** and committed.
-**Repository status:** first GitHub sync done — `develop` pushed; development continues on `develop`.
+**Current phase:** PHASE 4 — User Session Manager: **COMPLETED** (commit pending).
+**Repository status:** `develop` carries PHASE 0–4; `main` only via pull request.
 **Branch:** `develop` (tracks `origin/develop`); `main` is untouched and only ever updated via pull request.
 
 ---
@@ -103,6 +103,41 @@ Layered architecture: **core → db/models → db/repositories → services → 
 - `frontend/src/views/ReactionsView.vue` + reaction types/methods in
   `api/client.ts`, `/reactions` route, nav link, Dashboard Reactions card.
 
+### PHASE 4 — User Session Manager (MTProto accounts)
+- `backend/app/providers/session_base.py` — `SessionProvider` protocol
+  (send_code, sign_in, sign_in_password, get_me, health, export_session,
+  resolve_entity, get_participants, invite_to_channel, aclose).
+- `backend/app/providers/telethon_session.py` — `TelethonSessionProvider`: the
+  **only** Telethon importer; lazy per-operation connect/disconnect; Telethon
+  errors translated to friendly provider errors.
+- `backend/app/providers/fake_session.py` — `FakeSessionProvider` +
+  `FakeAuthScenario` (deterministic, no I/O) for tests/offline mode.
+- `backend/app/providers/registry.py` — `build_session_provider(...)`;
+  `providers/errors.py` + `providers/types.py` extended with user-account
+  errors/DTOs (`ApiCredentialsInvalidError`, `AuthCode*`, `Password*`,
+  `PhoneNumber*`, `SessionInvalidError`; `UserIdentity`, `SendCodeResult`,
+  `SignInResult`, `SessionFileInfo`, `EntityRef`).
+- `backend/app/db/models/session.py` — `UserSession` + `SessionStatus`
+  (online/auth_required/disconnected/flood_wait/error/disabled). Full phone and
+  api_hash stored **sealed**; only `phone_masked` + `api_id` in plaintext;
+  `session_ref` is a UUID basename.
+- `backend/app/db/repositories/sessions.py` — `SessionRepository`.
+- `backend/app/services/session_service.py` — `SessionService`: durable guided
+  auth wizard (api_id/hash + phone → code → optional 2FA), `.session` import
+  (with rollback on failure), health checks, enable/disable, delete (+ file
+  removal), logout/re-auth, `recover()` for interrupted flows.
+- `backend/app/api/schemas/sessions.py`, `backend/app/api/v1/sessions.py`,
+  `api/deps.py::get_session_service` / `get_session_provider_factory`, router
+  registration. Responses never expose secrets (only `phone_masked`, `has_*`).
+- `backend/app/services/system_service.py` — new Setup-Wizard checks `telethon`,
+  `sessions_dir`, `accounts` (plain-language).
+- `backend/app/main.py` lifespan — best-effort `SessionService.recover()`.
+- `frontend/src/views/SessionsView.vue` + session types/methods in
+  `api/client.ts`, `/sessions` route, sidebar «Аккаунты», Dashboard card.
+- `tests/` — `test_fake_session_provider.py`, `test_session_service.py`,
+  `test_sessions_api.py`, `test_session_security.py`; `conftest.py` gained a
+  `session_client` fixture (fake session provider).
+
 ### Frontend (PHASE 1) — Vue 3 + Vite + TypeScript
 - `frontend/` — `package.json`, `vite.config.ts` (builds into
   `backend/app/static/`), `tsconfig.json`, `index.html`.
@@ -143,27 +178,32 @@ Layered architecture: **core → db/models → db/repositories → services → 
   durable jobs, execution via the provider with FloodWait handling, and startup
   recovery — verified live in offline mode (add bot → enable → ingest → job
   created) and covered by 48 tests.
-- `ruff check backend tests` → clean. `pytest` → **108 passed**.
+- `ruff check backend tests` → clean. `pytest` → **153 passed**.
 - Frontend `npm run build` → outputs to `backend/app/static/` successfully
   (`vue-tsc` clean).
+- **Sessions (PHASE 4)**: guided auth wizard (start → code → 2FA), `.session`
+  import (+ rollback), health, enable/disable, delete, logout, startup recovery —
+  verified live in offline mode (start → code → list; no secret in responses) and
+  covered by 45 tests.
 
 ## 4. What does NOT exist yet
 
-- MTProto/user accounts (PHASE 4), channel binding, audience, invites,
-  analytics APIs/UI, Tiny AI classifier (PHASE 7).
+- Channel binding, audience parsing, invites, analytics APIs/UI, Tiny AI
+  classifier (PHASE 7).
+- Account permission probe (read/post rights on a channel) — the SessionProvider
+  exposes `resolve_entity`/`get_participants`/`invite_to_channel` but the service
+  does not yet surface a permissions check (arrives with PHASE 5/6).
 - Manager-bot runtime: the manager bot is registered from settings, but there is
-  no command loop / admin whitelist / notification forwarding yet; `managed_bot`
-  update ingestion is manual by Telegram ID.
+  no command loop / admin whitelist / notification forwarding yet.
 - Auth for the local UI / Mini App `initData`.
 - Alembic migrations (currently `create_all` at startup).
 - Backup/restore implementation, portable packaging, production HTTPS docs.
 
 ## 5. Next action
 
-Start **PHASE 4 — User Session Manager** (see `agent/NEXT_TASK.md` and
-`docs/ROADMAP.md`): `SessionProvider` + Telethon + fake, interactive auth wizard
-(api id/hash → phone → code → 2FA), session import/list/revoke/health, secure
-storage. **First commit PHASE 3** (see NEXT_TASK finish checklist).
+Start **PHASE 5 — Audience** (see `agent/NEXT_TASK.md` and `docs/ROADMAP.md`):
+audience sources, parsing via the user-account provider, the audience database
+with dedup/filters/tags/search, exports and source statistics.
 
 ## 6. Locked decisions (do not break)
 
@@ -184,6 +224,9 @@ See `agent/DECISIONS.md`. Key ones:
 - Rules Engine is deterministic; categories/rules are editable data (D-020).
 - Reaction planner is pure with an injectable RNG; emoji are deterministic (D-021).
 - Reaction profiles are named, one default; preview is forgiving (D-022).
+- User accounts use lazy, per-operation MTProto connections (D-023).
+- The auth wizard is a durable, resumable state machine (D-024).
+- Account secrets are sealed; the API exposes only presence (D-025).
 
 ## 7. How to run / verify after opening a new chat
 

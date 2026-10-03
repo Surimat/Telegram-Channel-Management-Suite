@@ -9,6 +9,7 @@ import { RouterView, RouterLink } from 'vue-router'
       <nav>
         <RouterLink class="nav-item" to="/">Панель</RouterLink>
         <RouterLink class="nav-item" to="/bots">Боты</RouterLink>
+        <RouterLink class="nav-item" to="/sessions">Аккаунты</RouterLink>
         <RouterLink class="nav-item" to="/reactions">Реакции</RouterLink>
         <RouterLink class="nav-item" to="/system">Система</RouterLink>
         <RouterLink class="nav-item" to="/queue">Очередь</RouterLink>

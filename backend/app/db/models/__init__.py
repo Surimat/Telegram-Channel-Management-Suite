@@ -14,6 +14,7 @@ from backend.app.db.models.reaction import (
     ReactionProfile,
     ReactionRule,
 )
+from backend.app.db.models.session import SessionStatus, UserSession
 from backend.app.db.models.setting import Setting
 
 __all__ = [
@@ -31,5 +32,7 @@ __all__ = [
     "ReactionJobStatus",
     "ReactionProfile",
     "ReactionRule",
+    "SessionStatus",
     "Setting",
+    "UserSession",
 ]
