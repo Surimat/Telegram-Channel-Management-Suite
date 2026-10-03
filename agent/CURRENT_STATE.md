@@ -4,7 +4,7 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-03
-**Current phase:** PHASE 9 — Telegram Mini App: **COMPLETED** (commit pending).
+**Current phase:** PHASE 9 — Telegram Mini App: **COMPLETED** (commit `f94c00b`).
 **Next phase:** PHASE 10 — Portable Windows packaging.
 **Repository status:** `develop` carries PHASE 0–9; `main` only via pull request.
 **Branch:** `develop` (tracks `origin/develop`); `main` is untouched and only ever updated via pull request.
