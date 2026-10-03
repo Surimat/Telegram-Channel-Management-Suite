@@ -198,6 +198,7 @@ export interface Post {
   telegram_message_id: number | null
   channel_id: number | null
   channel_username: string
+  registry_channel_id: string
   text: string
   category: string
   category_title: string
@@ -528,6 +529,7 @@ export interface AudienceSource {
   telegram_id: number | null
   source_type: string
   reference: string
+  channel_id: string
   enabled: boolean
   account_id: string | null
   scan_status: string
@@ -1056,6 +1058,8 @@ export const api = {
   createPost: (payload: {
     text: string
     channel_id?: number
+    channel_username?: string
+    registry_channel_id?: string
     telegram_message_id?: number
     force_category?: string
     plan?: boolean
@@ -1180,10 +1184,11 @@ export const api = {
   audienceSources: (params: Record<string, string> = {}) =>
     request<SourceList>('/api/v1/audience/sources?' + new URLSearchParams(params).toString()),
   createSource: (payload: {
-    reference: string
+    reference?: string
     title?: string
     source_type?: string
     account_id?: string | null
+    channel_id?: string
   }) =>
     request<AudienceSource>('/api/v1/audience/sources', {
       method: 'POST',

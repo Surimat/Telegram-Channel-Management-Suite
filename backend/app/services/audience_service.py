@@ -48,6 +48,7 @@ from backend.app.db.repositories.audience import (
     AudienceUserRepository,
     SourceUserLinkRepository,
 )
+from backend.app.db.repositories.channels import ChannelRepository
 from backend.app.providers.audience_base import AudienceProvider
 from backend.app.providers.errors import (
     ChatAdminRequiredError,
@@ -268,12 +269,25 @@ class AudienceService:
     async def add_source(
         self,
         *,
-        reference: str,
+        reference: str = "",
         title: str = "",
         source_type: SourceType | str = SourceType.UNKNOWN,
         account_id: str | None = None,
         enabled: bool = True,
+        channel_id: str = "",
     ) -> AudienceSource:
+        # A channel chosen from the shared registry supplies the reference and
+        # title, so the owner does not retype it (decision D-051).
+        if channel_id:
+            channel = await ChannelRepository(self.session).get(channel_id)
+            if channel is None:
+                raise AudienceServiceError(
+                    "Выбранный канал не найден.",
+                    how_to_fix="Обновите список каналов на странице «Каналы».",
+                    status_code=404,
+                )
+            reference = channel.reference
+            title = title or channel.title or channel.reference
         reference = (reference or "").strip()
         if not reference:
             raise AudienceServiceError(
@@ -290,6 +304,7 @@ class AudienceService:
             source_type=stype,
             account_id=account_id or None,
             enabled=enabled,
+            channel_id=channel_id or "",
             scan_status=ScanStatus.IDLE,
             completeness=Completeness.UNKNOWN,
         )

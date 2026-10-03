@@ -48,6 +48,7 @@ from backend.app.db.models.reaction import (
 )
 from backend.app.db.repositories.ai import AiRepository
 from backend.app.db.repositories.bots import BotRepository
+from backend.app.db.repositories.channels import ChannelRepository
 from backend.app.db.repositories.posts import PostRepository
 from backend.app.db.repositories.reactions import (
     ReactionJobRepository,
@@ -636,6 +637,7 @@ class ReactionService:
         telegram_message_id: int | None = None,
         channel_id: int | None = None,
         channel_username: str = "",
+        registry_channel_id: str = "",
         posted_at: datetime | None = None,
         force_category: str | None = None,
         plan: bool = True,
@@ -643,6 +645,19 @@ class ReactionService:
         mode: str = MODE_AUTO,
     ) -> Post:
         """Store a post, classify it and (optionally) enqueue reaction jobs."""
+        # A channel chosen from the shared registry fills the username and, when
+        # known, the numeric chat id, so the owner does not retype them (D-051).
+        if registry_channel_id:
+            channel = await ChannelRepository(self.session).get(registry_channel_id)
+            if channel is None:
+                raise ReactionServiceError(
+                    "Выбранный канал не найден.",
+                    how_to_fix="Обновите список каналов на странице «Каналы».",
+                    status_code=404,
+                )
+            channel_username = channel.username or channel.reference
+            if channel_id is None and channel.telegram_id is not None:
+                channel_id = channel.telegram_id
         result, outcome = await self._route(text, mode=mode)
         match = await self._result_to_match(result, outcome)
         if force_category:
@@ -658,6 +673,7 @@ class ReactionService:
             telegram_message_id=telegram_message_id,
             channel_id=channel_id,
             channel_username=channel_username,
+            registry_channel_id=registry_channel_id,
             text=text,
             category=str(match.category),
             category_title=CATEGORY_TITLES.get(match.category, str(match.category)),

@@ -210,3 +210,55 @@ async def test_invite_rejects_unknown_channel(invite_client) -> None:
         json={"channel_id": "does-not-exist", "dry_run": True},
     )
     assert resp.status_code == 404
+
+
+async def test_post_uses_registry_channel(bot_client) -> None:
+    """Ingesting a post with a registry channel fills the channel identity."""
+    created = (
+        await bot_client.post("/api/v1/channels", json={"reference": "@postchan"})
+    ).json()
+
+    resp = await bot_client.post(
+        "/api/v1/reactions/posts",
+        json={
+            "text": "Обычный пост",
+            "registry_channel_id": created["id"],
+            "plan": False,
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    post = resp.json()
+    assert post["registry_channel_id"] == created["id"]
+    assert post["channel_username"] == "@postchan"
+
+
+async def test_post_rejects_unknown_registry_channel(bot_client) -> None:
+    resp = await bot_client.post(
+        "/api/v1/reactions/posts",
+        json={"text": "x", "registry_channel_id": "missing", "plan": False},
+    )
+    assert resp.status_code == 404
+
+
+async def test_source_uses_registry_channel(audience_client) -> None:
+    """Adding an audience source from a registry channel reuses its reference."""
+    created = (
+        await audience_client.post("/api/v1/channels", json={"reference": "@srcchan"})
+    ).json()
+
+    resp = await audience_client.post(
+        "/api/v1/audience/sources",
+        json={"channel_id": created["id"], "source_type": "channel"},
+    )
+    assert resp.status_code == 201, resp.text
+    source = resp.json()
+    assert source["channel_id"] == created["id"]
+    assert source["reference"] == "@srcchan"
+
+
+async def test_source_rejects_unknown_registry_channel(audience_client) -> None:
+    resp = await audience_client.post(
+        "/api/v1/audience/sources",
+        json={"channel_id": "missing", "source_type": "channel"},
+    )
+    assert resp.status_code == 404

@@ -441,6 +441,18 @@ bypasses Telegram limits.
 The first channel added becomes the default. Invite create/preview accept an
 optional `channel_id`; when set, the target and title come from the registry.
 
+Registry links are used by other modules too:
+
+- `POST /api/v1/reactions/posts` accepts an optional `registry_channel_id`; when
+  set, the post's `channel_username` (and numeric `channel_id` when the registry
+  channel has a known Telegram id) are filled from the registry. `PostOut` echoes
+  `registry_channel_id`.
+- `POST /api/v1/audience/sources` accepts an optional `channel_id`; when set, the
+  source `reference`/`username`/`telegram_id` come from the registry (or the
+  source is created with the registry reference). `SourceOut` echoes `channel_id`.
+
+An unknown registry id returns a friendly `404`.
+
 ---
 
 ## Versioning

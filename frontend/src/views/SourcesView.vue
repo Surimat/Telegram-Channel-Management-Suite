@@ -4,6 +4,7 @@ import {
   api,
   type AudienceDashboard,
   type AudienceSource,
+  type Channel,
   type ScanPreview,
   type ScanResult,
   type UserSession,
@@ -12,6 +13,7 @@ import {
 const sources = ref<AudienceSource[]>([])
 const dashboard = ref<AudienceDashboard | null>(null)
 const accounts = ref<UserSession[]>([])
+const channels = ref<Channel[]>([])
 const loading = ref(true)
 const error = ref('')
 const notice = ref('')
@@ -20,7 +22,13 @@ const busyId = ref('')
 // Add form
 const showAdd = ref(false)
 const addBusy = ref(false)
-const form = ref({ reference: '', title: '', source_type: 'unknown', account_id: '' })
+const form = ref({
+  reference: '',
+  title: '',
+  source_type: 'unknown',
+  account_id: '',
+  channel_id: '',
+})
 
 // Scan confirmation + preview
 const previewFor = ref<AudienceSource | null>(null)
@@ -70,14 +78,16 @@ async function load(silent = false) {
   if (!silent) loading.value = true
   error.value = ''
   try {
-    const [list, dash, sess] = await Promise.all([
+    const [list, dash, sess, chans] = await Promise.all([
       api.audienceSources({ limit: '200' }),
       api.audienceDashboard(),
       api.sessions(),
+      api.channels({ limit: '200' }),
     ])
     sources.value = list.items
     dashboard.value = dash
     accounts.value = sess
+    channels.value = chans.items
   } catch (e) {
     error.value = friendlyError(e)
   } finally {
@@ -91,13 +101,20 @@ async function submitAdd() {
   notice.value = ''
   try {
     await api.createSource({
-      reference: form.value.reference,
+      reference: form.value.channel_id ? undefined : form.value.reference,
       title: form.value.title,
       source_type: form.value.source_type,
       account_id: form.value.account_id || null,
+      channel_id: form.value.channel_id || undefined,
     })
     notice.value = 'Источник добавлен. Теперь проверьте его доступность кнопкой «Проверить».'
-    form.value = { reference: '', title: '', source_type: 'unknown', account_id: '' }
+    form.value = {
+      reference: '',
+      title: '',
+      source_type: 'unknown',
+      account_id: '',
+      channel_id: '',
+    }
     showAdd.value = false
     await load(true)
   } catch (e) {
@@ -244,7 +261,16 @@ onUnmounted(() => {
         закрытых источников аккаунт должен уже состоять в них — иначе Telegram не
         отдаст список участников.
       </p>
-      <label class="field">
+      <label v-if="channels.length" class="field">
+        <span>Канал из реестра (необязательно)</span>
+        <select v-model="form.channel_id">
+          <option value="">Указать вручную ниже</option>
+          <option v-for="c in channels" :key="c.id" :value="c.id">
+            {{ c.title || c.reference }}
+          </option>
+        </select>
+      </label>
+      <label v-if="!form.channel_id" class="field">
         <span>Ссылка, @username или ID</span>
         <input v-model="form.reference" placeholder="@channel или https://t.me/channel" />
       </label>
@@ -269,7 +295,11 @@ onUnmounted(() => {
           </option>
         </select>
       </label>
-      <button class="primary" :disabled="addBusy || !form.reference" @click="submitAdd">
+      <button
+        class="primary"
+        :disabled="addBusy || (!form.reference && !form.channel_id)"
+        @click="submitAdd"
+      >
         {{ addBusy ? 'Добавляем…' : 'Добавить источник' }}
       </button>
     </div>

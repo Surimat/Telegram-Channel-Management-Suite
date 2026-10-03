@@ -48,12 +48,15 @@ def upgrade() -> None:
         batch_op.create_index(batch_op.f('ix_channels_telegram_id'), ['telegram_id'], unique=False)
 
     with op.batch_alter_table('invite_jobs', schema=None) as batch_op:
-        # server_default lets the column be added to a table that already has
-        # rows (SQLite requires a default for a NOT NULL column).
-        batch_op.add_column(
-            sa.Column('channel_id', sa.String(length=64), nullable=False, server_default='')
-        )
+        # Add as nullable, backfill, then enforce NOT NULL: SQLite cannot add a
+        # NOT NULL column to a populated table without a server default, and a
+        # server default would then show up as model/migration drift.
+        batch_op.add_column(sa.Column('channel_id', sa.String(length=64), nullable=True))
         batch_op.create_index(batch_op.f('ix_invite_jobs_channel_id'), ['channel_id'], unique=False)
+
+    op.execute("UPDATE invite_jobs SET channel_id = '' WHERE channel_id IS NULL")
+    with op.batch_alter_table('invite_jobs', schema=None) as batch_op:
+        batch_op.alter_column('channel_id', existing_type=sa.String(length=64), nullable=False)
 
     # ### end Alembic commands ###
 

@@ -131,6 +131,7 @@ class PostOut(BaseModel):
     telegram_message_id: int | None = None
     channel_id: int | None = None
     channel_username: str = ""
+    registry_channel_id: str = ""
     text: str = ""
     category: str = ""
     category_title: str = ""
@@ -148,6 +149,10 @@ class PostCreate(BaseModel):
     telegram_message_id: int | None = None
     channel_id: int | None = None
     channel_username: str = ""
+    registry_channel_id: str = Field(
+        default="",
+        description="Канал из общего реестра «Каналы» (подставит reference и название).",
+    )
     force_category: str | None = Field(
         default=None, description="Ручное указание категории (переопределяет правила)."
     )

@@ -21,6 +21,15 @@ Dates are ISO-8601.
   toggles, default promotion) and API; verification reuses the permission probe
   and never bypasses Telegram limits. Invite jobs gained `channel_id` and resolve
   their target from the chosen registry channel. Tests: `tests/test_channels.py`.
+- **Channel Registry wired into post ingestion and audience sources.** Ingesting a
+  post (`POST /api/v1/reactions/posts`) accepts an optional `registry_channel_id`
+  that fills the channel username (and numeric id when known) from the registry,
+  and `posts` now stores `registry_channel_id`. Audience sources accept an
+  optional `channel_id` that resolves the source reference from the registry, and
+  `audience_sources` now stores `channel_id`. Both reject an unknown registry id
+  with a friendly 404. Web UI: the audience source form and the reactions
+  simulation/ingest panel gained a "channel from registry" picker. Migration
+  `e3b5890e407e`; tests in `tests/test_channels.py`.
 
 ### Changed
 - Application version string bumped `0.1.0 → 1.0.0` (`backend/app/__init__.py`,
@@ -69,7 +78,7 @@ hardening passes. See `docs/RELEASE_CHECKLIST.md`.
 - **Tests**: `test_manager_bot.py` (26), `test_permission_service.py` (13),
   `test_hardening_api.py` (9); `conftest.py` gained `permission_client` /
   `manager_client` fixtures and disables the manager runtime in tests. Suite is
-  now **384 passed**.
+  now **411 passed**.
 
 ### Fixed — RC hardening
 - **Reactions**: executed posts now use the same category reaction policy as

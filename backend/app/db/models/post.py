@@ -33,8 +33,15 @@ class Post(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     # Telegram identity (may be empty for a simulated/pasted post).
     telegram_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True, index=True)
+    # Numeric Telegram chat id, used to actually send a reaction.
     channel_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True, index=True)
     channel_username: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+    # Optional link to the shared Channel Registry (decision D-051). The numeric
+    # ``channel_id`` above stays the transport identity; this is the stable
+    # registry row the owner selected.
+    registry_channel_id: Mapped[str] = mapped_column(
+        String(64), default="", index=True, nullable=False
+    )
 
     text: Mapped[str] = mapped_column(Text, default="", nullable=False)
 

@@ -10,7 +10,7 @@ hardening work: (1) **versioned Alembic migrations** replace `create_all` at
 startup; (2) a **shared Channel Registry** (`channels` table + `/api/v1/channels`
 + RU-first "Каналы" page) so reactions/audience/invites/analytics share one
 channel identity, with the invite manager resolving its target from `channel_id`.
-All gates pass: `pytest` **405 passed**, `ruff` clean, `vue-tsc` + `npm run build`
+All gates pass: `pytest` **411 passed**, `ruff` clean, `vue-tsc` + `npm run build`
 clean.
 **Next phase:** optional only — wire the remaining modules (reactions/audience/
 analytics) to the registry, Mini App BotFather registration helper. Development
@@ -385,7 +385,7 @@ Layered architecture: **core → db/models → db/repositories → services → 
   durable jobs, execution via the provider with FloodWait handling, and startup
   recovery — verified live in offline mode (add bot → enable → ingest → job
   created) and covered by 48 tests.
-- `ruff check backend tests` → clean. `pytest` → **384 passed** (after the hardening tests).
+- `ruff check backend tests` → clean. `pytest` → **411 passed** (after the hardening tests).
 - Frontend `npm run build` → outputs to `backend/app/static/` successfully
   (`vue-tsc` clean).
 - **Sessions (PHASE 4)**: guided auth wizard (start → code → 2FA), `.session`
@@ -503,11 +503,25 @@ Decisions: D-047, D-048, D-049.
   router registered. Verification reuses `PermissionService` (never bypasses limits).
 - Invite integration: `invite_jobs.channel_id` added; invite create/preview resolve
   the target from the chosen registry channel (fallback to a typed target).
+- Post ingestion + audience sources: `posts.registry_channel_id` and
+  `audience_sources.channel_id` link to the registry; the API resolves the
+  channel's reference/username from a chosen registry id (friendly 404 if
+  unknown). Migration `e3b5890e407e`.
 - Frontend: RU-first "Каналы" page (`ChannelsView.vue`, nav + route), channel
-  types/methods in `api/client.ts`; invite form gained a channel picker.
-- Tests: `tests/test_channels.py` (17) + `conftest.py::channel_client`.
+  types/methods in `api/client.ts`; invite form, audience source form and the
+  reactions simulation/ingest panel each gained a channel picker.
+- Tests: `tests/test_channels.py` (21) + `conftest.py::channel_client`.
 
-Decisions: D-051.
+Decisions: D-051, D-052.
+
+**Migration adoption fix (high severity).** A v1.0.0 install (built with
+`create_all`, no `channels` table) was stamped at Alembic *head* without running
+the registry migration, so the app crashed on the missing `channels` table.
+`migrate.py` is now **baseline-aware**: it stamps such a database at the baseline
+revision and upgrades through the deltas, and `database_status` reports a pending
+upgrade. Migration history: `0191baf5265f` (baseline = v1.0.0 schema) →
+`561f0631d045` (channel registry) → `e3b5890e407e` (registry links). Regression
+test upgrades a v1.0.0-shaped database with existing rows. Decisions: D-052.
 
 ## 5. Next action
 
@@ -515,8 +529,8 @@ Decisions: D-051.
 project is stable; the next action is to continue on `develop` with optional items
 only:
 
-1. Wire the remaining modules (reactions/audience/analytics) to the Channel
-   Registry so they reference a `channel_id` instead of their own target text.
+1. Finish the Channel Registry wiring: the permission probe and the analytics
+   module still use their own channel text — link them to the registry next.
 2. Mini App BotFather registration helper.
 
 See `agent/NEXT_TASK.md` and `docs/RELEASE_CHECKLIST.md`. Do **not** re-open

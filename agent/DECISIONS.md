@@ -893,3 +893,32 @@ the baseline revision is regenerated (not shipped) until the next release, so
 manager resolves its target from `channel_id` when a registry channel is chosen,
 falling back to a manually typed target. Docker and the portable build copy
 `alembic.ini` + `migrations/`.
+
+---
+
+## D-052 — 2026-10-03 — Migration adoption is baseline-aware; modules link to the registry — LOCKED
+
+**Decision:** (a) The Alembic adoption path is **baseline-aware**: an existing
+`create_all` database is stamped at the *baseline* revision (whose schema equals
+the shipped `create_all` schema) and then upgraded through the delta migrations —
+it is never stamped straight at head. `_schema_matches_baseline()` inspects the
+live schema to decide, and `database_status` reports a pending upgrade instead of
+"up to date" when a stamped database still lacks delta tables. (b) Modules link
+to the shared Channel Registry by a **nullable, backfilled** `channel_id`/
+`registry_channel_id` string column (empty string = "no registry link"), not by a
+hard foreign key, so existing rows and manual (non-registry) targets keep working
+while the UI offers the picker.
+
+**Why:** A v1.0.0 install (built with `create_all`, no `channels` table) was
+being stamped at *head* without running the registry migration, so the app
+crashed on the missing `channels` table. Stamping at the baseline and upgrading
+fixes that. The soft link keeps the migration SQLite-safe (a NOT NULL column
+cannot be added to a populated table without a server default, and a server
+default would show up as model/migration drift) and preserves backward
+compatibility for rows created before the registry existed.
+
+**Consequence:** Migration history is baseline (`0191baf5265f`) → registry delta
+(`561f0631d045`) → registry links (`e3b5890e407e`). Tests cover the v1.0.0 →
+develop upgrade with existing rows and the registry-link API paths. A numeric
+Telegram chat id on a post remains the transport identity; the registry link is
+the stable owner-selected identity.

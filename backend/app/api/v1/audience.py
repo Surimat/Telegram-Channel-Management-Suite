@@ -57,6 +57,7 @@ def _source_out(source) -> SourceOut:  # type: ignore[no-untyped-def]
         telegram_id=source.telegram_id,
         source_type=source.source_type.value,
         reference=source.reference,
+        channel_id=source.channel_id,
         enabled=source.enabled,
         account_id=source.account_id,
         scan_status=source.scan_status.value,
@@ -165,6 +166,7 @@ async def create_source(
             title=payload.title,
             source_type=payload.source_type,
             account_id=payload.account_id,
+            channel_id=payload.channel_id,
         )
     except AudienceServiceError as exc:
         _raise(exc)
