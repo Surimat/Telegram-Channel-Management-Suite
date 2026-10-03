@@ -10,11 +10,12 @@ D-045, D-046) with regression tests; the suite is green at **336 passed**.
 
 ---
 
-## Active task: ship the RC, then optional hardening
+## Active task: optional hardening (RC is shipped)
 
-1. **Ship the RC** — commit the hardening fixes + memory updates, push `develop`,
-   and refresh PR #1 (its title/body still say "PHASE 0–3").
-2. **Optional hardening** (only if asked / if it unblocks a real user problem):
+The RC hardening commit is pushed to `develop` and PR #1
+(https://github.com/Surimat/Telegram-Channel-Management-Suite/pull/1) is
+refreshed and awaiting owner merge. Nothing is blocking. Pick the next item only
+if asked or if it unblocks a real user problem:
 
 ### Candidates (in rough priority)
 

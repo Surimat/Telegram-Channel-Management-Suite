@@ -4,15 +4,15 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-03
-**Current phase:** **Release-candidate / hardening pass — IN PROGRESS.** Full
-end-to-end RC verification against a live server (offline/fake providers) was
-performed and three real bugs were fixed (reaction policy on execution, invite
-stuck-task recovery, sad-news classification). Remaining: finish the audit, push
-`develop`, refresh PR #1.
-**Next phase:** Push `develop` (8+ commits ahead), rename/refresh PR #1, then
-continue optional hardening (manager-bot command loop, Alembic).
-**Repository status:** `develop` carries PHASE 0–11 + polish + RC fixes; `main`
-only via pull request. **`develop` is unpushed ahead of `origin/develop`.**
+**Current phase:** **Release-candidate / hardening pass — COMPLETE and pushed.**
+Full end-to-end RC verification against a live server (offline/fake providers)
+was performed and three real bugs were fixed (reaction policy on execution,
+invite stuck-task recovery, sad-news classification). `develop` is pushed
+(`e65a374`) and PR #1 is refreshed.
+**Next phase:** Optional hardening only — manager-bot command loop / notifications,
+Alembic migrations, account permission probe.
+**Repository status:** `develop` carries PHASE 0–11 + polish + RC fixes and is
+**in sync with `origin/develop`**; `main` only via pull request.
 **Branch:** `develop` (tracks `origin/develop`); `main` is untouched and only ever updated via pull request.
 
 ---
@@ -545,6 +545,11 @@ cd frontend && npm install && npm run build && cd ..
 - **Never push directly to `main`.** All work goes to `develop` (or feature
   branches off it) and lands in `main` only via a reviewed pull request.
 - `main` still points at the PHASE 3 commit (`f06ba53`) until PR #1 merges.
+- **RC sync (2026-10-03):** PHASE 7–11 + polish + RC hardening pushed to
+  `develop` (`fd53ad1`…`e65a374`; fast-forward, no force). `origin/develop` is
+  now at `e65a374` (RC hardening). PR #1 retitled to **"Full roadmap (PHASE 0–11)
+  + release-candidate hardening"** with a full body; still **open**, `merged:
+  false` — **not merged** (awaiting owner confirmation).
 - No history rewrite, no force push.
 - Secret audit before push: `.env`, `data/*.db`, session files and portable
   runtimes are git-ignored and confirmed absent from the remote; the mutable
