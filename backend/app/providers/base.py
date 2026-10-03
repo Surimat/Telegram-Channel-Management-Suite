@@ -11,6 +11,7 @@ from typing import Protocol, runtime_checkable
 
 from backend.app.providers.types import (
     BotIdentity,
+    BotUpdate,
     ManagedBotAccess,
     ManagedBotRef,
 )
@@ -71,3 +72,23 @@ class TelegramBotProvider(Protocol):
         Telegram delivers managed-bot creations through updates rather than a
         list endpoint, so this returns what the application has recorded so far.
         """
+
+    # --- Manager bot runtime (post-1.0 hardening) ----------------------------
+    async def set_commands(self, commands: list[tuple[str, str]]) -> bool:
+        """Register the bot's command menu (best effort).
+
+        Optional: providers without a command-menu API may return ``False``.
+        """
+        ...
+
+    async def get_updates(
+        self, *, offset: int | None = None, timeout: int = 0
+    ) -> list[BotUpdate]:
+        """Return pending incoming updates for the manager bot.
+
+        ``offset`` acknowledges everything with a smaller ``update_id``. A
+        ``timeout`` of 0 returns immediately (used by the short-poll loop). The
+        fake provider serves updates from a scripted queue so the whole command
+        loop can be tested without Telegram.
+        """
+        ...

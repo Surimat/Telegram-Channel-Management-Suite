@@ -39,6 +39,7 @@ from backend.app.providers.errors import (
 from backend.app.providers.types import (
     EntityRef,
     ParticipantPage,
+    PermissionReport,
     SendCodeResult,
     SignInResult,
     UserIdentity,
@@ -381,6 +382,101 @@ class TelethonSessionProvider:
             await client.invite_to_channel(entity, user_id)
 
         await self._call(_run)
+
+    # --- permission probe (post-1.0 hardening) -------------------------------
+    async def probe_permissions(self, entity: str | int) -> PermissionReport:
+        """Probe real access to ``entity`` with a sequence of bounded API calls.
+
+        Nothing is assumed: each capability flag is set only when Telegram
+        confirms it. A failure in one step does not abort the others, so the
+        report shows the full picture (e.g. channel found but participants
+        hidden). Never returns secrets or session contents.
+        """
+
+        async def _run(client):  # type: ignore[no-untyped-def]
+            report = PermissionReport(status="error")
+
+            # 1) Account authorized?
+            try:
+                me = await client.get_me()
+            except Exception as exc:
+                raise self._translate(exc) from exc
+            if me is None:
+                report.status = "auth_required"
+                report.message = "Аккаунт не авторизован."
+                report.how_to_fix = "Авторизуйте аккаунт в разделе «Аккаунты»."
+                return report
+            report.authorized = True
+            report.session_ok = True
+
+            # 2) Resolve the channel.
+            try:
+                resolved = await client.get_entity(entity)
+            except Exception as exc:
+                raise self._translate(exc) from exc
+            report.channel_found = True
+            report.can_read_info = True
+            report.channel_id = int(getattr(resolved, "id", 0)) or None
+            report.channel_title = str(
+                getattr(resolved, "title", "") or getattr(resolved, "first_name", "") or ""
+            )
+            report.channel_username = str(getattr(resolved, "username", "") or "")
+            if getattr(resolved, "megagroup", False):
+                report.channel_kind = "group"
+            elif getattr(resolved, "broadcast", False):
+                report.channel_kind = "channel"
+            else:
+                report.channel_kind = "user"
+            report.participants_count = getattr(resolved, "participants_count", None)
+
+            # 3) Participants (only what Telegram actually exposes).
+            hidden = bool(
+                getattr(resolved, "participants_hidden", False)
+                or getattr(resolved, "join_to_send", False)
+            )
+            if hidden:
+                report.can_read_participants = False
+            else:
+                try:
+                    async for _user in client.iter_participants(resolved, limit=1):
+                        report.can_read_participants = True
+                        break
+                except Exception:
+                    report.can_read_participants = False
+
+            # 4) Invite capability: confirm admin rights that allow inviting.
+            try:
+                perms = await client.get_permissions(resolved, me)
+                is_admin = bool(getattr(perms, "is_admin", False))
+                invite_users = bool(getattr(perms, "invite_users", False))
+                report.can_invite = bool(
+                    getattr(resolved, "creator", False) or (is_admin and invite_users)
+                )
+            except Exception:
+                report.can_invite = False
+
+            # 5) Summarize honestly.
+            if report.can_invite:
+                report.status = "ok"
+                report.message = "Канал доступен, приглашения разрешены."
+                report.how_to_fix = ""
+            elif report.can_read_participants:
+                report.status = "partial"
+                report.message = (
+                    "Канал доступен и список участников виден, но приглашать "
+                    "может только администратор."
+                )
+                report.how_to_fix = "Выдайте аккаунту права администратора с правом приглашать."
+            else:
+                report.status = "privacy_restricted"
+                report.message = (
+                    "Канал доступен, но Telegram не предоставляет список участников "
+                    "этому аккаунту."
+                )
+                report.how_to_fix = "Используйте публичный источник или аккаунт с доступом."
+            return report
+
+        return await self._call(_run)
 
 
 __all__ = ["TelethonSessionProvider"]

@@ -160,9 +160,61 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.scheduler = scheduler
         await scheduler.start()
 
+    # Manager-bot runtime: short-poll command loop + notification forwarding.
+    # Optional and offline-tolerant; it never blocks the scheduler.
+    manager_runtime = None
+    if settings.manager_runtime_enabled:
+        from backend.app.manager.runtime import ManagerBotRuntime
+
+        manager_runtime = ManagerBotRuntime(
+            poll_interval=settings.manager_runtime_poll_interval
+        )
+        app.state.manager_runtime = manager_runtime
+        with contextlib.suppress(Exception):
+            await manager_runtime.start()
+
+    # Announce startup (best effort; delivered on the next runtime poll).
+    with contextlib.suppress(Exception):
+        from backend.app.manager.bus import CATEGORY_SYSTEM, publish
+
+        publish(
+            category=CATEGORY_SYSTEM,
+            event_key="app.started",
+            message=f"Приложение запущено (версия {__version__}).",
+            level="INFO",
+        )
+
     try:
         yield
     finally:
+        # Announce shutdown (best effort) before the event loop and DB go away.
+        with contextlib.suppress(Exception):
+            from backend.app.manager.bus import CATEGORY_SYSTEM, get_notification_bus
+
+            if not get_notification_bus().empty():
+                # Flush what we can synchronously via a short-lived provider.
+                from backend.app.db.session import session_scope
+                from backend.app.manager.service import ManagerBotService
+
+                async with session_scope() as session:
+                    service = ManagerBotService(session)
+                    provider = await service.manager_provider()
+                    if provider is not None:
+                        try:
+                            await service.deliver_pending(provider)
+                        finally:
+                            await provider.close()
+            from backend.app.manager.bus import publish
+
+            publish(
+                category=CATEGORY_SYSTEM,
+                event_key="app.stopped",
+                message="Приложение остановлено.",
+                level="INFO",
+            )
+        if manager_runtime is not None:
+            with contextlib.suppress(Exception):
+                await manager_runtime.stop()
         if scheduler is not None:
             await scheduler.stop()
         with contextlib.suppress(Exception):

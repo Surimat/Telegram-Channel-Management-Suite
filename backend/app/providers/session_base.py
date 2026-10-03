@@ -16,6 +16,7 @@ from typing import Protocol, runtime_checkable
 from backend.app.providers.types import (
     EntityRef,
     ParticipantPage,
+    PermissionReport,
     SendCodeResult,
     SignInResult,
     UserIdentity,
@@ -89,3 +90,13 @@ class SessionProvider(Protocol):
 
     async def invite_to_channel(self, entity: str | int, user_id: int) -> None:
         """Invite a user to a channel (implemented in PHASE 6)."""
+
+    async def probe_permissions(self, entity: str | int) -> PermissionReport:
+        """Probe this account's *real* access to ``entity`` (post-1.0).
+
+        Must never assume access: each flag is set only when the API confirms it.
+        Providers translate library errors into :mod:`backend.app.providers.errors`
+        (FloodWait, privacy, admin-required, authorization). Business logic stays
+        free of Telethon types (D-001).
+        """
+        ...

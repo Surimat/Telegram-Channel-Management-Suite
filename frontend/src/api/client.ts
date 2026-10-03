@@ -856,6 +856,59 @@ export interface ImportConfigResult {
   message: string
 }
 
+// Post-1.0 hardening: permission probe + manager bot runtime.
+export interface PermissionResult {
+  status: string
+  status_label: string
+  account_id: string
+  account_label: string
+  target: string
+  target_title: string
+  channel_found: boolean
+  authorized: boolean
+  can_read_info: boolean
+  can_read_participants: boolean
+  can_invite: boolean
+  session_ok: boolean
+  channel_id: number | null
+  channel_username: string
+  channel_kind: string
+  participants_count: number | null
+  message: string
+  how_to_fix: string
+  retry_after: number | null
+  checked_at: string | null
+  check_id: string | null
+}
+
+export interface PermissionHistory {
+  items: PermissionResult[]
+  latest: PermissionResult | null
+}
+
+export interface ManagerStatus {
+  connected: boolean
+  runtime_running: boolean
+  username: string
+  health: string
+  status_label: string
+  admin_count: number
+  notifications_enabled: boolean
+  pending_notifications: number
+  how_to_fix: string
+}
+
+export interface NotificationCategory {
+  key: string
+  label: string
+  enabled: boolean
+}
+
+export interface NotificationSettings {
+  enabled: boolean
+  categories: NotificationCategory[]
+}
+
 export const api = {
   health: () => request<Health>('/health'),
   healthDeep: () => request<Record<string, unknown>>('/health/deep'),
@@ -1205,4 +1258,24 @@ export const api = {
   backupDownloadUrl: (filename: string) =>
     '/api/v1/backup/download?filename=' + encodeURIComponent(filename),
   configExportUrl: () => '/api/v1/backup/config/export',
+
+  // Post-1.0 hardening: permission probe
+  permissionCheck: (payload: { account_id: string; target: string }) =>
+    request<PermissionResult>('/api/v1/permissions/check', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  permissionLatest: () => request<PermissionResult | null>('/api/v1/permissions/latest'),
+  permissionHistory: (limit = 20) =>
+    request<PermissionHistory>(`/api/v1/permissions/history?limit=${limit}`),
+
+  // Post-1.0 hardening: manager bot runtime + notifications
+  managerStatus: () => request<ManagerStatus>('/api/v1/manager/status'),
+  managerNotifications: () =>
+    request<NotificationSettings>('/api/v1/manager/notifications'),
+  managerUpdateNotifications: (payload: { enabled?: boolean; categories?: Record<string, boolean> }) =>
+    request<NotificationSettings>('/api/v1/manager/notifications', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
 }

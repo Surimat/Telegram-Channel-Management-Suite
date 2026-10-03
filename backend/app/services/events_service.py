@@ -2,6 +2,11 @@
 
 Provides friendly wrappers that store an event and return human-readable
 guidance. Sensitive detail must never be passed in ``details``.
+
+Since the post-1.0 hardening, significant events are also published onto the
+in-process notification bus (see :mod:`backend.app.manager.bus`) so the manager
+bot can forward them to the owner. Publishing is fire-and-forget and can never
+raise into the caller.
 """
 
 from __future__ import annotations
@@ -10,6 +15,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.models.event import Event, EventLevel
 from backend.app.db.repositories.events import EventRepository
+
+# Errors and above are always worth forwarding; lifecycle events are published
+# explicitly by their call sites (app start/stop, backup created, ...).
+_NOTIFIABLE_LEVELS = {EventLevel.ERROR, EventLevel.CRITICAL}
 
 
 class EventsService:
@@ -28,6 +37,7 @@ class EventsService:
         actor: str = "",
         operation: str = "",
         status: str = "",
+        notify: bool | None = None,
     ) -> Event:
         event = Event(
             level=level,
@@ -40,7 +50,27 @@ class EventsService:
             operation=operation,
             status=status,
         )
-        return await self.repo.add(event)
+        event = await self.repo.add(event)
+        if notify is None:
+            notify = level in _NOTIFIABLE_LEVELS
+        if notify:
+            self._publish(module, operation or module, message, level, how_to_fix)
+        return event
+
+    @staticmethod
+    def _publish(
+        module: str, event_key: str, message: str, level: EventLevel, how_to_fix: str
+    ) -> None:
+        # Imported lazily to avoid a hard import cycle at module load time.
+        from backend.app.manager.bus import category_for_module, publish
+
+        publish(
+            category=category_for_module(module),
+            event_key=event_key,
+            message=message,
+            level=level.value,
+            how_to_fix=how_to_fix,
+        )
 
     async def info(self, module: str, message: str, **kwargs: object) -> Event:
         return await self.record(level=EventLevel.INFO, module=module, message=message, **kwargs)

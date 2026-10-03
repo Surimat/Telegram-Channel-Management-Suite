@@ -11,6 +11,7 @@ import time
 from backend.app.providers.errors import InvalidTokenError
 from backend.app.providers.types import (
     BotIdentity,
+    BotUpdate,
     ManagedBotAccess,
     ManagedBotRef,
     ReactionRecord,
@@ -37,6 +38,13 @@ class FakeTelegramBotProvider:
         self.reactions: list[ReactionRecord] = []
         self.webhook_url: str | None = None
         self.closed = False
+        # Manager-bot runtime (post-1.0): a scripted queue of incoming updates.
+        self._updates: list[BotUpdate] = []
+        self.commands: list[tuple[str, str]] = []
+
+    def queue_updates(self, updates: list[BotUpdate]) -> None:
+        """Enqueue updates for the next :meth:`get_updates` call (tests)."""
+        self._updates.extend(updates)
 
     def _ensure_token(self) -> None:
         if not self._token or ":" not in self._token:
@@ -116,3 +124,22 @@ class FakeTelegramBotProvider:
         self._ensure_token()
         self._maybe_fail()
         return list(self._managed_bots)
+
+    # --- Manager bot runtime (post-1.0 hardening) ----------------------------
+    async def set_commands(self, commands: list[tuple[str, str]]) -> bool:
+        self._ensure_token()
+        self._maybe_fail()
+        self.commands = list(commands)
+        return True
+
+    async def get_updates(
+        self, *, offset: int | None = None, timeout: int = 0
+    ) -> list[BotUpdate]:
+        self._ensure_token()
+        self._maybe_fail()
+        if offset is not None:
+            # Acknowledge updates below ``offset`` (mirrors Telegram semantics).
+            self._updates = [u for u in self._updates if u.update_id >= offset]
+        pending = list(self._updates)
+        self._updates = []
+        return pending

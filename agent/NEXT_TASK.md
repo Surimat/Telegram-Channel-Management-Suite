@@ -4,35 +4,45 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-03
-**Status:** PHASE 0–11, the polish items, **and the RC/hardening pass are complete
-in code**. Three real bugs were found by an end-to-end RC run and fixed (D-044,
-D-045, D-046) with regression tests; the suite is green at **336 passed**.
+**Status:** PHASE 0–11, the polish items, the RC/hardening pass, **and the
+post-1.0 hardening pass are complete in code**: manager-bot runtime + command
+loop + notification forwarding, and the standalone account permission probe.
+Suite is green at **384 passed**; `ruff` clean; SPA builds.
 
 ---
 
-## Active task: optional hardening (RC is shipped)
+## Active task: commit & push the hardening pass (then optional items)
 
-The RC hardening commit is pushed to `develop` and PR #1
-(https://github.com/Surimat/Telegram-Channel-Management-Suite/pull/1) is
-refreshed and awaiting owner merge. Nothing is blocking. Pick the next item only
-if asked or if it unblocks a real user problem:
+The hardening pass (D-047/D-048/D-049) is written, tested and documented but
+**not yet committed**. First action:
+
+1. `git add -A && git commit` on `develop` (message: manager runtime +
+   notifications + permission probe).
+2. Push `develop` (fast-forward, no force) and refresh PR #1
+   (https://github.com/Surimat/Telegram-Channel-Management-Suite/pull/1).
+
+After that, only optional items remain:
 
 ### Candidates (in rough priority)
 
-1. **Manager-bot runtime** — a command loop + admin whitelist + notification
-   forwarding for the manager bot (today it is only registered from settings).
-   Keep Telegram calls behind the existing providers (D-001).
-2. **Alembic migrations** — replace `create_all` at startup with versioned
+1. **Alembic migrations** — replace `create_all` at startup with versioned
    migrations (do not break the current startup path until migrations are proven).
-3. **Account permission probe** — a standalone "check channel read/post rights"
-   flow using `SessionProvider.resolve_entity` / `get_participants`.
+   This is the last documented hardening gap.
+2. **Channel binding registry/UI** — an explicit channel registry so posts,
+   analytics and permissions share one channel identity.
+3. **Mini App BotFather registration** helper — currently a documented manual
+   deployment step.
 
 ### What exists (do not rebuild)
 
-- PHASE 0–11 complete; `agent/CURRENT_STATE.md` §4 lists every remaining gap.
+- PHASE 0–11 complete; `agent/CURRENT_STATE.md` §2a/§4 lists what is done and the
+  remaining gaps.
+- Manager bot: `backend/app/manager/{bus,service,runtime}.py`, `/api/v1/manager/*`,
+  RU commands, admin whitelist, notification toggles in Settings UI.
+- Permission probe: `PermissionService`, `PermissionCheck`, `/api/v1/permissions/*`,
+  panel in the Sessions page.
 - Portable build is zero-setup: `scripts/fetch_embedded_python.sh` +
   `scripts/build_portable.sh` (D-043).
-- Audience/Sources UI: `frontend/src/views/{SourcesView,AudienceView}.vue` (D-042).
 
 ### Do NOT
 
@@ -40,11 +50,12 @@ if asked or if it unblocks a real user problem:
 - Do not fork the backend; one SPA, one API (D-003 / D-004).
 - Do not bundle session files, `.env`, or secrets into the portable package.
 - Do not commit downloaded runtimes/binaries to git.
+- Do not bypass Telegram FloodWait/privacy/admin limits (D-006).
 
 ### Verification checklist for any change
 
 ```bash
-python -m pytest                 # must stay green (currently 336 passed)
+python -m pytest                 # must stay green (currently 384 passed)
 ruff check backend tests         # must stay clean
 cd frontend && npm run build     # must succeed (outputs to backend/app/static)
 ```

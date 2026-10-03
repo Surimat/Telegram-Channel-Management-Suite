@@ -38,6 +38,7 @@ from backend.app.providers.errors import (
 )
 from backend.app.providers.types import (
     BotIdentity,
+    BotUpdate,
     ManagedBotAccess,
     ManagedBotRef,
 )
@@ -181,3 +182,31 @@ class AiogramBotProvider:
         # Telegram delivers managed-bot creations via updates, not a list
         # endpoint; the application tracks them in its own database.
         return []
+
+    # --- Manager bot runtime (post-1.0 hardening) ----------------------------
+    async def get_updates(
+        self, *, offset: int | None = None, timeout: int = 0
+    ) -> list[BotUpdate]:
+        kwargs: dict[str, object] = {"timeout": timeout}
+        if offset is not None:
+            kwargs["offset"] = offset
+        updates = await self._call(self._bot.get_updates(**kwargs))
+        result: list[BotUpdate] = []
+        for update in updates or []:
+            message = getattr(update, "message", None) or getattr(update, "edited_message", None)
+            if message is None:
+                result.append(BotUpdate(update_id=int(update.update_id), kind="other"))
+                continue
+            chat = getattr(message, "chat", None)
+            sender = getattr(message, "from_user", None)
+            result.append(
+                BotUpdate(
+                    update_id=int(update.update_id),
+                    kind="message",
+                    chat_id=getattr(chat, "id", None),
+                    user_id=getattr(sender, "id", None),
+                    username=str(getattr(sender, "username", "") or ""),
+                    text=str(getattr(message, "text", "") or ""),
+                )
+            )
+        return result

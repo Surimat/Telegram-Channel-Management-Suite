@@ -7,6 +7,37 @@ Dates are ISO-8601.
 
 ## [Unreleased]
 
+### Added — Post-1.0 hardening: manager-bot runtime, notifications, permission probe
+- **Manager-bot runtime** (`backend/app/manager/`): a single asyncio task
+  (`ManagerBotRuntime`) short-polls the manager bot, dispatches an admin-only
+  whitelist of plain-language RU commands (`/start`, `/status`, `/bots`,
+  `/accounts`, `/queue`, `/reactions`, `/audience`, `/invites`, `/backup`), and
+  forwards queued notifications. Off by default in tests
+  (`MANAGER_RUNTIME_ENABLED`); backs off when Telegram is unreachable; never
+  blocks the durable scheduler.
+- **Notification bus** (`backend/app/manager/bus.py`): bounded, non-blocking,
+  never-raising in-process queue. Six owner-toggleable categories
+  (`system`, `telegram`, `reactions`, `audience`, `invites`, `ai`) mapped from
+  event modules. `EventsService` forwards ERROR/CRITICAL automatically; lifecycle
+  events (app start/stop, backup created, AI warnings) publish explicitly.
+  Toggles reuse the existing `settings` table (no new table).
+- **Permission probe** (`PermissionService` + `PermissionCheck` model/repo):
+  checks channel resolvability, member visibility and invite rights for an
+  account, returning an honest plain-language status (`ok`, `partial`,
+  `no_access`, `auth_required`, `admin_required`, `privacy_restricted`,
+  `flood_wait`, `error`). Never bypasses Telegram limits (D-006).
+- **Provider extensions**: `TelegramBotProvider.get_managed_bots` /
+  update+command support; `SessionProvider.invite_to_channel` / permission-probe
+  stubs — implemented for the aiogram, Telethon and fake providers.
+- **API**: `/api/v1/manager/status|notifications`, `/api/v1/permissions/*`.
+- **Frontend**: permission-probe panel in `SessionsView.vue`; notification toggle
+  panel in `SettingsView.vue`; manager-bot card in `SystemView.vue`; new types and
+  methods in `api/client.ts`.
+- **Tests**: `test_manager_bot.py` (26), `test_permission_service.py` (13),
+  `test_hardening_api.py` (9); `conftest.py` gained `permission_client` /
+  `manager_client` fixtures and disables the manager runtime in tests. Suite is
+  now **384 passed**.
+
 ### Fixed — RC hardening
 - **Reactions**: executed posts now use the same category reaction policy as
   simulation, so a real post can never get a forbidden emoji (e.g. 😍/🔥 on a

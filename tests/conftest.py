@@ -24,6 +24,7 @@ def _isolated_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[N
     monkeypatch.setenv("APP_SECRET_KEY", "test-secret-key-value-0123456789")
     monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{tmp_path / 'test.db'}")
     monkeypatch.setenv("SCHEDULER_ENABLED", "false")
+    monkeypatch.setenv("MANAGER_RUNTIME_ENABLED", "false")
     monkeypatch.setenv("LOG_DIR", str(tmp_path / "logs"))
     monkeypatch.setenv("SESSIONS_DIR", str(tmp_path / "sessions"))
     monkeypatch.setenv("BACKUP_DIR", str(tmp_path / "backups"))
@@ -75,7 +76,7 @@ def make_fake_provider_factory():
     return _factory
 
 
-def make_fake_session_factory(scenario=None):
+def make_fake_session_factory(scenario=None, permission=None):
     """Return a session-provider factory building a shared fake provider.
 
     A single provider instance is reused across requests so a multi-step wizard
@@ -84,6 +85,8 @@ def make_fake_session_factory(scenario=None):
     from backend.app.providers.fake_session import FakeAuthScenario, FakeSessionProvider
 
     shared = FakeSessionProvider(scenario=scenario or FakeAuthScenario())
+    if permission is not None:
+        shared.permission = permission
 
     def _factory(*, api_id="", api_hash="", session_path=None, provider_name="auto", settings=None):
         shared._api_id = api_id
@@ -238,6 +241,43 @@ async def session_client() -> AsyncIterator[AsyncClient]:
     app = create_app()
     factory = make_fake_session_factory()
     app.dependency_overrides[get_session_provider_factory] = lambda: factory
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+
+@pytest_asyncio.fixture
+async def permission_client() -> AsyncIterator[AsyncClient]:
+    """API client for the permission probe, wired to a fake with real access."""
+    from backend.app.api.deps import get_session_provider_factory
+    from backend.app.db.session import init_models
+    from backend.app.main import create_app
+    from backend.app.providers.fake_session import FakePermissionScenario
+
+    await init_models()
+    app = create_app()
+    factory = make_fake_session_factory(permission=FakePermissionScenario(can_invite=True))
+    app.dependency_overrides[get_session_provider_factory] = lambda: factory
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+
+@pytest_asyncio.fixture
+async def manager_client() -> AsyncIterator[AsyncClient]:
+    """API client with the manager bot provider wired to the deterministic fake."""
+    from backend.app.api.deps import get_provider_factory
+    from backend.app.db.session import init_models
+    from backend.app.main import create_app
+    from backend.app.providers.fake_bot import FakeTelegramBotProvider
+
+    await init_models()
+    app = create_app()
+
+    def _factory(token, *, provider_name="auto", settings=None):
+        return FakeTelegramBotProvider(token)
+
+    app.dependency_overrides[get_provider_factory] = lambda: _factory
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac

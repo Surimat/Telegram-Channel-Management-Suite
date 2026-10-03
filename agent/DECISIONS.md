@@ -786,3 +786,59 @@ of the box.
 
 ---
 
+## D-047 — 2026-10-03 — Manager-bot runtime is a separate, optional, non-blocking loop — LOCKED
+
+**Decision:** The manager bot is driven by a dedicated `ManagerBotRuntime` asyncio
+task (short polling) rather than by the durable job scheduler. It is enabled by
+`MANAGER_RUNTIME_ENABLED` (default on for normal installs, off in tests), backs
+off exponentially when Telegram is unreachable, and is stopped cleanly on
+shutdown. All Telegram access still goes through the provider abstraction (D-001).
+
+**Why:** The manager bot is an interactive control/notification channel, not
+durable work: it must never contend with the queue that runs audience scans,
+reactions and invites (D-008). Keeping it a separate, best-effort loop means a
+Telegram outage degrades notifications only — the local app, scheduler and UI keep
+working, which is required for a weak/offline Windows machine.
+
+**Consequence:** Startup/shutdown stay fast and never fail because of Telegram.
+There is exactly one manager-bot loop per process; there is no second scheduler.
+
+---
+
+## D-048 — 2026-10-03 — Notifications ride a bounded, never-raising in-process bus; toggles live in `settings` — LOCKED
+
+**Decision:** Notification routing uses a module-level `NotificationBus` (bounded
+`asyncio.Queue`, default 500). `publish()` is non-blocking and swallows
+`QueueFull`/unexpected errors (counting drops instead). Categories
+(`system`, `telegram`, `reactions`, `audience`, `invites`, `ai`) are owner-
+toggleable; toggles are stored as rows in the existing `settings` table, not a new
+table.
+
+**Why:** A notification is best-effort by definition; it must never be able to
+break the operation that emitted it, and it must not add infrastructure. Reusing
+`settings` keeps backup/export/import already complete for these values and keeps
+the schema minimal (no-heavy-infra principle).
+
+**Consequence:** Losing a notification is acceptable and observable (`dropped`);
+losing an operation result never happens. No new dependency or table was added.
+
+---
+
+## D-049 — 2026-10-03 — Permission probe reports honest status, never bypasses limits — LOCKED
+
+**Decision:** `PermissionService.check(account_id, target)` resolves the channel,
+probes member visibility and invite rights through the `SessionProvider`, and
+stores a `PermissionCheck`. It maps provider errors to explicit statuses
+(`ok`, `partial`, `no_access`, `auth_required`, `admin_required`,
+`privacy_restricted`, `flood_wait`, `error`). Errors already translated by the
+provider are surfaced, not swallowed, and no limit is ever circumvented (D-006).
+
+**Why:** The owner must know *before* an invite run whether it can work, and a
+`FloodWait` must show a wait time, not be retried in a loop. A single honest
+pre-flight check prevents launching a mass operation that would fail midway.
+
+**Consequence:** The Sessions page and `/api/v1/permissions/*` show the true state
+and a "how to fix" hint. Results never contain api_hash, phone or session content.
+
+---
+

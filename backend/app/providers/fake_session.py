@@ -26,6 +26,7 @@ from backend.app.providers.errors import (
 from backend.app.providers.types import (
     EntityRef,
     ParticipantPage,
+    PermissionReport,
     SendCodeResult,
     SignInResult,
     UserIdentity,
@@ -105,6 +106,28 @@ class FakeInviteScenario:
     record: list[int] = field(default_factory=list)
 
 
+@dataclass
+class FakePermissionScenario:
+    """Controls how the fake reacts to :meth:`probe_permissions` (post-1.0).
+
+    Every flag maps to a real outcome so the whole permission UI/logic can be
+    tested without Telegram. ``resolve_error`` simulates "channel not found";
+    ``participants_hidden`` simulates a channel whose member list Telegram hides.
+    """
+
+    # When set, resolving the channel raises this (e.g. EntityNotFoundError).
+    resolve_error: Exception | None = None
+    authorized: bool = True
+    participants_hidden: bool = False
+    can_invite: bool = False
+    participants_count: int | None = 1234
+    title: str = "Fake Channel"
+    username: str = "fakechannel"
+    kind: str = "channel"
+    # When set, the participants step raises this (FloodWait/privacy).
+    participants_error: Exception | None = None
+
+
 def make_fake_users(count: int, *, start_id: int = 1) -> list[UserIdentity]:
     """Build a deterministic list of fake users for scan tests."""
     users: list[UserIdentity] = []
@@ -139,6 +162,7 @@ class FakeSessionProvider:
         scenario: FakeAuthScenario | None = None,
         audience: FakeAudienceScenario | None = None,
         invite: FakeInviteScenario | None = None,
+        permission: FakePermissionScenario | None = None,
     ) -> None:
         self._api_id = api_id
         self._api_hash = api_hash
@@ -146,6 +170,7 @@ class FakeSessionProvider:
         self.scenario = scenario or FakeAuthScenario()
         self.audience = audience or FakeAudienceScenario()
         self.invite = invite or FakeInviteScenario()
+        self.permission = permission or FakePermissionScenario()
         self.connected = False
         self.closed = True
         self.export_calls = 0
@@ -281,6 +306,52 @@ class FakeSessionProvider:
                 raise scenario.default_error or FloodWaitError(30)
         return None
 
+    # --- permission probe (post-1.0 hardening) -------------------------------
+    async def probe_permissions(self, entity: str | int) -> PermissionReport:
+        p = self.permission
+        if not p.authorized or not self.scenario.authorized:
+            return PermissionReport(
+                status="auth_required",
+                message="Аккаунт не авторизован.",
+                how_to_fix="Авторизуйте аккаунт в разделе «Аккаунты».",
+            )
+        if p.resolve_error is not None:
+            raise p.resolve_error
+        report = PermissionReport(
+            status="privacy_restricted",
+            authorized=True,
+            session_ok=True,
+            channel_found=True,
+            can_read_info=True,
+            channel_id=abs(hash(str(entity))) % 10**10,
+            channel_title=p.title,
+            channel_username=p.username,
+            channel_kind=p.kind,
+            participants_count=p.participants_count,
+        )
+        if p.participants_error is not None:
+            raise p.participants_error
+        report.can_read_participants = not p.participants_hidden
+        report.can_invite = p.can_invite
+        if report.can_invite:
+            report.status = "ok"
+            report.message = "Канал доступен, приглашения разрешены."
+        elif report.can_read_participants:
+            report.status = "partial"
+            report.message = (
+                "Канал доступен и список участников виден, но приглашать "
+                "может только администратор."
+            )
+            report.how_to_fix = "Выдайте аккаунту права администратора с правом приглашать."
+        else:
+            report.status = "privacy_restricted"
+            report.message = (
+                "Канал доступен, но Telegram не предоставляет список участников "
+                "этому аккаунту."
+            )
+            report.how_to_fix = "Используйте публичный источник или аккаунт с доступом."
+        return report
+
 
 def fake_provider_factory(scenario: FakeAuthScenario | None = None):
     """Return a factory that always builds a fake provider with ``scenario``.
@@ -324,6 +395,8 @@ __all__ = [
     "DEFAULT_PASSWORD",
     "FakeAudienceScenario",
     "FakeAuthScenario",
+    "FakeInviteScenario",
+    "FakePermissionScenario",
     "FakeSessionProvider",
     "fake_audience_factory",
     "fake_provider_factory",

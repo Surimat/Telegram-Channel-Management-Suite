@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { api, type SessionSummary, type UserSession } from '@/api/client'
+import { api, type PermissionResult, type SessionSummary, type UserSession } from '@/api/client'
 
 const accounts = ref<UserSession[]>([])
 const summary = ref<SessionSummary | null>(null)
@@ -25,6 +25,55 @@ const passwordInput = ref('')
 // Import state
 const showImport = ref(false)
 const importForm = ref({ api_id: '', api_hash: '', phone: '', session_file_path: '' })
+
+// Permission probe (post-1.0 hardening)
+const permAccountId = ref('')
+const permTarget = ref('')
+const permResult = ref<PermissionResult | null>(null)
+const permHistory = ref<PermissionResult[]>([])
+const permBusy = ref(false)
+const permError = ref('')
+
+const PERM_STATUS_LABEL: Record<string, string> = {
+  ok: 'Всё доступно',
+  partial: 'Частичный доступ',
+  no_access: 'Нет доступа',
+  auth_required: 'Требуется авторизация',
+  admin_required: 'Нужны права администратора',
+  privacy_restricted: 'Данные скрыты Telegram',
+  flood_wait: 'Telegram просит подождать',
+  error: 'Ошибка проверки',
+}
+
+function permStatusLabel(s: string): string {
+  return permResult.value?.status_label || PERM_STATUS_LABEL[s] || s
+}
+
+async function loadPermissionHistory() {
+  try {
+    const data = await api.permissionHistory(10)
+    permHistory.value = data.items
+  } catch {
+    permHistory.value = []
+  }
+}
+
+async function runPermissionCheck() {
+  permBusy.value = true
+  permError.value = ''
+  permResult.value = null
+  try {
+    permResult.value = await api.permissionCheck({
+      account_id: permAccountId.value,
+      target: permTarget.value,
+    })
+    await loadPermissionHistory()
+  } catch (e) {
+    permError.value = friendlyError(e)
+  } finally {
+    permBusy.value = false
+  }
+}
 
 const STATUS_LABEL: Record<string, string> = {
   online: 'Авторизован',
@@ -188,7 +237,10 @@ const remove = (a: UserSession) => {
   return withAccount(a.id, () => api.removeSession(a.id))
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  loadPermissionHistory()
+})
 </script>
 
 <template>
@@ -380,5 +432,74 @@ onMounted(load)
         </tr>
       </tbody>
     </table>
+
+    <!-- Permission probe (post-1.0 hardening) -->
+    <div class="card" style="margin-top: 20px">
+      <h3>Проверка прав на канал</h3>
+      <p class="muted">
+        Перед приглашениями проверьте, что у аккаунта действительно есть доступ к целевому
+        каналу: найдётся ли канал, виден ли список участников и можно ли приглашать.
+      </p>
+      <label class="field">
+        <span>Аккаунт</span>
+        <select v-model="permAccountId">
+          <option value="">— выберите аккаунт —</option>
+          <option v-for="a in accounts" :key="a.id" :value="a.id">
+            {{ a.username ? '@' + a.username : a.display_name || a.id }}
+          </option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Целевой канал</span>
+        <input v-model="permTarget" placeholder="@my_channel или ссылка" />
+      </label>
+      <div v-if="permError" class="error-text">{{ permError }}</div>
+      <button
+        class="primary"
+        :disabled="permBusy || !permAccountId || !permTarget"
+        @click="runPermissionCheck"
+      >
+        {{ permBusy ? 'Проверяем…' : 'Проверить доступ' }}
+      </button>
+
+      <div v-if="permResult" style="margin-top: 16px">
+        <p>
+          <span
+            class="status-dot"
+            :class="
+              permResult.status === 'ok'
+                ? 'status-ok'
+                : permResult.status === 'error' || permResult.status === 'no_access'
+                  ? 'status-error'
+                  : 'status-warning'
+            "
+          ></span>
+          <strong>{{ permResult.status_label || permStatusLabel(permResult.status) }}</strong>
+        </p>
+        <p v-if="permResult.message">{{ permResult.message }}</p>
+        <p v-if="permResult.how_to_fix" class="muted">
+          Как исправить: {{ permResult.how_to_fix }}
+        </p>
+        <ul class="muted">
+          <li>Канал найден: {{ permResult.channel_found ? 'да' : 'нет' }}</li>
+          <li>Список участников доступен: {{ permResult.can_read_participants ? 'да' : 'нет' }}</li>
+          <li>Можно приглашать: {{ permResult.can_invite ? 'да' : 'нет' }}</li>
+          <li v-if="permResult.participants_count !== null">
+            Участников: {{ permResult.participants_count }}
+          </li>
+          <li v-if="permResult.retry_after">Подождать: {{ permResult.retry_after }} сек.</li>
+        </ul>
+      </div>
+
+      <div v-if="permHistory.length" style="margin-top: 12px">
+        <h4>Последние проверки</h4>
+        <ul class="muted">
+          <li v-for="c in permHistory" :key="c.check_id ?? c.target">
+            {{ c.target_title || c.target }} — {{ c.status_label || permStatusLabel(c.status) }}
+            <span v-if="c.checked_at"> · {{ new Date(c.checked_at).toLocaleString() }}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
   </div>
 </template>

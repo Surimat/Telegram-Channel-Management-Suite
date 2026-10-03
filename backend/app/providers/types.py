@@ -160,3 +160,53 @@ class SessionFileInfo:
     exists: bool
     size_bytes: int = 0
     is_readable: bool = False
+
+
+# --- Manager bot runtime (post-1.0 hardening) --------------------------------
+
+
+@dataclass(slots=True)
+class BotUpdate:
+    """One incoming update received by the manager bot.
+
+    Deliberately minimal: only what the command loop needs. No library types,
+    no chat history, no credentials (D-001).
+    """
+
+    update_id: int
+    kind: str = "message"  # "message" | "other"
+    chat_id: int | None = None
+    user_id: int | None = None
+    username: str = ""
+    text: str = ""
+
+
+# --- Account permission probe (post-1.0 hardening) ---------------------------
+
+
+@dataclass(slots=True)
+class PermissionReport:
+    """Result of probing an account's real access to a channel.
+
+    Every flag states what the Telegram API *actually* confirmed; nothing is
+    assumed. ``status`` is one of the machine codes in
+    :class:`backend.app.services.permission_service.PermissionStatus`.
+    """
+
+    status: str
+    channel_found: bool = False
+    authorized: bool = False
+    can_read_info: bool = False
+    can_read_participants: bool = False
+    can_invite: bool = False
+    session_ok: bool = False
+
+    channel_id: int | None = None
+    channel_title: str = ""
+    channel_username: str = ""
+    channel_kind: str = ""
+    participants_count: int | None = None
+
+    message: str = ""
+    how_to_fix: str = ""
+    retry_after: int | None = None

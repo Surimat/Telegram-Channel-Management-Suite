@@ -91,6 +91,13 @@ class Settings(BaseSettings):
     scheduler_enabled: bool = True
     scheduler_timezone: str = "UTC"
 
+    # --- Manager bot runtime (post-1.0 hardening) ---
+    # Run the short-poll command loop + notification forwarding. Off by default
+    # in tests (see conftest); on in normal installs when a manager bot exists.
+    manager_runtime_enabled: bool = True
+    # Seconds between manager-bot polls (short polling; keeps CPU low).
+    manager_runtime_poll_interval: float = 3.0
+
     # --- Backup / Restore (PHASE 10) ---
     # Where generated backups are written (git-ignored, outside the DB).
     backup_dir: str = "./backups"

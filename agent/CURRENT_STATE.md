@@ -4,15 +4,15 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-03
-**Current phase:** **Release-candidate / hardening pass — COMPLETE and pushed.**
-Full end-to-end RC verification against a live server (offline/fake providers)
-was performed and three real bugs were fixed (reaction policy on execution,
-invite stuck-task recovery, sad-news classification). `develop` is pushed
-(`e65a374`) and PR #1 is refreshed.
-**Next phase:** Optional hardening only — manager-bot command loop / notifications,
-Alembic migrations, account permission probe.
-**Repository status:** `develop` carries PHASE 0–11 + polish + RC fixes and is
-**in sync with `origin/develop`**; `main` only via pull request.
+**Current phase:** **Post-1.0 hardening pass — manager-bot runtime + notifications
++ account permission probe — COMPLETE in code (not yet pushed).**
+Suite is green at **384 passed**; `ruff` clean; SPA builds. This closes the three
+"optional hardening" candidates from the RC note: manager-bot command loop,
+notification forwarding, and the standalone account permission probe (Alembic
+migrations remain the only documented gap).
+**Next phase:** Alembic migrations (optional) or channel-binding UI.
+**Repository status:** `develop` has uncommitted hardening work on top of
+`ba30578`; `main` only via pull request.
 **Branch:** `develop` (tracks `origin/develop`); `main` is untouched and only ever updated via pull request.
 
 ---
@@ -381,7 +381,7 @@ Layered architecture: **core → db/models → db/repositories → services → 
   durable jobs, execution via the provider with FloodWait handling, and startup
   recovery — verified live in offline mode (add bot → enable → ingest → job
   created) and covered by 48 tests.
-- `ruff check backend tests` → clean. `pytest` → **336 passed** (after the RC regression tests).
+- `ruff check backend tests` → clean. `pytest` → **384 passed** (after the hardening tests).
 - Frontend `npm run build` → outputs to `backend/app/static/` successfully
   (`vue-tsc` clean).
 - **Sessions (PHASE 4)**: guided auth wizard (start → code → 2FA), `.session`
@@ -422,25 +422,63 @@ Layered architecture: **core → db/models → db/repositories → services → 
 - Channel binding: there is no dedicated channel registry/binding UI yet, though
   posts carry `channel_id`/`channel_username` and analytics aggregate by channel
   indirectly.
-- Account permission probe (read/post rights on a channel) — the SessionProvider
-  exposes `resolve_entity`/`get_participants`/`invite_to_channel`, and invites now
-  use `invite_to_channel`, but there is no standalone "check permissions" flow.
-- Manager-bot runtime: the manager bot is registered from settings, but there is
-  no command loop / admin whitelist / notification forwarding yet.
-- Alembic migrations (currently `create_all` at startup).
+- Alembic migrations (currently `create_all` at startup) — the last documented
+  hardening gap.
 - Mini App: BotFather Web App registration and a public HTTPS URL are the owner's
   deployment step (documented; not automated). The Mini App is off by default.
-- Optional hardening only: Alembic migrations, manager-bot command loop /
-  notifications. The portable build now stages the embedded Python automatically
-  (`scripts/fetch_embedded_python.sh`, D-043).
+- ~~Account permission probe~~ — **done** (post-1.0 hardening, see §2a).
+- ~~Manager-bot runtime / command loop / notifications~~ — **done** (post-1.0
+  hardening, see §2a).
+
+## 2a. Post-1.0 hardening (2026-10-03) — complete in code
+
+**Account permission probe.**
+- `backend/app/providers/session_base.py` — `SessionProvider` gained
+  `probe_permissions(...)`; `providers/types.py` gained `PermissionReport`;
+  implemented in `telethon_session.py` and the fake (`FakePermissionScenario`).
+- `backend/app/db/models/permission.py` (`PermissionCheck`) +
+  `db/repositories/permissions.py`.
+- `backend/app/services/permission_service.py` — `MODULE="permissions"`; maps
+  provider errors to `ok|partial|no_access|auth_required|admin_required|
+  privacy_restricted|flood_wait|error`; stores each check; `latest()`/`history()`.
+- `backend/app/api/schemas/permissions.py`, `api/v1/permissions.py`,
+  `api/deps.py::get_permission_service`, router registered in `v1/router.py`.
+- Frontend: permission-probe panel in `SessionsView.vue`.
+
+**Manager-bot runtime + notifications.**
+- `backend/app/manager/bus.py` — bounded, non-blocking `NotificationBus`; six
+  categories (`system|telegram|reactions|audience|invites|ai`); `MODULE_TO_CATEGORY`,
+  `category_for_module`, `publish`, `reset_notification_bus`.
+- `backend/app/manager/service.py` — `ManagerBotService`: admin whitelist
+  (`MANAGER_BOT_ADMIN_IDS`), RU commands, provider construction,
+  `deliver_pending`, `notification_settings`/`update_notification_settings`
+  (stored in the existing `settings` table).
+- `backend/app/manager/runtime.py` — `ManagerBotRuntime` (one asyncio task, short
+  polling, exponential backoff, graceful stop).
+- `backend/app/api/schemas/manager.py`, `api/v1/manager.py` (`/manager/status`,
+  `/manager/notifications`), `api/deps.py` deps, router registered.
+- `backend/app/main.py` — starts/stops the runtime in lifespan (gated by
+  `MANAGER_RUNTIME_ENABLED`); publishes start/stop notifications.
+- Provider extensions: `TelegramBotProvider.get_managed_bots`, update/command
+  support (aiogram + fake). Notifications wired into `events_service`,
+  `ai_service`, `backup_service`.
+- Frontend: notification toggles in `SettingsView.vue`; manager card in
+  `SystemView.vue`; types/methods in `api/client.ts`.
+- Config: `manager_runtime_enabled`, `manager_runtime_poll_interval`.
+- Tests: `tests/test_manager_bot.py` (26), `tests/test_permission_service.py` (13),
+  `tests/test_hardening_api.py` (9); `conftest.py` gained `permission_client` /
+  `manager_client` fixtures and sets `MANAGER_RUNTIME_ENABLED=false`.
+
+Decisions: D-047, D-048, D-049.
 
 ## 5. Next action
 
-The planned roadmap (PHASE 0–11) and the first polish items are **complete**,
-and the RC/hardening pass has fixed three real bugs. Remaining RC steps:
+The post-1.0 hardening pass is **complete in code** (manager-bot runtime + command
+loop + notifications; standalone permission probe). Remaining, all optional:
 
-1. Push `develop` and refresh PR #1 (title still says "PHASE 0–3").
-2. Optional hardening: manager-bot command loop / notifications; Alembic migrations.
+1. Commit and push this hardening pass on `develop`; refresh PR #1.
+2. Alembic migrations (replace `create_all`) — the last documented gap.
+3. Channel-binding registry/UI.
 
 See `agent/NEXT_TASK.md`. Do **not** re-open PHASE 8–11 — they are complete.
 

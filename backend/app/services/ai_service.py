@@ -403,6 +403,7 @@ class AiService:
             how_to_fix=fix,
             operation="model_check",
             status="warning",
+            notify=True,
         )
 
     # ======================================================================

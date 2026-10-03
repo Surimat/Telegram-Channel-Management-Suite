@@ -159,6 +159,7 @@ class BackupService:
             operation="backup.create",
             status="ok",
             details=f"file={filename}; sessions={bool(include_sessions)}",
+            notify=True,
         )
         return self._entry_for(target)
 

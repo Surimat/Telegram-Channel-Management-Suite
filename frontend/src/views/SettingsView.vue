@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { api, type Setting } from '@/api/client'
+import { api, type NotificationSettings, type Setting } from '@/api/client'
 
 const settings = ref<Setting[]>([])
 const loading = ref(true)
 const error = ref('')
 const saved = ref(false)
+
+const notifications = ref<NotificationSettings | null>(null)
+const notificationsSaved = ref(false)
+const notificationsError = ref('')
 
 async function load() {
   loading.value = true
@@ -16,6 +20,11 @@ async function load() {
     error.value = e instanceof Error ? e.message : 'Ошибка загрузки настроек.'
   } finally {
     loading.value = false
+  }
+  try {
+    notifications.value = await api.managerNotifications()
+  } catch {
+    notifications.value = null
   }
 }
 
@@ -31,6 +40,25 @@ async function save() {
     saved.value = true
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Не удалось сохранить настройки.'
+  }
+}
+
+async function saveNotifications() {
+  if (!notifications.value) return
+  notificationsSaved.value = false
+  notificationsError.value = ''
+  const categories: Record<string, boolean> = {}
+  for (const c of notifications.value.categories) categories[c.key] = c.enabled
+  try {
+    notifications.value = await api.managerUpdateNotifications({
+      enabled: notifications.value.enabled,
+      categories,
+    })
+    notificationsSaved.value = true
+  } catch (e) {
+    notificationsSaved.value = false
+    notificationsError.value =
+      e instanceof Error ? e.message : 'Не удалось сохранить уведомления.'
   }
 }
 
@@ -79,6 +107,34 @@ onMounted(load)
       <p style="margin-top: 16px">
         <button class="primary" @click="save">Сохранить</button>
         <span v-if="saved" class="muted" style="margin-left: 12px">Сохранено</span>
+      </p>
+    </div>
+
+    <div v-if="notifications" class="card" style="margin-top: 20px">
+      <h3>Уведомления управляющего бота</h3>
+      <p class="muted">
+        Управляющий бот может присылать важные события в Telegram. Включайте только нужные
+        категории, чтобы не получать лишние сообщения.
+      </p>
+
+      <label class="toggle-row">
+        <input v-model="notifications.enabled" type="checkbox" />
+        <span><strong>Присылать уведомления</strong> — общий выключатель</span>
+      </label>
+
+      <div v-if="notifications.enabled" class="notif-grid">
+        <label v-for="c in notifications.categories" :key="c.key" class="toggle-row">
+          <input v-model="c.enabled" type="checkbox" />
+          <span>{{ c.label }}</span>
+        </label>
+      </div>
+
+      <p style="margin-top: 16px">
+        <button class="primary" @click="saveNotifications">Сохранить уведомления</button>
+        <span v-if="notificationsSaved" class="muted" style="margin-left: 12px">Сохранено</span>
+        <span v-if="notificationsError" class="error-text" style="margin-left: 12px">
+          {{ notificationsError }}
+        </span>
       </p>
     </div>
   </div>

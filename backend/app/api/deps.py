@@ -11,6 +11,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.session import get_session
+from backend.app.manager.service import ManagerBotService
 from backend.app.miniapp.service import MiniAppService
 from backend.app.providers.registry import build_bot_provider, build_session_provider
 from backend.app.services.analytics_service import AnalyticsService
@@ -18,6 +19,7 @@ from backend.app.services.audience_service import AudienceService
 from backend.app.services.backup_service import BackupService
 from backend.app.services.bot_service import BotService, ProviderFactory
 from backend.app.services.invite_service import InviteService
+from backend.app.services.permission_service import PermissionService
 from backend.app.services.reaction_service import ReactionService
 from backend.app.services.session_service import SessionProviderFactory, SessionService
 
@@ -77,3 +79,17 @@ def get_miniapp_service(session: AsyncSession = Depends(get_session)) -> MiniApp
 
 def get_backup_service(session: AsyncSession = Depends(get_session)) -> BackupService:
     return BackupService(session)
+
+
+def get_permission_service(
+    session: AsyncSession = Depends(get_session),
+    provider_factory: SessionProviderFactory = Depends(get_session_provider_factory),
+) -> PermissionService:
+    return PermissionService(session, session_provider_factory=provider_factory)
+
+
+def get_manager_service(
+    session: AsyncSession = Depends(get_session),
+    provider_factory: ProviderFactory = Depends(get_provider_factory),
+) -> ManagerBotService:
+    return ManagerBotService(session, provider_factory=provider_factory)

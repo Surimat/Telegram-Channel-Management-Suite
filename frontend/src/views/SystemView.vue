@@ -1,13 +1,21 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
+import { api, type ManagerStatus } from '@/api/client'
 import { useAppStore } from '@/stores/app'
 
 const store = useAppStore()
 const { status, loading } = storeToRefs(store)
 
-onMounted(() => {
+const manager = ref<ManagerStatus | null>(null)
+
+onMounted(async () => {
   store.loadStatus()
+  try {
+    manager.value = await api.managerStatus()
+  } catch {
+    manager.value = null
+  }
 })
 
 function statusLabel(s: string) {
@@ -46,6 +54,27 @@ function statusLabel(s: string) {
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <div v-if="manager" class="card" style="margin-top: 20px">
+      <h3>Управляющий бот</h3>
+      <p>
+        <span
+          class="badge"
+          :class="manager.connected ? 'ok' : 'warning'"
+        >{{ manager.status_label }}</span>
+      </p>
+      <ul class="muted">
+        <li>Бот: {{ manager.username ? '@' + manager.username : 'не указан' }}</li>
+        <li>Владельцев (админов): {{ manager.admin_count }}</li>
+        <li>Уведомления: {{ manager.notifications_enabled ? 'включены' : 'выключены' }}</li>
+        <li v-if="manager.pending_notifications">
+          В ожидании: {{ manager.pending_notifications }}
+        </li>
+      </ul>
+      <p v-if="!manager.connected && manager.how_to_fix" class="muted">
+        Как исправить: {{ manager.how_to_fix }}
+      </p>
     </div>
   </div>
 </template>

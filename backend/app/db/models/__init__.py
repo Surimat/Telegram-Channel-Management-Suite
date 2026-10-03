@@ -23,6 +23,7 @@ from backend.app.db.models.invite import (
     InviteTask,
 )
 from backend.app.db.models.job import Job, JobStatus
+from backend.app.db.models.permission import PermissionCheck
 from backend.app.db.models.post import Post, PostStatus
 from backend.app.db.models.reaction import (
     DelayPresetDB,
@@ -54,6 +55,7 @@ __all__ = [
     "Job",
     "JobStatus",
     "MemberStatus",
+    "PermissionCheck",
     "Post",
     "PostStatus",
     "ReactionJob",

@@ -385,6 +385,39 @@ Safety notes:
 
 ---
 
+## Permission probe (post-1.0 hardening)
+
+Checks whether a user account really has access to a target channel before an
+invite run: is the channel resolvable, are members readable, can we invite?
+The result is stored and shown in plain language; the status is one of
+`ok | partial | no_access | auth_required | admin_required | privacy_restricted |
+flood_wait | error`. Responses never expose an api_hash, phone or session content.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/api/v1/permissions/check` | probe one account against a channel (`account_id`, `target`) |
+| GET | `/api/v1/permissions/latest` | most recent check (or `null`) |
+| GET | `/api/v1/permissions/history?limit=` | recent checks, newest first |
+
+---
+
+## Manager bot runtime (post-1.0 hardening)
+
+The manager bot can be driven from Telegram (an admin whitelist) and can forward
+significant events to the owner. Only the username and health are exposed; tokens
+are never returned.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/manager/status` | connected/runtime state, admin count, pending notifications |
+| GET | `/api/v1/manager/notifications` | master switch + per-category toggles |
+| PUT | `/api/v1/manager/notifications` | update toggles (`enabled`, `categories`) |
+
+Admin IDs come from `MANAGER_BOT_ADMIN_IDS` (comma-separated). The runtime polls
+the manager bot only while the app runs and never blocks the durable scheduler.
+
+---
+
 ## Versioning
 
 The API is versioned (`/api/v1`). Breaking changes go to a new version path.

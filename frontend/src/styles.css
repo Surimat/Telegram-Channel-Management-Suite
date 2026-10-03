@@ -411,3 +411,23 @@ h4 {
     padding: 16px 14px;
   }
 }
+
+/* Notification toggles (Settings). */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  cursor: pointer;
+}
+
+.toggle-row input {
+  width: auto;
+}
+
+.notif-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 4px 20px;
+  margin-top: 8px;
+}

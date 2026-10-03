@@ -435,3 +435,37 @@ One image, one process — the same codebase as local/portable (D-004):
 - New classification backends behind the same classifier interface.
 - New reaction strategies behind the planner interface.
 - New deployment targets without changing the backend.
+
+---
+
+## 14. Hardening subsystems (post-1.0)
+
+Committed after the PHASE 0–11 roadmap and RC pass, keeping every Telegram call
+behind the existing providers (D-001).
+
+**Permission probe.** `PermissionService` asks a user account (through
+`SessionProvider`) to resolve a channel, read its participants and confirm invite
+rights, then stores a `PermissionCheck` row. Every outcome — including
+`flood_wait`, `admin_required`, `privacy_restricted` — is surfaced as an honest,
+plain-language status (never bypassed, D-006). Exposed at `/api/v1/permissions/*`
+and in the Sessions page.
+
+**Manager-bot runtime + notifications.** `backend/app/manager/` adds:
+
+- `bus.py` — an in-process, bounded, non-blocking notification bus. Publishing
+  never raises, so a notification problem can never break a task. Categories
+  (`system`, `telegram`, `reactions`, `audience`, `invites`, `ai`) map from event
+  modules.
+- `service.py` — `ManagerBotService`: an admin whitelist (from
+  `MANAGER_BOT_ADMIN_IDS`), plain-language RU commands, provider construction from
+  the stored manager bot, and delivery of pending notifications.
+- `runtime.py` — `ManagerBotRuntime`: one asyncio task that short-polls the
+  manager bot, dispatches authorized commands, and flushes notifications. It is
+  off by default in tests, backs off when Telegram is unreachable, and never
+  blocks the durable scheduler.
+
+`EventsService` publishes ERROR/CRITICAL events to the bus automatically, and
+lifecycle events (app start/stop, backup created, AI warnings) publish explicitly.
+Notification toggles reuse the existing `settings` table — no new storage.
+
+---
