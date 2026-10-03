@@ -223,3 +223,38 @@ async def test_unauthorized_provider_reports_auth_required() -> None:
         await db.flush()
         result = await svc.check(account.id, "@chan")
         assert result.status == STATUS_AUTH_REQUIRED
+
+
+async def test_registry_channel_supplies_target_and_is_recorded() -> None:
+    """A probe can target a registered channel instead of typing it (D-052)."""
+    from backend.app.db.models.channel import Channel
+    from backend.app.db.repositories.channels import ChannelRepository
+
+    provider = FakeSessionProvider(permission=FakePermissionScenario(can_invite=True))
+    async with session_scope() as db:
+        svc = PermissionService(db, session_provider_factory=factory_for(provider))
+        account_id = await _make_account(svc._session_service())
+        channel = await ChannelRepository(db).add(
+            Channel(reference="@registered", title="Registered", username="registered")
+        )
+        result = await svc.check(account_id, "", registry_channel_id=channel.id)
+        assert result.status == STATUS_OK
+        assert result.target == "@registered"
+        assert result.registry_channel_id == channel.id
+        channel_id = channel.id
+
+    # The link survives a reload (history is per-channel retrievable).
+    async with session_scope() as db:
+        latest = await PermissionService(db).latest()
+        assert latest is not None
+        assert latest.registry_channel_id == channel_id
+
+
+async def test_registry_channel_missing_is_a_friendly_error() -> None:
+    provider = FakeSessionProvider(permission=FakePermissionScenario())
+    async with session_scope() as db:
+        svc = PermissionService(db, session_provider_factory=factory_for(provider))
+        account_id = await _make_account(svc._session_service())
+        with pytest.raises(PermissionServiceError) as excinfo:
+            await svc.check(account_id, "", registry_channel_id="does-not-exist")
+        assert excinfo.value.status_code == 404

@@ -9,7 +9,15 @@ from pydantic import BaseModel, Field
 
 class PermissionCheckIn(BaseModel):
     account_id: str = Field(description="ID пользовательского аккаунта.")
-    target: str = Field(description="Канал, группа или пользователь (@name, ссылка или ID).")
+    target: str = Field(
+        default="",
+        description="Канал, группа или пользователь (@name, ссылка или ID). "
+        "Можно не указывать, если задан channel_id.",
+    )
+    channel_id: str = Field(
+        default="",
+        description="Канал из общего реестра «Каналы» (подставит цель проверки).",
+    )
 
 
 class PermissionResultOut(BaseModel):
@@ -19,6 +27,7 @@ class PermissionResultOut(BaseModel):
     account_label: str
     target: str
     target_title: str = ""
+    registry_channel_id: str = ""
     channel_found: bool = False
     authorized: bool = False
     can_read_info: bool = False
@@ -44,6 +53,7 @@ class PermissionResultOut(BaseModel):
             account_label=r.account_label,  # type: ignore[attr-defined]
             target=r.target,  # type: ignore[attr-defined]
             target_title=r.target_title,  # type: ignore[attr-defined]
+            registry_channel_id=r.registry_channel_id,  # type: ignore[attr-defined]
             channel_found=r.channel_found,  # type: ignore[attr-defined]
             authorized=r.authorized,  # type: ignore[attr-defined]
             can_read_info=r.can_read_info,  # type: ignore[attr-defined]

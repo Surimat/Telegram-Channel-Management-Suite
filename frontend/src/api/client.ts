@@ -866,6 +866,7 @@ export interface PermissionResult {
   account_label: string
   target: string
   target_title: string
+  registry_channel_id: string
   channel_found: boolean
   authorized: boolean
   can_read_info: boolean
@@ -1318,7 +1319,7 @@ export const api = {
   configExportUrl: () => '/api/v1/backup/config/export',
 
   // Post-1.0 hardening: permission probe
-  permissionCheck: (payload: { account_id: string; target: string }) =>
+  permissionCheck: (payload: { account_id: string; target?: string; channel_id?: string }) =>
     request<PermissionResult>('/api/v1/permissions/check', {
       method: 'POST',
       body: JSON.stringify(payload),

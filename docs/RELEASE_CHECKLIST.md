@@ -6,7 +6,7 @@ repository root unless stated otherwise.
 ## 1. Code quality gates (must pass)
 
 ```bash
-python -m pytest                 # full suite — currently 411 passed
+python -m pytest                 # full suite — currently 413 passed
 ruff check backend tests         # must be clean
 cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 ```

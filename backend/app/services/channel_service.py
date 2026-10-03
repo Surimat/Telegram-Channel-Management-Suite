@@ -270,7 +270,9 @@ class ChannelService:
             session_provider_factory=self._session_provider_factory,
         )
         try:
-            result = await probe.check(account_id, channel.reference)
+            result = await probe.check(
+                account_id, channel.reference, registry_channel_id=channel_id
+            )
         except PermissionServiceError as exc:
             raise ChannelServiceError(exc.message, how_to_fix=exc.how_to_fix,
                                       status_code=exc.status_code) from exc

@@ -918,7 +918,8 @@ default would show up as model/migration drift) and preserves backward
 compatibility for rows created before the registry existed.
 
 **Consequence:** Migration history is baseline (`0191baf5265f`) → registry delta
-(`561f0631d045`) → registry links (`e3b5890e407e`). Tests cover the v1.0.0 →
-develop upgrade with existing rows and the registry-link API paths. A numeric
-Telegram chat id on a post remains the transport identity; the registry link is
-the stable owner-selected identity.
+(`561f0631d045`) → registry links for posts/sources (`e3b5890e407e`) → permission
+link (`6816b29afc76`). Tests cover the v1.0.0 → develop upgrade with existing rows
+and the registry-link API paths (posts, sources, invites, permission probe). A
+numeric Telegram chat id on a post remains the transport identity; the registry
+link is the stable owner-selected identity.

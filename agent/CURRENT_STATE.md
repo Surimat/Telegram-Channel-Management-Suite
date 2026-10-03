@@ -10,7 +10,7 @@ hardening work: (1) **versioned Alembic migrations** replace `create_all` at
 startup; (2) a **shared Channel Registry** (`channels` table + `/api/v1/channels`
 + RU-first "Каналы" page) so reactions/audience/invites/analytics share one
 channel identity, with the invite manager resolving its target from `channel_id`.
-All gates pass: `pytest` **411 passed**, `ruff` clean, `vue-tsc` + `npm run build`
+All gates pass: `pytest` **413 passed**, `ruff` clean, `vue-tsc` + `npm run build`
 clean.
 **Next phase:** optional only — wire the remaining modules (reactions/audience/
 analytics) to the registry, Mini App BotFather registration helper. Development
@@ -385,7 +385,7 @@ Layered architecture: **core → db/models → db/repositories → services → 
   durable jobs, execution via the provider with FloodWait handling, and startup
   recovery — verified live in offline mode (add bot → enable → ingest → job
   created) and covered by 48 tests.
-- `ruff check backend tests` → clean. `pytest` → **411 passed** (after the hardening tests).
+- `ruff check backend tests` → clean. `pytest` → **413 passed** (after the hardening tests).
 - Frontend `npm run build` → outputs to `backend/app/static/` successfully
   (`vue-tsc` clean).
 - **Sessions (PHASE 4)**: guided auth wizard (start → code → 2FA), `.session`
@@ -507,10 +507,14 @@ Decisions: D-047, D-048, D-049.
   `audience_sources.channel_id` link to the registry; the API resolves the
   channel's reference/username from a chosen registry id (friendly 404 if
   unknown). Migration `e3b5890e407e`.
+- Permission probe: `permission_checks.registry_channel_id` links a probe to the
+  chosen registry channel; `POST /api/v1/permissions/check` accepts `channel_id`
+  and `ChannelService.verify` links its probe. Migration `6816b29afc76`.
 - Frontend: RU-first "Каналы" page (`ChannelsView.vue`, nav + route), channel
-  types/methods in `api/client.ts`; invite form, audience source form and the
-  reactions simulation/ingest panel each gained a channel picker.
-- Tests: `tests/test_channels.py` (21) + `conftest.py::channel_client`.
+  types/methods in `api/client.ts`; invite form, audience source form, reactions
+  simulation/ingest panel and the Sessions permission panel each gained a channel
+  picker.
+- Tests: `tests/test_channels.py` (21) + `tests/test_permission_service.py` + `conftest.py::channel_client`.
 
 Decisions: D-051, D-052.
 

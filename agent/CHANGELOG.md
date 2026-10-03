@@ -30,6 +30,12 @@ Dates are ISO-8601.
   with a friendly 404. Web UI: the audience source form and the reactions
   simulation/ingest panel gained a "channel from registry" picker. Migration
   `e3b5890e407e`; tests in `tests/test_channels.py`.
+- **Channel Registry wired into the permission probe.** `POST /api/v1/permissions/check`
+  accepts an optional `channel_id`; the target is resolved from the registry and
+  `permission_checks.registry_channel_id` records the link, so a channel's probe
+  history is retrievable per registry channel. `ChannelService.verify` links its
+  probe to the channel. Web UI: the Sessions permission panel gained a registry
+  channel picker. Migration `6816b29afc76`; tests in `tests/test_permission_service.py`.
 
 ### Changed
 - Application version string bumped `0.1.0 → 1.0.0` (`backend/app/__init__.py`,
@@ -78,7 +84,7 @@ hardening passes. See `docs/RELEASE_CHECKLIST.md`.
 - **Tests**: `test_manager_bot.py` (26), `test_permission_service.py` (13),
   `test_hardening_api.py` (9); `conftest.py` gained `permission_client` /
   `manager_client` fixtures and disables the manager runtime in tests. Suite is
-  now **411 passed**.
+  now **413 passed**.
 
 ### Fixed — RC hardening
 - **Reactions**: executed posts now use the same category reaction policy as

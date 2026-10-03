@@ -6,7 +6,7 @@
 **Updated:** 2026-10-03
 **Status:** v1.0.0 released; **hardening on `develop`**: versioned Alembic
 migrations and the Channel Registry are complete (committed). Suite is green at
-**411 passed**; `ruff` clean; SPA builds.
+**413 passed**; `ruff` clean; SPA builds.
 
 ---
 
@@ -16,10 +16,10 @@ The project is released and stable. Continue development on `develop`; pick the
 highest-value optional item, work it as one vertical slice (code + tests + docs +
 memory), keep the suite green, and push `develop` (no force). Candidates:
 
-1. **Finish Channel Registry wiring** — post ingestion, audience sources and
-   invites now link to the registry, and the UI has a channel picker for
-   sources/reactions. Remaining: the permission probe and the analytics module
-   still use their own channel text; wire them to the registry next.
+1. **Finish Channel Registry wiring** — post ingestion, audience sources,
+   invites and the permission probe now link to the registry, and the UI has a
+   channel picker for sources/reactions/invites/permissions. Remaining: the
+   analytics module aggregates globally and has no per-channel target yet.
 2. **Mini App BotFather registration** helper — currently a documented manual
    deployment step.
 
@@ -48,7 +48,7 @@ Do **not** create artificial new phases and do **not** re-open PHASE 8–11.
 ### Verification checklist for any change
 
 ```bash
-python -m pytest                 # must stay green (currently 411 passed)
+python -m pytest                 # must stay green (currently 413 passed)
 ruff check backend tests         # must stay clean
 cd frontend && npm run build     # must succeed (outputs to backend/app/static)
 ```

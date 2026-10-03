@@ -395,7 +395,7 @@ flood_wait | error`. Responses never expose an api_hash, phone or session conten
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| POST | `/api/v1/permissions/check` | probe one account against a channel (`account_id`, `target`) |
+| POST | `/api/v1/permissions/check` | probe one account against a channel (`account_id`, `target` or `channel_id`) |
 | GET | `/api/v1/permissions/latest` | most recent check (or `null`) |
 | GET | `/api/v1/permissions/history?limit=` | recent checks, newest first |
 
@@ -450,6 +450,9 @@ Registry links are used by other modules too:
 - `POST /api/v1/audience/sources` accepts an optional `channel_id`; when set, the
   source `reference`/`username`/`telegram_id` come from the registry (or the
   source is created with the registry reference). `SourceOut` echoes `channel_id`.
+- `POST /api/v1/permissions/check` accepts an optional `channel_id` in place of
+  `target`; the probe resolves the reference from the registry and stores the link
+  (`registry_channel_id`) with the result.
 
 An unknown registry id returns a friendly `404`.
 
