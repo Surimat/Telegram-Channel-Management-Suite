@@ -7,16 +7,17 @@
 **Current phase:** **Post-1.0 hardening on `develop`.** v1.0.0 is released
 (`main == origin/main == 82c1059`, tag `v1.0.0`). `develop` now carries the
 hardening work: (1) **versioned Alembic migrations** replace `create_all` at
-startup; (2) a **shared Channel Registry** (`channels` table + `/api/v1/channels`
-+ RU-first "Каналы" page) so reactions/audience/invites/analytics share one
-channel identity, with the invite manager resolving its target from `channel_id`.
+startup (with baseline-aware adoption, D-052); (2) a **shared Channel Registry** (`channels` table + `/api/v1/channels`
++ RU-first "Каналы" page) so invites,
+post ingestion, audience sources and the permission probe all share one channel
+identity via nullable backfilled links.
 All gates pass: `pytest` **413 passed**, `ruff` clean, `vue-tsc` + `npm run build`
-clean.
-**Next phase:** optional only — wire the remaining modules (reactions/audience/
-analytics) to the registry, Mini App BotFather registration helper. Development
-continues on `develop`; land via reviewed PR (never push `main`).
+clean, no Alembic drift.
+**Next phase:** optional only — Mini App BotFather registration helper; analytics
+still aggregates globally (no per-channel target yet). Development continues on
+`develop`; land via reviewed PR (never push `main`). Open PR: #2 (draft).
 **Repository status:** `main == origin/main == 82c1059` (tag `v1.0.0`); `develop`
-is a few commits ahead of `main` (post-release).
+is 8 commits ahead of `main` (post-release hardening).
 **Branch:** `develop` (working branch); `main` is released and updated only via pull request.
 
 ---
@@ -524,7 +525,8 @@ the registry migration, so the app crashed on the missing `channels` table.
 `migrate.py` is now **baseline-aware**: it stamps such a database at the baseline
 revision and upgrades through the deltas, and `database_status` reports a pending
 upgrade. Migration history: `0191baf5265f` (baseline = v1.0.0 schema) →
-`561f0631d045` (channel registry) → `e3b5890e407e` (registry links). Regression
+`561f0631d045` (channel registry) → `e3b5890e407e` (registry links for sources
+and posts) → `6816b29afc76` (registry link for permission checks). Regression
 test upgrades a v1.0.0-shaped database with existing rows. Decisions: D-052.
 
 ## 5. Next action
@@ -533,9 +535,12 @@ test upgrades a v1.0.0-shaped database with existing rows. Decisions: D-052.
 project is stable; the next action is to continue on `develop` with optional items
 only:
 
-1. Finish the Channel Registry wiring: the permission probe and the analytics
-   module still use their own channel text — link them to the registry next.
+1. Analytics still aggregates globally (no per-channel target); wire it to the
+   registry if per-channel breakdowns are wanted.
 2. Mini App BotFather registration helper.
+
+Open PR: **#2** (draft, `develop → main`) — "Post-1.0 hardening: versioned
+migrations + shared Channel Registry".
 
 See `agent/NEXT_TASK.md` and `docs/RELEASE_CHECKLIST.md`. Do **not** re-open
 PHASE 8–11 — they are complete.
