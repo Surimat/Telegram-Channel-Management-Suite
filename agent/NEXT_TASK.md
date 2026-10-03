@@ -23,6 +23,10 @@ memory), keep the suite green, and push `develop` (no force). Candidates:
 2. **Mini App BotFather registration** helper — currently a documented manual
    deployment step.
 
+Done recently (do not rebuild): GitHub Actions CI (D-053,
+`.github/workflows/ci.yml`) runs ruff + pytest and the frontend build on
+`main`/`develop`.
+
 Do **not** create artificial new phases and do **not** re-open PHASE 8–11.
 
 ### What exists (do not rebuild)

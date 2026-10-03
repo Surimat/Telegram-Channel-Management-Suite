@@ -36,6 +36,9 @@ Dates are ISO-8601.
   history is retrievable per registry channel. `ChannelService.verify` links its
   probe to the channel. Web UI: the Sessions permission panel gained a registry
   channel picker. Migration `6816b29afc76`; tests in `tests/test_permission_service.py`.
+- **GitHub Actions CI** (`.github/workflows/ci.yml`): two jobs run on pushes and
+  PRs to `main`/`develop` — backend (`ruff check backend tests` + `pytest`) and
+  frontend (`npm ci` + `npm run build`). Added to the release checklist.
 
 ### Changed
 - Application version string bumped `0.1.0 → 1.0.0` (`backend/app/__init__.py`,

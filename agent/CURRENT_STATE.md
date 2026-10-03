@@ -39,6 +39,8 @@ Git: shallow clone → history may be incomplete. Run
   `CHANGELOG.md`.
 - `.gitignore` (secrets/sessions/data/logs/backups/models protected),
   `.env.example`, `README.md`.
+- `.github/workflows/ci.yml` — CI on pushes/PRs to `main`/`develop`: backend
+  (`ruff` + `pytest`) and frontend (`npm ci` + `npm run build`).
 
 ### Backend application (PHASE 1) — runnable
 Layered architecture: **core → db/models → db/repositories → services → api**.

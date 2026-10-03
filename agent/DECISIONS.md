@@ -923,3 +923,26 @@ link (`6816b29afc76`). Tests cover the v1.0.0 → develop upgrade with existing 
 and the registry-link API paths (posts, sources, invites, permission probe). A
 numeric Telegram chat id on a post remains the transport identity; the registry
 link is the stable owner-selected identity.
+
+---
+
+## D-053 — 2026-10-03 — CI runs the real quality gates on `main` and `develop` — LOCKED
+
+**Decision:** A GitHub Actions workflow (`.github/workflows/ci.yml`) runs two
+independent jobs on every push and pull request targeting `main` or `develop`:
+a **backend** job (`ruff check backend tests` then `pytest`, Python 3.12, pip
+cache) and a **frontend** job (`npm ci` then `npm run build`, Node 20, npm
+cache). The workflow is required to be green on the PR head before release
+(added to `docs/RELEASE_CHECKLIST.md`).
+
+**Why:** The suite has 413 tests, a strict lint config and a TypeScript SPA
+build, but nothing enforced them on the remote — `main`/`develop` could silently
+break for a contributor without the local toolchain. CI makes the local gates
+authoritative on every change and is the minimum viable safety net for a
+long-lived repo that must survive agent/session handoffs.
+
+**Consequence:** No test/lint/build changes may be merged to `main` with a red
+CI. CI is intentionally minimal (no Docker/portable jobs) to keep the free
+runner fast and avoid requiring credentials; Docker and portable builds remain
+documented manual gates. The workflow uses only official actions and the
+already-committed lockfile.

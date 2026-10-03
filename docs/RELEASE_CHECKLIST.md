@@ -18,6 +18,8 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 - [ ] Working tree is clean after the build (no untracked build artifacts;
       `backend/app/static/.gitkeep` still present — see the `public/.gitkeep`
       note below).
+- [ ] GitHub Actions **CI** (`.github/workflows/ci.yml`) is green on the PR head
+      (backend: ruff + pytest; frontend: `npm ci` + `npm run build`).
 
 ## 2. Packaging / deployment gates
 

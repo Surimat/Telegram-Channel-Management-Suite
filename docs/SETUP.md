@@ -48,6 +48,16 @@ python -m backend.app.main
 
 Open http://127.0.0.1:8000
 
+### Continuous integration
+
+Every push and pull request to `main` or `develop` runs
+`.github/workflows/ci.yml`:
+
+- **backend** — `ruff check backend tests` then `pytest` (Python 3.12);
+- **frontend** — `npm ci` then `npm run build` (Node 20).
+
+Run the same commands locally before pushing.
+
 ### Generating a secret key
 
 ```bash
