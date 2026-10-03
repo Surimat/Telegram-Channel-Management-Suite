@@ -1,0 +1,40 @@
+# ============================================================
+# Telegram Channel Management Suite - Docker Compose
+# Usage:  docker compose -f docker/docker-compose.yml up -d --build
+# Configure via .env in the project root (never commit it).
+# Terminate HTTPS with a reverse proxy in front of this service.
+# ============================================================
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: tcms:latest
+    container_name: tcms
+    restart: unless-stopped
+    env_file:
+      # Optional: `docker compose up` works without a .env too.
+      - path: ../.env
+        required: false
+    environment:
+      APP_ENV: production
+      APP_HOST: 0.0.0.0
+      APP_PORT: "8000"
+      DATABASE_URL: sqlite+aiosqlite:///./data/app.db
+      # Behind a TLS-terminating proxy the app itself stays plain HTTP.
+      # Set MINIAPP_PUBLIC_URL to the public HTTPS URL to enable the Mini App.
+    ports:
+      # Bind to localhost by default; expose publicly only behind HTTPS.
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ../data:/app/data
+      - ../sessions:/app/sessions
+      - ../backups:/app/backups
+      - ../logs:/app/logs
+      - ../exports:/app/exports
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
