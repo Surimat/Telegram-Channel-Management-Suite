@@ -1,0 +1,25 @@
+# ============================================================
+# Optional TLS overlay: Caddy reverse proxy in front of the app.
+# Usage:
+#   docker compose -f docker/docker-compose.yml \
+#                  -f docker/docker-compose.proxy.yml up -d --build
+# Edit docker/Caddyfile (domain + email) first. Caddy publishes 80/443.
+# ============================================================
+services:
+  proxy:
+    image: caddy:2-alpine
+    container_name: tcms-proxy
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

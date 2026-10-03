@@ -117,20 +117,109 @@ imported separately — see `docs/API.md`.
 
 ## C. VPS / Docker
 
-```bash
-cp .env.example .env
-# edit .env: set APP_SECRET_KEY, APP_ENV=production, bind settings, etc.
+The same codebase runs on a VPS — there is **no separate "server version"**
+(D-004). Everything is one FastAPI process that serves both the API and the built
+SPA; SQLite lives on a mounted volume.
 
-docker compose -f docker/docker-compose.yml up -d --build
+### 1. Prepare
+
+```bash
+git clone <your-repo> tcms && cd tcms
+cp .env.example .env
+# edit .env and set at least:
+#   APP_SECRET_KEY=<a long random string>
+#   APP_ENV=production
+#   MANAGER_BOT_TOKEN=...            # from @BotFather
+#   MANAGER_BOT_ADMIN_IDS=123456789  # your Telegram id
 ```
 
-- The same backend serves both the API and the built UI.
-- Terminate HTTPS with a reverse proxy (Caddy / nginx / Traefik) in front.
-- Persist `data/`, `sessions/`, `backups/`, `logs/` as volumes.
-- **Never** bake `.env`, session files, or secrets into the image.
+Generate a secret key:
 
-See `docs/SETUP.md` (this file) for HTTPS notes and `docs/SECURITY.md` for the
-secret-handling policy.
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+### 2. Run (localhost, no TLS)
+
+```bash
+docker compose -f docker/docker-compose.yml up -d --build
+curl -s http://127.0.0.1:8000/health      # {"status":"ok", ...}
+```
+
+The service binds to `127.0.0.1:8000` by default, so it is not publicly exposed.
+Mutable state is bind-mounted from the project root: `data/`, `sessions/`,
+`backups/`, `logs/`, `exports/`. `.env` is optional (the image has safe defaults);
+when present it is loaded automatically.
+
+### 3. HTTPS (recommended)
+
+The app stays plain HTTP behind a TLS-terminating reverse proxy. A ready Caddy
+overlay is provided (Caddy fetches and renews Let's Encrypt certificates
+automatically):
+
+```bash
+# 1) edit docker/Caddyfile: set your domain + email
+# 2) point your domain's A/AAAA record at the server
+docker compose -f docker/docker-compose.yml \
+               -f docker/docker-compose.proxy.yml up -d --build
+```
+
+Caddy publishes `80`/`443` and proxies to `app:8000`. The app's own
+`127.0.0.1:8000` binding remains and is harmless.
+
+<details>
+<summary>nginx alternative</summary>
+
+```nginx
+server {
+    listen 80;
+    server_name tcms.example.com;
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+    location / { return 301 https://$host$request_uri; }
+}
+server {
+    listen 443 ssl;
+    server_name tcms.example.com;
+    ssl_certificate     /etc/letsencrypt/live/tcms.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/tcms.example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+    }
+}
+```
+</details>
+
+Once HTTPS works, set `MINIAPP_PUBLIC_URL=https://tcms.example.com` and
+`MINIAPP_ENABLED=true` in `.env` to use the Telegram Mini App (register the URL
+with @BotFather as a Web App).
+
+### 4. Operations
+
+```bash
+docker compose -f docker/docker-compose.yml logs -f      # follow logs
+docker compose -f docker/docker-compose.yml ps           # status / health
+docker compose -f docker/docker-compose.yml restart app  # restart
+docker compose -f docker/docker-compose.yml down         # stop
+```
+
+- **Backups**: use the UI (**Резервные копии**) or `POST /api/v1/backup`. The
+  archive lands in the bind-mounted `backups/`. Session files are excluded unless
+  you opt in (D-039). Copy `backups/` off the server regularly.
+- **Restore**: `POST /api/v1/backup/restore?filename=...` (a safety backup of the
+  current state is written first), then `docker compose ... restart app`.
+- **Secrets**: keep `APP_SECRET_KEY`, tokens and `.env` out of git; prefer Docker
+  secrets or an env file readable only by root (`chmod 600 .env`).
+- **Never** bake `.env`, session files, or secrets into the image; the
+  `.dockerignore` already excludes them.
+
+See `docs/SECURITY.md` for the secret-handling policy and
+`docs/TROUBLESHOOTING.md` for container issues.
 
 ---
 

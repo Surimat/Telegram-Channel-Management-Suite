@@ -395,6 +395,24 @@ TelegramChannelManagementSuite/
   run.bat  stop.bat  README.txt
 ```
 
+### Docker / VPS (PHASE 11)
+
+One image, one process — the same codebase as local/portable (D-004):
+
+- `docker/Dockerfile` — multi-stage: Node builds the SPA, then a `python:3.12-slim`
+  runtime copies `backend/` + the built static files and runs as non-root (uid
+  10001). No Node at runtime.
+- `docker/docker-compose.yml` — one `app` service; optional `.env`; bind-mounted
+  mutable state (`data/`, `sessions/`, `backups/`, `logs/`, `exports/`); healthcheck
+  on `/health`; `restart: unless-stopped`; publishes `127.0.0.1:8000` only.
+- `docker/docker-compose.proxy.yml` + `docker/Caddyfile` — optional TLS overlay;
+  Caddy obtains/renews Let's Encrypt certificates and proxies to `app:8000`. An
+  nginx example is documented in `docs/SETUP.md`.
+- Production config is entirely environment-driven (`APP_ENV=production`,
+  `APP_HOST=0.0.0.0`, `APP_SECRET_KEY`, `DATABASE_URL`); set
+  `MINIAPP_PUBLIC_URL`/`MINIAPP_ENABLED` to enable the Mini App over HTTPS.
+- Verified: image builds, container serves `/health`, the SPA, and the backup API.
+
 ---
 
 ## 12. Security model

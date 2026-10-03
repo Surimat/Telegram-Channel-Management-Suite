@@ -84,6 +84,19 @@ Implementation (PHASE 4, D-025):
 `APP_SECRET_KEY` is used to derive encryption keys for at-rest secrets. It must
 be long and random (≥ 32 bytes entropy).
 
+### VPS / Docker specifics (PHASE 11)
+
+- Keep `.env` out of git and readable only by root: `chmod 600 .env`.
+- Prefer Docker secrets or a root-only env file over baking values into images or
+  compose files. The `.dockerignore` excludes `.env`, `sessions/`, `data/`,
+  `backups/`, `logs/` and `exports/` from the build context.
+- The container runs as a non-root user (uid 10001); keep host bind-mounts
+  writable by that uid only.
+- The app publishes `127.0.0.1:8000` by default — do not expose `8000` publicly;
+  terminate TLS at the reverse proxy (Caddy/nginx/Traefik) and forward to the app.
+- Back up `backups/` off-server; treat the DB and any session files as sensitive
+  (D-039). Never place them in a public web root or shared folder.
+
 ---
 
 ## 5. Web / API security

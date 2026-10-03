@@ -126,11 +126,16 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 - [x] Portable startup smoke test (`tests/test_portable_smoke.py`).
 - [x] Tests (backup service + API + smoke) green; docs + memory updated. Commit.
 
-## PHASE 11 — VPS / Docker ⬜
-- [ ] Production `Dockerfile` + `docker-compose.yml` + `.env.example`.
-- [ ] HTTPS / reverse-proxy documentation.
-- [ ] Backup + restore docs for VPS.
-- [ ] Same codebase as local — no separate "server version". Commit.
+## PHASE 11 — VPS / Docker ✅
+- [x] Production `Dockerfile` (multi-stage: Node SPA build → Python runtime,
+      non-root uid 10001) — **built and smoke-tested** (health + SPA + backup).
+- [x] `docker/docker-compose.yml` (optional `.env`, bind-mounted mutable state,
+      healthcheck, `restart: unless-stopped`, `127.0.0.1` binding).
+- [x] HTTPS: `docker/docker-compose.proxy.yml` + `docker/Caddyfile` (automatic
+      Let's Encrypt) with an nginx alternative documented in `docs/SETUP.md`.
+- [x] Backup/restore docs for VPS; secrets policy in `docs/SECURITY.md`;
+      container troubleshooting in `docs/TROUBLESHOOTING.md`.
+- [x] Same codebase as local/portable — no separate "server version" (D-004).
 
 ---
 

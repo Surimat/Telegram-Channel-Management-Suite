@@ -164,6 +164,18 @@ filtering such users out before running the invite job.
 | Data appears in the wrong place | `TCMS_ROOT` not set | Launch via `run.bat` (it sets `TCMS_ROOT` to the folder) |
 | Antivirus blocks the app | Local server binding | Allow local (127.0.0.1) connections for the app |
 
+## Docker / VPS problems (PHASE 11)
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Container restarts in a loop | Missing/invalid `APP_SECRET_KEY`, or a volume permission issue | `docker compose logs app`; set `APP_SECRET_KEY`; ensure `data/` etc. are writable by uid 10001 |
+| `docker compose up` complains `.env` not found | Old compose or a stale `.env` path | `.env` is optional now; create it from `.env.example` or remove the `env_file` block |
+| Data disappears after `down` | Volumes not bind-mounted | Keep the `volumes:` mapping (`../data:/app/data`, etc.) in `docker-compose.yml` |
+| App not reachable on the public IP | It binds to `127.0.0.1` by design | Put the Caddy/nginx proxy in front; do not publish `8000` publicly |
+| HTTPS certificate not issued | DNS not pointing at the server, or port 80/443 blocked | Fix the A/AAAA record; open 80/443; check `docker compose logs proxy` |
+| Mini App says unavailable | `MINIAPP_PUBLIC_URL`/`MINIAPP_ENABLED` not set | Set them to the public HTTPS URL and restart |
+| Permission denied talking to the Docker socket | Not in the `docker` group | `sudo usermod -aG docker $USER` then re-login (or use `sudo`) |
+
 ## Recovering the project after a new chat/session
 
 A new agent must be able to continue from files alone. Run:

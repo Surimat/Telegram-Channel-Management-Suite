@@ -4,55 +4,51 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-03
-**Status:** PHASE 10 (Portable packaging + backup/restore) is **COMPLETE**.
-Start **PHASE 11** below.
+**Status:** PHASE 11 (VPS/Docker) is **COMPLETE**; the planned PHASE 0–11 roadmap
+is done. Start the **post-roadmap polish** task below.
 
 ---
 
-## Active task: PHASE 11 — VPS / Docker production configuration
+## Active task: Audience & Sources frontend views (post-roadmap polish)
 
-**Goal:** the *same* codebase runs on a VPS via Docker Compose with production
-settings, HTTPS documented, and backups work the same way. No separate "server
-version".
+**Goal:** close the main UI gap. The Audience/Sources **API is already complete**
+(PHASE 5) — only the Vue views are missing. Do not change the backend unless a
+bug is found.
 
-### Requirements (from the brief)
+### What exists (do not rebuild)
 
-- Production `Dockerfile` + `docker-compose.yml` + `.env.example` (already
-  sketched in `docker/` from PHASE 1 — review, harden, and finish).
-- Same architecture and code as local/portable; do **not** fork the backend.
-- HTTPS / reverse-proxy documentation (e.g. Caddy/Traefik/nginx) — the owner
-  terminates TLS; the app itself stays plain HTTP behind the proxy.
-- Backup/restore docs for VPS (use the PHASE 10 `/api/v1/backup` endpoints;
-  bind-mount `data/`, `sessions/`, `backups/`, `logs/`, `exports/`).
-- Production secret handling: `APP_SECRET_KEY`, `APP_ENV=production`,
-  `APP_HOST=0.0.0.0`, secrets via environment / Docker secrets — never in git.
+- `backend/app/api/v1/audience.py` + `schemas/audience.py` — sources CRUD, scan,
+  user list (search/filter/tags/sort/pagination), export/import, statistics.
+- `frontend/src/api/client.ts` — audit it for existing audience/source methods;
+  add typed methods/types if missing.
+- Existing views to mirror for style: `BotsView.vue`, `AudienceView`/`Sources`
+  placeholders if present, `AnalyticsView.vue` (charts), `BackupView.vue` (RU
+  copy + confirmations).
 
-### Suggested vertical slice
+### Deliverable (one vertical slice)
 
-1. **Docker**: verify the multi-stage build (Node build → Python runtime,
-   non-root) still serves the SPA; ensure volumes and healthcheck (`/health`).
-2. **Compose**: one service, named volumes/bind mounts for mutable state,
-   `restart: unless-stopped`, env from `.env`.
-3. **Reverse proxy**: document HTTPS (Caddy example + nginx example); note the
-   Mini App `MINIAPP_PUBLIC_URL` must be the public HTTPS URL.
-4. **Docs + memory**: `docs/SETUP.md` (mode C), `docs/SECURITY.md` (VPS
-   secrets), `docs/TROUBLESHOOTING.md` (container issues); update
-   `agent/CURRENT_STATE.md`, `agent/DECISIONS.md`, `agent/CHANGELOG.md`,
+1. **SourcesView.vue** — list sources (title, username, type, last scan,
+   participants found, status/errors); add source; trigger scan; per-source
+   statistics; enable/disable.
+2. **AudienceView.vue** — paginated user table; search, filters, tags, sorting;
+   empty/loading states; export; import; friendly Telegram-error messaging.
+3. Router + sidebar nav entries; RU-first copy; help tooltips; confirmations.
+4. Tests: extend `tests/test_audience_api.py` only if backend changes; otherwise
+   verify the build and the existing API tests stay green.
+5. Docs + memory: `docs/UI.md`, `agent/CURRENT_STATE.md`, `agent/CHANGELOG.md`,
    `docs/ROADMAP.md`; commit.
+
+### Secondary (only after the above)
+
+- Automate staging the Windows embeddable Python into `runtime/` in
+  `scripts/build_portable.sh` for a truly zero-setup binary (D-040).
 
 ### Do NOT
 
-- Do not re-open PHASE 8/9/10 — they are complete.
+- Do not re-open PHASE 8–11 — they are complete.
 - Do not add Redis/Kafka/Celery/PostgreSQL (D-002 / no-heavy-infra).
-- Do not require a public HTTPS server for the local Web UI.
+- Do not fork the backend; one SPA, one API (D-003 / D-004).
 - Do not store or log bot tokens, `initData`, or session contents.
-- Do not create a second backend for server mode (D-004).
-
-### After PHASE 11
-
-Dedicated Audience/Sources frontend views remain the main UI gap. A fully
-self-contained Windows binary (embedded Python staged into `runtime/`) is an
-assembly/packaging step, not a code change.
 
 ### Verification checklist for any phase
 

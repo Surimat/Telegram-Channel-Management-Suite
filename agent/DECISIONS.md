@@ -659,3 +659,27 @@ graceful shutdown with `TCMS_ROOT` in a temp dir.
 
 ---
 
+## D-041 — 2026-10-03 — One image for VPS; TLS terminated by an optional proxy overlay — LOCKED
+
+**Decision:** The VPS deployment uses the *same* backend and codebase as
+local/portable (D-004), packaged as a single multi-stage image
+(`docker/Dockerfile`: Node builds the SPA → `python:3.12-slim` runtime, non-root
+uid 10001, no Node at runtime). `docker/docker-compose.yml` runs one `app`
+service with an optional `.env`, bind-mounted mutable state, a `/health`
+healthcheck, `restart: unless-stopped`, and publishes only `127.0.0.1:8000`.
+HTTPS is an opt-in overlay (`docker/docker-compose.proxy.yml` + `docker/Caddyfile`)
+where Caddy obtains/renews Let's Encrypt certificates and proxies to `app:8000`.
+
+**Why:** The brief requires VPS deployment of the same architecture with no
+separate "server version", and forbids heavy infrastructure. Keeping TLS at the
+edge (Caddy/nginx/Traefik) keeps the app dependency-free and the local Web UI
+still needs no public server. Binding the app to localhost by default means an
+unconfigured server is not accidentally exposed.
+
+**Consequence:** Production config is environment-driven only (`APP_ENV`,
+`APP_HOST`, `APP_SECRET_KEY`, `DATABASE_URL`, `MINIAPP_PUBLIC_URL`). `.env`,
+sessions, data and logs stay out of the image via `.dockerignore`. Verified by
+building the image and running the container (health, SPA, backup API).
+
+---
+

@@ -4,9 +4,9 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-03
-**Current phase:** PHASE 10 — Portable Windows packaging + backup/restore: **COMPLETED**.
-**Next phase:** PHASE 11 — VPS / Docker production config.
-**Repository status:** `develop` carries PHASE 0–10; `main` only via pull request.
+**Current phase:** PHASE 11 — VPS / Docker production config: **COMPLETED**.
+**Next phase:** Post-roadmap polish — dedicated Audience/Sources frontend views; fully self-contained Windows binary assembly.
+**Repository status:** `develop` carries PHASE 0–11; `main` only via pull request.
 **Branch:** `develop` (tracks `origin/develop`); `main` is untouched and only ever updated via pull request.
 
 ---
@@ -315,6 +315,18 @@ Layered architecture: **core → db/models → db/repositories → services → 
 - `tests/` — `test_backup_service.py` (9), `test_backup_api.py` (7),
   `test_portable_smoke.py` (1, spawns the real app with `TCMS_ROOT`).
 
+### PHASE 11 — VPS / Docker production config
+- `docker/Dockerfile` — multi-stage (Node SPA build → `python:3.12-slim`,
+  non-root uid 10001). Built and smoke-tested locally.
+- `docker/docker-compose.yml` — one `app` service; optional `.env`; bind-mounted
+  `data/ sessions/ backups/ logs/ exports/`; `/health` healthcheck;
+  `restart: unless-stopped`; publishes `127.0.0.1:8000` only.
+- `docker/docker-compose.proxy.yml` + `docker/Caddyfile` — optional TLS overlay
+  (Caddy, automatic Let's Encrypt) fronting `app:8000`.
+- Docs: `docs/SETUP.md` (mode C full walkthrough + nginx alt), `docs/SECURITY.md`
+  (VPS specifics), `docs/TROUBLESHOOTING.md` (container issues),
+  `docs/ARCHITECTURE.md` (§11 Docker/VPS).
+
 ### Frontend (PHASE 1) — Vue 3 + Vite + TypeScript
 - `frontend/` — `package.json`, `vite.config.ts` (builds into
   `backend/app/static/`), `tsconfig.json`, `index.html`.
@@ -407,17 +419,21 @@ Layered architecture: **core → db/models → db/repositories → services → 
 - Alembic migrations (currently `create_all` at startup).
 - Mini App: BotFather Web App registration and a public HTTPS URL are the owner's
   deployment step (documented; not automated). The Mini App is off by default.
-- PHASE 10 completed the backup/restore implementation and portable packaging.
-  A fully self-contained Windows binary is still an assembly step (add the Python
-  embeddable package to `runtime/`); production HTTPS docs land in PHASE 11.
+- A fully self-contained Windows **binary** is still an assembly step (stage the
+  Python embeddable package into `runtime/`); the portable tree and launchers are
+  complete (D-040).
 
 ## 5. Next action
 
-Start **PHASE 11 — VPS / Docker production config** (see `agent/NEXT_TASK.md` and
-`docs/ROADMAP.md`): production `Dockerfile` + `docker-compose.yml` + `.env.example`,
-HTTPS/reverse-proxy documentation, and backup/restore docs for VPS. The same
-codebase is used — no separate "server version". Do **not** start PHASE 8/9/10 work
-again — they are complete.
+The planned roadmap (PHASE 0–11) is **complete**. Remaining polish, in priority
+order:
+
+1. Dedicated **Audience** and **Sources** frontend views (the API is complete;
+   only the views are missing).
+2. A fully self-contained Windows binary (automate the embeddable-Python staging).
+3. Optional: Alembic migrations, manager-bot command loop / notifications.
+
+See `agent/NEXT_TASK.md`. Do **not** re-open PHASE 8–11 — they are complete.
 
 ## 6. Locked decisions (do not break)
 

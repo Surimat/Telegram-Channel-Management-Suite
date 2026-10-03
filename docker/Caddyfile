@@ -1,0 +1,32 @@
+# ============================================================
+# Caddy reverse proxy — automatic HTTPS for the suite.
+# Use with: docker compose -f docker/docker-compose.yml \
+#                       -f docker/docker-compose.proxy.yml up -d --build
+# Replace the hostname and email below, then point your domain's A/AAAA
+# record at the server. Caddy obtains and renews Let's Encrypt certificates.
+# ============================================================
+
+{
+	email admin@example.com
+}
+
+# Replace tcms.example.com with your real domain.
+tcms.example.com {
+	encode gzip zstd
+
+	# The app speaks plain HTTP behind the proxy; Caddy terminates TLS.
+	reverse_proxy app:8000 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	# Security headers (the app sets its own cookie flags).
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}

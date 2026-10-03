@@ -11,6 +11,31 @@ _No unreleased changes._
 
 ---
 
+## [0.11.0] — 2026-10-03 — PHASE 11: VPS / Docker production configuration
+
+### Added — Deployment
+- `docker/docker-compose.proxy.yml` — optional TLS overlay running Caddy in front
+  of the app (publishes 80/443, proxies to `app:8000`).
+- `docker/Caddyfile` — Caddy site config with automatic Let's Encrypt
+  certificates, gzip/zstd, security headers.
+
+### Changed — Deployment
+- `docker/docker-compose.yml` — `.env` is now optional (`required: false`), so
+  `docker compose up` works with safe defaults; added notes on production env.
+- `docs/SETUP.md` — full VPS/Docker walkthrough (prepare → run → HTTPS via Caddy
+  or nginx → operations/backups), no separate "server version" (D-004).
+- `docs/SECURITY.md` — VPS/Docker secret-handling specifics (root-only `.env`,
+  non-root container, localhost-only binding, off-server backups).
+- `docs/TROUBLESHOOTING.md` — Docker/VPS troubleshooting table.
+- `docs/ARCHITECTURE.md` — §11 Docker/VPS subsection.
+
+### Verified
+- Multi-stage image builds; container serves `/health`, the SPA (`/` → 200), the
+  deep health check, and creates a backup via `POST /api/v1/backup` on a mounted
+  volume. Compose config (base and proxy overlay) validates.
+
+---
+
 ## [0.10.0] — 2026-10-03 — PHASE 10: Portable Windows packaging + backup/restore
 
 ### Added — Backend

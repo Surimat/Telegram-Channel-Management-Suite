@@ -30,11 +30,22 @@ Persistent memory so work can continue across sessions:
 
 ## Status
 
-**PHASE 1 complete** — a runnable skeleton: FastAPI backend (config, logging with
-secret redaction, SQLite + SQLAlchemy, health checks, Setup Wizard checks,
-durable queue + asyncio scheduler), a Vue 3 + TypeScript SPA served by the
-backend, Docker foundation, portable launcher skeleton, and a passing test suite.
-Next: PHASE 2 (Telegram foundation). See [docs/ROADMAP.md](docs/ROADMAP.md).
+**PHASE 0–11 complete.** The suite is feature-complete against the planned
+roadmap: manager bot + managed bots, MTProto user sessions, audience parsing,
+invites, automatic reactions with a rules engine and an optional tiny AI
+classifier, analytics, a durable scheduler, one Vue SPA for the Web UI and the
+Telegram Mini App, backup/restore, a portable Windows package, and a VPS/Docker
+deployment. Remaining polish (dedicated Audience/Sources views, a fully
+self-contained Windows binary) is tracked in [agent/NEXT_TASK.md](agent/NEXT_TASK.md).
+See [docs/ROADMAP.md](docs/ROADMAP.md).
+
+## Deployment modes
+
+- **Local dev** — `python -m backend.app.main` (http://127.0.0.1:8000).
+- **Windows portable** — unpack, run `portable/run.bat`; no Python/Node/Docker.
+- **VPS / Docker** — `docker compose -f docker/docker-compose.yml up -d --build`,
+  with an optional Caddy TLS overlay (`docker/docker-compose.proxy.yml`).
+  See [docs/SETUP.md](docs/SETUP.md).
 
 ## Quick start (development)
 

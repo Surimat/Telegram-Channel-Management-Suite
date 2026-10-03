@@ -13,12 +13,16 @@ services:
     container_name: tcms
     restart: unless-stopped
     env_file:
-      - ../.env
+      # Optional: `docker compose up` works without a .env too.
+      - path: ../.env
+        required: false
     environment:
       APP_ENV: production
       APP_HOST: 0.0.0.0
       APP_PORT: "8000"
       DATABASE_URL: sqlite+aiosqlite:///./data/app.db
+      # Behind a TLS-terminating proxy the app itself stays plain HTTP.
+      # Set MINIAPP_PUBLIC_URL to the public HTTPS URL to enable the Mini App.
     ports:
       # Bind to localhost by default; expose publicly only behind HTTPS.
       - "127.0.0.1:8000:8000"
