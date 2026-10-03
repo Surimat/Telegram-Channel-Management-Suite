@@ -16,13 +16,112 @@ guarded runner directly (``backend.app.db.migrate``).
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 
 import pytest
 from sqlalchemy import text
 
 from backend.app.db import migrate
 from backend.app.db.models.setting import Setting
-from backend.app.db.session import dispose_engine, init_models, session_scope
+from backend.app.db.session import dispose_engine, get_engine, init_models, session_scope
+
+
+def _baseline_only_database(db_path: Path) -> None:
+    """Create a v1.0.0-shaped database: baseline schema, no channels, with a row.
+
+    Reproduces a real installation that was created by ``create_all`` before the
+    Channel Registry existed. It is stamped at the baseline and has an
+    ``invite_jobs`` row so the upgrade must add a NOT NULL column to a
+    populated table.
+    """
+
+    async def _run() -> None:
+        # Apply ONLY the baseline revision. Alembic's env.py calls asyncio.run
+        # internally, so run it off-loop via a thread (same as the runner).
+        from alembic import command
+
+        cfg = migrate._alembic_config()
+        await asyncio.to_thread(command.upgrade, cfg, migrate._baseline_revision())
+        engine = get_engine()
+        async with engine.begin() as conn:
+            await conn.execute(
+                text(
+                    "INSERT INTO invite_jobs "
+                    "(name, target, target_title, account_ids, source_ids, filters, "
+                    "status, confirmed_summary, dry_run, per_account_delay_min, "
+                    "per_account_delay_max, max_per_account, max_total, total_tasks, "
+                    "processed_count, invited_count, already_count, privacy_count, "
+                    "flood_count, error_count, waiting_account_id, queue_job_id, "
+                    "last_error, id, created_at, updated_at) VALUES "
+                    "('legacy', '@old', 'Old', '[]', '[]', '{}', 'DRAFT', '', 0, 1, 2, "
+                    "0, 0, 0, 0, 0, 0, 0, 0, 0, '', '', '', 'legacyjob1', "
+                    "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+                )
+            )
+        await dispose_engine()
+
+    asyncio.run(_run())
+
+
+def test_legacy_v1_database_upgrades_and_keeps_rows() -> None:
+    """A v1.0.0 DB (no channels) is adopted at the baseline and upgraded.
+
+    Regression for the bug where an unmarked legacy database was stamped at
+    *head*, so the channel-registry migration never ran and the app then failed
+    on the missing ``channels`` table.
+    """
+    from backend.app.core.config import get_settings
+
+    db_path = Path(get_settings().resolve_database_url().split("///")[-1])
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    _baseline_only_database(db_path)
+
+    async def _run() -> None:
+        # The legacy database has no channels table and no alembic marker that
+        # points past the baseline.
+        status = await migrate.database_status()
+        assert status.state == migrate.DB_STATE_PENDING
+        assert status.current_revision == migrate._baseline_revision()
+        assert migrate._head_revision() in status.pending
+
+        result = await migrate.upgrade_database()
+        assert result.state == migrate.DB_STATE_UPDATED
+        assert migrate._head_revision() in result.applied
+
+        after = await migrate.database_status()
+        assert after.state == migrate.DB_STATE_READY
+        assert after.current_revision == after.head_revision
+
+        engine = get_engine()
+        async with engine.connect() as conn:
+            tables = await conn.run_sync(
+                lambda c: __import__("sqlalchemy").inspect(c).get_table_names()
+            )
+            assert "channels" in tables
+            row = (
+                await conn.execute(
+                    text("SELECT name, channel_id FROM invite_jobs WHERE id='legacyjob1'")
+                )
+            ).one()
+            assert row.name == "legacy"
+            assert row.channel_id == ""  # default filled for the existing row
+
+    asyncio.run(_run())
+
+
+def test_unknown_schema_is_not_adopted() -> None:
+    """An unmarked database that is neither empty nor a known schema is refused."""
+
+    async def _run() -> None:
+        engine = get_engine()
+        async with engine.begin() as conn:
+            await conn.execute(text("CREATE TABLE mystery (id INTEGER PRIMARY KEY)"))
+        status = await migrate.database_status()
+        assert status.state == migrate.DB_STATE_UNKNOWN
+        result = await migrate.upgrade_database()
+        assert result.state == migrate.DB_STATE_FAILED
+
+    asyncio.run(_run())
 
 
 def test_fresh_database_reports_fresh_then_upgrades() -> None:

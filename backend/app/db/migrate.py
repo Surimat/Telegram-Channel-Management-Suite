@@ -62,6 +62,34 @@ DB_MESSAGES = {
     DB_STATE_UNKNOWN: "Не удалось проверить структуру базы данных.",
 }
 
+# Tables created by the root (v1.0.0) revision. A legacy ``create_all`` database
+# that contains all of these is adoptable at the baseline.
+BASELINE_TABLES = frozenset(
+    {
+        "ai_metrics",
+        "ai_records",
+        "audience_sources",
+        "audience_source_users",
+        "audience_users",
+        "bots",
+        "events",
+        "invite_jobs",
+        "invite_tasks",
+        "job_queue",
+        "permission_checks",
+        "posts",
+        "reaction_jobs",
+        "reaction_profiles",
+        "reaction_rules",
+        "settings",
+        "user_sessions",
+    }
+)
+
+# An unmarked database that already has one of these was created by code newer
+# than the baseline and must be adopted at head (never re-created).
+POST_BASELINE_TABLES = frozenset({"channels"})
+
 
 class MigrationError(RuntimeError):
     """Raised when the database state cannot be determined or migrated safely."""
@@ -110,16 +138,29 @@ def _head_revision() -> str:
     return head
 
 
+def _baseline_revision() -> str:
+    """The root revision (no ``down_revision``): the v1.0.0 schema.
+
+    A database created before Alembic existed was built by ``create_all`` with
+    the code of its day. The oldest released code (v1.0.0) corresponds exactly
+    to the root revision, so an unmarked database that lacks anything the root
+    revision adds must be stamped here before later revisions are applied.
+    """
+    script = ScriptDirectory.from_config(_alembic_config())
+    roots = [rev.revision for rev in script.walk_revisions() if rev.down_revision is None]
+    if not roots:  # pragma: no cover - a project without revisions
+        raise MigrationError("В проекте нет ни одной миграции.")
+    return roots[0]
+
+
 def _pending_revisions(current: str | None) -> list[str]:
     """Return revision ids between ``current`` and head (oldest first)."""
     script = ScriptDirectory.from_config(_alembic_config())
     if current is None:
         return [rev.revision for rev in script.walk_revisions()][::-1]
-    pending: list[str] = []
-    for rev in script.walk_revisions("head", current):
-        if rev.revision != current:
-            pending.append(rev.revision)
-    return pending[::-1]
+    # ``walk_revisions`` yields newest→oldest from ``head`` down to ``base``.
+    revs = [rev.revision for rev in script.walk_revisions(current, "head")]
+    return [rev for rev in revs if rev != current][::-1]
 
 
 async def _table_names() -> list[str]:
@@ -139,6 +180,59 @@ async def _current_revision() -> str | None:
         row = await conn.execute(text("SELECT version_num FROM alembic_version"))
         value = row.scalar_one_or_none()
     return str(value) if value else None
+
+
+async def _schema_matches_baseline() -> bool:
+    """True when the live schema contains every table the root revision creates.
+
+    A pre-Alembic database was created by ``create_all`` using the code of its
+    day. The root revision mirrors the **oldest released** schema (v1.0.0). If a
+    table the root revision creates is missing, the database is older than the
+    baseline and cannot be safely adopted.
+    """
+    engine = get_engine()
+    async with engine.connect() as conn:
+        existing = set(await conn.run_sync(lambda c: inspect(c).get_table_names()))
+    return not (BASELINE_TABLES - existing)
+
+
+async def _has_post_baseline_schema() -> bool:
+    """True when the live schema already contains a post-baseline table.
+
+    If a legacy (unmarked) database already has ``channels`` it was created by
+    code newer than v1.0.0, so it must be stamped at head rather than at the
+    baseline (otherwise the channel-registry revision would try to re-create an
+    existing table).
+    """
+    engine = get_engine()
+    async with engine.connect() as conn:
+        existing = set(await conn.run_sync(lambda c: inspect(c).get_table_names()))
+    return bool(POST_BASELINE_TABLES & existing)
+
+
+async def _adoption_target() -> str | None:
+    """Revision to stamp an unmarked, pre-existing database at, or ``None``.
+
+    * ``None`` — not an adoptable legacy database (fresh, or incomplete schema).
+    * baseline revision — a v1.0.0 ``create_all`` database; pending revisions
+      (the channel registry) still need to run.
+    * head — a database already containing post-baseline tables; adopt at head.
+
+    Raises :class:`MigrationError` when the schema is neither empty nor a
+    recognisable, complete legacy schema (adopting it could lose data).
+    """
+    tables = await _table_names()
+    app_tables = [t for t in tables if t != "alembic_version"]
+    if not app_tables:
+        return None
+    if await _has_post_baseline_schema():
+        return _head_revision()
+    if await _schema_matches_baseline():
+        return _baseline_revision()
+    raise MigrationError(
+        "База данных не похожа на известную версию схемы. "
+        "Обновление остановлено, чтобы не потерять данные."
+    )
 
 
 async def database_status() -> MigrationStatus:
@@ -162,9 +256,7 @@ async def database_status() -> MigrationStatus:
 
     current = await _current_revision()
     if current is None:
-        # No Alembic marker. Distinguish a truly empty DB from one created by
-        # an older `create_all` install that already holds the app tables.
-        app_tables = [t for t in tables if t not in {"alembic_version"}]
+        app_tables = [t for t in tables if t != "alembic_version"]
         if not app_tables:
             return MigrationStatus(
                 state=DB_STATE_FRESH,
@@ -173,10 +265,30 @@ async def database_status() -> MigrationStatus:
                 pending=[head],
                 message=DB_MESSAGES[DB_STATE_FRESH],
             )
-        # Existing pre-Alembic database: it is already at the baseline schema.
+        # Existing pre-Alembic database. It is adoptable at the baseline (v1.0.0)
+        # or head; either way post-baseline revisions may still be pending.
+        try:
+            adopted = await _adoption_target()
+        except MigrationError as exc:
+            return MigrationStatus(
+                state=DB_STATE_UNKNOWN,
+                current_revision=None,
+                head_revision=head,
+                message=DB_MESSAGES[DB_STATE_UNKNOWN],
+                error=str(exc),
+            )
+        pending = _pending_revisions(adopted)
+        if pending:
+            return MigrationStatus(
+                state=DB_STATE_PENDING,
+                current_revision=adopted,
+                head_revision=head,
+                pending=pending,
+                message=DB_MESSAGES[DB_STATE_PENDING],
+            )
         return MigrationStatus(
             state=DB_STATE_READY,
-            current_revision=head,
+            current_revision=adopted,
             head_revision=head,
             message=DB_MESSAGES[DB_STATE_READY],
         )
@@ -229,11 +341,11 @@ def create_pre_migration_backup() -> str | None:
     return target.name
 
 
-async def _stamp_head() -> None:
-    """Mark an existing pre-Alembic database as being at head (no schema change)."""
+async def _stamp_head(revision: str = "head") -> None:
+    """Mark an existing pre-Alembic database at ``revision`` (no schema change)."""
 
     def _run() -> None:
-        command.stamp(_alembic_config(), "head")
+        command.stamp(_alembic_config(), revision)
 
     await asyncio.to_thread(_run)
 
@@ -256,27 +368,48 @@ async def upgrade_database(*, make_backup: bool = True) -> MigrationResult:
             error=status.error or DB_MESSAGES[DB_STATE_UNKNOWN],
         )
 
-    # Existing schema without an Alembic marker: adopt it, do not recreate.
-    # (Checked before the READY early-return because such a database is
-    # reported READY for the wizard but still needs the version marker.)
-    tables = await _table_names()
-    has_app_tables = any(t != "alembic_version" for t in tables)
+    # Existing schema without an Alembic marker: adopt it at the correct
+    # revision (baseline for a v1.0.0 `create_all` database, head for one that
+    # already has post-baseline tables), then continue to apply any pending
+    # revisions rather than falsely reporting the database as up to date.
     current = await _current_revision()
-    if has_app_tables and current is None:
-        try:
-            await _stamp_head()
-        except Exception as exc:  # pragma: no cover - defensive
-            return MigrationResult(
-                state=DB_STATE_FAILED,
-                message=DB_MESSAGES[DB_STATE_FAILED],
-                error=str(exc),
-            )
-        logger.info("Existing database adopted at Alembic head (no schema change)")
-        return MigrationResult(
-            state=DB_STATE_UPDATED,
-            applied=[],
-            message=DB_MESSAGES[DB_STATE_UPDATED],
-        )
+    if current is None:
+        tables = await _table_names()
+        has_app_tables = any(t != "alembic_version" for t in tables)
+        if has_app_tables:
+            try:
+                adopted = await _adoption_target()
+            except MigrationError as exc:
+                return MigrationResult(
+                    state=DB_STATE_FAILED,
+                    message=DB_MESSAGES[DB_STATE_FAILED],
+                    error=str(exc),
+                )
+            if adopted is None:  # pragma: no cover - guarded by has_app_tables
+                adopted = _head_revision()
+            try:
+                await _stamp_head(adopted)
+            except Exception as exc:  # pragma: no cover - defensive
+                return MigrationResult(
+                    state=DB_STATE_FAILED,
+                    message=DB_MESSAGES[DB_STATE_FAILED],
+                    error=str(exc),
+                )
+            logger.info("Existing database adopted at revision %s", adopted)
+            # Recompute status now that the marker exists and apply what remains.
+            status = await database_status()
+            if status.state == DB_STATE_READY:
+                return MigrationResult(
+                    state=DB_STATE_UPDATED,
+                    applied=[],
+                    message=DB_MESSAGES[DB_STATE_UPDATED],
+                )
+            if status.state == DB_STATE_UNKNOWN:
+                return MigrationResult(
+                    state=DB_STATE_FAILED,
+                    message=DB_MESSAGES[DB_STATE_FAILED],
+                    error=status.error or DB_MESSAGES[DB_STATE_UNKNOWN],
+                )
 
     if status.state == DB_STATE_READY:
         return MigrationResult(state=DB_STATE_READY, message=DB_MESSAGES[DB_STATE_READY])
