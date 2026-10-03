@@ -8,6 +8,7 @@ from backend.app.api.v1 import (
     ai,
     analytics,
     audience,
+    backup,
     bots,
     events,
     invites,
@@ -30,6 +31,7 @@ api_router.include_router(reactions.router)
 api_router.include_router(ai.router)
 api_router.include_router(analytics.router)
 api_router.include_router(miniapp.router)
+api_router.include_router(backup.router)
 api_router.include_router(events.router)
 api_router.include_router(queue.router)
 

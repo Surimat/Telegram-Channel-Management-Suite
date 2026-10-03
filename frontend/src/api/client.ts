@@ -654,6 +654,45 @@ export interface MiniAppMe {
   expires_at: number | null
 }
 
+// Backup / restore (PHASE 10)
+export interface BackupEntry {
+  filename: string
+  kind: string
+  created_at: string | null
+  size_bytes: number
+  size_human: string
+  includes_sessions: boolean
+  version: string
+}
+
+export interface BackupList {
+  items: BackupEntry[]
+  total: number
+  backup_dir: string
+  retention: number
+  include_sessions_default: boolean
+}
+
+export interface BackupInfo {
+  what_it_does: string
+  why: string
+  sessions_warning: string
+  safe_default: string
+  excluded_tables: string[]
+}
+
+export interface RestoreResult {
+  restored: boolean
+  source: string
+  safety_backup: string
+  includes_sessions: boolean
+}
+
+export interface ImportConfigResult {
+  imported: Record<string, number>
+  message: string
+}
+
 export const api = {
   health: () => request<Health>('/health'),
   healthDeep: () => request<Record<string, unknown>>('/health/deep'),
@@ -884,4 +923,25 @@ export const api = {
     }),
   miniappMe: () => request<MiniAppMe>('/api/v1/miniapp/me'),
   miniappLogout: () => request<{ ok: boolean }>('/api/v1/miniapp/logout', { method: 'POST' }),
+
+  // Backup / restore (PHASE 10)
+  backupInfo: () => request<BackupInfo>('/api/v1/backup/info'),
+  backups: () => request<BackupList>('/api/v1/backup'),
+  createBackup: (payload: { include_sessions?: boolean | null; note?: string }) =>
+    request<BackupEntry>('/api/v1/backup', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  restoreBackup: (filename: string) =>
+    request<RestoreResult>(
+      '/api/v1/backup/restore?filename=' + encodeURIComponent(filename),
+      { method: 'POST' },
+    ),
+  deleteBackup: (filename: string) =>
+    request<{ deleted: boolean }>('/api/v1/backup/' + encodeURIComponent(filename), {
+      method: 'DELETE',
+    }),
+  backupDownloadUrl: (filename: string) =>
+    '/api/v1/backup/download?filename=' + encodeURIComponent(filename),
+  configExportUrl: () => '/api/v1/backup/config/export',
 }

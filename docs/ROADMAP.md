@@ -113,12 +113,18 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
       cover Dashboard/Bots/Reactions/Queue/Analytics/Health/Settings.
 - [x] Tests (auth unit + API). Commit.
 
-## PHASE 10 — Portable Windows ⬜
-- [ ] Self-contained packaging (embedded Python, no Node/Docker).
-- [ ] `run.bat` (start + open browser), `stop.bat` (graceful shutdown).
-- [ ] Backup/restore (DB, config, rules, profiles, state; sessions separately).
-- [ ] Portable startup smoke test.
-- [ ] `README.txt`. Commit.
+## PHASE 10 — Portable Windows ✅
+- [x] `run.bat` (start + open browser, sets `TCMS_ROOT`/`PYTHONPATH`) and
+      `stop.bat` (graceful shutdown via the local endpoint).
+- [x] `scripts/build_portable.sh` assembles the portable tree (`app/`, `runtime/`,
+      data dirs, launcher files); `portable/README.txt` for the owner.
+- [x] Backup/restore service + API: `.tcmsbak` zip (DB + manifest); sessions
+      excluded by default; safety backup before restore; config export/import
+      (`settings`/`reaction_profiles`/`reaction_rules` only).
+- [x] `BackupView.vue` (Резервные копии) with plain-language help + confirmations.
+- [x] `static_dir()` resolved package-relative so code can live under `app/`.
+- [x] Portable startup smoke test (`tests/test_portable_smoke.py`).
+- [x] Tests (backup service + API + smoke) green; docs + memory updated. Commit.
 
 ## PHASE 11 — VPS / Docker ⬜
 - [ ] Production `Dockerfile` + `docker-compose.yml` + `.env.example`.

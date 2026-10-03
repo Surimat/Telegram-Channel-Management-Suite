@@ -41,7 +41,8 @@ finished modern desktop/web application, **not** a technical admin panel.
 | Analytics | Content + audience charts with plain-language explanations |
 | Settings | All configuration, with descriptions and safe defaults |
 | Logs | Log / error center with "Что произошло?" + "Как исправить?" |
-| System | Setup Wizard, health checks, backup/restore, shutdown |
+| Резервные копии | Backup / restore + configuration export/import (PHASE 10) |
+| System | Setup Wizard, health checks, shutdown |
 
 ---
 
@@ -206,3 +207,22 @@ untouched when not running inside Telegram.
 The Telegram WebApp SDK is loaded from `telegram.org` in `index.html`; it is only
 used when the page is opened inside Telegram, so the local/portable runtime is
 unaffected.
+
+---
+
+## 8. Backup page (`BackupView.vue`, PHASE 10)
+
+The **Резервные копии** section lets a non-technical owner protect and move data:
+
+- A plain-language card explains what a backup is, why it matters, and warns
+  that session files are excluded by default.
+- **Create backup** has an explicit opt-in checkbox for session files with a
+  confirmation dialog; the default (unchecked) is the safe one.
+- A table lists backups with date, size, and whether sessions are included, plus
+  Download / Restore / Delete actions. Restore requires confirmation and states
+  that a safety backup is created first.
+- **Configuration** export/import moves rules, reaction profiles and settings as
+  a reviewable JSON file; secrets and accounts are never included (the page says
+  so). Import has a "replace current configuration" toggle.
+- All errors are shown as friendly messages with hints (via the API error
+  envelope), never as stack traces.

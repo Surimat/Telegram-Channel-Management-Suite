@@ -615,3 +615,47 @@ never logged, stored, or returned (D-010). The Telegram WebApp SDK is loaded fro
 
 ---
 
+## D-039 — 2026-10-03 — Backups exclude sessions by default; config transfer never moves secrets — LOCKED
+
+**Decision:** A backup is a single `.tcmsbak` zip holding the SQLite database plus
+a `manifest.json`. MTProto session files are **not** included unless the operator
+explicitly opts in (`backup_include_sessions` / `include_sessions=true`), and the
+manifest records whether they were. Restoring always writes a safety backup of
+the current state first. Configuration export/import (`/api/v1/backup/config/*`)
+touches only `settings`, `reaction_profiles` and `reaction_rules`; the `bots` and
+`user_sessions` tables (sealed tokens, session references) are deliberately
+excluded and reported as such in `/backup/info`.
+
+**Why:** Session files grant full account access (D-010 / security policy) and a
+casual "make a backup" must never silently duplicate them. Config transfer should
+let an owner move rules between installations without shipping credentials. A
+safety backup makes a mistaken restore recoverable.
+
+**Consequence:** Backups remain portable and reviewable. Restoring a backup that
+included sessions only overwrites session files if the archive contains them.
+Paths are validated against traversal; no token/hash/phone/session content ever
+appears in an API response or log line.
+
+---
+
+## D-040 — 2026-10-03 — Portable layout decouples code location from data location — LOCKED
+
+**Decision:** The portable distribution keeps application code under `app/` and
+mutable state (`data/`, `sessions/`, `backups/`, `logs/`, `exports/`, `models/`)
+at the distribution root, selected by `TCMS_ROOT`. `run.bat` sets
+`TCMS_ROOT` (root) and `PYTHONPATH` (root\app) and launches
+`python -m backend.app.main`; the SPA is served from the package-relative
+`backend/app/static` (`paths.static_dir()` now resolves from `__file__`, not the
+project root).
+
+**Why:** Mutable data must be predictable and copyable with the folder, while the
+code tree may be nested. Resolving `static_dir()` package-relative is correct in
+every layout (dev, Docker, portable) and removes an accidental coupling to
+`project_root()`. No second backend is created for portable mode (D-004).
+
+**Consequence:** `scripts/build_portable.sh` stages the tree; a Windows user only
+adds the Python embeddable package to `runtime/`. The smoke test proves startup +
+graceful shutdown with `TCMS_ROOT` in a temp dir.
+
+---
+

@@ -4,9 +4,9 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-03
-**Current phase:** PHASE 9 — Telegram Mini App: **COMPLETED** (commit `f94c00b`).
-**Next phase:** PHASE 10 — Portable Windows packaging.
-**Repository status:** `develop` carries PHASE 0–9; `main` only via pull request.
+**Current phase:** PHASE 10 — Portable Windows packaging + backup/restore: **COMPLETED**.
+**Next phase:** PHASE 11 — VPS / Docker production config.
+**Repository status:** `develop` carries PHASE 0–10; `main` only via pull request.
 **Branch:** `develop` (tracks `origin/develop`); `main` is untouched and only ever updated via pull request.
 
 ---
@@ -297,6 +297,24 @@ Layered architecture: **core → db/models → db/repositories → services → 
   `styles.css`.
 - `tests/` — `test_miniapp_auth.py`, `test_miniapp_api.py` (19 tests).
 
+### PHASE 10 — Portable packaging + backup/restore
+- `backend/app/services/backup_service.py` — `BackupService`: `.tcmsbak` zip
+  (DB + `manifest.json`), unique filenames, retention prune, safety backup on
+  restore, config export/import (`settings`/`reaction_profiles`/`reaction_rules`
+  only), path-traversal guard, sessions excluded by default.
+- `backend/app/api/schemas/backup.py` + `api/v1/backup.py` — `/backup`
+  info/list/create/download/restore/delete + `/backup/config/{export,import}`;
+  `api/deps.py::get_backup_service`; registered in `v1/router.py`.
+- `backend/app/core/config.py` + `.env.example` — `backup_dir`,
+  `backup_retention`, `backup_include_sessions`.
+- `backend/app/core/paths.py` — `static_dir()` now package-relative.
+- `frontend/src/views/BackupView.vue` (Резервные копии) + route + nav + client
+  types/methods.
+- `portable/run.bat` (sets `TCMS_ROOT`/`PYTHONPATH`, opens browser),
+  `portable/stop.bat`, `portable/README.txt`; `scripts/build_portable.sh`.
+- `tests/` — `test_backup_service.py` (9), `test_backup_api.py` (7),
+  `test_portable_smoke.py` (1, spawns the real app with `TCMS_ROOT`).
+
 ### Frontend (PHASE 1) — Vue 3 + Vite + TypeScript
 - `frontend/` — `package.json`, `vite.config.ts` (builds into
   `backend/app/static/`), `tsconfig.json`, `index.html`.
@@ -312,7 +330,8 @@ Layered architecture: **core → db/models → db/repositories → services → 
 ### Ops / packaging (PHASE 1 foundation)
 - `backend/requirements.txt`, `backend/requirements-dev.txt`.
 - `scripts/run_dev.sh`, `scripts/build_frontend.sh`.
-- `portable/run.bat`, `portable/stop.bat` (skeleton; full packaging PHASE 10).
+- `portable/run.bat`, `portable/stop.bat`, `portable/README.txt` — completed in
+  PHASE 10 (see the PHASE 10 section above).
 - `docker/Dockerfile` (multi-stage: Node build → Python runtime, non-root),
   `docker/docker-compose.yml`, root `.dockerignore`.
 - `pyproject.toml` (ruff config), `pytest.ini`.
@@ -386,16 +405,18 @@ Layered architecture: **core → db/models → db/repositories → services → 
 - Manager-bot runtime: the manager bot is registered from settings, but there is
   no command loop / admin whitelist / notification forwarding yet.
 - Alembic migrations (currently `create_all` at startup).
-- Backup/restore implementation, portable packaging, production HTTPS docs.
 - Mini App: BotFather Web App registration and a public HTTPS URL are the owner's
   deployment step (documented; not automated). The Mini App is off by default.
+- PHASE 10 completed the backup/restore implementation and portable packaging.
+  A fully self-contained Windows binary is still an assembly step (add the Python
+  embeddable package to `runtime/`); production HTTPS docs land in PHASE 11.
 
 ## 5. Next action
 
-Start **PHASE 10 — Portable Windows packaging** (see `agent/NEXT_TASK.md` and
-`docs/ROADMAP.md`): self-contained packaging (embedded Python; no Node/Docker),
-`run.bat`/`stop.bat`, backup/restore, and a portable startup smoke test. Then
-PHASE 11 (VPS/Docker + HTTPS docs). Do **not** start PHASE 8 or PHASE 9 work
+Start **PHASE 11 — VPS / Docker production config** (see `agent/NEXT_TASK.md` and
+`docs/ROADMAP.md`): production `Dockerfile` + `docker-compose.yml` + `.env.example`,
+HTTPS/reverse-proxy documentation, and backup/restore docs for VPS. The same
+codebase is used — no separate "server version". Do **not** start PHASE 8/9/10 work
 again — they are complete.
 
 ## 6. Locked decisions (do not break)

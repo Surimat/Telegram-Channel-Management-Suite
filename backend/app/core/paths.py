@@ -77,8 +77,13 @@ def models_dir() -> Path:
 
 
 def static_dir() -> Path:
-    """Directory that FastAPI serves the built SPA from."""
-    return _ensure(project_root() / "backend" / "app" / "static")
+    """Directory that FastAPI serves the built SPA from.
+
+    Resolved relative to this package (``backend/app/static``), not the project
+    root, so a portable build can keep code under ``app/`` while mutable data
+    lives at the distribution root.
+    """
+    return _ensure(Path(__file__).resolve().parents[1] / "static")
 
 
 def is_writable(path: Path) -> bool:

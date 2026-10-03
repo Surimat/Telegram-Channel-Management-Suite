@@ -356,6 +356,35 @@ Auth details:
 
 ---
 
+## Backup / restore (PHASE 10 — implemented)
+
+Backups are single `.tcmsbak` zip files (SQLite database + `manifest.json`).
+Restoring always writes a safety backup of the current state first. Configuration
+export/import moves only user-owned rows and never includes secrets.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/backup/info` | plain-language explanation + excluded tables |
+| GET | `/api/v1/backup` | list backups (filename, date, size, sessions flag, retention) |
+| POST | `/api/v1/backup` | create a backup (`include_sessions` optional, off by default) |
+| GET | `/api/v1/backup/download?filename=` | download a backup file |
+| POST | `/api/v1/backup/restore?filename=` | restore a backup (creates a safety backup) |
+| DELETE | `/api/v1/backup/{filename}` | delete a backup |
+| GET | `/api/v1/backup/config/export` | export configuration as JSON |
+| POST | `/api/v1/backup/config/import?replace=` | import configuration (multipart `file`) |
+
+Safety notes:
+
+- Session files are **never** included unless `include_sessions=true`; even then
+  the manifest is marked so the owner can see it.
+- `export_config` / `import_config` only touch `settings`, `reaction_profiles`
+  and `reaction_rules`. The `bots` and `user_sessions` tables (sealed tokens and
+  session references) are **excluded** and reported as such in `/backup/info`.
+- Filenames are validated against path traversal; responses never contain
+  tokens, hashes, phone numbers or session contents.
+
+---
+
 ## Versioning
 
 The API is versioned (`/api/v1`). Breaking changes go to a new version path.

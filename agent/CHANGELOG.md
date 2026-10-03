@@ -11,6 +11,44 @@ _No unreleased changes._
 
 ---
 
+## [0.10.0] — 2026-10-03 — PHASE 10: Portable Windows packaging + backup/restore
+
+### Added — Backend
+- `backend/app/services/backup_service.py` — `BackupService`:
+  - `create_backup()` writes a single `.tcmsbak` zip (SQLite DB + `manifest.json`)
+    with a unique filename; `backup_retention` prunes older files.
+  - `list_backups()` / `delete_backup()` / `restore_backup()` — restore always
+    writes a safety backup of the current state first.
+  - `export_config()` / `import_config()` — JSON transfer of user-owned rows
+    (`settings`, `reaction_profiles`, `reaction_rules`) only.
+  - Path-traversal protection; sessions excluded unless explicitly requested.
+- `backend/app/api/v1/backup.py` + `backend/app/api/schemas/backup.py` —
+  `/api/v1/backup` (info, list, create, download, restore, delete) and
+  `/api/v1/backup/config/{export,import}`. Friendly RU errors, no secrets.
+- `backend/app/api/deps.py` — `get_backup_service`; router registered.
+- `backend/app/core/config.py` — `backup_dir`, `backup_retention`,
+  `backup_include_sessions`.
+- `backend/app/core/paths.py` — `static_dir()` now resolved package-relative so
+  code can live under `app/` in a portable build.
+
+### Added — Frontend
+- `frontend/src/views/BackupView.vue` (Резервные копии): plain-language help,
+  create (with session opt-in + confirmation), list/download/restore/delete,
+  configuration export/import. Route + sidebar link + API client methods/types.
+
+### Added — Portable / tooling
+- `portable/run.bat` (sets `TCMS_ROOT` + `PYTHONPATH`, creates `.env`, opens the
+  browser), `portable/stop.bat` (graceful shutdown), `portable/README.txt`.
+- `scripts/build_portable.sh` — assembles the portable tree.
+- `tests/test_portable_smoke.py` — spawns the real app with `TCMS_ROOT` in a temp
+  dir, asserts `/health`, runtime dirs, and a clean graceful shutdown.
+
+### Tests
+- `tests/test_backup_service.py` (9) and `tests/test_backup_api.py` (7). Full
+  suite: **330 passed**. `ruff` clean. Frontend builds.
+
+---
+
 ## [0.9.0] — 2026-10-03 — PHASE 9: Telegram Mini App (same SPA, one API)
 
 ### Added — Backend

@@ -91,6 +91,15 @@ class Settings(BaseSettings):
     scheduler_enabled: bool = True
     scheduler_timezone: str = "UTC"
 
+    # --- Backup / Restore (PHASE 10) ---
+    # Where generated backups are written (git-ignored, outside the DB).
+    backup_dir: str = "./backups"
+    # How many recent backups to keep; older ones are pruned (0 = keep all).
+    backup_retention: int = 20
+    # Include the (git-ignored) MTProto session files in a backup. Off by default
+    # because session files grant full account access; handle them separately.
+    backup_include_sessions: bool = False
+
     # --- Tiny AI (PHASE 7) ---
     # Master switch. Off by default: the system works on rules alone.
     ai_enabled: bool = False

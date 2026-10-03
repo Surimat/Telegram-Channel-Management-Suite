@@ -315,6 +315,34 @@ logged or returned (D-038).
 
 ---
 
+## 8b. Backup / restore & portable layout (PHASE 10)
+
+Backup is a self-contained, portable artefact rather than a service dependency:
+
+- `services/backup_service.py` — `BackupService`:
+  - `create_backup()` writes one `.tcmsbak` zip: `manifest.json` (version,
+    timestamp, `includes_sessions`) + `data/app.db`. Filenames are unique and
+    `backup_retention` prunes older files.
+  - `restore_backup()` first writes a **safety backup** of the current state, then
+    replaces the database (and session files only if the archive contains them).
+  - `export_config()` / `import_config()` move user-owned rows
+    (`settings`, `reaction_profiles`, `reaction_rules`) as reviewable JSON. The
+    `bots` and `user_sessions` tables (sealed tokens / session refs) are excluded
+    (D-039).
+  - `_safe_member_path()` rejects path traversal.
+- `api/v1/backup.py` — `/api/v1/backup` (info/list/create/download/restore/delete)
+  and `/api/v1/backup/config/{export,import}`.
+
+Portable layout (D-040): code under `app/`, mutable state at the distribution
+root selected by `TCMS_ROOT` (`data/`, `sessions/`, `backups/`, `logs/`,
+`exports/`, `models/`). `paths.static_dir()` resolves package-relative so the SPA
+is served regardless of layout. `portable/run.bat` sets `TCMS_ROOT` + `PYTHONPATH`
+and opens the browser; `portable/stop.bat` calls the local shutdown endpoint.
+`scripts/build_portable.sh` assembles the tree; a Windows owner only drops the
+Python embeddable package into `runtime/`.
+
+---
+
 ## 9. Reaction Manager & scheduler
 
 One bot can place **one** reaction per message. A `reaction_job` row stores:

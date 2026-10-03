@@ -172,10 +172,23 @@ estimated total, notes) before any job is queued.
 
 ## 9. Backup / restore security
 
-Backups include DB, config, rules, reaction profiles, and app state. **Session
-files are handled separately** and stored with the strongest protection
-available. Backups are written to `backups/` (gitignored) and should never be
-copied into the repository or a shared/public location.
+Backups are single `.tcmsbak` zip files (SQLite database + `manifest.json`),
+written to `backups/` (gitignored). They should never be copied into the
+repository or a shared/public location.
+
+- **Session files are excluded by default** (D-039). They grant full account
+  access, so including them requires an explicit opt-in
+  (`backup_include_sessions` / `include_sessions=true`) and a confirmation in the
+  UI; the manifest records whether they were included.
+- Restoring always writes a **safety backup** of the current state first, so a
+  mistaken restore is recoverable.
+- Configuration export/import (`/api/v1/backup/config/*`) moves only
+  `settings`, `reaction_profiles` and `reaction_rules`. The `bots` and
+  `user_sessions` tables (sealed tokens / session references) are **never**
+  exported or imported.
+- Backup filenames are validated against path traversal; no token, hash, phone
+  number or session content is ever placed in an API response, log line, or the
+  manifest.
 
 ---
 

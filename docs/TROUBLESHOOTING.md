@@ -145,6 +145,25 @@ filtering such users out before running the invite job.
 
 ---
 
+## Backup and restore problems (PHASE 10)
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| «Файл базы данных не найден» when creating a backup | App never started, so `data/app.db` does not exist yet | Start the app once, then create the backup |
+| Backup has no session files | Sessions are excluded by default | Only if you truly need it, tick "Включить файлы сессий" (handle the file securely) |
+| Restore seems to have no effect | The running process still holds the old DB | Restart the app after restoring |
+| «Не удалось расшифровать сохранённый секрет» | `APP_SECRET_KEY` changed since the secret was stored | Restore the original key, or re-enter the affected bot token |
+| Config import replaced something unexpectedly | Import defaults to *replace* | Re-run with "Заменить текущую конфигурацию" unchecked, or restore a backup |
+
+## Portable build problems (PHASE 10)
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `run.bat` closes instantly | `runtime\python.exe` missing and no system Python | Put the Python **embeddable package** into `runtime\`, or install Python 3.11+ |
+| Browser opens but page does not load | Port 8000 busy, or server still starting | Wait a few seconds; if needed set another `APP_PORT` in `.env` |
+| Data appears in the wrong place | `TCMS_ROOT` not set | Launch via `run.bat` (it sets `TCMS_ROOT` to the folder) |
+| Antivirus blocks the app | Local server binding | Allow local (127.0.0.1) connections for the app |
+
 ## Recovering the project after a new chat/session
 
 A new agent must be able to continue from files alone. Run:

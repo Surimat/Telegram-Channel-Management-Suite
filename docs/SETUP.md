@@ -92,7 +92,26 @@ Steps:
 No Python, Node, npm, Docker, PostgreSQL, or Redis is required.
 All mutable data stays inside the extracted folder.
 
-> Portable packaging is delivered in PHASE 10. Until then use mode A.
+### Building the portable folder
+
+Run the build script from the repository (needs Node once, for the frontend):
+
+```bash
+bash scripts/build_portable.sh /path/to/out
+```
+
+It builds the SPA, copies `backend/` into `app/`, stages `runtime/site-packages`,
+copies `run.bat` / `stop.bat` / `README.txt`, and creates the empty data
+directories. On Windows, drop the official Python **embeddable package** into
+`runtime/` (same version) so `runtime\python.exe` exists; `run.bat` sets
+`PYTHONPATH=app` and `TCMS_ROOT` to the folder so no installation is needed.
+
+### Backups
+
+Use the **Резервные копии** page (or `POST /api/v1/backup`). A backup is one
+`.tcmsbak` file containing the database; session files are excluded unless you
+explicitly opt in. Configuration (rules, profiles, settings) can be exported and
+imported separately — see `docs/API.md`.
 
 ---
 

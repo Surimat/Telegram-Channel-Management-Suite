@@ -4,68 +4,60 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-03
-**Status:** PHASE 9 (Mini App) is **COMPLETE**. Start **PHASE 10** below.
+**Status:** PHASE 10 (Portable packaging + backup/restore) is **COMPLETE**.
+Start **PHASE 11** below.
 
 ---
 
-## Active task: PHASE 10 — Portable Windows packaging
+## Active task: PHASE 11 — VPS / Docker production configuration
 
-**Goal:** unpack a folder → run `run.bat` → the app starts → the browser opens →
-it works. No Python/Node/npm/Docker/PostgreSQL/Redis installation required.
+**Goal:** the *same* codebase runs on a VPS via Docker Compose with production
+settings, HTTPS documented, and backups work the same way. No separate "server
+version".
 
 ### Requirements (from the brief)
 
-- Self-contained: embed the Python runtime and dependencies; the built SPA is
-  already served by FastAPI (no Node at runtime, D-012).
-- Predictable layout, e.g.:
-  ```
-  TelegramChannelManagementSuite/
-      app/        runtime/    data/
-      sessions/   backups/    logs/
-      exports/    run.bat     stop.bat   README.txt
-  ```
-- All mutable state under `data/`, `sessions/`, `backups/`, `logs/`, `exports/`.
-- `run.bat`: start the server and open the browser; `stop.bat`: graceful
-  shutdown. Reuse the existing `TCMS_ROOT`/paths layer (D-004) — do not fork a
-  "portable version" of the backend.
-- Backup/restore: SQLite DB, configuration, rules, reaction profiles, app state;
-  **session files handled separately and safely**. Add Create/Restore backup +
-  Export/Import configuration.
-- A portable **startup smoke test** (starts the app, checks `/health`, stops it).
+- Production `Dockerfile` + `docker-compose.yml` + `.env.example` (already
+  sketched in `docker/` from PHASE 1 — review, harden, and finish).
+- Same architecture and code as local/portable; do **not** fork the backend.
+- HTTPS / reverse-proxy documentation (e.g. Caddy/Traefik/nginx) — the owner
+  terminates TLS; the app itself stays plain HTTP behind the proxy.
+- Backup/restore docs for VPS (use the PHASE 10 `/api/v1/backup` endpoints;
+  bind-mount `data/`, `sessions/`, `backups/`, `logs/`, `exports/`).
+- Production secret handling: `APP_SECRET_KEY`, `APP_ENV=production`,
+  `APP_HOST=0.0.0.0`, secrets via environment / Docker secrets — never in git.
 
 ### Suggested vertical slice
 
-1. **Scripts**: finish `portable/run.bat`, `portable/stop.bat`; add a build
-   script that assembles the portable folder from the repo (`scripts/`), copying
-   `backend/`, the built `backend/app/static/`, `runtime/`, and empty data dirs.
-2. **Backup/Restore service + API**: `services/backup_service.py` (zip the DB +
-   settings/rules/profiles/state; sessions optional and separate),
-   `api/v1/backup.py` (`GET/POST create`, `POST restore`, `export/import config`),
-   and a `SettingsView`/`SystemView` control. Never include session files by
-   default; never log secrets.
-3. **Smoke test**: `tests/test_portable_smoke.py` (start app with `TCMS_ROOT` in
-   a temp dir, assert `/health` + SPA serve, clean shutdown).
-4. **Docs + memory**: `docs/SETUP.md`, `docs/TROUBLESHOOTING.md`, `README.txt`
-   (portable), then update `agent/CURRENT_STATE.md`, `agent/DECISIONS.md`,
-   `agent/CHANGELOG.md`, `docs/ROADMAP.md`; commit.
+1. **Docker**: verify the multi-stage build (Node build → Python runtime,
+   non-root) still serves the SPA; ensure volumes and healthcheck (`/health`).
+2. **Compose**: one service, named volumes/bind mounts for mutable state,
+   `restart: unless-stopped`, env from `.env`.
+3. **Reverse proxy**: document HTTPS (Caddy example + nginx example); note the
+   Mini App `MINIAPP_PUBLIC_URL` must be the public HTTPS URL.
+4. **Docs + memory**: `docs/SETUP.md` (mode C), `docs/SECURITY.md` (VPS
+   secrets), `docs/TROUBLESHOOTING.md` (container issues); update
+   `agent/CURRENT_STATE.md`, `agent/DECISIONS.md`, `agent/CHANGELOG.md`,
+   `docs/ROADMAP.md`; commit.
 
 ### Do NOT
 
-- Do not re-open PHASE 8/PHASE 9 — they are complete.
+- Do not re-open PHASE 8/9/10 — they are complete.
 - Do not add Redis/Kafka/Celery/PostgreSQL (D-002 / no-heavy-infra).
 - Do not require a public HTTPS server for the local Web UI.
 - Do not store or log bot tokens, `initData`, or session contents.
-- Do not create a second backend for portable mode (D-004).
+- Do not create a second backend for server mode (D-004).
 
-### After PHASE 10
+### After PHASE 11
 
-PHASE 11 — VPS/Docker production config + HTTPS docs. Dedicated Audience/Sources
-frontend views are still pending and can be folded into UI work.
+Dedicated Audience/Sources frontend views remain the main UI gap. A fully
+self-contained Windows binary (embedded Python staged into `runtime/`) is an
+assembly/packaging step, not a code change.
 
 ### Verification checklist for any phase
 
 ```bash
-python -m pytest                 # must stay green (currently 313 passed)
+python -m pytest                 # must stay green (currently 330 passed)
 ruff check backend tests         # must stay clean
 cd frontend && npm run build     # must succeed (outputs to backend/app/static)
 ```

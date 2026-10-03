@@ -15,6 +15,7 @@ from backend.app.miniapp.service import MiniAppService
 from backend.app.providers.registry import build_bot_provider, build_session_provider
 from backend.app.services.analytics_service import AnalyticsService
 from backend.app.services.audience_service import AudienceService
+from backend.app.services.backup_service import BackupService
 from backend.app.services.bot_service import BotService, ProviderFactory
 from backend.app.services.invite_service import InviteService
 from backend.app.services.reaction_service import ReactionService
@@ -72,3 +73,7 @@ def get_analytics_service(session: AsyncSession = Depends(get_session)) -> Analy
 
 def get_miniapp_service(session: AsyncSession = Depends(get_session)) -> MiniAppService:
     return MiniAppService(session)
+
+
+def get_backup_service(session: AsyncSession = Depends(get_session)) -> BackupService:
+    return BackupService(session)
