@@ -24,6 +24,7 @@ SESSIONS_DIRNAME = "sessions"
 BACKUPS_DIRNAME = "backups"
 LOGS_DIRNAME = "logs"
 EXPORTS_DIRNAME = "exports"
+MODELS_DIRNAME = "models"
 
 
 def _detect_project_root() -> Path:
@@ -69,6 +70,10 @@ def logs_dir() -> Path:
 
 def exports_dir() -> Path:
     return _ensure(project_root() / EXPORTS_DIRNAME)
+
+
+def models_dir() -> Path:
+    return _ensure(project_root() / MODELS_DIRNAME)
 
 
 def static_dir() -> Path:

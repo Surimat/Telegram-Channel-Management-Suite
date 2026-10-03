@@ -24,9 +24,19 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.ai.types import (
+    MODE_AUTO,
+    SOURCE_AI,
+    SOURCE_FALLBACK,
+    SOURCE_MANUAL,
+    SOURCE_RULES,
+    ClassificationResult,
+    Classifier,
+)
 from backend.app.core.config import Settings, get_settings
 from backend.app.core.security import open_secret
 from backend.app.db.base import utcnow
+from backend.app.db.models.ai import AiRecord
 from backend.app.db.models.bot import Bot, BotHealth, BotKind
 from backend.app.db.models.post import Post, PostStatus
 from backend.app.db.models.reaction import (
@@ -36,6 +46,7 @@ from backend.app.db.models.reaction import (
     ReactionProfile,
     ReactionRule,
 )
+from backend.app.db.repositories.ai import AiRepository
 from backend.app.db.repositories.bots import BotRepository
 from backend.app.db.repositories.posts import PostRepository
 from backend.app.db.repositories.reactions import (
@@ -92,6 +103,12 @@ class SimulationResult:
     category_title: str
     confidence: float
     source: str
+    tone: str
+    mode: str
+    ai_attempted: bool
+    ai_used: bool
+    fallback_used: bool
+    ai_error: str
     allowed_reactions: list[str]
     preferred_reactions: list[str]
     forbidden_reactions: list[str]
@@ -123,6 +140,7 @@ class ReactionService:
         settings: Settings | None = None,
         provider_factory: ProviderFactory = build_bot_provider,
         rng: random.Random | None = None,
+        classifier: Classifier | None = None,
     ) -> None:
         self.session = session
         self.settings = settings or get_settings()
@@ -133,10 +151,14 @@ class ReactionService:
         self.jobs = ReactionJobRepository(session)
         self.events = EventsService(session)
         self.queue = QueueService(session)
+        self.ai_repo = AiRepository(session)
         self.planner = ReactionPlanner()
         self._provider_factory = provider_factory
         # Injectable RNG keeps simulation/tests deterministic (D-021).
         self._rng = rng
+        # PHASE 7: optional injected classifier (rules + AI router). When omitted,
+        # the service builds a rules-only classifier lazily from DB rules.
+        self._classifier = classifier
 
     def _rng_for(self, seed: int | None) -> random.Random:
         if seed is not None:
@@ -390,17 +412,134 @@ class ReactionService:
             max_bots_per_post=profile.max_bots_per_post,
         )
 
-    async def _classify(self, text: str) -> RuleMatch:
-        """Classify text, using DB rules; fall back to built-in defaults.
-
-        The fallback keeps classification meaningful even before the editable
-        rules are seeded (e.g. a fresh DB or a direct API call).
-        """
+    async def _rule_specs(self) -> list[RuleSpec]:
         rules = await self.rules.list(enabled=True)
         specs = [self._spec_from_rule(r) for r in rules]
-        if not specs:
-            specs = default_rule_specs()
-        return RulesEngine(specs).classify(text)
+        return specs or default_rule_specs()
+
+    async def _get_classifier(self, mode: str) -> Classifier:
+        """Return the classifier for ``mode`` (PHASE 7).
+
+        An injected classifier (tests / pre-built router) always wins. Otherwise a
+        router is built from the current DB rules plus the optional AI, honoring
+        the requested mode.
+        """
+        if self._classifier is not None:
+            return self._classifier
+        from backend.app.ai.classifiers import RulesClassifier
+        from backend.app.ai.router import RoutingClassifier
+        from backend.app.services.ai_service import AiService
+
+        specs = await self._rule_specs()
+        rules_classifier = RulesClassifier(specs)
+        ai = await AiService(self.session, settings=self.settings).classifier()
+        return RoutingClassifier(
+            rules=rules_classifier,
+            ai=ai,
+            rules_threshold=self.settings.ai_rules_threshold,
+            ai_threshold=self.settings.ai_confidence_threshold,
+            mode=mode,
+        )
+
+    async def _route(
+        self, text: str, *, mode: str = MODE_AUTO
+    ) -> tuple[ClassificationResult, object]:
+        """Classify with rules-first routing; also return the routing outcome."""
+        from backend.app.ai.router import RoutingClassifier
+        from backend.app.ai.types import ClassificationContext
+
+        engine = await self._get_classifier(mode)
+        context = ClassificationContext(
+            known_categories=tuple(c.value for c in Category),
+        )
+        if isinstance(engine, RoutingClassifier):
+            outcome = engine.route(text, context)
+            await self._record_classification(outcome)
+            return outcome.result, outcome
+        result = engine.classify(text, context)
+        return result, None
+
+    async def _record_classification(self, outcome: object) -> None:
+        """Persist aggregate metrics + a recent record for one classification."""
+        from backend.app.ai.router import RoutingOutcome
+
+        if not isinstance(outcome, RoutingOutcome):
+            return
+        result = outcome.result
+        is_ai = result.source == SOURCE_AI
+        try:
+            await self.ai_repo.bump(
+                rules=1,
+                ai=1 if is_ai else 0,
+                fallback=1 if outcome.fallback_used and not is_ai else 0,
+                manual=1 if result.source == SOURCE_MANUAL else 0,
+                ai_error=1 if outcome.ai_error and not is_ai else 0,
+                latency_ms=result.processing_time_ms,
+            )
+            if self.settings.ai_history_limit > 0:
+                await self.ai_repo.add_record(
+                    AiRecord(
+                        source=result.source,
+                        category=str(result.category),
+                        tone=str(result.tone),
+                        confidence=result.confidence,
+                        model=result.model,
+                        latency_ms=result.processing_time_ms,
+                        mode=outcome.mode,
+                        ok=not outcome.ai_error,
+                        detail=outcome.ai_error[:200],
+                    )
+                )
+                await self.ai_repo.trim_records(self.settings.ai_history_limit)
+        except Exception:  # pragma: no cover - metrics must never break flow
+            pass
+
+    def _public_source(self, source: str) -> str:
+        """Map internal source names to the public UI vocabulary."""
+        if source in (SOURCE_RULES, SOURCE_MANUAL, SOURCE_AI, SOURCE_FALLBACK):
+            return source
+        if source == "default":
+            return SOURCE_FALLBACK
+        return SOURCE_RULES
+
+    async def _policy_for_category(
+        self, category: Category, specs: list[RuleSpec]
+    ) -> tuple[list[str], list[str], list[str]]:
+        """Reaction emoji policy for a category, from its rule or defaults.
+
+        Emoji selection stays deterministic and rule-driven; AI never picks
+        emoji (D-032).
+        """
+        from backend.app.rules.engine import DEFAULT_CATEGORY_REACTIONS
+
+        candidate: RuleSpec | None = None
+        for spec in specs:
+            is_better = candidate is None or spec.priority > candidate.priority
+            if spec.category == category and spec.enabled and is_better:
+                candidate = spec
+        if candidate is not None:
+            allowed, preferred = RulesEngine._reaction_policy(candidate)
+            return allowed, preferred, list(candidate.forbidden_reactions)
+        default_allowed, default_preferred = DEFAULT_CATEGORY_REACTIONS[category]
+        return list(default_allowed), list(default_preferred), []
+
+    async def _result_to_match(
+        self, result: ClassificationResult, outcome: object = None
+    ) -> RuleMatch:
+        """Adapt a classification result to the RuleMatch the planner consumes."""
+        specs = await self._rule_specs()
+        allowed, preferred, forbidden = await self._policy_for_category(
+            result.category, specs
+        )
+        return RuleMatch(
+            category=result.category,
+            confidence=result.confidence,
+            source=self._public_source(result.source),
+            matched_terms=list(result.matched_terms),
+            allowed_reactions=allowed,
+            preferred_reactions=preferred,
+            forbidden_reactions=forbidden,
+        )
 
     async def active_bots(self) -> list[Bot]:
         bots, _ = await self.bots.list(enabled=True)
@@ -420,14 +559,22 @@ class ReactionService:
         profile_id: str | None = None,
         bot_count: int | None = None,
         seed: int | None = None,
+        mode: str = MODE_AUTO,
     ) -> SimulationResult:
         """Build a plan for ``text`` without creating jobs or contacting Telegram.
 
         When no real bots exist, deterministic placeholder bots are used so the
-        feature is always demonstrable in the UI.
+        feature is always demonstrable in the UI. ``mode`` selects rules-only,
+        AI-only or rules-first+AI classification (PHASE 7).
         """
         profile = await self.resolve_profile(profile_id)
-        match = await self._classify(text)
+        result, outcome = await self._route(text, mode=mode)
+        match = await self._result_to_match(result, outcome)
+        tone = str(getattr(result, "tone", "neutral"))
+        ai_attempted = bool(getattr(outcome, "ai_attempted", False))
+        ai_used = bool(getattr(outcome, "ai_used", False))
+        fallback_used = bool(getattr(outcome, "fallback_used", False))
+        ai_error = str(getattr(outcome, "ai_error", "") or "")
 
         bots = await self.active_bots()
         pairs = [(b.id, b.username or f"bot{b.telegram_id}") for b in bots]
@@ -452,6 +599,12 @@ class ReactionService:
             category_title=CATEGORY_TITLES.get(match.category, str(match.category)),
             confidence=match.confidence,
             source=match.source,
+            tone=tone,
+            mode=mode,
+            ai_attempted=ai_attempted,
+            ai_used=ai_used,
+            fallback_used=fallback_used,
+            ai_error=ai_error,
             allowed_reactions=match.allowed_reactions,
             preferred_reactions=match.preferred_reactions,
             forbidden_reactions=match.forbidden_reactions,
@@ -487,14 +640,16 @@ class ReactionService:
         force_category: str | None = None,
         plan: bool = True,
         seed: int | None = None,
+        mode: str = MODE_AUTO,
     ) -> Post:
         """Store a post, classify it and (optionally) enqueue reaction jobs."""
-        match = await self._classify(text)
+        result, outcome = await self._route(text, mode=mode)
+        match = await self._result_to_match(result, outcome)
         if force_category:
             match = RuleMatch(
                 category=Category(force_category),
                 confidence=1.0,
-                source="manual",
+                source=SOURCE_MANUAL,
                 allowed_reactions=match.allowed_reactions,
                 preferred_reactions=match.preferred_reactions,
                 forbidden_reactions=match.forbidden_reactions,

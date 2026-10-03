@@ -4,8 +4,8 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-03
-**Current phase:** PHASE 6 — Invite Manager: **COMPLETED** (commit pending).
-**Repository status:** `develop` carries PHASE 0–6; `main` only via pull request.
+**Current phase:** PHASE 7 — Tiny AI classifier: **COMPLETED** (commit pending).
+**Repository status:** `develop` carries PHASE 0–7; `main` only via pull request.
 **Branch:** `develop` (tracks `origin/develop`); `main` is untouched and only ever updated via pull request.
 
 ---
@@ -202,6 +202,51 @@ Layered architecture: **core → db/models → db/repositories → services → 
 - `tests/` — `test_invite_service.py`, `test_invite_api.py`; `conftest.py` gained an
   `invite_client` fixture.
 
+### PHASE 7 — Tiny AI classifier (rules-first, optional)
+- `backend/app/ai/` — the whole AI layer, free of Telegram/FastAPI imports:
+  - `types.py` — `Classifier` Protocol, `ClassificationResult`
+    (`category`/`tone`/`confidence`/`source`), `ClassificationContext`, `Tone`,
+    and the source/mode vocabularies (`rules`/`llm`/`manual`/`fallback`/`default`;
+    `auto`/`rules`/`ai`).
+  - `errors.py` — friendly, non-leaking errors (`AiDisabledError`,
+    `ModelNotConfigured/NotFoundError`, `RuntimeUnavailableError`,
+    `InferenceTimeoutError`, `InvalidModelOutputError`, `ModelLoadError`).
+  - `schema.py` — `parse_classification`: tolerant about framing, strict about
+    values (unknown category/tone, non-numeric/bool/out-of-range confidence →
+    `InvalidModelOutputError`).
+  - `classifiers.py` — `RulesClassifier` (wraps the Rules Engine),
+    `LlmClassifier` (prompt + `run_bounded` + strict parse), `FakeClassifier`.
+  - `router.py` — `RoutingClassifier` (rules fast path → AI only when unsure →
+    graceful fallback), explainable `RoutingOutcome`, `category_title`.
+  - `inference.py` — `run_bounded`: one shared single-worker executor; timeout
+    raises `InferenceTimeoutError`; `shutdown_executor()` on app exit.
+  - `backends/` — `base.LlmBackend`, `FakeLlmBackend` (data-block-only keyword
+    heuristic; scriptable failures), `LlamaCppBackend` (the only `llama_cpp`
+    importer; lazy load, lock-serialized, optional), registry `build_backend`.
+- `backend/app/db/models/ai.py` (`AiMetric` single-row counters, `AiRecord` recent
+  diagnostics) + `repositories/ai.py` (`AiRepository`).
+- `backend/app/services/ai_service.py` — `AiService`: effective (DB-overridable)
+  config, `status`, `list_models`/`check_model`/`load_model`/`unload_model`,
+  `router(mode)`, `classify`, metrics/history, event recording, `_backend()`
+  cache. `ai_help.py` — per-setting plain-language help + `human_size`.
+- `backend/app/api/schemas/ai.py` + `api/v1/ai.py` — 11 routes: `/ai/status`,
+  `/ai/overview`, `/ai/settings` (GET/PUT), `/ai/classify`, `/ai/test`,
+  `/ai/models`, `/ai/model/check|load|unload`, `/ai/metrics`, `/ai/history`;
+  registered in `v1/router.py`.
+- `Settings` — AI block + `resolve_models_dir()`; `paths.models_dir()`
+  (`MODELS_DIRNAME`). Model files live in gitignored `/models/`, never
+  auto-downloaded.
+- `ReactionService` — `_classify` routes through `RoutingClassifier`
+  (`_route`/`_result_to_match`/`_public_source`); `simulate` and `ingest_post`
+  accept `mode`/`force_category`; simulation response carries the AI fields.
+- `services/system_service.py` — `ai_check_async` (live service) wired into the
+  Setup Wizard's `ai` check (off = OK, missing runtime/model = warning, never an
+  error).
+- `frontend/src/views/AiView.vue` — tabs Обзор / Модель / Настройки / Проверка /
+  Диагностика; AI types + methods in `api/client.ts`; `/ai` route; sidebar «Мини-ИИ».
+- `tests/` — `test_ai_classifier.py` (schema/classifiers/routing/inference) and
+  `test_ai_api.py` (service + API + reaction simulation AI fields + setup check).
+
 ### Frontend (PHASE 1) — Vue 3 + Vite + TypeScript
 - `frontend/` — `package.json`, `vite.config.ts` (builds into
   `backend/app/static/`), `tsconfig.json`, `index.html`.
@@ -242,7 +287,7 @@ Layered architecture: **core → db/models → db/repositories → services → 
   durable jobs, execution via the provider with FloodWait handling, and startup
   recovery — verified live in offline mode (add bot → enable → ingest → job
   created) and covered by 48 tests.
-- `ruff check backend tests` → clean. `pytest` → **238 passed**.
+- `ruff check backend tests` → clean. `pytest` → **281 passed**.
 - Frontend `npm run build` → outputs to `backend/app/static/` successfully
   (`vue-tsc` clean).
 - **Sessions (PHASE 4)**: guided auth wizard (start → code → 2FA), `.session`
@@ -259,13 +304,18 @@ Layered architecture: **core → db/models → db/repositories → services → 
   pause/resume/stop, safe retry, FloodWait pause + recorded wait, privacy/admin
   statuses, and restart recovery (`recover()` pauses running jobs) — covered by
   `test_invite_service.py` + `test_invite_api.py`; responses never leak secrets.
+- **Tiny AI (PHASE 7)**: rules-first routing (AI only when rules are unsure),
+  strict-JSON classification, optional GGUF backend that degrades gracefully when
+  llama.cpp/the model is absent, model check/load/unload, DB-overridable UI
+  settings, metrics/history, and an `ai` Setup-Wizard check — verified live in
+  offline mode (status → enable fake → classify via rules and via AI) and covered
+  by 43 AI tests. The SPA builds with the new «Мини-ИИ» page.
 
 ## 4. What does NOT exist yet
 
 - Dedicated Audience/Sources **frontend views** (API is complete; views land with
   the frontend rollout) and the Telegram Mini App.
-- Channel binding and Analytics APIs/UI; Tiny AI classifier (PHASE 7). (Invites
-  now exist — PHASE 6 complete.)
+- Channel binding and Analytics APIs/UI (PHASE 8).
 - Account permission probe (read/post rights on a channel) — the SessionProvider
   exposes `resolve_entity`/`get_participants`/`invite_to_channel`, and invites now
   use `invite_to_channel`, but there is no standalone "check permissions" flow.
@@ -277,11 +327,12 @@ Layered architecture: **core → db/models → db/repositories → services → 
 
 ## 5. Next action
 
-Start **PHASE 7 — Tiny AI** (see `agent/NEXT_TASK.md` and `docs/ROADMAP.md`): a
-classifier interface with the Rules Engine fast path, an optional tiny GGUF
-classifier behind it (strict JSON output, confidence routing), and AI
-enable/disable + model path configuration. The rules engine must remain the
-deterministic default; AI is additive-only.
+Start **PHASE 8 — Analytics** (see `agent/NEXT_TASK.md` and `docs/ROADMAP.md`):
+content analytics (posts, reactions, categories, activity over time), audience
+analytics (sources, growth, engagement indicators available via the Telegram API),
+charts in the Web UI, and a plain-language Dashboard that explains the numbers.
+Reuse the existing data (posts, reaction jobs, audience sources/users) — no new
+infrastructure.
 
 ## 6. Locked decisions (do not break)
 
@@ -315,6 +366,13 @@ See `agent/DECISIONS.md`. Key ones:
   (D-029).
 - Invites require server-side confirmation and run as bounded durable batches;
   limits are never bypassed (D-030).
+- The Tiny AI is an optional adapter behind a `Classifier` Protocol; the Rules
+  Engine stays the deterministic default (D-031/D-032).
+- AI output is strictly validated JSON; the LLM never picks emoji (D-033).
+- AI config is UI-editable and DB-overridable with plain-language help; models are
+  user-provided `.gguf` assets, never committed/downloaded (D-034).
+- AI inference is single-concurrency and bounded, and always degrades gracefully
+  (D-035).
 
 ## 7. How to run / verify after opening a new chat
 

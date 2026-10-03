@@ -12,6 +12,7 @@ import { RouterView, RouterLink } from 'vue-router'
         <RouterLink class="nav-item" to="/sessions">Аккаунты</RouterLink>
         <RouterLink class="nav-item" to="/invites">Приглашения</RouterLink>
         <RouterLink class="nav-item" to="/reactions">Реакции</RouterLink>
+        <RouterLink class="nav-item" to="/ai">Мини-ИИ</RouterLink>
         <RouterLink class="nav-item" to="/system">Система</RouterLink>
         <RouterLink class="nav-item" to="/queue">Очередь</RouterLink>
         <RouterLink class="nav-item" to="/logs">Логи</RouterLink>

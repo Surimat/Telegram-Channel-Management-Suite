@@ -165,6 +165,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     finally:
         if scheduler is not None:
             await scheduler.stop()
+        with contextlib.suppress(Exception):
+            from backend.app.ai.inference import shutdown_executor
+
+            shutdown_executor()
         await dispose_engine()
         logger.info("Shutdown complete")
 

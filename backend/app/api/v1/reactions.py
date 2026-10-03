@@ -168,6 +168,7 @@ async def simulate(
             profile_id=payload.profile_id,
             bot_count=payload.bot_count,
             seed=payload.seed,
+            mode=payload.mode,
         )
     except ReactionServiceError as exc:
         raise _http(exc) from exc
@@ -177,6 +178,12 @@ async def simulate(
         category_title=result.category_title,
         confidence=result.confidence,
         source=result.source,
+        tone=result.tone,
+        mode=result.mode,
+        ai_attempted=result.ai_attempted,
+        ai_used=result.ai_used,
+        fallback_used=result.fallback_used,
+        ai_error=result.ai_error,
         allowed_reactions=result.allowed_reactions,
         preferred_reactions=result.preferred_reactions,
         forbidden_reactions=result.forbidden_reactions,
@@ -233,6 +240,7 @@ async def create_post(
         channel_username=payload.channel_username,
         force_category=payload.force_category,
         plan=payload.plan,
+        mode=payload.mode,
     )
     return PostOut.model_validate(post)
 

@@ -244,6 +244,28 @@ The AI returns **strict structured JSON** and is used **only** to pick a
 category/tone/confidence. Emoji selection is **always deterministic weighted
 logic**, never the LLM. AI can be disabled entirely (`AI_ENABLED=false`).
 
+Implemented (PHASE 7) in `backend/app/ai/` — free of Telegram/FastAPI imports:
+
+- `types.py` — `Classifier` Protocol and `ClassificationResult`
+  (`category`, `tone`, `confidence`, `source`; `source` ∈
+  `rules`/`llm`/`manual`/`fallback`/`default`).
+- `classifiers.py` — `RulesClassifier` (wraps the Rules Engine),
+  `LlmClassifier` (prompt → `run_bounded` → strict parse), `FakeClassifier`.
+- `schema.py` — tolerant about framing, strict about values; invalid JSON/unknown
+  category/tone/out-of-range confidence ⇒ `InvalidModelOutputError`.
+- `router.py` — `RoutingClassifier`: rules fast path (`ai_rules_threshold`),
+  then AI only when unsure (`ai_confidence_threshold`), else graceful fallback.
+  `RoutingOutcome` records `ai_attempted`/`ai_used`/`fallback_used`.
+- `inference.py` — one shared single-worker executor (`run_bounded`); a timeout
+  raises `InferenceTimeoutError` and shut down on app exit.
+- `backends/` — registry (`build_backend`): `fake` (deterministic, offline/tests)
+  and `llama_cpp` (the only `llama_cpp` importer; lazy, lock-serialized, optional).
+
+Configuration is read through `AiService.effective()` so DB settings override env
+defaults (D-034). Models are user-provided `.gguf` assets in the gitignored
+`/models/` directory — never committed, never auto-downloaded. Modes: `auto`
+(default), `rules`, `ai`.
+
 ---
 
 ## 8. Reaction Manager & scheduler

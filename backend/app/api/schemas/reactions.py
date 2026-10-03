@@ -152,6 +152,10 @@ class PostCreate(BaseModel):
         default=None, description="Ручное указание категории (переопределяет правила)."
     )
     plan: bool = Field(default=True, description="Сразу запланировать реакции.")
+    mode: str = Field(
+        default="auto",
+        description="Способ: auto (правила+ИИ), rules (только правила), ai (только ИИ).",
+    )
 
 
 class ReactionJobOut(BaseModel):
@@ -186,6 +190,12 @@ class SimulationOut(BaseModel):
     category_title: str
     confidence: float
     source: str
+    tone: str = "neutral"
+    mode: str = "auto"
+    ai_attempted: bool = False
+    ai_used: bool = False
+    fallback_used: bool = False
+    ai_error: str = ""
     allowed_reactions: list[str]
     preferred_reactions: list[str]
     forbidden_reactions: list[str]
@@ -204,6 +214,10 @@ class SimulationIn(BaseModel):
         default=None, ge=1, le=50, description="Сколько ботов использовать, если реальных нет."
     )
     seed: int | None = Field(default=None, description="Зерно для воспроизводимости.")
+    mode: str = Field(
+        default="auto",
+        description="Способ: auto (правила+ИИ), rules (только правила), ai (только ИИ).",
+    )
 
 
 class ReactionLastPost(BaseModel):

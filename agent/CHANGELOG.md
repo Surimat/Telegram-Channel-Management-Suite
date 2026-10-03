@@ -11,6 +11,51 @@ _No unreleased changes._
 
 ---
 
+## [0.7.0] — 2026-10-03 — PHASE 7: Tiny AI classifier (rules-first, optional)
+
+### Added — Backend
+- `backend/app/ai/` package: `types.py` (`Classifier` Protocol,
+  `ClassificationResult`, `ClassificationContext`, `Tone`, source/mode
+  vocabularies), `errors.py` (friendly, non-leaking AI errors), `schema.py`
+  (strict JSON contract parsing), `classifiers.py` (`RulesClassifier`,
+  `LlmClassifier`, `FakeClassifier`), `router.py` (`RoutingClassifier`,
+  `RoutingOutcome`, `category_title`), `inference.py` (single-worker bounded
+  executor, `run_bounded`), `backends/` (`base.py`, `fake.py`, `llama_cpp.py`,
+  registry `build_backend`).
+- `backend/app/db/models/ai.py` (`AiMetric`, `AiRecord`) + `repositories/ai.py`
+  (`AiRepository`: metrics counters, recent records, trim).
+- `backend/app/services/ai_service.py` (`AiService`: effective config, status,
+  model list/check/load/unload, routing, metrics/history, events) and
+  `ai_help.py` (plain-language setting help, `human_size`).
+- `backend/app/api/schemas/ai.py` + `api/v1/ai.py` (status, overview, settings
+  GET/PUT, classify, test, models, model check/load/unload, metrics, history),
+  registered in `v1/router.py`.
+- `Settings` — full AI block (enabled, backend, model path, models dir, threads,
+  context, temperature, max tokens, timeout, keep-loaded, both thresholds,
+  history limit); `resolve_models_dir()`; `paths.models_dir()`.
+- `ReactionService` now classifies through the AI router; `simulate`/`ingest_post`
+  accept a mode; Setup Wizard reports an `ai` check.
+- `main.py` lifespan now shuts down the AI inference executor on exit.
+
+### Added — Frontend
+- `frontend/src/views/AiView.vue` (Обзор / Модель / Настройки / Проверка /
+  Диагностика) + AI types/methods in `api/client.ts`, `/ai` route, sidebar link
+  «Мини-ИИ». Simulation result types extended with AI fields.
+
+### Added — Tests
+- `tests/test_ai_classifier.py` (schema, classifiers, routing policy, inference
+  bounds) and `tests/test_ai_api.py` (status/overview/settings/classify/models/
+  metrics/history, reaction simulation AI fields, setup check). **281 tests pass;
+  `ruff check backend tests` clean.**
+
+### Notes
+- The Rules Engine remains the deterministic default. AI is opt-in, consulted only
+  when rules are unsure, never picks emoji, and always degrades gracefully
+  (D-031…D-035). Models are user-provided `.gguf` assets (gitignored, never
+  auto-downloaded).
+
+---
+
 ## [0.6.1] — 2026-10-03 — Second GitHub sync (PHASE 4–6 to `develop`)
 
 ### Changed

@@ -3,6 +3,7 @@
 Importing this package registers every model on ``Base.metadata``.
 """
 
+from backend.app.db.models.ai import AiMetric, AiRecord
 from backend.app.db.models.audience import (
     AudienceSource,
     AudienceUser,
@@ -35,6 +36,8 @@ from backend.app.db.models.setting import Setting
 
 __all__ = [
     "TERMINAL_INVITE_STATUSES",
+    "AiMetric",
+    "AiRecord",
     "AudienceSource",
     "AudienceUser",
     "Bot",

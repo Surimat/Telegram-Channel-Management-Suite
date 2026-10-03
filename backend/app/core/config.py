@@ -91,10 +91,35 @@ class Settings(BaseSettings):
     scheduler_enabled: bool = True
     scheduler_timezone: str = "UTC"
 
-    # --- Tiny AI ---
+    # --- Tiny AI (PHASE 7) ---
+    # Master switch. Off by default: the system works on rules alone.
     ai_enabled: bool = False
+    # Inference backend: "llama_cpp" (real, optional) or "fake" (offline/tests).
+    # Empty = auto (fake when offline_mode, else llama_cpp).
+    ai_backend: str = ""
+    # Path to a user-provided .gguf model. Never committed; never auto-downloaded.
     ai_model_path: str = ""
+    # Directory scanned for available .gguf models (portable: <root>/models).
+    models_dir: str = "./models"
+    # CPU threads for inference. 2 is safe on very weak machines.
     ai_model_threads: int = 2
+    # Context window (tokens). Small keeps RAM low.
+    ai_context_size: int = 2048
+    # Sampling temperature. Low = more deterministic classification.
+    ai_temperature: float = 0.1
+    # Max tokens generated per classification (the JSON answer is tiny).
+    ai_max_tokens: int = 128
+    # Hard timeout for one inference, in seconds.
+    ai_timeout_seconds: float = 30.0
+    # Keep the model resident between calls (faster, uses RAM). Off by default
+    # so a weak PC does not hold a model in memory while idle.
+    ai_keep_loaded: bool = False
+    # Rules confidence at/above which the AI is not consulted (fast path).
+    ai_rules_threshold: float = 0.55
+    # AI confidence at/above which the AI result is accepted over rules.
+    ai_confidence_threshold: float = 0.6
+    # How many recent AI inference records to keep for diagnostics (0 = none).
+    ai_history_limit: int = 200
 
     # --- Logging ---
     log_level: str = "INFO"
@@ -151,6 +176,10 @@ class Settings(BaseSettings):
 
     def resolve_exports_dir(self) -> Path:
         p = Path(self.exports_dir)
+        return p if p.is_absolute() else (paths.project_root() / p).resolve()
+
+    def resolve_models_dir(self) -> Path:
+        p = Path(self.models_dir)
         return p if p.is_absolute() else (paths.project_root() / p).resolve()
 
     def resolve_database_url(self) -> str:

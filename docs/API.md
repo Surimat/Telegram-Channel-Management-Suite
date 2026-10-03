@@ -237,14 +237,31 @@ Each reaction job stores `post_id`, `bot_id`, `reaction`, `scheduled_at`,
 
 ---
 
-## AI classifier (optional)
+## AI classifier (optional) — PHASE 7 (implemented)
+
+The Rules Engine is always the deterministic default. The tiny AI is consulted
+only when rules are unsure, and every AI failure degrades to the rules result.
+The LLM never picks emoji; emoji selection stays deterministic (D-021/D-033).
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/v1/ai/status` | classifier status |
-| POST | `/api/v1/ai/classify` | classify a text (debug) |
+| GET | `/api/v1/ai/status` | status: enabled, backend, model present/loaded, effective + plain-language reason/fix |
+| GET | `/api/v1/ai/overview` | status + lifetime metrics + today's metrics |
+| GET | `/api/v1/ai/settings` | all AI settings with plain-language help (what/why/large/safe) |
+| PUT | `/api/v1/ai/settings` | update AI settings (validated; DB override) |
+| POST | `/api/v1/ai/classify` | classify a text: `{text, mode}` → category/tone/confidence/source + routing flags |
+| POST | `/api/v1/ai/test` | alias of `/classify` for the UI's testing panel |
+| GET | `/api/v1/ai/models` | list `.gguf` files found in the models directory |
+| POST | `/api/v1/ai/model/check` | verify runtime + model file (load test, load time) |
+| POST | `/api/v1/ai/model/load` | load the model into memory |
+| POST | `/api/v1/ai/model/unload` | unload the model from memory |
+| GET | `/api/v1/ai/metrics` | aggregate classification counters/latency |
+| GET | `/api/v1/ai/history` | recent AI diagnostics records (`?limit=&offset=`) |
 
-_Planned for PHASE 7._
+`mode` is `auto` (rules-first, default), `rules` (rules only) or `ai` (AI only,
+falls back to rules). `source` is `rules` / `llm` / `manual` / `fallback`.
+Model files are user-provided runtime assets: never committed, never downloaded
+automatically.
 
 ---
 

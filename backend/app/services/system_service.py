@@ -334,6 +334,7 @@ class SystemService:
                 "Мини-ИИ (необязательно)",
                 STATUS_OK,
                 "ИИ выключен. Система использует только правила — это нормально.",
+                "Включите ИИ в разделе «AI», если хотите использовать локальную модель.",
             )
         if self.settings.ai_model_path:
             return Check(
@@ -341,13 +342,66 @@ class SystemService:
                 "Мини-ИИ",
                 STATUS_OK,
                 "ИИ включён и модель указана.",
+                "Проверьте модель в разделе «AI» (кнопка «Проверить модель»).",
             )
         return Check(
             "ai",
             "Мини-ИИ",
             STATUS_WARNING,
-            "ИИ включён, но путь к модели не указан.",
+            "ИИ включён, но модель не найдена.",
             "Укажите путь к модели .gguf в разделе «AI» или выключите ИИ.",
+        )
+
+    async def ai_check_async(self, session: AsyncSession) -> Check:
+        """Accurate AI setup check using the live service (PHASE 7).
+
+        Never fails the wizard: missing runtime or model is a warning, not an
+        error, because the system works fine on rules alone.
+        """
+        from backend.app.services.ai_service import AiService
+
+        try:
+            status = await AiService(session, settings=self.settings).status()
+        except Exception:  # pragma: no cover - defensive
+            return self.ai_check()
+        if not status.enabled:
+            return Check(
+                "ai",
+                "Мини-ИИ (необязательно)",
+                STATUS_OK,
+                "AI выключен — это нормально. Система работает на обычных правилах.",
+                "Включите ИИ в разделе «AI», если хотите использовать локальную модель.",
+            )
+        if not status.runtime_available:
+            return Check(
+                "ai",
+                "Мини-ИИ",
+                STATUS_WARNING,
+                "AI включён, но локальный движок (llama.cpp) недоступен.",
+                "Установите llama-cpp-python или выключите ИИ — система продолжит работать.",
+            )
+        if not status.model_path:
+            return Check(
+                "ai",
+                "Мини-ИИ",
+                STATUS_WARNING,
+                "AI включён, но модель не выбрана.",
+                "Укажите путь к файлу модели .gguf в разделе «AI».",
+            )
+        if not status.model_exists:
+            return Check(
+                "ai",
+                "Мини-ИИ",
+                STATUS_WARNING,
+                "AI включён, но файл модели не найден.",
+                f"Проверьте путь к модели: {status.model_path}",
+            )
+        return Check(
+            "ai",
+            "Мини-ИИ",
+            STATUS_OK,
+            "Модель найдена. Нажмите «Проверить модель», чтобы убедиться в загрузке.",
+            "Если модель не загружается, система автоматически использует правила.",
         )
 
     async def reactions_check(self, session: AsyncSession) -> Check:
@@ -437,9 +491,10 @@ class SystemService:
             checks.append(await self.accounts_check(session))
             checks.append(await self.audience_check(session))
             checks.append(await self.invites_check(session))
+            checks.append(await self.ai_check_async(session))
         else:
             checks.append(self.manager_bot_check())
-        checks.append(self.ai_check())
+            checks.append(self.ai_check())
         return checks
 
     @staticmethod

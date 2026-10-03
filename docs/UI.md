@@ -129,3 +129,36 @@ Wording rule — instead of `BOT_TOKEN missing`, write:
 
 > Implementation details and component inventory are added in PHASE 1 and grow
 > with each phase. Keep this document updated as sections are built.
+
+### Built views (running inventory)
+
+| Route | View | Phase |
+|-------|------|-------|
+| `/` | `DashboardView` | 1 |
+| `/bots` | `BotsView` | 2 |
+| `/reactions` | `ReactionsView` | 3 |
+| `/sessions` | `SessionsView` | 4 |
+| `/invites` | `InvitesView` | 6 |
+| `/ai` | `AiView` (Обзор / Модель / Настройки / Проверка / Диагностика) | 7 |
+| `/settings` | `SettingsView` | 1 |
+| `/logs` | `LogsView` | 1 |
+| `/queue` | `QueueView` | 1 |
+| `/system` | `SystemView` (Setup Wizard) | 1 |
+
+### AI page (`AiView.vue`, PHASE 7)
+
+The AI page follows the "Название / Зачем нужно / Что произойдёт / Безопасное
+значение по умолчанию" rule for every complex control, and states clearly that
+the AI is optional and that the system works on rules alone when it is off. Tabs:
+
+- **Обзор** — status card (enabled / model / effective) with a plain-language
+  reason and "как исправить", lifetime + today metrics.
+- **Модель** — list `.gguf` files found, check / load / unload.
+- **Настройки** — all AI settings with per-field help (what/why/large effect/safe
+  default) sourced from the backend, never hardcoded in the frontend.
+- **Проверка** — type a post text, choose mode (`auto`/`rules`/`ai`), see the
+  routed result: category, tone, confidence, and which source won.
+- **Диагностика** — recent AI records and aggregate metrics.
+
+The UI never shows stack traces or model internals; AI problems appear as
+friendly messages with a suggested fix.

@@ -83,11 +83,16 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 - [x] API `/api/v1/invites/*` + Setup Wizard `invites` check + `InvitesView.vue`.
 - [x] Tests. Commit.
 
-## PHASE 7 — Tiny AI ⬜
-- [ ] Classifier interface + rules fast path.
-- [ ] Optional llama.cpp tiny GGUF backend, strict JSON output.
-- [ ] Confidence routing, AI enable/disable, model path config.
-- [ ] API + UI (AI). Tests. Commit.
+## PHASE 7 — Tiny AI ✅
+- [x] Classifier interface (`Classifier` Protocol) + rules fast path
+      (`RulesClassifier`); rules-first routing (`RoutingClassifier`).
+- [x] Optional llama.cpp tiny GGUF backend (`LlamaCppBackend`, lazy, optional),
+      strict JSON contract validation, deterministic fake backend for offline/tests.
+- [x] Confidence routing (rules threshold → AI → threshold → graceful fallback),
+      AI enable/disable, DB-overridable model path + settings with UI help.
+- [x] API `/api/v1/ai/*` + Setup Wizard `ai` check + `AiView.vue`. Tests. Commit.
+      Models are user-provided `.gguf` assets in gitignored `/models/`.
+- [ ] Commit pending on `develop`.
 
 ## PHASE 8 — Analytics ⬜
 - [ ] Content analytics (posts, time, reactions, type, category).

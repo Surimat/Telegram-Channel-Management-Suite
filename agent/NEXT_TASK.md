@@ -3,96 +3,89 @@
 > The single "what to do next" pointer. Update at the end of every phase.
 
 **Updated:** 2026-10-03
-**Active phase:** PHASE 7 — Tiny AI (rules fast path + optional tiny GGUF classifier)
-**Previous phase:** PHASE 6 — Invite Manager (completed; commit pending on `develop`).
+**Active phase:** PHASE 8 — Analytics (content + audience, charts, plain-language Dashboard)
+**Previous phase:** PHASE 7 — Tiny AI classifier (completed; commit pending on `develop`).
 
 ---
 
 ## Repository sync status (2026-10-03)
 
-PHASE 0–6 live on the `develop` branch. A PR (`develop → main`, #1) is open —
+PHASE 0–7 live on the `develop` branch. A PR (`develop → main`, #1) is open —
 **not merged** pending owner confirmation. Continue on `develop` (feature
 branches off it as needed). **Never push directly to `main`.**
 
 ---
 
-## PHASE 6 — done (checklist)
+## PHASE 7 — done (checklist)
 
-- [x] `InviteJob`/`InviteTask` models (+ enums, terminal set); repositories with
-      `claim_batch`, counters, `next_due`, `retry_failed`.
-- [x] `InviteService`: dry-run preview, draft job + planner (per-account randomized
-      spacing, `max_total`/`max_per_account` caps), confirm→start, pause/resume/stop,
-      bounded durable `run_tick` (`done`/`more`/`paused`), safe retry, `recover`.
-- [x] FloodWait → pause run + record `wait_until`; privacy/admin → per-user
-      non-retryable statuses; transient network stays pending.
-- [x] API `/api/v1/invites/*` + schemas + deps + router registration.
-- [x] Setup-Wizard `invites` check; startup recovery for interrupted runs.
-- [x] `InvitesView.vue` + client types/methods + route + sidebar link.
-- [x] Tests: **238 passed**; `ruff check backend tests` clean; SPA builds.
-- [ ] **Commit PHASE 6** on `develop` (single stable commit; do not push to `main`).
-- [ ] (Deferred) Dedicated Audience/Sources **frontend views** — tracked with the
-      frontend rollout, not blocking PHASE 7.
+- [x] `backend/app/ai/` — `Classifier` Protocol + `RulesClassifier`,
+      `LlmClassifier`, `FakeClassifier`; `RoutingClassifier` (rules-first);
+      strict-JSON `schema.py`; friendly `errors.py`; bounded `inference.py`.
+- [x] `backends/` registry with `fake` and optional `llama_cpp`; model is a
+      user asset (never committed/downloaded), lazy load, single-concurrency.
+- [x] `AiMetric`/`AiRecord` models + `AiRepository`; `AiService` (effective
+      DB-overridable config, status, model check/load/unload, classify, metrics,
+      history, events); `ai_help.py` plain-language copy.
+- [x] API `/api/v1/ai/*` (status/overview/settings/classify/test/models/
+      model-ops/metrics/history) + schemas + router registration.
+- [x] Wired into `ReactionService._classify`; `simulate`/`ingest_post` accept a
+      mode; Setup-Wizard `ai` check; inference executor shutdown on exit.
+- [x] `AiView.vue` + client types/methods + `/ai` route + sidebar «Мини-ИИ».
+- [x] Tests: **281 passed**; `ruff check backend tests` clean; SPA builds.
+- [ ] **Commit PHASE 7** on `develop` (single stable commit; do not push to `main`).
 
 ---
 
-## Goal of PHASE 7 — Tiny AI
+## Goal of PHASE 8 — Analytics
 
-Keep the deterministic Rules Engine as the default classifier and add an
-**optional** tiny classifier (a ~0.5–1B GGUF model via llama.cpp) that is only
-consulted when the rules are not confident. The AI returns strict JSON
-(`{category, tone, confidence}`) and can be fully disabled. The LLM is never used
-to pick emoji — emoji selection stays deterministic (weights), per D-021.
+Turn the data the system already stores into understandable insight. No new
+infrastructure: aggregate the existing `posts`, `reaction_jobs`, `audience_sources`
+and `audience_users` tables. The Dashboard must explain numbers in plain language
+(what changed, why it matters, what to look at), not just display them.
 
 ## Constraints / reminders
 
-- **D-001/D-005**: AI is an adapter behind an interface (`Classifier`), optional
-  and disableable; no business logic may depend on it. The rules engine remains
-  the source of truth.
-- **D-020/D-021**: rules/classification are deterministic where possible; emoji
-  are never chosen by the LLM.
-- **D-010**: the model path and any AI config must not leak secrets; never store
-  model credentials in git; log redaction stays intact.
+- **D-002**: analytics are read-only queries over SQLite; no schema rewrite, no
+  new service. Keep queries efficient (aggregate in SQL, not in Python loops).
+- **D-010/D-029**: never expose secrets or PII in analytics responses or exports;
+  audience figures are aggregate counts, not personal data.
+- **D-003**: one API serves both the Web UI and the Mini App.
 - Keep the app runnable at the end (`pytest` passes, app starts, SPA builds).
-- Prefer no new heavy dependency unless essential — the classifier must degrade
-  gracefully when llama.cpp / the model is absent (offline mode).
+- Prefer no new heavy dependency; charts should be lightweight (a small inline
+  SVG/canvas component or a tiny chart lib, not a large framework).
 
 ## Deliverables
 
 ### Backend
-- [ ] `backend/app/ai/` (or `services/classifier.py`): `Classifier` Protocol with
-      `classify(text) -> Classification` (`category`, `tone`, `confidence`,
-      `source`); `RulesClassifier` (wraps the existing Rules Engine fast path) and
-      `TinyLlmClassifier` (GGUF via llama.cpp, strict JSON, robust parsing/errors).
-- [ ] `Config` — `ai_enabled`, `ai_model_path`, `ai_min_confidence`,
-      `ai_timeout`, `ai_threads`; sensible defaults, safe when path missing.
-- [ ] Router logic: rules first → if confidence below threshold and AI enabled →
-      tiny LLM → fall back to rules/neutral on failure. Fully off = rules only.
-- [ ] Wire into `ReactionService._classify` (keep the interface so tests inject a
-      fake classifier). Structured JSON only; never random emoji.
-
-### API + Setup
-- [ ] `api/schemas/ai.py` + `api/v1/ai.py`: status (enabled, model present,
-      backend ready), a **classify test** endpoint (returns category/tone/
-      confidence/source), enable/disable, model-path config.
-- [ ] Setup-Wizard `ai` check extended: "model available / backend ready /
-      disabled — rules only" in plain language.
+- [ ] `backend/app/db/repositories/analytics.py` (or extend existing repos) with
+      aggregate queries: posts per day, reactions per category, reaction success
+      rate, per-bot participation, audience growth over time, source effectiveness
+      (found → invited → joined where known), top sources.
+- [ ] `backend/app/services/analytics_service.py` — `AnalyticsService` composing
+      the queries into content / audience / reaction overviews with plain-language
+      summaries.
+- [ ] `backend/app/api/schemas/analytics.py` + `api/v1/analytics.py`
+      (`/analytics/overview`, `/analytics/content`, `/analytics/audience`,
+      `/analytics/reactions`) + router registration + `api/deps.py` service getter.
 
 ### Frontend
-- [ ] `AiView.vue`: enable/disable, model path, confidence threshold, a live
-      "test a text" panel showing the routed result + which source won; clear
-      explanation of what AI does and that it is optional.
+- [ ] `AnalyticsView.vue` — charts (posts/reactions over time, category mix,
+      audience growth, source effectiveness) with date-range selection, loading/
+      empty states, and plain-language explanations under each chart.
+- [ ] Upgrade `DashboardView.vue` to pull from the analytics overview and explain
+      the headline numbers in words.
+- [ ] Client types/methods in `api/client.ts`, `/analytics` route, sidebar link.
 
 ### Tests
-- [ ] classifier routing (rules win when confident; AI consulted only when
-      needed; AI off ⇒ rules only; AI failure ⇒ graceful fallback), strict JSON
-      parsing incl. malformed output, API endpoints, secret/leak checks.
+- [ ] analytics repository/service/API tests over seeded data (deterministic);
+      empty-database behaviour; no-PII/secret leak assertions.
 
 ### Finish
 - [ ] Update `agent/CURRENT_STATE.md`, `NEXT_TASK.md`, `DECISIONS.md`,
       `CHANGELOG.md`, and the relevant `docs/*`; run `ruff` + `pytest`; build the
       SPA; `git diff` review; commit on `develop`.
 
-## After PHASE 7
+## After PHASE 8
 
-PHASE 8 — Analytics (content + audience, charts, plain-language Dashboard). See
-`docs/ROADMAP.md`.
+PHASE 9 — Telegram Mini App (reuse the same SPA + API; Telegram `initData` auth).
+See `docs/ROADMAP.md`.

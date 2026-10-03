@@ -474,3 +474,97 @@ and make the run restart-safe (D-008).
 `retry_failed` only re-queues technically retryable failures (generic provider
 errors / FloodWait), never privacy or admin restrictions.
 
+
+---
+
+## D-031 — 2026-10-03 — Tiny AI is an optional adapter behind a `Classifier` Protocol — LOCKED
+
+**Decision:** The AI layer lives in `backend/app/ai/` and exposes one tiny
+interface: `Classifier.classify(text, context) -> ClassificationResult`
+(`category`, `tone`, `confidence`, `source`). Implementations are
+`RulesClassifier` (wraps the PHASE 3 Rules Engine), `LlmClassifier` (a GGUF model
+via the optional `llama_cpp` runtime) and `FakeClassifier` (deterministic, for
+tests/offline). `RoutingClassifier` composes rules + AI by policy. Telegram and
+FastAPI are never imported here; the Reaction Manager depends only on the
+`Classifier` concept, never on a runtime or model.
+
+**Why:** Keeps Telegram/LLM implementation details out of the business logic
+(D-001/D-005) and lets the classifier be swapped or removed without touching the
+reaction pipeline.
+
+**Consequence:** Adding another backend (a different GGUF runtime, a remote API
+classifier, an embeddings classifier) is a registry change in
+`backend/app/ai/backends/__init__.py`, nothing else.
+
+---
+
+## D-032 — 2026-10-03 — Rules-first routing; AI is consulted only when rules are unsure — LOCKED
+
+**Decision:** The default mode is `auto`: the deterministic Rules Engine runs
+first; if its confidence is `>= ai_rules_threshold` (default 0.55) the AI is not
+consulted at all. Only when rules are unsure does the tiny LLM run; its result is
+accepted only if confidence is `>= ai_confidence_threshold` (default 0.6). Any AI
+failure (disabled, missing runtime/model, timeout, invalid JSON) degrades to the
+rules/neutral result and records an event — the reaction pipeline is never
+blocked. `rules` and `ai` modes exist for explicit control/testing.
+
+**Why:** The Rules Engine stays the deterministic, predictable default; AI is
+additive-only, which matters on weak Windows PCs where a model may be slow or
+absent.
+
+**Consequence:** `RoutingOutcome` records `ai_attempted`/`ai_used`/`fallback_used`
+and the `source` (`rules`/`llm`/`manual`/`fallback`) so the UI and simulation can
+explain exactly which classifier won.
+
+---
+
+## D-033 — 2026-10-03 — AI output is strictly validated JSON; emoji are never chosen by the LLM — LOCKED
+
+**Decision:** The model is asked for exactly `{"category", "tone", "confidence"}`.
+`parse_classification` tolerates framing (markdown fences, stray prose) but is
+strict about values: an unknown category/tone, a non-numeric/boolean/out-of-range
+confidence, or invalid JSON raises `InvalidModelOutputError` and triggers the
+fallback. Emoji selection remains fully deterministic (weights/RNG) in the
+Reaction Planner (D-021) and is never delegated to the model.
+
+**Why:** Models are unreliable narrators; a strict contract keeps classification
+safe and keeps reaction selection reproducible.
+
+**Consequence:** The AI can only ever pick from the fixed category vocabulary;
+it can never emit an emoji, a free-text action or an out-of-vocabulary category.
+
+---
+
+## D-034 — 2026-10-03 — AI configuration is UI-editable and DB-overridable, with plain-language help — LOCKED
+
+**Decision:** AI settings (`ai_enabled`, backend, model path, threads, context,
+temperature, max tokens, timeout, keep-loaded, both thresholds, history limit)
+have env defaults in `Settings` but are read through `AiService.effective()`,
+which lets DB-stored settings override env. Every setting ships plain-language
+help (`what_it_does`, `why`, `large_value_effect`, `safe_default`) from
+`ai_help.py`, so the Web UI never hardcodes explanations. The model path must end
+in `.gguf`; models are user-provided runtime assets, never committed and never
+auto-downloaded. `offline_mode` selects the deterministic `fake` backend.
+
+**Why:** Satisfies "configuration available via the UI" (brief principle 6) and
+the beginner-friendly requirement without duplicating copy in the frontend.
+
+**Consequence:** Tests and offline runs exercise the real pipeline through the
+`fake` backend; switching to a real model is a path/backend setting, not a code
+change.
+
+---
+
+## D-035 — 2026-10-03 — Single-concurrency, bounded AI inference — LOCKED
+
+**Decision:** All model inference runs through one shared executor with a single
+worker (`backend/app/ai/inference.py`, `run_bounded`). At most one generation
+runs at a time; a timeout raises `InferenceTimeoutError` and never blocks the
+caller indefinitely. The `llama_cpp` backend loads lazily and, unless
+`ai_keep_loaded`, unloads after each call. The executor is shut down on app exit.
+
+**Why:** Bounds CPU/RAM on a weak Windows PC and prevents several posts from
+loading/running a model simultaneously.
+
+**Consequence:** Throughput is intentionally serialized; the UI must never assume
+concurrent AI classification.

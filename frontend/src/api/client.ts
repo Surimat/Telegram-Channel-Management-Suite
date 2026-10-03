@@ -240,6 +240,12 @@ export interface SimulationResult {
   category_title: string
   confidence: number
   source: string
+  tone: string
+  mode: string
+  ai_attempted: boolean
+  ai_used: boolean
+  fallback_used: boolean
+  ai_error: string
   allowed_reactions: string[]
   preferred_reactions: string[]
   forbidden_reactions: string[]
@@ -415,6 +421,103 @@ export interface InviteTaskList {
   limit: number
   offset: number
   status_counts: Record<string, number>
+}
+
+// Tiny AI classifier (PHASE 7)
+export interface AiSettingHelp {
+  key: string
+  title: string
+  value_type: string
+  value: string
+  default_value: string
+  what_it_does: string
+  why: string
+  large_value_effect: string
+  safe_default: string
+}
+
+export interface AiStatus {
+  enabled: boolean
+  backend: string
+  runtime_available: boolean
+  model_path: string
+  model_exists: boolean
+  model_size_bytes: number
+  model_size_human: string
+  model_loaded: boolean
+  effective: boolean
+  reason: string
+  how_to_fix: string
+}
+
+export interface AiMetrics {
+  rules_count: number
+  ai_count: number
+  fallback_count: number
+  manual_count: number
+  ai_error_count: number
+  average_latency_ms: number
+  last_latency_ms: number
+  model_load_ms: number
+  total_classifications: number
+}
+
+export interface AiOverview {
+  status: AiStatus
+  metrics: AiMetrics
+  today: AiMetrics
+}
+
+export interface AiModel {
+  name: string
+  path: string
+  size_bytes: number
+  size_human: string
+}
+
+export interface AiModelCheck {
+  ok: boolean
+  runtime_available: boolean
+  model_exists: boolean
+  message: string
+  how_to_fix: string
+  size_bytes: number
+  load_ms: number
+}
+
+export interface AiClassifyResult {
+  category: string
+  category_title: string
+  tone: string
+  confidence: number
+  source: string
+  source_title: string
+  model: string
+  processing_time_ms: number
+  mode: string
+  ai_attempted: boolean
+  ai_used: boolean
+  fallback_used: boolean
+  ai_error: string
+}
+
+export interface AiRecord {
+  id: string
+  source: string
+  category: string
+  tone: string
+  confidence: number
+  model: string
+  latency_ms: number
+  mode: string
+  ok: boolean
+  detail: string
+  created_at: string
+}
+
+export interface AiHistory {
+  items: AiRecord[]
+  total: number
 }
 
 export const api = {
@@ -605,4 +708,26 @@ export const api = {
     request<InviteTaskList>(
       `/api/v1/invites/${id}/tasks?` + new URLSearchParams(params).toString(),
     ),
+
+  // Tiny AI classifier (PHASE 7)
+  aiOverview: () => request<AiOverview>('/api/v1/ai/overview'),
+  aiStatus: () => request<AiStatus>('/api/v1/ai/status'),
+  aiSettings: () => request<{ items: AiSettingHelp[] }>('/api/v1/ai/settings'),
+  aiUpdateSettings: (values: Record<string, unknown>) =>
+    request<{ items: AiSettingHelp[] }>('/api/v1/ai/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ values }),
+    }),
+  aiClassify: (payload: { text: string; mode?: string }) =>
+    request<AiClassifyResult>('/api/v1/ai/classify', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  aiModels: () => request<AiModel[]>('/api/v1/ai/models'),
+  aiCheckModel: () => request<AiModelCheck>('/api/v1/ai/model/check', { method: 'POST' }),
+  aiLoadModel: () => request<AiModelCheck>('/api/v1/ai/model/load', { method: 'POST' }),
+  aiUnloadModel: () => request<AiStatus>('/api/v1/ai/model/unload', { method: 'POST' }),
+  aiMetrics: () => request<AiMetrics>('/api/v1/ai/metrics'),
+  aiHistory: (params: Record<string, string> = {}) =>
+    request<AiHistory>('/api/v1/ai/history?' + new URLSearchParams(params).toString()),
 }
