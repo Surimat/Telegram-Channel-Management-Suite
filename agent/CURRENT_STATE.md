@@ -4,9 +4,9 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-03
-**Current phase:** PHASE 3 — Reaction Manager: **COMPLETED** (staged, not yet committed).
-**Repository status:** uncommitted changes (PHASE 3).
-**Branch:** `main` (an `openhands-workspace*` branch may be current — check `git branch`).
+**Current phase:** PHASE 3 — Reaction Manager: **COMPLETED** and committed.
+**Repository status:** first GitHub sync done — `develop` pushed; development continues on `develop`.
+**Branch:** `develop` (tracks `origin/develop`); `main` is untouched and only ever updated via pull request.
 
 ---
 
@@ -188,6 +188,7 @@ See `agent/DECISIONS.md`. Key ones:
 ## 7. How to run / verify after opening a new chat
 
 ```bash
+git fetch origin && git checkout develop   # development branch (not main)
 git status && git log --oneline -20
 cat agent/CURRENT_STATE.md agent/NEXT_TASK.md agent/DECISIONS.md
 cat docs/ROADMAP.md
@@ -199,3 +200,18 @@ python -m backend.app.main             # http://127.0.0.1:8000
 
 cd frontend && npm install && npm run build && cd ..
 ```
+
+## 8. GitHub sync & branching
+
+- Remote: `https://github.com/Surimat/Telegram-Channel-Management-Suite`.
+- First sync (2026-10-03): PHASE 0–3 (commits `0daa91b`…`f06ba53`) pushed to
+  `develop`; PR **#1** `develop → main` opened but **not merged** (needs explicit
+  owner confirmation).
+- **Never push directly to `main`.** All work goes to `develop` (or feature
+  branches off it) and lands in `main` only via a reviewed pull request.
+- `main` still points at the initial README commit (`b2436d6`) until PR #1 merges.
+- No history rewrite, no force push.
+- Secret audit before push: `.env`, `data/*.db`, session files and portable
+  runtimes are git-ignored and confirmed absent from the remote; the mutable
+  runtime dirs (`sessions/`, `logs/`, `data/`, `backups/`, `exports/`) contain
+  only `.gitkeep` on the remote.

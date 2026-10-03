@@ -11,6 +11,27 @@ _No unreleased changes._
 
 ---
 
+## [0.3.1] — 2026-10-03 — First GitHub sync (develop branch + PR)
+
+### Added / Changed
+- Pushed the full local history (PHASE 0–3, commits `0daa91b`…`f06ba53`) to the
+  remote branch **`develop`** — the first sync with
+  `github.com/Surimat/Telegram-Channel-Management-Suite`.
+- Opened PR **#1** (`develop → main`); **not merged** (requires owner confirmation).
+- `main` was intentionally left untouched (no direct push, no history rewrite, no
+  force push).
+- Fixed the local `origin` fetch refspec (`+refs/heads/*:refs/remotes/origin/*`)
+  so all remote branches are tracked.
+- Pre-push secret audit confirmed: `.env`, `data/*.db`, session files, tokens and
+  portable runtimes are git-ignored and absent from the remote; mutable runtime
+  dirs contain only `.gitkeep`.
+- Documentation/persistent memory updated: development now proceeds on `develop`;
+  `agent/CURRENT_STATE.md` gained a "GitHub sync & branching" section.
+
+_No functional changes in this sync._
+
+---
+
 ## [0.3.0] — 2026-10-03 — PHASE 3: Reaction Manager (rules, planner, scheduling, UI)
 
 ### Added — Rules Engine (deterministic, editable)

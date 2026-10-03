@@ -4,14 +4,20 @@
 
 **Updated:** 2026-10-03
 **Active phase:** PHASE 4 — User Session Manager
-**Previous phase:** PHASE 3 — Reaction Manager (code complete, tests green; commit
-pending — see "Finish PHASE 3 first").
+**Previous phase:** PHASE 3 — Reaction Manager (completed, committed, pushed to `develop`).
 
 ---
 
-## Finish PHASE 3 first (one commit)
+## Repository sync status (2026-10-03)
 
-Everything below is done and verified; the only remaining step is the commit.
+PHASE 0–3 are committed, pushed to the remote `develop` branch, and a PR
+(`develop → main`, #1) is open — **not merged** pending owner confirmation.
+Continue development on `develop` (create feature branches off it as needed).
+Never push directly to `main`.
+
+---
+
+## Finish PHASE 3 first (done)
 
 - [x] Rules Engine (`rules/engine.py`, `rules/delays.py`, `rules/defaults.py`).
 - [x] Models/repos: `Post`, `ReactionProfile`, `ReactionRule`, `ReactionJob`.
@@ -22,7 +28,7 @@ Everything below is done and verified; the only remaining step is the commit.
 - [x] API (`/api/v1/reactions/*`) + `reactions` Setup-Wizard check.
 - [x] Frontend `ReactionsView.vue` + route + nav + Dashboard card.
 - [x] Tests: **108 passed**; `ruff check backend tests` clean; SPA builds.
-- [ ] **Commit PHASE 3** (`git add -A && git commit`), then move to PHASE 4.
+- [x] **Committed** PHASE 3 (`f06ba53`) and pushed to `origin/develop`.
 
 ---
 
