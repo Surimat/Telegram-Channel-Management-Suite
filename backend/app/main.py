@@ -3,7 +3,7 @@
 Run locally with:
 
     python -m backend.app.main
-    # or
+    # or (auto-reload needs watchfiles: pip install "uvicorn[standard]")
     uvicorn backend.app.main:app --reload
 """
 

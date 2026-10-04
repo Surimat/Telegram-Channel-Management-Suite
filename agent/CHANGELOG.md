@@ -5,9 +5,26 @@ Dates are ISO-8601.
 
 ---
 
-## [Unreleased] — after v1.0.0 (on `develop`)
+## [1.0.1] — 2026-10-04
+
+Post-1.0 hardening release: versioned migrations, the shared Channel Registry,
+per-channel analytics, CI, the Mini App setup helper, and reproducible
+installable packaging. Published from `develop` via a reviewed `develop → main`
+PR, tagged `v1.0.1`; the Windows portable ZIP is attached to the GitHub Release.
 
 ### Added
+- **Reproducible, cross-platform portable packaging.** `scripts/build_win_runtime.py`
+  stages a self-contained Windows CPython (official *embeddable* package + pinned
+  `win_amd64` wheels from `scripts/win-requirements.lock`) extracted flat into
+  `runtime/site-packages`; `pyaes` (sdist-only, pure Python) comes from its sdist,
+  so no compiler is needed. `scripts/build_portable.sh` is now cross-platform,
+  emits a versioned ZIP (`…-Windows-Portable-<version>.zip`) plus `.sha256`, and
+  gained `--no-runtime` / `--no-zip` / `--no-frontend`. `scripts/fetch_embedded_python.sh`
+  gained `--no-deps`. Tests: `tests/test_portable_smoke.py` (offline tree, ZIP
+  layout, builder dry-runs).
+- **Release workflow** (`.github/workflows/release.yml`): on a `v*` tag (or manual
+  dispatch) it verifies (ruff + pytest + SPA build), builds the portable ZIP and
+  attaches it (+ checksum) to the GitHub Release.
 - **Versioned Alembic migrations** replace `create_all` at startup. Guarded runner
   (`backend/app/db/migrate.py`) handles fresh installs, existing `create_all`
   databases (adopt + stamp) and normal upgrades, with a pre-migration backup and
@@ -56,10 +73,14 @@ Dates are ISO-8601.
   `tests/test_analytics_channels.py`.
 
 ### Changed
-- Application version string bumped `0.1.0 → 1.0.0` (`backend/app/__init__.py`,
-  `pyproject.toml`, `frontend/package.json` + lock). Health/system endpoints now
-  report `1.0.0`. The published `v1.0.0` tag is immutable and still points at the
-  merge commit `82c1059`; the next `develop → main` PR carries this bump (D-050).
+- **Release version `1.0.1`** (`backend/app/__init__.py`, `pyproject.toml`,
+  `frontend/package.json` + lock) — already set on `develop`; documentation now
+  matches (the changelog previously still read `1.0.0`). Health/system endpoints
+  report `1.0.1`. `v1.0.0` and its tag stay immutable (D-050/D-057).
+- **Runtime dependency is base `uvicorn`** (not `uvicorn[standard]`): the app uses
+  no WebSockets and the default asyncio loop, so uvloop/httptools/watchfiles/
+  websockets are dropped — smaller portable runtime, cross-buildable (D-056).
+  `--reload` now needs `watchfiles` (documented).
 - Invite preview/create accept an optional `channel_id` (target is derived from it).
 
 ### Fixed

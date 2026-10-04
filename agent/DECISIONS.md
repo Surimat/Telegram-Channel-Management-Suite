@@ -997,3 +997,55 @@ through; `AnalyticsOverviewOut` gained a `channel_id` field (defaults to `""`).
 Audience scoping relies on sources having a `channel_id`, so unlinked sources are
 only counted globally — acceptable for a single-owner install and honest about
 what the data supports.
+
+---
+
+## D-056 — 2026-10-04 — Base `uvicorn` + a pinned Windows runtime lock — LOCKED
+
+**Decision:** The runtime dependency list uses base `uvicorn` (not
+`uvicorn[standard]`), and the portable build installs a **pinned** Windows wheel
+set from `scripts/win-requirements.lock` (win_amd64 / CPython 3.12) rather than
+resolving the loose ranges on the build host. `scripts/build_win_runtime.py`
+downloads the official Windows *embeddable* CPython plus those wheels and extracts
+them flat into `runtime/site-packages`; `pyaes` (Telethon's only sdist-only
+dependency, pure Python) is extracted from its sdist so no compiler is needed.
+The build is cross-platform — a Linux/macOS/Windows host produces the same
+Windows runtime.
+
+**Why:** `uvicorn[standard]` pulls uvloop/httptools/websockets, which the app
+never uses (no WebSockets; the default asyncio loop is fine) and which made
+cross-platform wheel resolution fail (`uvloop` is excluded on win32 by its
+environment marker, so a `--platform win_amd64` download could not resolve the
+extra). A pinned lock makes the shipped runtime reproducible and lets the
+portable ZIP be built in CI on Linux. Keeping the base package also trims the
+portable runtime and matches the "no dependencies without necessity" rule.
+
+**Consequence:** `--reload` now requires `watchfiles` (documented in
+`backend/app/main.py` and `docs/SETUP.md`); production never reloads, so this is
+dev-only. `scripts/fetch_embedded_python.sh` remains for a host-driven build and
+gained `--no-deps`. The portable ZIP name is
+`Telegram-Channel-Management-Suite-Windows-Portable-<version>.zip`.
+
+---
+
+## D-057 — 2026-10-04 — Release target is `v1.0.1` (patch) — LOCKED
+
+**Decision:** The post-1.0 work on `develop` is published as **v1.0.1** (the
+release the owner asked for). The application version string stays at `1.0.1`
+across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` and
+`frontend/package-lock.json` (it was already `1.0.1` on `develop`, so no bump was
+needed; the earlier drift concern was cosmetic). `v1.0.0` and its tag stay
+immutable; the release is the `develop → main` merge commit, tagged `v1.0.1`,
+with a GitHub Release whose portable ZIP is attached by
+`.github/workflows/release.yml`.
+
+**Why:** The owner explicitly targets `v1.0.1` for this release. `develop` already
+carried the `1.0.1` version string, so the only inconsistency was documentation
+(the changelog still said `1.0.0`); that is fixed here. D-050 (immutable published
+tags, version set on `develop`) still holds. (An earlier draft of this decision
+proposed `v1.1.0` on SemVer grounds; overridden by the explicit owner target.)
+
+**Consequence:** `/health`, `/health/deep` and `/api/v1/system/*` report `1.0.1`
+after the merge. The version is the single source of truth in
+`backend/app/__init__.py`; `scripts/build_portable.sh` reads it for the ZIP name
+(`…-Windows-Portable-1.0.1.zip`).

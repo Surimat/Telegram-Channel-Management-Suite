@@ -3,22 +3,28 @@
 > Persistent project memory. **A new agent must be able to continue from this
 > file + git + code alone.** Update this after every major phase.
 
-**Last updated:** 2026-10-03
-**Current phase:** **Post-1.0 hardening on `develop`.** v1.0.0 is released
-(`main == origin/main == 82c1059`, tag `v1.0.0`). `develop` now carries the
-hardening work: (1) **versioned Alembic migrations** replace `create_all` at
-startup (with baseline-aware adoption, D-052); (2) a **shared Channel Registry** (`channels` table + `/api/v1/channels`
-+ RU-first "Каналы" page) so invites,
+**Last updated:** 2026-10-04
+**Current phase:** **Release publication.** v1.0.0 is released
+(`main == origin/main == 82c1059`, tag `v1.0.0`). `develop` carries the post-1.0
+hardening plus the release-engineering work: (1) **versioned Alembic migrations**
+replace `create_all` at startup (D-052); (2) a **shared Channel Registry**
+(`channels` table + `/api/v1/channels` + RU-first "Каналы" page) so invites,
 post ingestion, audience sources and the permission probe all share one channel
-identity via nullable backfilled links; analytics can now be scoped per channel
-(D-055).
-All gates pass: `pytest` **422 passed**, `ruff` clean, `vue-tsc` + `npm run build`
-clean, no Alembic drift; **GitHub Actions CI** (D-053) enforces the backend and
-frontend gates on `main`/`develop`.
-**Next phase:** optional only — no remaining known gaps. Development continues on
-`develop`; land via reviewed PR (never push `main`). Open PR: #2 (draft).
+identity; analytics can be scoped per channel (D-055); (3) **reproducible,
+cross-platform portable packaging** (`scripts/build_win_runtime.py` +
+`scripts/win-requirements.lock` + `scripts/build_portable.sh` now emits a
+versioned ZIP) and a **Release workflow** (`.github/workflows/release.yml`)
+(D-056).
+Version string is **1.0.1** across `backend/app/__init__.py`, `pyproject.toml`,
+`frontend/package.json` + lock (D-057).
+All gates pass: `pytest` **427 passed**, `ruff` clean, `vue-tsc` + `npm run build`
+clean, Docker image builds and serves `/health` + SPA, portable tree starts
+end-to-end (incl. a path with spaces/Cyrillic) with backup/restore and graceful
+shutdown; **GitHub Actions CI** (D-053) enforces the backend and frontend gates.
+**Next phase:** publish the **v1.0.1** release — merge the `develop → main` PR,
+tag `v1.0.1`, publish the GitHub Release with the auto-attached portable ZIP.
 **Repository status:** `main == origin/main == 82c1059` (tag `v1.0.0`); `develop`
-is 8 commits ahead of `main` (post-release hardening).
+is ahead of `main` (post-release hardening + release engineering).
 **Branch:** `develop` (working branch); `main` is released and updated only via pull request.
 
 ---
@@ -333,11 +339,18 @@ Layered architecture: **core → db/models → db/repositories → services → 
 - `frontend/src/views/BackupView.vue` (Резервные копии) + route + nav + client
   types/methods.
 - `portable/run.bat` (sets `TCMS_ROOT`/`PYTHONPATH`, opens browser),
-  `portable/stop.bat`, `portable/README.txt`; `scripts/build_portable.sh`
-  (now stages the embedded runtime automatically, D-043),
-  `scripts/fetch_embedded_python.sh`.
+  `portable/stop.bat`, `portable/README.txt`.
+- **Release-engineering packaging (D-056/D-057):** `scripts/build_portable.sh`
+  is now cross-platform and emits a versioned ZIP (+ `.sha256`);
+  `scripts/build_win_runtime.py` stages the embedded Windows CPython + pinned
+  `win_amd64` wheels from `scripts/win-requirements.lock` (extracted flat, no
+  compiler — `pyaes` comes from its pure-Python sdist);
+  `scripts/fetch_embedded_python.sh` retained (now with `--no-deps`).
+  `.github/workflows/release.yml` builds and attaches the ZIP to the GitHub
+  Release on a `v*` tag.
 - `tests/` — `test_backup_service.py` (9), `test_backup_api.py` (7),
-  `test_portable_smoke.py` (1 startup smoke + 3 runtime-fetcher tests).
+  `test_portable_smoke.py` (1 startup smoke + offline-tree/ZIP-layout + builder
+  dry-runs).
 
 ### PHASE 11 — VPS / Docker production config
 - `docker/Dockerfile` — multi-stage (Node SPA build → `python:3.12-slim`,
@@ -435,13 +448,13 @@ Layered architecture: **core → db/models → db/repositories → services → 
 
 ## 4. What does NOT exist yet
 
-- Mini App: BotFather Web App registration and a public HTTPS URL are the owner's
-  deployment step (documented; not automated). The Mini App is off by default; a
-  registration helper is not built.
+- Mini App: BotFather Web App **menu-button** registration is automated
+  (`POST /api/v1/miniapp/setup`, D-054); providing a public HTTPS URL remains the
+  owner's deployment step. The Mini App is off by default.
+- Reactions/audience store their own channel text in places; invites, posts,
+  audience sources, the permission probe and analytics consume the registry.
 - ~~Channel binding registry/UI~~ — **done** (hardening, see §2b).
 - ~~Alembic migrations~~ — **done** (hardening, see §2b).
-- Reactions/audience/analytics still store their own channel text in places; only
-  invites consume `channel_id` today (see §2b for the next step).
 - ~~Account permission probe~~ — **done** (post-1.0 hardening, see §2a).
 - ~~Manager-bot runtime / command loop / notifications~~ — **done** (post-1.0
   hardening, see §2a).
@@ -540,15 +553,61 @@ upgrade. Migration history: `0191baf5265f` (baseline = v1.0.0 schema) →
 and posts) → `6816b29afc76` (registry link for permission checks). Regression
 test upgrades a v1.0.0-shaped database with existing rows. Decisions: D-052.
 
+## 2c. Release engineering (2026-10-04) — reproducible, installable packaging
+
+**Version is `1.0.1`** across `backend/app/__init__.py`,
+`pyproject.toml`, `frontend/package.json` and `frontend/package-lock.json`
+(previously an inconsistent `1.0.1`; D-057).
+
+**Cross-platform, reproducible Windows portable runtime.**
+- `scripts/build_win_runtime.py` — downloads the official Windows **embeddable**
+  CPython (`python-3.12.7-embed-amd64.zip`) and the pinned `win_amd64` wheels,
+  extracts them flat into `runtime/site-packages`, and writes `python312._pth`
+  (`python312.zip`, `.`, `../app`, `site-packages`, `import site`). No compiler:
+  `pyaes` (Telethon dep, sdist-only) is extracted from its pure-Python sdist.
+- `scripts/win-requirements.lock` — pinned Windows runtime set (uvicorn base, not
+  `[standard]`; see D-056).
+- `scripts/build_portable.sh` — cross-platform; builds the SPA, stages the app +
+  runtime, and writes a versioned ZIP
+  (`Telegram-Channel-Management-Suite-Windows-Portable-<version>.zip`) plus
+  `.sha256`. New flags `--no-runtime`, `--no-zip`, `--no-frontend`.
+- `scripts/fetch_embedded_python.sh` — retained (host-driven path), gained
+  `--no-deps`.
+
+**CI/release automation.**
+- `.github/workflows/release.yml` — on a `v*` tag (or manual dispatch): verify
+  (ruff + pytest + SPA build), build the portable ZIP, upload it as an artifact
+  and attach it (+ checksum) to the GitHub Release.
+- `.github/workflows/ci.yml` (D-053) unchanged.
+
+**Dependencies.** `backend/requirements.txt` now uses base `uvicorn` instead of
+`uvicorn[standard]` (the app uses no WebSockets and the default asyncio loop;
+this removes uvloop/httptools/watchfiles/websockets and keeps the portable
+runtime small and cross-buildable). `--reload` now needs `watchfiles`
+(documented).
+
+**Verification (this pass).** `pytest` **427 passed**; `ruff` clean; `vue-tsc` +
+`npm run build` clean; `docker build` succeeded and the container served
+`/health` + the SPA; the staged portable tree started end-to-end from a path with
+spaces and Cyrillic, applied migrations, created a backup, restored it, and shut
+down gracefully via `/api/v1/system/shutdown`. Decisions: D-056, D-057.
+
 ## 5. Next action
 
-**v1.0.0 is released** (`main` = `82c1059`, tag + GitHub Release published). The
-project is stable; the next action is to continue on `develop` with optional items
-only:
+**v1.0.0 is released** (`main` = `82c1059`, tag + GitHub Release published) and
+the post-1.0 work is ready to publish as **v1.0.1**. Next action: complete the
+release-publication checklist (see `docs/RELEASE_CHECKLIST.md`):
 
-1. Analytics still aggregates globally (no per-channel target); wire it to the
-   registry if per-channel breakdowns are wanted.
-2. Mini App BotFather registration helper.
+1. Merge the `develop → main` PR (reviewed; no force).
+2. Tag `v1.0.1` on the merged `main` commit; publish the GitHub Release. The
+   **Release** workflow (`.github/workflows/release.yml`) attaches the Windows
+   portable ZIP + `.sha256`.
+3. Sync `main` back into `develop`.
+
+After that, only optional items remain (analytics is already per-channel):
+
+1. Mini App BotFather registration helper (D-054 covers one-click menu-button
+   registration; a full BotFather flow is not automated).
 
 Open PR: **#2** (draft, `develop → main`) — "Post-1.0 hardening: versioned
 migrations + shared Channel Registry".

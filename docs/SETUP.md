@@ -43,7 +43,7 @@ cd frontend && npm install && npm run build && cd ..
 
 # 5. Run the app
 python -m backend.app.main
-# or: uvicorn backend.app.main:app --reload
+# or: uvicorn backend.app.main:app --reload   (adds watchfiles: pip install "uvicorn[standard]")
 ```
 
 Open http://127.0.0.1:8000
@@ -111,15 +111,29 @@ bash scripts/build_portable.sh /path/to/out
 ```
 
 It builds the SPA, copies `backend/` into `app/`, creates the empty data
-directories, copies `run.bat` / `stop.bat` / `README.txt`, and — by default —
-downloads the official Windows **embeddable Python** (matching your host Python
-version) into `runtime/` and installs the dependencies into
-`runtime/site-packages`, so the result is truly zero-setup. The helper is
-`scripts/fetch_embedded_python.sh`; it is also usable on its own:
+directories, copies `run.bat` / `stop.bat` / `README.txt`, stages the embedded
+Windows runtime, and writes a versioned ZIP (plus a `.sha256` checksum) next to
+the output folder. The build is **cross-platform**: it runs on Linux/macOS/Windows
+and always produces a Windows runtime.
+
+Runtime staging uses `scripts/build_win_runtime.py`, which downloads the official
+Windows **embeddable Python** (`python-3.12.7-embed-amd64.zip`) and the pinned
+`win_amd64` wheels from `scripts/win-requirements.lock`, then extracts them flat
+into `runtime/site-packages`. No compiler is needed: `pyaes` (a Telethon
+dependency with no wheel) is pure Python and is extracted from its sdist.
+
+Options:
 
 ```bash
-bash scripts/fetch_embedded_python.sh /path/to/out/runtime \
-  --version 3.12.7 --requirements backend/requirements.txt
+bash scripts/build_portable.sh /path/to/out --no-runtime   # code only, no CPython
+bash scripts/build_portable.sh /path/to/out --no-zip       # folder, no archive
+bash scripts/build_portable.sh /path/to/out --no-frontend  # reuse built SPA (offline)
+```
+
+The lower-level helper is also usable on its own:
+
+```bash
+python scripts/build_win_runtime.py /path/to/out/runtime --app-rel ../app
 ```
 
 If the network is restricted, pass `--no-runtime` (or set `SKIP_RUNTIME=1`) to
@@ -134,6 +148,9 @@ stage the code only, then add the runtime manually:
 
 `run.bat` sets `PYTHONPATH=app` and `TCMS_ROOT` to the folder, so no installation
 is needed.
+
+The portable ZIP is also built automatically by `.github/workflows/release.yml`
+on every `v*` tag and attached to the GitHub Release.
 
 ### Backups
 
