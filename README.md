@@ -30,7 +30,7 @@ Persistent memory so work can continue across sessions:
 
 ## Status
 
-**PHASE 0–11 complete + post-1.0 hardening (v1.0.1).** The suite is
+**PHASE 0–11 complete + post-1.0 hardening (v1.0.2).** The suite is
 feature-complete against the planned roadmap: manager bot + managed bots, MTProto
 user sessions, audience parsing, invites, automatic reactions with a rules engine
 and an optional tiny AI classifier, analytics (per-channel), a durable scheduler,
@@ -39,7 +39,7 @@ Windows package, and a VPS/Docker deployment. The post-1.0 work adds versioned
 Alembic migrations, a shared Channel Registry, per-channel analytics, CI, a
 one-click Mini App setup helper, and reproducible cross-platform portable
 packaging (a versioned Windows ZIP is built and attached to each GitHub Release
-automatically).
+automatically by the Release workflow).
 See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
 ## Deployment modes

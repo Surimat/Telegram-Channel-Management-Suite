@@ -164,6 +164,14 @@ filtering such users out before running the invite job.
 | Data appears in the wrong place | `TCMS_ROOT` not set | Launch via `run.bat` (it sets `TCMS_ROOT` to the folder) |
 | Antivirus blocks the app | Local server binding | Allow local (127.0.0.1) connections for the app |
 
+## Release / CI problems
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Release workflow's portable job fails with `zip error: No such file or directory` (exit 15) | A **relative** output dir passed to `build_portable.sh` (e.g. `dist/TCMS`); the ZIP path was derived from the relative `OUT` and used after `cd "$OUT"` | Fixed in D-059 (`OUT` is normalised to an absolute path against the caller's cwd). Verify with `tests/test_portable_smoke.py::test_build_portable_zip_with_relative_output`. |
+| `gh release upload` fails: "release not found" | The release did not exist; the old workflow only uploaded | Fixed in D-060: the workflow now runs `gh release create --verify-tag` when missing. |
+| No portable ZIP on a GitHub Release | Release workflow not run for the tag, or the job failed | Check **Actions → Release** for the tag; if it failed, fix forward and re-tag a patch (never move the tag, D-050). |
+
 ## Docker / VPS problems (PHASE 11)
 
 | Symptom | Cause | Fix |

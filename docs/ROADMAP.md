@@ -156,6 +156,11 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
       registry/UI; Mini App menu-button registration helper; per-channel
       analytics; reproducible cross-platform portable packaging + Release
       workflow.
+- [x] **Release-engineering patch (v1.0.2)**: the Release workflow now creates the
+      GitHub Release itself (`gh release create --verify-tag`) and attaches the
+      portable ZIP + checksum, so a `v*` tag is a fully automated release; the
+      portable-build relative-output-path fix (D-059) rides along. No product
+      changes.
 - [ ] Optional (remaining): a full automated BotFather Mini App flow (the
       one-click menu-button registration exists, D-054).
 
@@ -163,12 +168,22 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ## Release
 
+- **v1.0.2 (2026-10-04):** release-engineering patch — the Release workflow
+  creates/updates the GitHub Release itself and attaches the Windows portable ZIP
+  + `.sha256` (D-060), making a `v*` tag a fully automated release with no manual
+  fallback; carries the `build_portable.sh` relative-output-path fix (D-059). No
+  product/functional changes. Published from `develop` via a reviewed
+  `develop → main` PR.
 - **v1.0.1 (2026-10-04):** post-1.0 hardening release — versioned Alembic
   migrations, the shared Channel Registry, per-channel analytics, GitHub Actions
   CI, the Mini App setup helper, and reproducible cross-platform portable
   packaging with an automated Release workflow. Version string is
-  `1.0.1`. Published from `develop` via a reviewed `develop → main` PR, tagged
-  `v1.0.1`; the Windows portable ZIP is attached to the GitHub Release.
+  `1.0.1`. Published from `develop` via a reviewed `develop → main` PR (merge
+  commit `d267cf6`), tagged `v1.0.1`; the Windows portable ZIP is attached to the
+  GitHub Release. The Release workflow's portable job hit a path bug for a
+  relative output dir; the fix landed on `develop` (D-059) and the tag was **not**
+  moved (D-050) — the ZIP for `v1.0.1` was built from `d267cf6` and attached
+  manually. The next tag (`v1.0.2`) runs the fixed workflow.
 - **v1.0.0 (2026-10-03):** first production release — the complete PHASE 0–11
   suite plus RC and post-1.0 hardening. Annotated tag `v1.0.0` + GitHub Release
   on the `develop → main` merge commit `82c1059`. See `docs/RELEASE_CHECKLIST.md`

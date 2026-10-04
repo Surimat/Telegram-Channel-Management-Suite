@@ -150,7 +150,9 @@ stage the code only, then add the runtime manually:
 is needed.
 
 The portable ZIP is also built automatically by `.github/workflows/release.yml`
-on every `v*` tag and attached to the GitHub Release.
+on every `v*` tag. The workflow **creates the GitHub Release** when it does not
+exist and attaches the ZIP + `.sha256` to it, so a tag push is a complete release
+with no manual step (D-060).
 
 ### Backups
 
