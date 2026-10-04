@@ -66,7 +66,10 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
   default) — acceptable for local/portable use.
 - Mini App BotFather registration + public HTTPS URL are the owner's deployment
   steps (documented in `docs/SETUP.md`); the Mini App is off by default.
-- Schema uses `create_all` at startup (Alembic migrations are the remaining
-  optional hardening item).
+- If the Release workflow's portable job fails (e.g. a packaging path bug), the
+  tag stays immutable (D-050): fix forward on `develop` for the next release and,
+  if the current release needs the artifact, build it from the tag
+  (`git worktree add --detach <dir> vX.Y.Z` -> `scripts/build_portable.sh`) and
+  attach the ZIP + `.sha256` to the Release manually. Do **not** move the tag.
 - `PytestUnhandledThreadExceptionWarning` can appear from the aiosqlite worker
   thread on teardown in `test_hardening_api.py`; the run still passes.
