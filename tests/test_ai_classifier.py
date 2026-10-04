@@ -114,10 +114,11 @@ def test_fake_backend_ignores_prompt_metadata() -> None:
 # ---------------------------------------------------------------------------
 # Routing policy
 # ---------------------------------------------------------------------------
-def _router(*, ai, rules_threshold=0.55, ai_threshold=0.6, mode=MODE_AUTO):
+def _router(*, ai, rules_threshold=0.55, ai_threshold=0.6, mode=MODE_AUTO, encoder=None):
     return RoutingClassifier(
         rules=RulesClassifier(default_rule_specs()),
         ai=ai,
+        encoder=encoder,
         rules_threshold=rules_threshold,
         ai_threshold=ai_threshold,
         mode=mode,
@@ -180,6 +181,67 @@ def test_router_mode_rules_never_calls_ai() -> None:
 def test_router_mode_ai_only_falls_back_when_unavailable() -> None:
     outcome = _router(ai=None, mode=MODE_AI).route("Спасибо за донат!")
     assert outcome.ai_attempted is True
+    assert outcome.fallback_used is True
+    assert outcome.result.source == SOURCE_FALLBACK
+
+
+def test_router_uses_encoder_between_rules_and_ai() -> None:
+    from backend.app.ai.encoder import EncoderClassifier
+    from backend.app.ai.types import MODE_ENCODER
+
+    # Text with no rule keywords, but a strong encoder match.
+    outcome = _router(
+        ai=None, encoder=EncoderClassifier(), mode=MODE_ENCODER
+    ).route("это очень смешно, ахаха")
+    assert outcome.encoder_attempted is True
+    assert outcome.encoder_used is True
+    assert outcome.result.category is Category.FUNNY
+    assert outcome.ai_attempted is False
+
+
+def test_router_encoder_only_falls_back_below_threshold() -> None:
+    from backend.app.ai.encoder import EncoderClassifier
+    from backend.app.ai.types import MODE_ENCODER
+
+    outcome = _router(
+        ai=None, encoder=EncoderClassifier(), mode=MODE_ENCODER
+    ).route("совершенно непонятный текст без категории")
+    assert outcome.encoder_attempted is True
+    assert outcome.encoder_used is False
+    assert outcome.fallback_used is True
+    assert outcome.ai_error
+
+
+def test_router_auto_prefers_encoder_over_llm_when_confident() -> None:
+    from backend.app.ai.encoder import EncoderClassifier
+
+    called = {"n": 0}
+
+    def _handler(text, ctx):
+        called["n"] += 1
+        return ClassificationResult(Category.SUPPORT, 0.9, SOURCE_AI)
+
+    outcome = _router(
+        ai=FakeClassifier(handler=_handler),
+        encoder=EncoderClassifier(),
+    ).route("важное объявление")
+    assert outcome.encoder_used is True
+    assert outcome.result.category is Category.ANNOUNCEMENT
+    # The heavier LLM is never invoked when the light encoder is confident.
+    assert called["n"] == 0
+
+
+def test_router_encoder_failure_degrades_to_rules() -> None:
+    from backend.app.ai.types import MODE_ENCODER
+
+    class _Broken:
+        model = "broken"
+
+        def classify(self, text, context=None):
+            raise RuntimeError("boom")
+
+    outcome = _router(ai=None, encoder=_Broken(), mode=MODE_ENCODER).route("текст")
+    assert outcome.encoder_used is False
     assert outcome.fallback_used is True
     assert outcome.result.source == SOURCE_FALLBACK
 

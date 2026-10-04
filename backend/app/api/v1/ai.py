@@ -138,6 +138,8 @@ async def ai_classify(
         category=str(result.category),
         category_title=category_title(result.category),
         tone=str(result.tone),
+        intent=str(result.intent),
+        suggested_emoji=result.suggested_emoji,
         confidence=result.confidence,
         source=result.source,
         source_title=_SOURCE_TITLES.get(result.source, result.source),
@@ -146,6 +148,8 @@ async def ai_classify(
         mode=mode,
         ai_attempted=outcome.ai_attempted,
         ai_used=outcome.ai_used,
+        encoder_attempted=outcome.encoder_attempted,
+        encoder_used=outcome.encoder_used,
         fallback_used=outcome.fallback_used,
         ai_error=outcome.ai_error,
     )

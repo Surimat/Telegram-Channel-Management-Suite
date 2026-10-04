@@ -73,13 +73,15 @@ class AiMetricsOut(BaseModel):
 
 class AiClassifyIn(BaseModel):
     text: str = Field(description="Текст поста для анализа.")
-    mode: str = Field(default="auto", description="auto | rules | ai")
+    mode: str = Field(default="auto", description="auto | rules | encoder | ai")
 
 
 class AiClassifyOut(BaseModel):
     category: str
     category_title: str
     tone: str
+    intent: str = ""
+    suggested_emoji: str = ""
     confidence: float
     source: str
     source_title: str
@@ -88,6 +90,8 @@ class AiClassifyOut(BaseModel):
     mode: str
     ai_attempted: bool
     ai_used: bool
+    encoder_attempted: bool = False
+    encoder_used: bool = False
     fallback_used: bool
     ai_error: str
 

@@ -31,6 +31,16 @@ from backend.app.providers.registry import build_session_provider
 from backend.app.providers.session_base import SessionProvider
 from backend.app.providers.types import SessionFileInfo, UserIdentity
 from backend.app.services.events_service import EventsService
+from backend.app.services.session_import import (
+    FORMAT_STRING_SESSION,
+    FORMAT_TITLES,
+    DetectionResult,
+    SessionImportProvider,
+    SessionImportRequest,
+    SessionImportResult,
+    detect_format,
+    select_provider,
+)
 
 SessionProviderFactory = Callable[..., SessionProvider]
 
@@ -151,13 +161,55 @@ class SessionService:
 
     # --- provider helpers ----------------------------------------------------
     def provider_for(
-        self, account: UserSession, provider_name: str | None = None
+        self,
+        account: UserSession,
+        provider_name: str | None = None,
+        *,
+        proxy: dict[str, object] | None = None,
     ) -> SessionProvider:
-        """Public wrapper: build a provider for ``account`` (PHASE 5 reuses this)."""
-        return self._provider_for(account, provider_name)
+        """Public wrapper: build a provider for ``account`` (PHASE 5 reuses this).
+
+        ``proxy`` (an optional Telethon proxy dict) is passed through unchanged;
+        callers that need the account's bound proxy should use
+        :meth:`provider_for_with_proxy`.
+        """
+        return self._provider_for(account, provider_name, proxy=proxy)
+
+    async def provider_for_with_proxy(
+        self,
+        account: UserSession,
+        provider_name: str | None = None,
+    ) -> SessionProvider:
+        """Build a provider, resolving the account's bound proxy profile first."""
+        proxy = await self.resolve_proxy(account)
+        return self._provider_for(account, provider_name, proxy=proxy)
+
+    async def resolve_proxy(
+        self, account: UserSession
+    ) -> dict[str, object] | None:
+        """Return the Telethon proxy dict for the account's bound profile.
+
+        ``None`` means a direct connection (no proxy, or the profile is disabled).
+        A proxy is an ordinary network route; the suite never rotates it to evade
+        Telegram limits (D-066).
+        """
+        proxy_id = getattr(account, "proxy_id", "")
+        if not proxy_id:
+            return None
+        from backend.app.db.repositories.proxies import ProxyRepository
+        from backend.app.services.proxy_service import ProxyService
+
+        profile = await ProxyRepository(self.session).get(proxy_id)
+        if profile is None or not profile.enabled:
+            return None
+        return ProxyService(self.session, settings=self.settings).telethon_proxy_for(profile)
 
     def _provider_for(
-        self, account: UserSession, provider_name: str | None = None
+        self,
+        account: UserSession,
+        provider_name: str | None = None,
+        *,
+        proxy: dict[str, object] | None = None,
     ) -> SessionProvider:
         api_hash = ""
         if account.api_hash_encrypted:
@@ -168,13 +220,17 @@ class SessionService:
                     "Не удалось прочитать сохранённый API Hash.",
                     how_to_fix="Проверьте, что APP_SECRET_KEY не менялся. Добавьте аккаунт заново.",
                 ) from exc
-        return self._provider_factory(
-            api_id=account.api_id,
-            api_hash=api_hash,
-            session_path=self._session_path(account),
-            provider_name=provider_name or self.settings.telegram_provider,
-            settings=self.settings,
-        )
+        kwargs: dict[str, object] = {
+            "api_id": account.api_id,
+            "api_hash": api_hash,
+            "session_path": self._session_path(account),
+            "provider_name": provider_name or self.settings.telegram_provider,
+            "settings": self.settings,
+        }
+        # Only pass ``proxy`` when set so custom test factories stay compatible.
+        if proxy is not None:
+            kwargs["proxy"] = proxy
+        return self._provider_factory(**kwargs)  # type: ignore[arg-type]
 
     # --- inventory -----------------------------------------------------------
     async def list_accounts(
@@ -201,6 +257,62 @@ class SessionService:
             "disabled": counts.get(SessionStatus.DISABLED.value, 0),
             "error": counts.get(SessionStatus.ERROR.value, 0),
             "by_status": counts,
+        }
+
+    # --- account risk (v1.1: honest limits UX) -------------------------------
+    @staticmethod
+    def risk_for(account: UserSession) -> dict[str, str]:
+        """Return the account's restriction-risk band (never a safe number).
+
+        The suite never promises a safe invite count: Telegram publishes no
+        universal limit and using a user account for mass invites can lead to
+        restrictions or a block. This maps the observable state onto a band.
+        """
+        status = account.status
+        if status is SessionStatus.FLOOD_WAIT:
+            return {
+                "level": "flood_wait",
+                "title": "Ожидание Telegram",
+                "message": (
+                    "Telegram ограничил частоту действий для этого аккаунта. "
+                    "Дождитесь окончания паузы — обходить её нельзя."
+                ),
+            }
+        if status is SessionStatus.DISABLED:
+            return {
+                "level": "disabled",
+                "title": "Выключен",
+                "message": "Аккаунт выключен и не выполняет действия.",
+            }
+        if status is SessionStatus.AUTH_REQUIRED:
+            return {
+                "level": "auth_required",
+                "title": "Нужна авторизация",
+                "message": "Аккаунт не авторизован; действия невозможны до входа.",
+            }
+        if status is SessionStatus.ERROR:
+            return {
+                "level": "restricted",
+                "title": "Ограничение или ошибка",
+                "message": (
+                    "Последняя проверка завершилась ошибкой или ограничением. "
+                    "Проверьте статус и повторите позже."
+                ),
+            }
+        if status is SessionStatus.ONLINE:
+            return {
+                "level": "healthy",
+                "title": "Без активных ограничений",
+                "message": (
+                    "Активных ограничений не видно. Использование аккаунта для "
+                    "массовых приглашений всё равно может привести к ограничениям: "
+                    "Telegram не публикует универсальный безопасный лимит."
+                ),
+            }
+        return {
+            "level": "unknown",
+            "title": "Не проверялся",
+            "message": "Выполните проверку, чтобы увидеть состояние аккаунта.",
         }
 
     # --- authorization wizard ------------------------------------------------
@@ -438,6 +550,105 @@ class SessionService:
         )
         await self.session.commit()
         return account
+
+    # --- multi-format import (v1.1 Account Hub) ------------------------------
+    async def detect_import(self, request: SessionImportRequest) -> DetectionResult:
+        """Detect the artifact format/state without importing (safe preview)."""
+        return detect_format(request)
+
+    async def import_artifact(
+        self,
+        request: SessionImportRequest,
+        *,
+        providers: list[SessionImportProvider] | None = None,
+    ) -> tuple[UserSession, SessionImportResult]:
+        """Import a local ``.session`` / ``+JSON`` / StringSession / TDATA artifact.
+
+        The chosen provider is asked to inspect the artifact (no secrets leave the
+        process). A StringSession is materialised into a local ``.session`` file
+        via the provider abstraction; every other format is copied as bytes. On
+        failure nothing is left behind. The raw StringSession value never reaches
+        the API, logs or git.
+        """
+        provider = select_provider(request, providers=providers)
+        if provider is None:
+            raise SessionServiceError(
+                "Не удалось определить формат файла или папки.",
+                how_to_fix=(
+                    "Поддерживаются: .session, .session + JSON, строка StringSession "
+                    "и папка TDATA."
+                ),
+            )
+        result = provider.inspect(request)
+        if not result.ok:
+            raise SessionServiceError(
+                result.message or "Импорт не удался.", how_to_fix=result.how_to_fix
+            )
+
+        api_id = (result.api_id or request.api_id or "").strip()
+        api_hash = (result.api_hash or request.api_hash or "").strip()
+        if not api_id.isdigit():
+            raise SessionServiceError(
+                "Не указан API ID (и его не удалось прочитать из файла).",
+                how_to_fix="Скопируйте API ID из https://my.telegram.org.",
+            )
+        if not api_hash:
+            raise SessionServiceError(
+                "Не указан API Hash (и его не удалось прочитать из файла).",
+                how_to_fix="Скопируйте API Hash из https://my.telegram.org.",
+            )
+
+        ref = self._new_session_ref()
+        target = self.sessions_dir / f"{ref}.session"
+        target.parent.mkdir(parents=True, exist_ok=True)
+
+        if result.format == FORMAT_STRING_SESSION:
+            # Materialise the StringSession into a local SQLite session file.
+            provider_impl = self._provider_factory(
+                api_id=api_id,
+                api_hash=api_hash,
+                session_path=target,
+                provider_name=self.settings.telegram_provider,
+                settings=self.settings,
+            )
+            try:
+                await provider_impl.import_string_session(result.string_session, target)
+            except TelegramProviderError as exc:
+                raise SessionServiceError(exc.message, how_to_fix=exc.how_to_fix) from exc
+            finally:
+                await provider_impl.aclose()
+        else:
+            target.write_bytes(result.session_bytes)
+
+        phone_norm = normalize_phone(result.phone or request.phone or "")
+        account = UserSession(
+            api_id=api_id,
+            api_hash_encrypted=seal_secret(api_hash, self.settings),
+            phone_encrypted=seal_secret(phone_norm, self.settings) if phone_norm else "",
+            phone_masked=mask_phone(phone_norm) if phone_norm else "",
+            session_ref=ref,
+            display_name=result.display_name or request.display_name,
+            status=SessionStatus.DISCONNECTED,
+            enabled=True,
+        )
+        await self.repo.add(account)
+        try:
+            identity = await self._verify_and_identify(account)
+        except SessionServiceError:
+            self.delete_session_file(account)
+            await self.repo.delete(account)
+            await self.session.commit()
+            raise
+        await self._finish_auth(account, identity)
+        await self.events.info(
+            MODULE,
+            f"Импортирован аккаунт @{account.username or account.telegram_user_id} "
+            f"({FORMAT_TITLES.get(result.format, result.format)}).",
+            operation="import_artifact",
+            status="ok",
+        )
+        await self.session.commit()
+        return account, result
 
     # --- health / lifecycle --------------------------------------------------
     async def health_check(self, account_id: str) -> UserSession:

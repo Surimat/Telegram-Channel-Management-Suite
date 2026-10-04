@@ -35,8 +35,9 @@ const testResult = ref<AiClassifyResult | null>(null)
 const testing = ref(false)
 
 const MODE_LABELS: Record<string, string> = {
-  auto: 'Автоматически (правила, затем ИИ)',
+  auto: 'Автоматически (правила → лёгкий определитель → мини-ИИ)',
   rules: 'Только обычные правила',
+  encoder: 'Лёгкий определитель (без модели)',
   ai: 'Только мини-ИИ',
 }
 
@@ -405,6 +406,7 @@ onMounted(load)
           <select v-model="testMode">
             <option value="auto">{{ MODE_LABELS.auto }}</option>
             <option value="rules">{{ MODE_LABELS.rules }}</option>
+            <option value="encoder">{{ MODE_LABELS.encoder }}</option>
             <option value="ai">{{ MODE_LABELS.ai }}</option>
           </select>
         </label>

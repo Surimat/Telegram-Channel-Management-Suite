@@ -112,11 +112,13 @@ async def test_collect_reports_every_subsystem() -> None:
         "manager_bot",
         "managed_bots",
         "sessions",
+        "proxies",
         "channels",
         "bindings",
         "capabilities",
         "audience",
         "donors",
+        "donor_candidates",
         "reactions",
         "invites",
         "campaigns",
@@ -247,6 +249,8 @@ async def test_report_includes_product_sections_and_stays_clean() -> None:
     for section in (
         "bindings",
         "capabilities",
+        "proxies",
+        "donor_candidates",
         "campaigns",
         "donors",
         "backup_destinations",
@@ -255,6 +259,44 @@ async def test_report_includes_product_sections_and_stays_clean() -> None:
         assert section in payload
     # Campaign names may appear (owner-facing) but no secrets/links leak.
     assert "+invite-secret-link" not in content.decode("utf-8")
+
+
+async def test_report_never_leaks_proxy_password_or_candidate_secrets() -> None:
+    """Proxy passwords and donor query secrets stay out of the redacted report."""
+    from backend.app.db.models.donor_candidate import DonorCandidate
+    from backend.app.db.models.proxy import ProxyKind, ProxyProfile
+    from backend.app.db.session import session_scope
+    from backend.app.services.diagnostics_service import DiagnosticsService
+
+    async with session_scope() as session:
+        session.add(
+            ProxyProfile(
+                name="Домашний",
+                kind=ProxyKind.SOCKS5,
+                host="127.0.0.1",
+                port=1080,
+                username="user",
+                password_encrypted="sealed-blob-not-a-plaintext-password",
+            )
+        )
+        session.add(
+            DonorCandidate(
+                query="секретная тема",
+                username="donor_channel",
+                title="Донор",
+                added=False,
+            )
+        )
+    async with session_scope() as session:
+        content, _name, _mime = await DiagnosticsService(session).build_report("json")
+    text = content.decode("utf-8")
+    assert "sealed-blob-not-a-plaintext-password" not in text
+    payload = json.loads(text)
+    proxy = payload["proxies"][0]
+    assert proxy["has_password"] is True
+    assert "password" not in proxy
+    assert proxy["host"] == "127.0.0.1"
+    assert payload["donor_candidates"][0]["username"] == "donor_channel"
 
 
 async def test_cleanup_action_resets_stuck_jobs_without_deleting_data() -> None:

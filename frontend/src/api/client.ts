@@ -296,6 +296,7 @@ export interface UserSession {
   status_hint: string
   last_error: string
   last_checked_at: string | null
+  proxy_id: string
   created_at: string
   updated_at: string
 }
@@ -1215,6 +1216,98 @@ export interface UpdateStatus {
   last_error: string
 }
 
+// v1.1: proxy profiles (connection routes — never a Telegram limit bypass).
+export interface ProxyProfile {
+  id: string
+  name: string
+  kind: string
+  kind_title: string
+  host: string
+  port: number
+  username: string
+  has_password: boolean
+  enabled: boolean
+  status: string
+  status_title: string
+  status_message: string
+  last_checked: string
+}
+
+export interface ProxyList {
+  items: ProxyProfile[]
+  notice: string
+}
+
+export interface ProxyCheck {
+  profile_id: string
+  ok: boolean
+  status: string
+  status_title: string
+  message: string
+  how_to_fix: string
+  latency_ms: number
+}
+
+// v1.1: donor discovery (candidates are proposals, added explicitly).
+export interface DiscoveryProviderStatus {
+  name: string
+  title: string
+  available: boolean
+  message: string
+}
+
+export interface DiscoveryProviderReport {
+  provider: string
+  title: string
+  ok: boolean
+  message: string
+  how_to_fix: string
+  found: number
+}
+
+export interface DonorCandidate {
+  id: string
+  query: string
+  provider: string
+  provider_title: string
+  username: string
+  title: string
+  telegram_id: number | null
+  kind: string
+  subscribers: number
+  avg_views: number
+  activity: number
+  language: string
+  fit: string
+  fit_title: string
+  fit_score: number
+  confidence: string
+  signals: string[]
+  explanations: string[]
+  summary: string
+  added: boolean
+  added_source_id: string
+}
+
+export interface DiscoveryResult {
+  query: string
+  stored: number
+  providers: DiscoveryProviderReport[]
+  candidates: DonorCandidate[]
+}
+
+export interface CandidateList {
+  items: DonorCandidate[]
+  providers: DiscoveryProviderStatus[]
+}
+
+export interface DiscoveryCompare {
+  items: DonorCandidate[]
+  best_id: string
+  best_title: string
+  best_reason: string
+}
+
 export const api = {
   health: () => request<Health>('/health'),
   healthDeep: () => request<Record<string, unknown>>('/health/deep'),
@@ -1754,4 +1847,56 @@ export const api = {
     }),
   checkUpdate: () => request<UpdateStatus>('/api/v1/update/check', { method: 'POST' }),
   downloadUpdate: () => request<UpdateStatus>('/api/v1/update/download', { method: 'POST' }),
+
+  // v1.1: proxy profiles (connection routes; never a Telegram limit bypass).
+  proxies: () => request<ProxyList>('/api/v1/proxies'),
+  addProxy: (payload: {
+    name?: string
+    kind: string
+    host: string
+    port: number
+    username?: string
+    password?: string
+    enabled?: boolean
+  }) => request<ProxyProfile>('/api/v1/proxies', { method: 'POST', body: JSON.stringify(payload) }),
+  updateProxy: (id: string, payload: Record<string, unknown>) =>
+    request<ProxyProfile>(`/api/v1/proxies/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  removeProxy: (id: string) =>
+    request<null>(`/api/v1/proxies/${id}`, { method: 'DELETE' }),
+  checkProxy: (id: string) =>
+    request<ProxyCheck>(`/api/v1/proxies/${id}/check`, { method: 'POST' }),
+  bindProxy: (accountId: string, profileId: string) =>
+    request<{ account_id: string; proxy_id: string }>('/api/v1/proxies/bind', {
+      method: 'POST',
+      body: JSON.stringify({ account_id: accountId, profile_id: profileId }),
+    }),
+
+  // v1.1: donor discovery (candidates are proposals; adding is explicit).
+  discoveryProviders: () =>
+    request<DiscoveryProviderStatus[]>('/api/v1/discovery/providers'),
+  discoverySearch: (payload: {
+    topic: string
+    keywords?: string[]
+    min_subscribers?: number
+    max_subscribers?: number
+    active_only?: boolean
+    providers?: string[]
+    account_id?: string
+  }) => request<DiscoveryResult>('/api/v1/discovery/search', { method: 'POST', body: JSON.stringify(payload) }),
+  discoveryCandidates: () => request<CandidateList>('/api/v1/discovery/candidates'),
+  discoveryCompare: (candidateIds: string[]) =>
+    request<DiscoveryCompare>('/api/v1/discovery/compare', {
+      method: 'POST',
+      body: JSON.stringify({ candidate_ids: candidateIds }),
+    }),
+  discoveryAdd: (candidateId: string) =>
+    request<{ candidate: DonorCandidate; source_id: string }>(
+      `/api/v1/discovery/candidates/${candidateId}/add`,
+      { method: 'POST' },
+    ),
+  discoveryClear: () =>
+    request<{ deleted: number }>('/api/v1/discovery/candidates/clear', { method: 'POST' }),
 }

@@ -134,6 +134,10 @@ class EntityRef:
     # member / admin-only). The scan then reports NO_ACCESS instead of pretending
     # an empty list means "nobody here".
     participants_hidden: bool = False
+    # Public discovery extras (v1.1). ``0``/empty when not exposed — never guessed.
+    subscribers: int = 0
+    avg_views: float = 0.0
+    language: str = ""
 
 
 @dataclass(slots=True)

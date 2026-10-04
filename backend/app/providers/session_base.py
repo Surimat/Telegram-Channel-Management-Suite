@@ -11,6 +11,7 @@ selected account. Only the PHASE 4 subset is implemented today.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from backend.app.providers.types import (
@@ -63,6 +64,16 @@ class SessionProvider(Protocol):
     async def export_session(self) -> None:
         """Flush the session to disk (after a successful sign-in)."""
 
+    async def import_string_session(self, value: str, target_path: Path) -> None:
+        """Persist a Telethon ``StringSession`` string into ``target_path``.
+
+        The raw string is a secret: implementations MUST NOT log or return it.
+        ``target_path`` is a local ``.session`` file inside the sessions directory
+        (never a remote resource). Optional: providers that cannot convert may
+        raise ``UnsupportedOperationError``.
+        """
+        ...
+
     # --- extension points for PHASE 5 / PHASE 6 ------------------------------
     async def resolve_entity(self, username_or_id: str | int) -> EntityRef:
         """Resolve a username/ID to a Telegram entity."""
@@ -98,5 +109,16 @@ class SessionProvider(Protocol):
         Providers translate library errors into :mod:`backend.app.providers.errors`
         (FloodWait, privacy, admin-required, authorization). Business logic stays
         free of Telethon types (D-001).
+        """
+        ...
+
+    async def search_public(self, query: str, *, limit: int = 20) -> list[EntityRef]:
+        """Search public channels/groups by keyword (donor discovery, v1.1).
+
+        Uses only the official Telegram search the installed library exposes
+        (``messages.searchGlobal`` / channel recommendations). Returns whatever
+        Telegram actually returns — possibly an empty list — and never bypasses
+        limits (D-006). Providers that cannot search raise
+        ``UnsupportedOperationError``.
         """
         ...

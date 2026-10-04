@@ -47,12 +47,16 @@ def build_session_provider(
     session_path: Path | None = None,
     provider_name: str = "auto",
     settings: Settings | None = None,
+    proxy: dict[str, object] | None = None,
 ) -> SessionProvider:
     """Return an MTProto :class:`SessionProvider` (PHASE 4).
 
     ``provider_name`` values match :func:`build_bot_provider`. The fake provider
     is selected when ``offline_mode`` is on or when ``provider_name == "fake"``,
     so tests and the offline demo never touch the network (D-001, D-019).
+
+    ``proxy`` is an optional Telethon proxy dict (a normal network route, never a
+    limit-bypass mechanism — D-006/D-066).
     """
     settings = settings or get_settings()
 
@@ -71,6 +75,7 @@ def build_session_provider(
         session_path=session_path,
         provider_name=provider_name,
         settings=settings,
+        proxy=proxy,
     )
 
 

@@ -45,6 +45,7 @@ from backend.app.db.models.bot import BotKind
 from backend.app.db.models.capability import CAPABILITY_OK, CAPABILITY_UNAVAILABLE
 from backend.app.db.models.channel import ChannelStatus
 from backend.app.db.models.event import EventLevel
+from backend.app.db.models.proxy import ProxyStatus
 from backend.app.db.models.session import SessionStatus
 from backend.app.db.models.update_state import UPDATE_AVAILABLE, UPDATE_ERROR, UPDATE_FAILED
 from backend.app.db.repositories.bindings import BindingRepository
@@ -164,11 +165,13 @@ class DiagnosticsService:
             ),
             await self._guarded("managed_bots", self._managed_bots_item),
             await self._guarded("sessions", self._sessions_item),
+            await self._guarded("proxies", self._proxies_item),
             await self._guarded("channels", self._channels_item),
             await self._guarded("bindings", self._bindings_item),
             await self._guarded("capabilities", self._capabilities_item),
             await self._guarded("audience", self._audience_item),
             await self._guarded("donors", self._donors_item),
+            await self._guarded("donor_candidates", self._donor_candidates_item),
             await self._guarded("reactions", lambda: self.system.reactions_check(self.session)),
             await self._guarded("invites", lambda: self.system.invites_check(self.session)),
             await self._guarded("campaigns", self._campaigns_item),
@@ -428,6 +431,62 @@ class DiagnosticsService:
             "Реакции каналов",
             STATUS_OK,
             f"Проверено каналов: {len(rows)}, известен набор реакций: {known}.",
+            "",
+        )
+
+    async def _proxies_item(self):  # type: ignore[no-untyped-def]
+        from backend.app.db.repositories.proxies import ProxyRepository
+        from backend.app.services.system_service import Check
+
+        profiles = await ProxyRepository(self.session).list_all()
+        if not profiles:
+            return Check(
+                "proxies",
+                "Сетевые маршруты (прокси)",
+                STATUS_NOT_CONFIGURED,
+                "Прокси не настроены — все аккаунты подключаются напрямую. Это нормально.",
+                "Прокси нужен, только если Telegram недоступен напрямую. Он не обходит лимиты.",
+            )
+        enabled = sum(1 for p in profiles if p.enabled)
+        broken_statuses = {ProxyStatus.ERROR, ProxyStatus.TIMEOUT}
+        broken = sum(
+            1 for p in profiles if p.enabled and p.status in broken_statuses
+        )
+        if broken:
+            return Check(
+                "proxies",
+                "Сетевые маршруты (прокси)",
+                STATUS_WARNING,
+                f"Прокси: {len(profiles)}, включено: {enabled}, с проблемами: {broken}.",
+                "Проверьте проблемные прокси кнопкой «Проверить» на странице «Аккаунты».",
+            )
+        return Check(
+            "proxies",
+            "Сетевые маршруты (прокси)",
+            STATUS_OK,
+            f"Прокси: {len(profiles)}, включено: {enabled}.",
+            "",
+        )
+
+    async def _donor_candidates_item(self):  # type: ignore[no-untyped-def]
+        from backend.app.db.repositories.proxies import DonorCandidateRepository
+        from backend.app.services.system_service import Check
+
+        rows = await DonorCandidateRepository(self.session).list_all()
+        if not rows:
+            return Check(
+                "donor_candidates",
+                "Автопоиск доноров",
+                STATUS_NOT_CONFIGURED,
+                "Кандидаты-доноры ещё не искались — это необязательно.",
+                "Поиск доноров доступен на странице «Источники» (кандидаты добавляются вручную).",
+            )
+        added = sum(1 for c in rows if c.added)
+        return Check(
+            "donor_candidates",
+            "Автопоиск доноров",
+            STATUS_OK,
+            f"Кандидатов: {len(rows)}, добавлено в источники: {added}.",
             "",
         )
 
@@ -721,6 +780,8 @@ class DiagnosticsService:
             "queue": await self._safe(self._queue_payload, {"unavailable": True}),
             "bindings": await self._safe(self._bindings_payload, []),
             "capabilities": await self._safe(self._capabilities_payload, []),
+            "proxies": await self._safe(self._proxies_payload, []),
+            "donor_candidates": await self._safe(self._donor_candidates_payload, []),
             "campaigns": await self._safe(self._campaigns_payload, []),
             "donors": await self._safe(self._donors_payload, []),
             "backup_destinations": await self._safe(self._destinations_payload, []),
@@ -877,6 +938,47 @@ class DiagnosticsService:
                 "last_checked": _iso(r.last_checked),
             }
             for r in rows
+        ]
+
+    async def _proxies_payload(self) -> list[dict[str, object]]:
+        from backend.app.db.repositories.proxies import ProxyRepository
+
+        rows = await ProxyRepository(self.session).list_all()
+        # Never a password: only presence, kind, host and last status.
+        return [
+            {
+                "name": redact_text(p.name or ""),
+                "kind": p.kind,
+                "host": p.host,
+                "port": p.port,
+                "username_present": bool(p.username),
+                "has_password": bool(p.password_encrypted),
+                "enabled": p.enabled,
+                "status": str(p.status),
+                "last_checked": _iso(p.last_checked),
+            }
+            for p in rows
+        ]
+
+    async def _donor_candidates_payload(self) -> list[dict[str, object]]:
+        from backend.app.db.repositories.proxies import DonorCandidateRepository
+
+        rows = await DonorCandidateRepository(self.session).list_all()
+        return [
+            {
+                "query": redact_text(c.query or ""),
+                "provider": c.provider,
+                "username": c.username,
+                "title": redact_text(c.title or ""),
+                "kind": c.kind,
+                "subscribers": c.subscribers,
+                "fit": c.fit,
+                "fit_score": c.fit_score,
+                "confidence": c.confidence,
+                "added": c.added,
+                "created_at": _iso(c.created_at),
+            }
+            for c in rows
         ]
 
     async def _campaigns_payload(self) -> list[dict[str, object]]:

@@ -122,6 +122,9 @@ class Settings(BaseSettings):
     # --- Tiny AI (PHASE 7) ---
     # Master switch. Off by default: the system works on rules alone.
     ai_enabled: bool = False
+    # v1.1 lightweight encoder level: a dependency-free Russian classifier that
+    # needs no model download and is safe on a weak PC. On by default.
+    ai_encoder_enabled: bool = True
     # Inference backend: "llama_cpp" (real, optional) or "fake" (offline/tests).
     # Empty = auto (fake when offline_mode, else llama_cpp).
     ai_backend: str = ""

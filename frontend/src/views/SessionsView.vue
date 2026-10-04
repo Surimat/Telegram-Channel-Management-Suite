@@ -4,6 +4,7 @@ import {
   api,
   type Channel,
   type PermissionResult,
+  type ProxyProfile,
   type SessionSummary,
   type UserSession,
 } from '@/api/client'
@@ -33,6 +34,97 @@ const passwordInput = ref('')
 // Import state
 const showImport = ref(false)
 const importForm = ref({ api_id: '', api_hash: '', phone: '', session_file_path: '' })
+
+// Network routes / proxies (v1.1). A proxy is a normal connection route; it
+// never lifts Telegram limits.
+const proxies = ref<ProxyProfile[]>([])
+const proxyNotice = ref('')
+const proxyBusy = ref(false)
+const proxyError = ref('')
+const proxyForm = ref({ name: '', kind: 'socks5', host: '', port: 1080, username: '', password: '' })
+
+const PROXY_STATUS_CLASS: Record<string, string> = {
+  ok: 'status-ok',
+  error: 'status-error',
+  timeout: 'status-warning',
+  unknown: 'status-unknown',
+}
+
+async function loadProxies() {
+  try {
+    const data = await api.proxies()
+    proxies.value = data.items
+    proxyNotice.value = data.notice
+  } catch {
+    proxies.value = []
+  }
+}
+
+async function addProxy() {
+  proxyBusy.value = true
+  proxyError.value = ''
+  try {
+    await api.addProxy({
+      name: proxyForm.value.name,
+      kind: proxyForm.value.kind,
+      host: proxyForm.value.host,
+      port: Number(proxyForm.value.port) || 0,
+      username: proxyForm.value.username,
+      password: proxyForm.value.password,
+    })
+    proxyForm.value = { name: '', kind: 'socks5', host: '', port: 1080, username: '', password: '' }
+    await loadProxies()
+  } catch (e) {
+    proxyError.value = friendlyError(e)
+  } finally {
+    proxyBusy.value = false
+  }
+}
+
+async function checkProxy(p: ProxyProfile) {
+  proxyBusy.value = true
+  proxyError.value = ''
+  try {
+    const result = await api.checkProxy(p.id)
+    notice.value = result.message
+    await loadProxies()
+  } catch (e) {
+    proxyError.value = friendlyError(e)
+  } finally {
+    proxyBusy.value = false
+  }
+}
+
+async function removeProxy(p: ProxyProfile) {
+  if (!confirm(`Удалить прокси «${p.name}»? Аккаунты переключатся на прямое подключение.`)) return
+  proxyBusy.value = true
+  proxyError.value = ''
+  try {
+    await api.removeProxy(p.id)
+    await loadProxies()
+    await load()
+  } catch (e) {
+    proxyError.value = friendlyError(e)
+  } finally {
+    proxyBusy.value = false
+  }
+}
+
+async function assignProxy(a: UserSession, profileId: string) {
+  proxyBusy.value = true
+  proxyError.value = ''
+  try {
+    await api.bindProxy(a.id, profileId)
+    await load()
+  } catch (e) {
+    proxyError.value = friendlyError(e)
+  } finally {
+    proxyBusy.value = false
+  }
+}
+
+const proxyName = (id: string) =>
+  proxies.value.find((p) => p.id === id)?.name || '—'
 
 // Permission probe (post-1.0 hardening)
 const permAccountId = ref('')
@@ -251,6 +343,7 @@ const remove = (a: UserSession) => {
 onMounted(() => {
   load()
   loadPermissionHistory()
+  loadProxies()
 })
 </script>
 
@@ -406,6 +499,7 @@ onMounted(() => {
           <th>Телефон</th>
           <th>Состояние</th>
           <th>Проверка</th>
+          <th>Маршрут</th>
           <th>Действия</th>
         </tr>
       </thead>
@@ -431,6 +525,17 @@ onMounted(() => {
             {{ a.last_checked_at ? new Date(a.last_checked_at).toLocaleString() : '—' }}
           </td>
           <td>
+            <select
+              :value="a.proxy_id || ''"
+              :disabled="proxyBusy"
+              @change="assignProxy(a, ($event.target as HTMLSelectElement).value)"
+            >
+              <option value="">Прямое подключение</option>
+              <option v-for="p in proxies" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
+            <div v-if="a.proxy_id" class="muted">{{ proxyName(a.proxy_id) }}</div>
+          </td>
+          <td>
             <div class="actions">
               <button :disabled="busyId === a.id" @click="check(a)">Проверить</button>
               <button :disabled="busyId === a.id" @click="toggle(a)">
@@ -443,6 +548,86 @@ onMounted(() => {
         </tr>
       </tbody>
     </table>
+
+    <!-- Network routes (proxies) -->
+    <div class="card" style="margin-top: 20px">
+      <h3>Сетевые маршруты (прокси)</h3>
+      <p class="muted">
+        Прокси — это обычный маршрут подключения для аккаунта. Он
+        <strong>не отменяет</strong> ограничения Telegram (FloodWait, приватность,
+        права администратора) и не помогает их обходить.
+      </p>
+      <div v-if="proxyError" class="error-text">{{ proxyError }}</div>
+      <table v-if="proxies.length">
+        <thead>
+          <tr>
+            <th>Название</th>
+            <th>Тип</th>
+            <th>Адрес</th>
+            <th>Состояние</th>
+            <th>Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="p in proxies" :key="p.id">
+            <td><strong>{{ p.name }}</strong></td>
+            <td class="muted">{{ p.kind_title }}</td>
+            <td class="muted">{{ p.host }}:{{ p.port }}</td>
+            <td>
+              <span class="status-dot" :class="PROXY_STATUS_CLASS[p.status] || 'status-unknown'"></span>
+              {{ p.status_title }}
+              <div v-if="p.status_message" class="muted">{{ p.status_message }}</div>
+            </td>
+            <td>
+              <div class="actions">
+                <button :disabled="proxyBusy" @click="checkProxy(p)">Проверить</button>
+                <button class="danger" :disabled="proxyBusy" @click="removeProxy(p)">Удалить</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-else class="muted">Прокси не настроены — все аккаунты подключаются напрямую.</p>
+
+      <h4 style="margin-top: 16px">Добавить прокси</h4>
+      <div class="grid">
+        <label class="field">
+          <span>Название</span>
+          <input v-model="proxyForm.name" placeholder="Например: домашний" />
+        </label>
+        <label class="field">
+          <span>Тип</span>
+          <select v-model="proxyForm.kind">
+            <option value="socks5">SOCKS5</option>
+            <option value="http">HTTP</option>
+            <option value="https">HTTPS</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Адрес</span>
+          <input v-model="proxyForm.host" placeholder="127.0.0.1" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>Порт</span>
+          <input v-model.number="proxyForm.port" type="number" placeholder="1080" />
+        </label>
+        <label class="field">
+          <span>Логин (необязательно)</span>
+          <input v-model="proxyForm.username" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>Пароль (необязательно)</span>
+          <input v-model="proxyForm.password" type="password" autocomplete="off" />
+        </label>
+      </div>
+      <button
+        class="primary"
+        :disabled="proxyBusy || !proxyForm.host || !proxyForm.port"
+        @click="addProxy"
+      >
+        {{ proxyBusy ? 'Сохраняем…' : 'Добавить прокси' }}
+      </button>
+    </div>
 
     <!-- Permission probe (post-1.0 hardening) -->
     <div class="card" style="margin-top: 20px">

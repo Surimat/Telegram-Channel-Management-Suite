@@ -70,6 +70,10 @@ class UserSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # Free-form, non-secret metadata added later (e.g. score/tags summary).
     meta: Mapped[str] = mapped_column(Text, default="", nullable=False)
 
+    # Optional network route (ProxyProfile.id). Empty = connect directly. A proxy
+    # is a normal connection route, never a limit-bypass mechanism (D-066).
+    proxy_id: Mapped[str] = mapped_column(String(32), default="", index=True, nullable=False)
+
     @property
     def has_session(self) -> bool:
         return bool(self.session_ref)

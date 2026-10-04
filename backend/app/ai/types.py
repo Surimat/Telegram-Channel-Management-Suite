@@ -29,8 +29,10 @@ VALID_SOURCES = frozenset(
 MODE_AUTO = "auto"        # rules-first, AI fallback when rules are unsure
 MODE_RULES = "rules"      # rules only, never touch the AI
 MODE_AI = "ai"            # AI only, fall back to rules when unavailable
+#: Lightweight local encoder only (v1.1) — no model download, weak-PC friendly.
+MODE_ENCODER = "encoder"
 
-VALID_MODES = frozenset({MODE_AUTO, MODE_RULES, MODE_AI})
+VALID_MODES = frozenset({MODE_AUTO, MODE_RULES, MODE_AI, MODE_ENCODER})
 
 
 class Tone(StrEnum):
@@ -45,11 +47,32 @@ class Tone(StrEnum):
     HUMOROUS = "humorous"
 
 
+class Intent(StrEnum):
+    """Communicative intent of a post (v1.1, Russian-first).
+
+    A small, fixed vocabulary an encoder classifier can map onto. Intent is
+    *advisory*: it narrows the reaction set but never picks an emoji directly
+    (the Reaction Planner and Rules Engine remain authoritative — D-005/D-032).
+    """
+
+    SUPPORT = "support"
+    SYMPATHY = "sympathy"
+    JOY = "joy"
+    HUMOR = "humor"
+    ANGER = "anger"
+    SURPRISE = "surprise"
+    LOVE = "love"
+    NEUTRAL = "neutral"
+
+
 #: Fixed set of categories the AI may return (must match the Rules Engine).
 ALLOWED_CATEGORIES: frozenset[str] = frozenset(c.value for c in Category)
 
 #: Fixed set of tones the AI may return.
 ALLOWED_TONES: frozenset[str] = frozenset(t.value for t in Tone)
+
+#: Fixed set of intents the AI may return.
+ALLOWED_INTENTS: frozenset[str] = frozenset(i.value for i in Intent)
 
 
 @dataclass(slots=True)
@@ -79,6 +102,11 @@ class ClassificationResult:
     confidence: float
     source: str
     tone: Tone = Tone.NEUTRAL
+    #: Advisory communicative intent (v1.1). Defaults to neutral.
+    intent: Intent = Intent.NEUTRAL
+    #: Emoji the encoder backend suggests (advisory only; may be empty). The
+    #: Reaction Planner intersects this with policy — the AI never decides alone.
+    suggested_emoji: str = ""
     model: str = ""
     processing_time_ms: int = 0
     error: str = ""
@@ -111,9 +139,11 @@ class Classifier(Protocol):
 
 __all__ = [
     "ALLOWED_CATEGORIES",
+    "ALLOWED_INTENTS",
     "ALLOWED_TONES",
     "MODE_AI",
     "MODE_AUTO",
+    "MODE_ENCODER",
     "MODE_RULES",
     "SOURCE_AI",
     "SOURCE_DEFAULT",
@@ -125,5 +155,6 @@ __all__ = [
     "ClassificationContext",
     "ClassificationResult",
     "Classifier",
+    "Intent",
     "Tone",
 ]

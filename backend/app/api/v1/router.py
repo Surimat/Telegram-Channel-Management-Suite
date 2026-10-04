@@ -14,6 +14,7 @@ from backend.app.api.v1 import (
     campaigns,
     channels,
     diagnostics,
+    discovery,
     events,
     help,
     invites,
@@ -21,6 +22,7 @@ from backend.app.api.v1 import (
     miniapp,
     permissions,
     product,
+    proxies,
     queue,
     reactions,
     sessions,
@@ -39,10 +41,12 @@ api_router.include_router(bindings.router)
 api_router.include_router(bindings.capabilities_router)
 api_router.include_router(manager.router)
 api_router.include_router(sessions.router)
+api_router.include_router(proxies.router)
 api_router.include_router(audience.router)
 api_router.include_router(invites.router)
 api_router.include_router(campaigns.router)
 api_router.include_router(campaigns.donors_router)
+api_router.include_router(discovery.router)
 api_router.include_router(reactions.router)
 api_router.include_router(permissions.router)
 api_router.include_router(ai.router)
