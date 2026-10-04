@@ -5,7 +5,8 @@
 
 **Updated:** 2026-10-04
 **Status:** MAINTENANCE / OPTIONAL EXTENSIONS. The roadmap (PHASE 0–11) is complete.
-**v1.0.5 is released** (`main == develop == 496598f`; PR #6; tag `v1.0.5`;
+**v1.0.5 is released** (merge `496598f` on `main`; PR #6; tag `v1.0.5`;
+`develop` is one docs commit ahead, `44b7501`;
 GitHub Release with the Windows portable ZIP + `.sha256`, built by CI — D-060). The v1.0.5 product
 slice: bot↔channel **bindings** + channel **reaction capabilities**, session-free
 invite **Кампании** + explainable **donor quality**, **backup delivery
