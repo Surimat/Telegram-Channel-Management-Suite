@@ -13,6 +13,11 @@ installable packaging. Published from `develop` via a reviewed `develop → main
 PR, tagged `v1.0.1`; the Windows portable ZIP is attached to the GitHub Release.
 
 ### Fixed
+- **Portable ZIP build failed for a relative output dir (CI).** `build_portable.sh`
+  built `ZIP_PATH` from the (possibly relative) output dir and then wrote it after
+  `cd "$OUT"`, so `zip` targeted a non-existent `dist/TCMS/dist/...`. `OUT` is now
+  resolved to an absolute path against the caller's cwd before use. Covered by
+  `test_build_portable_zip_with_relative_output`.
 - **Flaky `test_setup_requires_manager_bot` / "Event loop is closed".** Tests
   that iterated the FastAPI `get_session()` dependency with `break` leaked the
   async-generator session; SQLAlchemy/aiosqlite garbage-collected it on a later

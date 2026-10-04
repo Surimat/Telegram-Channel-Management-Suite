@@ -167,8 +167,12 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
   migrations, the shared Channel Registry, per-channel analytics, GitHub Actions
   CI, the Mini App setup helper, and reproducible cross-platform portable
   packaging with an automated Release workflow. Version string is
-  `1.0.1`. Published from `develop` via a reviewed `develop → main` PR, tagged
-  `v1.0.1`; the Windows portable ZIP is attached to the GitHub Release.
+  `1.0.1`. Published from `develop` via a reviewed `develop → main` PR (merge
+  commit `d267cf6`), tagged `v1.0.1`; the Windows portable ZIP is attached to the
+  GitHub Release. The Release workflow's portable job hit a path bug for a
+  relative output dir; the fix landed on `develop` (D-059) and the tag was **not**
+  moved (D-050) — the ZIP for `v1.0.1` was built from `d267cf6` and attached
+  manually. The next tag (`v1.0.2`) runs the fixed workflow.
 - **v1.0.0 (2026-10-03):** first production release — the complete PHASE 0–11
   suite plus RC and post-1.0 hardening. Annotated tag `v1.0.0` + GitHub Release
   on the `develop → main` merge commit `82c1059`. See `docs/RELEASE_CHECKLIST.md`

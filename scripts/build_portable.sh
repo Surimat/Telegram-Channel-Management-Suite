@@ -29,6 +29,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CALLER_PWD="$PWD"
 OUT=""
 PYTHON="${PYTHON:-python3}"
 REQ_FILE="$ROOT/backend/requirements.txt"
@@ -61,6 +62,13 @@ fi
 VERSION="${VERSION:-0.0.0}"
 
 OUT="${OUT:-$ROOT/dist/TelegramChannelManagementSuite}"
+# Normalise OUT to an absolute path (relative to the caller's cwd): the ZIP is
+# written after `cd "$OUT"`, so a relative OUT (e.g. `dist/TCMS`) would make
+# ZIP_PATH resolve to a non-existent `dist/TCMS/dist/...`.
+case "$OUT" in
+  /*) ;;
+  *) OUT="$CALLER_PWD/$OUT" ;;
+esac
 ZIP_NAME="Telegram-Channel-Management-Suite-Windows-Portable-${VERSION}.zip"
 ZIP_PATH="$(dirname "$OUT")/$ZIP_NAME"
 

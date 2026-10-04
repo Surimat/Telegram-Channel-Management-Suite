@@ -4,29 +4,32 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-04
-**Status:** v1.0.0 released; **post-1.0 hardening + release engineering complete on
-`develop`** (versioned Alembic migrations, the Channel Registry, CI, the Mini App
-setup helper, per-channel analytics, reproducible cross-platform portable
-packaging, a Release workflow). Version is **1.0.1**. Suite is green at
-**427 passed**; `ruff` clean; SPA builds; Docker image builds; portable tree
-starts end-to-end.
+**Status:** **v1.0.1 released.** `main == origin/main == develop == d267cf6`
+(tag `v1.0.1`; PR #2 merged; GitHub Release published with the Windows portable
+ZIP + `.sha256`). Post-1.0 hardening is on `main`: versioned Alembic migrations,
+the Channel Registry, CI, the Mini App setup helper, per-channel analytics,
+reproducible cross-platform portable packaging, and a Release workflow. Version
+is **1.0.1**. Suite is green at **428 passed**; `ruff` clean; SPA builds; Docker
+image builds; portable tree starts end-to-end.
 
 ---
 
-## Active task: publish the v1.0.1 release
+## Active task: next release (v1.0.2) — release-engineering follow-up
 
-Everything for the release is implemented, tested and documented on `develop`.
-The remaining work is publication (no new features):
+`v1.0.1` is out. There is **no open PR** and no immediate feature work required.
+The remaining release-engineering item:
 
-1. Merge the open `develop → main` PR (reviewed; no force).
-2. Create annotated tag **`v1.0.1`** on the merged `main` commit and push it.
-   `.github/workflows/release.yml` then builds the Windows portable ZIP and
-   attaches it (+ `.sha256`) to the GitHub Release.
-3. Publish the GitHub Release `v1.0.1` with notes from `agent/CHANGELOG.md`.
-4. Sync `main` back into `develop`.
+1. The Release workflow's portable job failed on `v1.0.1` (path bug now fixed on
+   `develop`, D-059). The next `develop → main` PR carries the fix; a `v1.0.2` tag
+   will then exercise the fixed workflow end-to-end.
+2. Before tagging, run the workflow via **Actions → Release → Run workflow**
+   (`workflow_dispatch`) to confirm the portable job is green without consuming a
+   tag. Follow `docs/RELEASE_CHECKLIST.md`.
+3. Do **not** move or re-tag `v1.0.1` (D-050); the ZIP for it was built from
+   `d267cf6` and is attached to the existing Release.
 
 Follow `docs/RELEASE_CHECKLIST.md`. Do **not** push directly to `main`; land via
-the reviewed PR.
+a reviewed PR.
 
 Done recently (do not rebuild):
 - GitHub Actions CI (D-053, `.github/workflows/ci.yml`) runs ruff + pytest and the
@@ -40,7 +43,9 @@ Done recently (do not rebuild):
   `scripts/build_portable.sh` (versioned ZIP + checksum).
 - **Version is `1.0.1`** across the app package, `pyproject.toml` and the frontend (D-057).
 - **Async test-harness flake fixed** (D-058): engine is disposed before reset;
-  Mini App tests use `session_scope()`. Suite is deterministic (427 passed).
+  Mini App tests use `session_scope()`. Suite is deterministic.
+- **Portable ZIP relative-path bug fixed** (D-059): `build_portable.sh` resolves
+  `OUT` to an absolute path; regression test added (428 passed).
 
 Do **not** create artificial new phases and do **not** re-open PHASE 8–11.
 

@@ -4,20 +4,19 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-04
-**Current phase:** **Release publication.** v1.0.0 is released
-(`main == origin/main == 82c1059`, tag `v1.0.0`). `develop` carries the post-1.0
-hardening plus the release-engineering work: (1) **versioned Alembic migrations**
-replace `create_all` at startup (D-052); (2) a **shared Channel Registry**
-(`channels` table + `/api/v1/channels` + RU-first "Каналы" page) so invites,
-post ingestion, audience sources and the permission probe all share one channel
-identity; analytics can be scoped per channel (D-055); (3) **reproducible,
+**Current phase:** **v1.0.1 released.** `main == origin/main == develop == d267cf6`
+(tag `v1.0.1`; PR #2 `develop → main` merged; GitHub Release published). `develop`
+is at the release commit. The post-1.0 hardening landed: (1) **versioned Alembic
+migrations** replace `create_all` at startup (D-052); (2) a **shared Channel
+Registry** (`channels` table + `/api/v1/channels` + RU-first "Каналы" page) so
+invites, post ingestion, audience sources and the permission probe all share one
+channel identity; analytics can be scoped per channel (D-055); (3) **reproducible,
 cross-platform portable packaging** (`scripts/build_win_runtime.py` +
-`scripts/win-requirements.lock` + `scripts/build_portable.sh` now emits a
-versioned ZIP) and a **Release workflow** (`.github/workflows/release.yml`)
-(D-056).
+`scripts/win-requirements.lock` + `scripts/build_portable.sh` emits a versioned
+ZIP) and a **Release workflow** (`.github/workflows/release.yml`) (D-056).
 Version string is **1.0.1** across `backend/app/__init__.py`, `pyproject.toml`,
 `frontend/package.json` + lock (D-057).
-All gates pass: `pytest` **427 passed** (stable across repeated runs; the
+All gates pass: `pytest` **428 passed** (stable across repeated runs; the
 Mini App "Event loop is closed" flake is fixed — see below), `ruff` clean,
 `vue-tsc` + `npm run build`
 clean, Docker image builds and serves `/health` + SPA, portable tree starts
@@ -28,10 +27,13 @@ dependency with `break`, leaking the async-generator session; it was GC'd on a
 later test's closed loop and intermittently raised `GeneratorExit`/`TypeError`
 (observed once in CI). `tests/conftest.py` now disposes the engine *before*
 `_isolated_env` resets it, and the Mini App tests use `session_scope()`.
-**Next phase:** publish the **v1.0.1** release — merge the `develop → main` PR,
-tag `v1.0.1`, publish the GitHub Release with the auto-attached portable ZIP.
-**Repository status:** `main == origin/main == 82c1059` (tag `v1.0.0`); `develop`
-is ahead of `main` (post-release hardening + release engineering).
+**Release-engineering fix:** the Release workflow's portable job failed because
+`build_portable.sh` wrote the ZIP to a non-existent `dist/TCMS/dist/...` for a
+relative output dir; `OUT` is now resolved to an absolute path against the
+caller's cwd (D-059). `v1.0.1` is **not** re-tagged (D-050); the fix lands on
+`develop` for the next release and the ZIP for `v1.0.1` was built from `d267cf6`.
+**Repository status:** `main == origin/main == develop == d267cf6` (tags `v1.0.0`,
+`v1.0.1`); the `v1.0.1` GitHub Release carries the Windows portable ZIP + `.sha256`.
 **Branch:** `develop` (working branch); `main` is released and updated only via pull request.
 
 ---

@@ -1072,3 +1072,24 @@ the same way (never finalized in its own loop).
 **Consequence:** The suite is deterministic: 427 passed across repeated runs,
 no "Event loop is closed" noise. Any new test must use `session_scope()` (or
 explicitly `aclose()` a `get_session()` generator) rather than `break`.
+
+---
+
+## D-059 — 2026-10-04 — v1.0.1 released; tag immutable, Release build fixed forward
+
+**Decision:** `v1.0.1` is the `develop -> main` merge commit `d267cf6`, tagged
+`v1.0.1` (annotated) with a GitHub Release. Per D-050 the tag is **immutable**,
+so the Release-workflow path bug (`build_portable.sh` wrote the ZIP to a
+non-existent `dist/TCMS/dist/...` for a relative output dir) is fixed **forward**
+on `develop` and the portable ZIP is built locally and attached to the existing
+`v1.0.1` release. `v1.0.1` is **not** moved or re-tagged. A future `v1.0.2`
+would carry the fix in its own tag.
+
+**Why:** Rewriting a published tag breaks reproducibility and the rule the
+project already locked for `v1.0.0`; a broken *automation* path is not a reason
+to invalidate the release commit. The released code is correct — only the CI
+packaging step failed.
+
+**Consequence:** `main` = `develop` = `d267cf6` (tag `v1.0.1`). The GitHub
+Release `v1.0.1` carries the Windows portable ZIP + `.sha256` built from that
+exact commit. The next release runs the now-fixed workflow cleanly.

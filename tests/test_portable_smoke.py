@@ -228,3 +228,28 @@ def test_build_portable_zip_layout(tmp_path: Path) -> None:
     assert match and match.group(1) in zips[0].name
 
 
+def test_build_portable_zip_with_relative_output(tmp_path: Path) -> None:
+    """A relative output dir (as CI passes `dist/TCMS`) still writes the ZIP.
+
+    Regression: the ZIP path was built from the relative OUT and then used after
+    `cd "$OUT"`, so `zip` tried to write `dist/TCMS/dist/...` and failed with
+    "No such file or directory".
+    """
+    result = subprocess.run(
+        [
+            "bash",
+            str(REPO_ROOT / "scripts" / "build_portable.sh"),
+            "rel/TCMS",
+            "--no-runtime",
+            "--no-frontend",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(tmp_path),
+    )
+    assert result.returncode == 0, result.stderr
+    zips = list((tmp_path / "rel").glob("*.zip"))
+    assert len(zips) == 1, (zips, result.stdout[-500:])
+    assert zips[0].stat().st_size > 0
+    with zipfile.ZipFile(zips[0]) as zf:
+        assert "run.bat" in zf.namelist()
