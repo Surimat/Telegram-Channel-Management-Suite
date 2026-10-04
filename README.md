@@ -9,15 +9,19 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v1.0.4`.**
+**Current stable release: `v1.0.5`.**
 
 ## What it does
 
 - **Manager Bot** — control the suite from Telegram (admin whitelist, notifications).
 - **Managed Bots** — add/health/remove Telegram bots; tokens sealed at rest.
+- **Bot ↔ channel bindings** — connect a bot to a channel, verify its rights and
+  the channel's available reactions (bot-only, no account needed).
 - **User Sessions** — MTProto accounts with an interactive auth wizard.
 - **Audience** — parse members of channels/groups, search, tag, export.
 - **Invite Manager** — build, dry-run, approve and run invite campaigns.
+- **Кампании** — invite-link promotion with the manager bot only (no account) and
+  explainable source-quality indicators.
 - **Reaction Manager** — reaction profiles, emoji weights, delays, simulation.
 - **Rules Engine** — per-category rules with allowed/preferred/forbidden emoji.
 - **Tiny AI** — optional local classifier (rules-only mode is fully supported).
@@ -25,7 +29,10 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 - **Channel Registry** — one shared channel identity for every module.
 - **Mini App** — the same SPA opens inside Telegram (one-click setup helper).
 - **Diagnostics** — per-component status in plain language + a redacted report.
-- **Backup / Restore** — data backups and reviewable config export/import.
+- **Setup Wizard** — a resumable first-run guide that reflects real system state.
+- **Auto-update** — off-by-default, checks/downloads a SHA-256-verified release.
+- **Backup / Restore** — data backups, reviewable config export/import and
+  optional delivery destinations (local / Telegram / Google Drive / Яндекс.Диск).
 - **Windows Portable** — unpack, run `run.bat`, open the Web UI (zero setup).
 - **Docker / VPS** — one compose file, optional Caddy TLS overlay.
 
@@ -51,13 +58,16 @@ Persistent memory so work can continue across sessions:
 ## Status
 
 **PHASE 0–11 complete.** The suite is feature-complete against the planned
-roadmap and shipped as **v1.0.4** (the roadmap has no open phases; remaining work
+roadmap and shipped as **v1.0.5** (the roadmap has no open phases; remaining work
 is maintenance / optional extensions). Post-1.0 additions include versioned
 Alembic migrations (replacing `create_all`), the shared Channel Registry,
 per-channel analytics, GitHub Actions CI, a one-click Mini App setup helper,
 reproducible cross-platform portable packaging (a versioned Windows ZIP is built
-and attached to each GitHub Release automatically), and the **Diagnostics** page
-with a **redacted diagnostic report** for support.
+and attached to each GitHub Release automatically), the **Diagnostics** page
+with a **redacted diagnostic report** for support, and a **product slice**:
+bot↔channel bindings + reaction capabilities, session-free invite **Кампании**
+with source-quality indicators, **backup delivery destinations**, a first-run
+**Setup Wizard**, and a conservative, off-by-default **auto-update**.
 See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
 ## Deployment modes

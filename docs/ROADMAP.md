@@ -175,6 +175,15 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
       a friendly row, the report falls back to safe empty sections, and the DB
       row explains recovery; the Queue page shows plain Russian job labels.
       No new phases or features.
+- [x] **Product slice (v1.0.5)**: owner-facing features that make the suite usable
+      without a user account — bot↔channel **bindings** with verified rights and
+      channel **reaction capabilities** (the reaction planner now honours the
+      channel's real emoji set); session-free invite **Кампании** with conservative
+      risk modes and explainable **donor quality** indicators; **backup delivery
+      destinations** (local / Telegram / Google Drive / Яндекс.Диск, credentials
+      sealed); a resumable first-run **Setup Wizard**; and a conservative,
+      off-by-default **auto-update** that only checks and stages a SHA-256-verified
+      file. New API + RU-first UI + tests; no new phases.
 - [ ] Optional (remaining, non-blocking): a full automated BotFather Mini App
       flow (the one-click menu-button registration exists, D-054); richer
       analytics; additional AI backends. No new phases are planned — see
@@ -184,6 +193,18 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ## Release
 
+- **v1.0.5 (2026-10-04):** product-slice release — bot↔channel **bindings** +
+  channel **reaction capabilities** (the reaction planner honours the channel's
+  real emoji set), session-free invite **Кампании** with conservative risk modes
+  and explainable **donor quality** indicators, **backup delivery destinations**
+  (local / Telegram / Google Drive / Яндекс.Диск, credentials sealed), a
+  resumable first-run **Setup Wizard**, and a conservative, off-by-default
+  **auto-update** (checks + stages a SHA-256-verified file, never auto-installs).
+  New API + RU-first UI + tests; Diagnostics gained the new subsystem rows and
+  redacted-report sections. No new phases. Published from `develop` via a
+  reviewed `develop → main` PR, tagged `v1.0.5`; the Windows portable ZIP +
+  `.sha256` are attached to the GitHub Release by the automated Release workflow
+  (D-060).
 - **v1.0.4 (2026-10-04):** startup-robustness patch — a corrupt/unreadable
   database no longer crashes application startup or the **Диагностика** page
   (checks degrade to friendly rows, the report falls back to safe empty sections,

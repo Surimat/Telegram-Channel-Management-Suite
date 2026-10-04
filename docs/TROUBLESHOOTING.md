@@ -202,6 +202,54 @@ filtering such users out before running the invite job.
 
 ---
 
+### Bot is not connected to a channel / reactions do nothing
+
+**What it means:** a managed bot must be an admin in the channel before it can
+set reactions or create invite links.
+
+**How to fix:**
+1. Open **Каналы**, pick the channel, use the **«Бот и реакции»** column and press
+   **«Подключить бота»**. The app shows the official link to add the bot.
+2. Add the bot to the channel as an administrator (rights to post / set
+   reactions / invite as needed).
+3. Press **«Проверить права»**. The status becomes «Готово» when Telegram confirms
+   the rights; otherwise a plain-language reason and hint are shown.
+4. Press **«Проверить реакции»** to record which reactions the channel supports.
+   The reaction planner then never schedules an unsupported emoji.
+
+No user account is required for this — the bot alone is enough.
+
+---
+
+### Кампании (invite links) do nothing
+
+- The campaign must be **Активна** (press «Запустить»).
+- The manager bot must be an admin in the target channel with the right to invite.
+- The chosen **risk mode** sets conservative spacing; nothing is sent instantly.
+- If links are revoked, create a new one.
+
+---
+
+### Обновления: check or download fails
+
+- Auto-update is **off by default**; enable it on the **Система** page first.
+- The check contacts the public GitHub API; if the network blocks it, the state
+  shows a friendly error — the app keeps working on the current version.
+- A download is only accepted if its **SHA-256 matches** the published checksum;
+  a mismatch is reported and nothing is staged.
+- The updater **never installs** anything by itself — you decide.
+
+---
+
+### The report says «Место хранения копий» has an error
+
+- Open **Резервные копии → Места хранения копий** and press **«Проверить»**.
+- Telegram / Google Drive / Яндекс.Диск are optional; a bad token shows a
+  plain-language error. Disable or remove the destination, or re-enter its token.
+- The **local** destination is the primary store and cannot be removed.
+
+---
+
 ## Backup and restore problems (PHASE 10)
 
 | Symptom | Cause | Fix |

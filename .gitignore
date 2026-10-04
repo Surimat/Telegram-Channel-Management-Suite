@@ -25,6 +25,8 @@ data/*
 !data/.gitkeep
 backups/*
 !backups/.gitkeep
+updates/*
+!updates/.gitkeep
 exports/*
 !exports/.gitkeep
 logs/*

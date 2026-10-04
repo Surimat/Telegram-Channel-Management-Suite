@@ -3,6 +3,9 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
   api,
+  type Binding,
+  type Bot,
+  type Capability,
   type Channel,
   type ChannelSummary,
   type UserSession,
@@ -12,10 +15,14 @@ import InfoHint from '@/components/InfoHint.vue'
 const channels = ref<Channel[]>([])
 const summary = ref<ChannelSummary | null>(null)
 const accounts = ref<UserSession[]>([])
+const bindings = ref<Binding[]>([])
+const bots = ref<Bot[]>([])
+const capabilities = ref<Record<string, Capability>>({})
 const loading = ref(true)
 const error = ref('')
 const notice = ref('')
 const busyId = ref('')
+const bindForm = ref<Record<string, string>>({})
 
 const showAdd = ref(false)
 const addBusy = ref(false)
@@ -73,10 +80,93 @@ async function load(silent = false) {
     summary.value = sum
     accounts.value = sess
     if (!verifyAccount.value && sess.length) verifyAccount.value = sess[0].id
+    try {
+      const [bind, botList] = await Promise.all([api.bindings(), api.bots()])
+      bindings.value = bind.items
+      bots.value = botList
+    } catch {
+      bindings.value = []
+      bots.value = []
+    }
   } catch (e) {
     error.value = friendlyError(e)
   } finally {
     loading.value = false
+  }
+}
+
+function bindingsFor(channelId: string): Binding[] {
+  return bindings.value.filter((b) => b.channel_id === channelId)
+}
+
+function botLabel(botId: string): string {
+  const bot = bots.value.find((b) => b.id === botId)
+  return bot ? bot.username ? '@' + bot.username : bot.title || bot.id : botId
+}
+
+async function connectBot(channel: Channel) {
+  const botId = bindForm.value[channel.id]
+  if (!botId) {
+    error.value = 'Выберите бота для подключения.'
+    return
+  }
+  busyId.value = channel.id
+  error.value = ''
+  notice.value = ''
+  try {
+    const binding = await api.connectBinding({ bot_id: botId, channel_id: channel.id })
+    notice.value = binding.invite_link
+      ? `Бот подключён. Добавьте его в канал по ссылке: ${binding.invite_link}`
+      : 'Бот подключён. Нажмите «Проверить права».'
+    await load(true)
+  } catch (e) {
+    error.value = friendlyError(e)
+  } finally {
+    busyId.value = ''
+  }
+}
+
+async function checkBinding(binding: Binding) {
+  busyId.value = binding.channel_id
+  error.value = ''
+  notice.value = ''
+  try {
+    const result = await api.checkBinding(binding.id)
+    notice.value = result.message
+    if (!result.present && result.how_to_fix) notice.value += ' ' + result.how_to_fix
+    await load(true)
+  } catch (e) {
+    error.value = friendlyError(e)
+  } finally {
+    busyId.value = ''
+  }
+}
+
+async function removeBinding(binding: Binding) {
+  if (!confirm(`Отключить бота ${botLabel(binding.bot_id)} от канала?`)) return
+  busyId.value = binding.channel_id
+  try {
+    await api.removeBinding(binding.id)
+    await load(true)
+  } catch (e) {
+    error.value = friendlyError(e)
+  } finally {
+    busyId.value = ''
+  }
+}
+
+async function probeCapabilities(channel: Channel) {
+  busyId.value = channel.id
+  error.value = ''
+  notice.value = ''
+  try {
+    const view = await api.probeCapability(channel.id)
+    capabilities.value = { ...capabilities.value, [channel.id]: view }
+    notice.value = view.message
+  } catch (e) {
+    error.value = friendlyError(e)
+  } finally {
+    busyId.value = ''
   }
 }
 
@@ -248,6 +338,7 @@ onMounted(() => load())
           <th>Состояние</th>
           <th>Участников</th>
           <th>Модули</th>
+          <th>Бот и реакции</th>
           <th>Действия</th>
         </tr>
       </thead>
@@ -285,6 +376,40 @@ onMounted(() => load())
             </label>
           </td>
           <td>
+            <div v-if="bindingsFor(c.id).length" class="binding-list">
+              <div v-for="b in bindingsFor(c.id)" :key="b.id" class="binding-row">
+                <span>{{ botLabel(b.bot_id) }}</span>
+                <span class="badge" :class="statusClass(b.status === 'ready' ? 'verified' : 'warning')">
+                  {{ b.status_label }}
+                </span>
+                <button :disabled="busyId === c.id" @click="checkBinding(b)">Проверить права</button>
+                <button class="danger" :disabled="busyId === c.id" @click="removeBinding(b)">
+                  Отключить
+                </button>
+              </div>
+            </div>
+            <div v-else class="muted">Бот не подключён</div>
+
+            <div class="binding-add">
+              <select v-model="bindForm[c.id]">
+                <option value="">— выбрать бота —</option>
+                <option v-for="bot in bots" :key="bot.id" :value="bot.id">
+                  {{ bot.username ? '@' + bot.username : bot.title || bot.id }}
+                </option>
+              </select>
+              <button :disabled="busyId === c.id || !bindForm[c.id]" @click="connectBot(c)">
+                Подключить бота
+              </button>
+            </div>
+
+            <div v-if="capabilities[c.id]" class="muted">
+              Реакции канала: {{ capabilities[c.id].available.join(' ') || 'нет данных' }}
+            </div>
+            <button :disabled="busyId === c.id" @click="probeCapabilities(c)">
+              Проверить реакции
+            </button>
+          </td>
+          <td>
             <div class="actions">
               <button :disabled="busyId === c.id" @click="verify(c)">Проверить</button>
               <button
@@ -306,3 +431,30 @@ onMounted(() => load())
     </p>
   </div>
 </template>
+
+<style scoped>
+.binding-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+.binding-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.binding-add {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.4rem;
+}
+.badge {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+}
+</style>

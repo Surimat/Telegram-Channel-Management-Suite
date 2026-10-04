@@ -113,12 +113,18 @@ async def test_collect_reports_every_subsystem() -> None:
         "managed_bots",
         "sessions",
         "channels",
+        "bindings",
+        "capabilities",
         "audience",
+        "donors",
         "reactions",
         "invites",
+        "campaigns",
         "ai",
         "scheduler",
         "storage",
+        "backup_destinations",
+        "update",
         "portable_runtime",
     }
     assert expected.issubset(keys)
@@ -221,6 +227,34 @@ async def test_report_unknown_format_rejected() -> None:
     async with session_scope() as session:
         with pytest.raises(DiagnosticsError):
             await DiagnosticsService(session).build_report("pdf")
+
+
+async def test_report_includes_product_sections_and_stays_clean() -> None:
+    """The report covers the product slices and still contains no secrets."""
+    from backend.app.db.models.campaign import InviteCampaign
+    from backend.app.db.models.channel import Channel
+    from backend.app.db.models.donor import DonorMetrics
+    from backend.app.db.session import session_scope
+    from backend.app.services.diagnostics_service import DiagnosticsService
+
+    async with session_scope() as session:
+        session.add(Channel(reference="@diag", title="Диагностика"))
+        session.add(InviteCampaign(name="Кампания", target="+invite-secret-link"))
+        session.add(DonorMetrics(title="Донор", quality="suspect", bot_probability="high"))
+    async with session_scope() as session:
+        content, _name, _mime = await DiagnosticsService(session).build_report("json")
+    payload = json.loads(content.decode("utf-8"))
+    for section in (
+        "bindings",
+        "capabilities",
+        "campaigns",
+        "donors",
+        "backup_destinations",
+        "update",
+    ):
+        assert section in payload
+    # Campaign names may appear (owner-facing) but no secrets/links leak.
+    assert "+invite-secret-link" not in content.decode("utf-8")
 
 
 async def test_cleanup_action_resets_stuck_jobs_without_deleting_data() -> None:

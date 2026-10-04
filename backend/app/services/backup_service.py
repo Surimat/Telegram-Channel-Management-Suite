@@ -151,6 +151,19 @@ class BackupService:
                 self._add_sessions(archive)
 
         self._prune()
+        # Deliver to every enabled destination (product slice). The *archive*
+        # bytes are delivered (not the raw DB): a local destination simply
+        # re-confirms the file, remote destinations are optional and contacted
+        # only when the owner enabled them. A delivery failure never fails the
+        # backup itself — the local copy already exists.
+        with contextlib.suppress(Exception):
+            from backend.app.services.destination_service import DestinationService
+
+            await DestinationService(self.session, settings=self.settings).deliver(
+                filename,
+                target.read_bytes(),
+                caption="Резервная копия Telegram Channel Management Suite",
+            )
         await self.events.info(
             "backup",
             "Создана резервная копия.",

@@ -54,6 +54,7 @@ onMounted(() => {
         <RouterLink class="nav-item" to="/sources">Источники</RouterLink>
         <RouterLink class="nav-item" to="/audience">Аудитория</RouterLink>
         <RouterLink class="nav-item" to="/invites">Приглашения</RouterLink>
+        <RouterLink class="nav-item" to="/campaigns">Кампании</RouterLink>
         <RouterLink class="nav-item" to="/reactions">Реакции</RouterLink>
         <RouterLink class="nav-item" to="/ai">Мини-ИИ</RouterLink>
         <RouterLink class="nav-item" to="/analytics">Аналитика</RouterLink>

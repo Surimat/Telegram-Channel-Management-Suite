@@ -4,13 +4,13 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-04
-**Current phase:** **v1.x maintenance (no new phases).** **v1.0.4 is released** — `main` = `develop` = `3f42c3d` (merge of PR #5; tag `v1.0.4`; the Release workflow attached the Windows portable ZIP + `.sha256` — D-060). The v1.0.4 patch: a damaged/unreadable database is explained instead of crashing startup or the Diagnostics page (D-062), plus plain-language Queue labels and beginner in-UI help. The `v1.0.3` work was the **Diagnostics** page, a **redacted diagnostic report** (ZIP/JSON/TXT with a server-side secret scan), and **safe maintenance actions** — none delete user data (D-061). `v1.0.0`–`v1.0.3` stay immutable (D-050).
-Earlier (already released): the post-1.0 hardening — **versioned Alembic migrations** replace `create_all` at startup (D-052); a **shared Channel Registry** (`channels` table + `/api/v1/channels` + RU-first channel page) so invites, post ingestion, audience sources and the permission probe all share one channel identity; analytics can be scoped per channel (D-055); **reproducible, cross-platform portable packaging** and the **Release workflow** (D-056/D-060).
-Version string is **1.0.4** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
-All gates pass: `pytest` **462 passed** (stable), `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend and frontend gates.
-**Repository status:** `main == develop == 3f42c3d` (tags `v1.0.0`, `v1.0.1`, `v1.0.2`, `v1.0.3`, `v1.0.4`); each GitHub Release carries the Windows portable ZIP + `.sha256` (built by CI, D-060).
+**Current phase:** **v1.x maintenance (no new phases).** **v1.0.5 is released** — `develop` prepared it (`main` will fast-forward via a reviewed PR; tag `v1.0.5`; the Release workflow attaches the Windows portable ZIP + `.sha256` — D-060). The v1.0.5 **product slice** (D-064): bot↔channel **bindings** + channel **reaction capabilities** (the reaction planner honours the channel's real emoji set), session-free invite **Кампании** + explainable **donor quality**, **backup delivery destinations** (local / Telegram / Google Drive / Яндекс.Диск), a resumable first-run **Setup Wizard**, and a conservative, off-by-default **auto-update**. Diagnostics gained the new subsystem rows and redacted-report sections. `v1.0.0`–`v1.0.4` stay immutable (D-050).
+Earlier (already released): the **v1.0.4** startup-robustness patch — a damaged/unreadable database is explained instead of crashing startup or the Diagnostics page (D-062), plus plain-language Queue labels and beginner in-UI help. The **v1.0.3** work was the **Diagnostics** page, a **redacted diagnostic report** (ZIP/JSON/TXT with a server-side secret scan), and **safe maintenance actions** — none delete user data (D-061). The post-1.0 hardening: **versioned Alembic migrations** replace `create_all` at startup (D-052); a **shared Channel Registry** (D-051/D-055); **reproducible, cross-platform portable packaging** and the **Release workflow** (D-056/D-060).
+Version string is **1.0.5** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
+All gates pass: `pytest` **491 passed**, `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend and frontend gates.
+**Repository status:** `main == 3f42c3d` (v1.0.4); `develop` adds the v1.0.5 product slice + docs; tags `v1.0.0`–`v1.0.4` (v1.0.5 tag pending the release PR); each GitHub Release carries the Windows portable ZIP + `.sha256` (built by CI, D-060).
 **Branch:** develop (working branch); main is released and updated only via pull request.
-**Latest maintenance (docs-consistency pass):** a factual audit found and fixed real documentation drift — `docs/API.md` (obsolete `/api/v1/system/backups*` + `/api/v1/system/config/*` tables replaced with the real `/api/v1/system/database[/upgrade]` endpoints; added the missing `/api/v1/help/*` section; removed a stale duplicate Invites table with a non-existent `/start` endpoint), `docs/UI.md` (added the missing `/diagnostics` and `/backup` routes to the built-views inventory), `docs/SETUP.md` (Setup Wizard check list corrected to the 15 real checks), and this file's `DECISIONS.md` range (D-001…D-062). Verified the portable ZIP artifact (`v1.0.4`, checksum matches, no `.env`/sessions/DB/secrets, embedded `runtime/python.exe`), the production Docker flow (health, SPA, migrations, restart, persistent volumes), and the full startup matrix (fresh/existing/unclean shutdown, AI model missing, Telegram unavailable, no manager bot/session, pending migration) — the app never crashes and shows friendly status. Gates re-run green. No product/code change.
+**Latest work (v1.0.5 product slice + docs pass):** shipped the D-064 product slice (new API + RU-first UI + tests + one Alembic migration `7cb72d22d35b`), extended Diagnostics with the new rows/report sections, fixed backup delivery so the archive bytes reach every destination, and completed a factual docs/memory pass (`docs/API.md` new sections, `docs/UI.md` campaigns/destinations/wizard/update, `README.md`, `docs/ROADMAP.md`, `docs/RELEASE_CHECKLIST.md`, agent memory). `updates/` is now git-ignored and created by the portable build.
 
 ---
 
@@ -27,7 +27,7 @@ Git: shallow clone → history may be incomplete. Run
 ### Documentation & memory (PHASE 0)
 - `docs/` — `ARCHITECTURE.md`, `ROADMAP.md`, `SETUP.md`, `SECURITY.md`,
   `UI.md`, `API.md`, `TROUBLESHOOTING.md`.
-- `agent/` — this file, `NEXT_TASK.md`, `DECISIONS.md` (D-001…D-062),
+- `agent/` — this file, `NEXT_TASK.md`, `DECISIONS.md` (D-001…D-064),
   `CHANGELOG.md`.
 - `.gitignore` (secrets/sessions/data/logs/backups/models protected),
   `.env.example`, `README.md`.
@@ -653,11 +653,51 @@ Patch release (merge `3f42c3d`, PR #5, tag `v1.0.4`). No new phases/features.
   dirs; `sha256sum -c` OK); the automated Release workflow attached the ZIP +
   `.sha256` to the GitHub Release.
 
+## 2f. v1.0.5 — product slice (2026-10-04, released)
+
+Product-slice release (D-064). No new phase. Makes the suite useful **without a
+user (MTProto) account**, plus a first-run guide and a conservative updater. One
+Alembic migration (`7cb72d22d35b`, autogenerate-drift clean) adds every new table.
+
+- **Bot↔channel bindings + reaction capabilities** — `bot_channel_bindings` +
+  `channel_capabilities` tables, repositories, `binding_service` /
+  `capability_service`, `/api/v1/bindings*` + `/api/v1/capabilities/*`. The
+  reaction planner intersects the profile emoji with the channel's confirmed set
+  (`reaction_policy.intersect_reactions`), so it never schedules an unsupported
+  reaction.
+- **Invite campaigns (session-free)** — `invite_campaigns` / `invite_links` /
+  `join_requests` + `campaign_service` + `/api/v1/campaigns*`, with conservative
+  risk modes and Bot-API-only link actions.
+- **Donor quality** — `donor_metrics` + `donor_heuristics` / `donor_service` +
+  `/api/v1/donors*`; explainable bands, and the bot-share estimate stays `null`
+  when member data is unavailable (never invented).
+- **Backup delivery destinations** — `backup_destinations` +
+  `destination_service` + `services/backup_backends/*` (local, Telegram, Google
+  Drive, Яндекс.Диск) + `/api/v1/backup/destinations*`; credentials sealed, a
+  local destination auto-created and non-deletable. Fixed delivery so the archive
+  bytes (not raw DB bytes) reach every enabled destination.
+- **Setup Wizard** — `promotion_progress` + `promotion_service` +
+  `/api/v1/promotion*`; resumable, preset-driven, reflects real state, session
+  steps become `optional` without a session.
+- **Conservative auto-update** — `update_state` + `update_service` +
+  `core/versioning` + `/api/v1/update*`; off by default, checks GitHub releases
+  and stages a SHA-256-verified file, never auto-installs.
+- **Diagnostics** — new subsystem rows (`bindings`, `capabilities`,
+  `backup_destinations`) and redacted-report sections (`queue`, `bindings`,
+  `capabilities`, `campaigns`, `donors`, `backup_destinations`, `update`).
+- **Frontend (RU-first)** — new `CampaignsView.vue` (`/campaigns`), a
+  "Бот и реакции" column in `ChannelsView.vue`, backup destinations in
+  `BackupView.vue`, and the Setup Wizard + Update cards in `SystemView.vue`.
+- **Ops** — `updates/` git-ignored and created by `scripts/build_portable.sh`.
+- Tests: `tests/test_bindings_api.py`, `tests/test_campaigns_api.py`,
+  `tests/test_product_api.py`, extended `tests/test_diagnostics.py`. Suite
+  **491 passed**; `ruff` clean; `vue-tsc` + `npm run build` clean.
+
 ## 5. Next action
 
-**v1.0.4 is released.** `main == develop == 3f42c3d` (tag `v1.0.4`); the Release
-workflow created the GitHub Release and attached the Windows portable ZIP +
-`.sha256` (D-060). CI is green.
+**v1.0.5 is released** (prepared on `develop`, released via a reviewed PR; tag
+`v1.0.5`); the Release workflow creates the GitHub Release and attaches the
+Windows portable ZIP + `.sha256` (D-060). CI is green.
 
 **NEXT_TASK = MAINTENANCE / OPTIONAL EXTENSIONS.** The roadmap (PHASE 0–11) is
 complete and shipped; there is **no required next phase**. Optional future work
@@ -671,7 +711,7 @@ complete and shipped; there is **no required next phase**. Optional future work
    vertical-slice workflow (backend + DB + UI + tests + docs + memory + commit).
 
 Before any future release: follow `docs/RELEASE_CHECKLIST.md`. Do **not** move
-`v1.0.0`/`v1.0.1`/`v1.0.2`/`v1.0.3` tags (D-050).
+the `v1.0.0`–`v1.0.5` tags (D-050).
 
 ### RC verification (2026-10-03) — done against a live server in offline mode
 

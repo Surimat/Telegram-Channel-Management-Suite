@@ -1218,3 +1218,54 @@ checks vs `GET /api/v1/system/setup`, the version string across
 `backend/app/__init__.py`, `pyproject.toml` and `frontend/package.json`). No
 product behaviour changes.
 
+
+---
+
+## D-064 — 2026-10-04 — Product slice: bot-only bindings, campaigns, destinations, wizard, update — LOCKED
+
+**Decision:** Ship a vertical product slice that makes the suite useful **without
+a user (MTProto) account**, plus a first-run guide and a conservative updater.
+Everything reuses the existing provider abstraction, sealed-secret storage and
+limit-respecting services; nothing bypasses Telegram.
+
+**Scope (all additive, no new phase):**
+1. **Bot↔channel bindings + capabilities** — a bot is bound to a registry channel
+   (`reactions`/`posting`/`editing`); `POST /bindings/{id}/check` verifies the real
+   admin rights and `POST /capabilities/{id}/probe` records the channel's available
+   reactions. The **reaction planner now intersects the profile emoji with the
+   channel's confirmed set** (`reaction_planner.PlanParams.channel_available` /
+   `bot_compatible`, fed by `reaction_policy.intersect_reactions`), so it never
+   schedules an emoji Telegram does not support in that channel.
+2. **Invite campaigns** (`/api/v1/campaigns`) — invite-link promotion that works
+   with the manager bot only. Conservative `risk_mode` sets spacing; join requests
+   and link revocation use normal Bot API calls.
+3. **Donor quality** (`/api/v1/donors`) — explainable source-quality bands. When
+   member data is unavailable, the bot-share estimate stays `null`; the service
+   never invents a number.
+4. **Backup destinations** (`/api/v1/backup/destinations`) — each new backup is
+   delivered to every enabled destination (local / Telegram / Google Drive /
+   Яндекс.Диск). A local destination is auto-created and cannot be deleted;
+   remote credentials are sealed (`seal_secret`) and never returned.
+5. **Setup Wizard** (`/api/v1/promotion`) — resumable, preset-driven onboarding
+   that reflects **real** system state; without a session, session-gated steps are
+   `optional`, not required.
+6. **Auto-update** (`/api/v1/update`) — off by default; `check` compares the
+   GitHub `releases/latest` tag with the running version (`core/versioning`), and
+   `download` fetches the portable ZIP + `.sha256`, **verifies the checksum** and
+   stages it under `updates/`. It never installs anything by itself.
+
+**Why:** The primary product goal is that a non-technical owner can run the suite
+on a weak Windows PC and get value immediately. Bots alone (no MTProto account)
+should cover promotion and reactions; a wizard and a safe updater remove the
+"read the docs first" barrier.
+
+**Consequence:** New DB tables (`bot_channel_bindings`, `channel_capabilities`,
+`invite_campaigns`, `invite_links`, `join_requests`, `donor_metrics`,
+`backup_destinations`, `promotion_progress`, `update_state`) land in one Alembic
+migration (`7cb72d22d35b`, autogenerate-drift clean). Diagnostics gained the new
+subsystem rows and redacted-report sections (`bindings`, `capabilities`,
+`campaigns`, `donors`, `backup_destinations`, `update`). `updates/` is git-ignored
+and created by the portable build. New tests: `test_bindings_api.py`,
+`test_campaigns_api.py`, `test_product_api.py`, plus the extended
+`test_diagnostics.py`. Suite: **491 passed**.
+

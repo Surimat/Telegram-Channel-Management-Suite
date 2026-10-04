@@ -10,10 +10,13 @@ import time
 
 from backend.app.providers.errors import InvalidTokenError
 from backend.app.providers.types import (
+    BotChannelStatus,
     BotIdentity,
     BotUpdate,
+    InviteLinkResult,
     ManagedBotAccess,
     ManagedBotRef,
+    ReactionCapability,
     ReactionRecord,
 )
 
@@ -42,6 +45,12 @@ class FakeTelegramBotProvider:
         self._updates: list[BotUpdate] = []
         self.commands: list[tuple[str, str]] = []
         self.menu_button: tuple[str, str] | None = None
+        # Bot↔channel admin (product slice): scripted channel scenarios.
+        self.chats: dict[str, dict[str, object]] = {}
+        self.channel_status: dict[str, BotChannelStatus] = {}
+        self.reaction_capabilities: dict[str, ReactionCapability] = {}
+        self.documents: list[tuple[int | str, str, int]] = []
+        self.created_links: list[InviteLinkResult] = []
 
     def queue_updates(self, updates: list[BotUpdate]) -> None:
         """Enqueue updates for the next :meth:`get_updates` call (tests)."""
@@ -150,3 +159,114 @@ class FakeTelegramBotProvider:
         pending = list(self._updates)
         self._updates = []
         return pending
+
+    # --- Bot ↔ channel administration (product slice: bot-only mode) ---------
+    def script_chat(self, chat_id: int | str, **fields: object) -> None:
+        """Pre-seed a chat so ``get_chat`` returns it (tests)."""
+        self.chats[str(chat_id)] = {"id": chat_id, **fields}
+
+    def script_bot_status(self, chat_id: int | str, status: BotChannelStatus) -> None:
+        """Pre-seed a bot's verified channel status (tests)."""
+        self.channel_status[str(chat_id)] = status
+
+    def script_capabilities(self, chat_id: int | str, caps: ReactionCapability) -> None:
+        """Pre-seed a chat's reaction capabilities (tests)."""
+        self.reaction_capabilities[str(chat_id)] = caps
+
+    async def get_chat(self, chat_id: int | str) -> dict[str, object]:
+        self._ensure_token()
+        self._maybe_fail()
+        data = self.chats.get(str(chat_id))
+        if data is None:
+            return {
+                "id": chat_id,
+                "title": f"Chat {chat_id}",
+                "username": "",
+                "type": "channel",
+                "description": "",
+                "members_count": None,
+            }
+        return dict(data)
+
+    async def get_bot_channel_status(
+        self, chat_id: int | str, bot_id: int
+    ) -> BotChannelStatus:
+        self._ensure_token()
+        self._maybe_fail()
+        scripted = self.channel_status.get(str(chat_id))
+        if scripted is not None:
+            return scripted
+        # Default: the bot is an administrator with the reaction capability, so
+        # the happy path is testable without scripting every call.
+        return BotChannelStatus(
+            found=True,
+            present=True,
+            status="administrator",
+            is_admin=True,
+            can_post_messages=True,
+            can_edit_messages=True,
+            can_delete_messages=True,
+            can_manage_chat=True,
+            can_invite_users=True,
+            can_set_reactions=True,
+        )
+
+    async def get_reaction_capabilities(self, chat_id: int | str) -> ReactionCapability:
+        self._ensure_token()
+        self._maybe_fail()
+        scripted = self.reaction_capabilities.get(str(chat_id))
+        if scripted is not None:
+            return scripted
+        return ReactionCapability(
+            determined=True,
+            available=["👍", "❤️", "🔥", "😂", "😢", "🙏"],
+            bot_compatible=["👍", "❤️", "🔥", "😂", "😢", "🙏"],
+            reactions_limit=1,
+            paid_available=False,
+            message="Набор реакций получен от Telegram.",
+        )
+
+    async def create_invite_link(
+        self,
+        chat_id: int | str,
+        *,
+        name: str = "",
+        join_request: bool = False,
+        member_limit: int = 0,
+        expire_date: int | None = None,
+    ) -> InviteLinkResult:
+        self._ensure_token()
+        self._maybe_fail()
+        result = InviteLinkResult(
+            ok=True,
+            link=f"https://t.me/+fake{abs(hash(str(chat_id))) % 100000}",
+            name=name,
+            join_request=join_request,
+            member_limit=member_limit,
+        )
+        self.created_links.append(result)
+        return result
+
+    async def export_invite_link(self, chat_id: int | str) -> InviteLinkResult:
+        self._ensure_token()
+        self._maybe_fail()
+        slug = abs(hash(str(chat_id))) % 100000
+        return InviteLinkResult(ok=True, link=f"https://t.me/+fake{slug}")
+
+    async def revoke_invite_link(self, chat_id: int | str, link: str) -> bool:
+        self._ensure_token()
+        self._maybe_fail()
+        return True
+
+    async def send_document(
+        self,
+        chat_id: int | str,
+        *,
+        filename: str,
+        content: bytes,
+        caption: str = "",
+    ) -> bool:
+        self._ensure_token()
+        self._maybe_fail()
+        self.documents.append((chat_id, filename, len(content)))
+        return True

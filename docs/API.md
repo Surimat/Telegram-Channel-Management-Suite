@@ -486,6 +486,114 @@ cancels long-overdue pending jobs); it is hidden while the scheduler is running.
 
 ---
 
+## Bot ↔ channel bindings & reaction capabilities
+
+A binding connects a bot to a registry channel for a function (`reactions`,
+`posting`, `editing`) and records the **verified** admin rights. Capabilities
+record which reactions Telegram reports as available for a channel. Everything is
+**bot-only** — no user session is required — and tokens are never returned.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/bindings?channel_id=&bot_id=` | list bindings |
+| POST | `/api/v1/bindings` | connect a bot to a channel (`bot_id`, `channel_id`, `function`) |
+| POST | `/api/v1/bindings/{id}/check` | verify the binding against Telegram (rights, presence) |
+| POST | `/api/v1/bindings/channel/{channel_id}/check` | verify every binding of one channel |
+| DELETE | `/api/v1/bindings/{id}` | remove a binding |
+| GET | `/api/v1/capabilities/{channel_id}` | last known reaction capabilities |
+| POST | `/api/v1/capabilities/{channel_id}/probe` | probe Telegram for the channel's reactions |
+
+The binding response includes a `status` (`not_connected`, `connected`,
+`needs_permission`, `ready`, `error`), a plain-language `status_label`, the
+verified `can_*` rights and the official `invite_link` to add the bot.
+
+---
+
+## Invite campaigns (no session required)
+
+Campaigns promote a channel through invite links. They work with the manager bot
+only (no MTProto account) and never bypass Telegram limits: the chosen
+`risk_mode` sets conservative spacing, and every link action is a normal Bot API
+call.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/campaigns` | list campaigns + available risk modes |
+| POST | `/api/v1/campaigns` | create a campaign (`name`, optional `channel_id`, `risk_mode`) |
+| GET | `/api/v1/campaigns/{id}` | campaign detail (links, pending/approved requests) |
+| POST | `/api/v1/campaigns/{id}/status` | change state (`draft`/`active`/`paused`/`completed`/`disabled`) |
+| DELETE | `/api/v1/campaigns/{id}` | delete a campaign |
+| POST | `/api/v1/campaigns/{id}/links` | create an invite link (`label`, `join_request`, `member_limit`) |
+| POST | `/api/v1/campaigns/{id}/links/{link_id}/revoke` | revoke an invite link |
+
+---
+
+## Donor quality indicators
+
+Explainable source-quality indicators for scanned audience sources. The service
+reports a probability **band** and a confidence level; when an account is not
+connected and member data is unavailable, no bot share is invented — the estimate
+stays `null` and only confidence is shown.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/donors` | list donor metrics + an honesty note |
+| POST | `/api/v1/donors/analyze/{source_id}` | (re)analyze one source |
+| POST | `/api/v1/donors/analyze` | analyze all sources |
+
+---
+
+## Backup destinations
+
+Each new backup is delivered to every **enabled** destination. A local
+destination is created automatically and cannot be deleted; remote destinations
+(Telegram, Google Drive, Яндекс.Диск) are optional and only contacted when the
+owner enables them. Credentials are sealed at rest and never returned.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/backup/destinations` | list destinations + available kinds |
+| POST | `/api/v1/backup/destinations` | add a destination (`kind`, optional `config`, `token`) |
+| PATCH | `/api/v1/backup/destinations/{id}` | update (`enabled`, `label`, `config`, `token`) |
+| POST | `/api/v1/backup/destinations/{id}/check` | verify reachability |
+| DELETE | `/api/v1/backup/destinations/{id}` | remove a remote destination |
+| POST | `/api/v1/backup/destinations/deliver` | re-send the newest backup to every enabled destination |
+
+---
+
+## First-run promotion wizard
+
+A guided, resumable onboarding flow. It reflects **real** system state (channel,
+manager bot, session, AI, backup, update) and never claims a step is done unless
+it is. Without a user session, session-gated steps are `optional`, not required.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/promotion/presets` | available presets (minimal → professional) |
+| GET | `/api/v1/promotion` | current wizard state + per-step status |
+| POST | `/api/v1/promotion/preset` | switch preset (`preset`) |
+| POST | `/api/v1/promotion/step` | mark a step (`step`) |
+| POST | `/api/v1/promotion/finish` | mark the setup complete |
+| POST | `/api/v1/promotion/dismiss` | hide the wizard |
+
+---
+
+## Auto-update (conservative)
+
+Checks GitHub Releases for a newer version and can stage a **verified** file
+(SHA-256 checked). It never installs anything by itself and is disabled by
+default; when enabled it only checks and downloads. `state` is one of `idle`,
+`checking`, `up_to_date`, `available`, `downloaded`, `error`, `failed`.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/update` | current update state |
+| POST | `/api/v1/update/enabled` | enable/disable checking (`enabled`) |
+| POST | `/api/v1/update/check` | check for a newer release |
+| POST | `/api/v1/update/download` | download + verify the release archive |
+
+---
+
 ## Versioning
 
 The API is versioned (`/api/v1`). Breaking changes go to a new version path.

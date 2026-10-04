@@ -1019,6 +1019,202 @@ export interface ChannelVerification {
   retry_after: number | null
 }
 
+// Product slice: bot↔channel bindings + channel reaction capabilities.
+export interface Binding {
+  id: string
+  bot_id: string
+  bot_username: string
+  channel_id: string
+  channel_label: string
+  function: string
+  status: string
+  status_label: string
+  role: string
+  can_post_messages: boolean
+  can_edit_messages: boolean
+  can_delete_messages: boolean
+  can_manage_chat: boolean
+  can_invite_users: boolean
+  can_set_reactions: boolean
+  invite_link: string
+  note: string
+  last_checked: string | null
+  last_error: string
+  created_at: string
+}
+
+export interface BindingList {
+  items: Binding[]
+  total: number
+}
+
+export interface BindingCheck {
+  binding_id: string
+  status: string
+  status_label: string
+  role: string
+  present: boolean
+  can_set_reactions: boolean
+  message: string
+  how_to_fix: string
+}
+
+export interface Capability {
+  channel_id: string
+  status: string
+  available: string[]
+  bot_reactions: string[]
+  reactions_limit: number
+  paid_available: boolean
+  message: string
+  last_checked: string
+}
+
+// Product slice: invite campaigns (work without a user session).
+export interface Campaign {
+  id: string
+  name: string
+  status: string
+  channel_id: string
+  target_title: string
+  risk_mode: string
+  links_count: number
+  joins_count: number
+  requests_count: number
+  conversion: number | null
+  summary: string
+}
+
+export interface CampaignLink {
+  id: string
+  label: string
+  link: string
+  status: string
+  join_request: boolean
+  member_limit: number
+  joins_count: number
+  requests_count: number
+  last_error: string
+}
+
+export interface CampaignDetail {
+  campaign: Campaign
+  links: CampaignLink[]
+  requests_pending: number
+  requests_approved: number
+}
+
+export interface CampaignList {
+  items: Campaign[]
+  total: number
+  risk_modes: Record<string, string>
+}
+
+// Product slice: donor quality indicators (honest, no invented numbers).
+export interface DonorMetric {
+  id: string
+  source_id: string
+  channel_id: string
+  title: string
+  subscribers: number
+  quality: string
+  quality_title: string
+  quality_score: number
+  bot_probability: string
+  confidence: string
+  participant_data: boolean
+  bot_share_estimate: number | null
+  signals: string[]
+  explanations: string[]
+  summary: string
+  source_completeness: string
+  last_analyzed: string | null
+}
+
+export interface DonorList {
+  items: DonorMetric[]
+  total: number
+  note: string
+}
+
+// Product slice: where backups are delivered.
+export interface Destination {
+  id: string
+  kind: string
+  title: string
+  label: string
+  enabled: boolean
+  status: string
+  account_label: string
+  config: Record<string, unknown>
+  last_backup_at: string | null
+  last_error: string
+  available_space: number | null
+}
+
+export interface DestinationList {
+  items: Destination[]
+  total: number
+  available_kinds: Record<string, unknown>[]
+}
+
+export interface DeliveryResult {
+  destination_id: string
+  kind: string
+  ok: boolean
+  message: string
+}
+
+// Product slice: first-run promotion wizard.
+export interface WizardStep {
+  key: string
+  title: string
+  description: string
+  status: string
+  status_title: string
+  how_to_fix: string
+  route: string
+  requires_session: boolean
+}
+
+export interface WizardState {
+  preset: string
+  preset_title: string
+  preset_description: string
+  has_session: boolean
+  mode: string
+  completed: boolean
+  dismissed: boolean
+  current_step: string
+  completed_steps: number
+  total_steps: number
+  steps: WizardStep[]
+}
+
+export interface WizardPreset {
+  id: string
+  title: string
+  description: string
+  requires_session: boolean
+}
+
+// Product slice: conservative auto-update.
+export interface UpdateStatus {
+  enabled: boolean
+  state: string
+  state_title: string
+  current_version: string
+  latest_version: string
+  update_available: boolean
+  release_url: string
+  release_notes: string
+  staged_file: string
+  staged_sha256: string
+  last_checked_at: string | null
+  message: string
+  last_error: string
+}
+
 export const api = {
   health: () => request<Health>('/health'),
   healthDeep: () => request<Record<string, unknown>>('/health/deep'),
@@ -1456,4 +1652,106 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(payload),
     }),
+
+  // Product slice: bot↔channel bindings + reaction capabilities.
+  bindings: (params: Record<string, string> = {}) =>
+    request<BindingList>('/api/v1/bindings?' + new URLSearchParams(params).toString()),
+  connectBinding: (payload: { bot_id: string; channel_id: string; function?: string }) =>
+    request<Binding>('/api/v1/bindings', { method: 'POST', body: JSON.stringify(payload) }),
+  checkBinding: (id: string) =>
+    request<BindingCheck>(`/api/v1/bindings/${id}/check`, { method: 'POST' }),
+  checkChannelBindings: (channelId: string) =>
+    request<BindingCheck[]>(`/api/v1/bindings/channel/${channelId}/check`, { method: 'POST' }),
+  removeBinding: (id: string) =>
+    request<{ deleted: boolean }>(`/api/v1/bindings/${id}`, { method: 'DELETE' }),
+  capability: (channelId: string) =>
+    request<Capability>(`/api/v1/capabilities/${channelId}`),
+  probeCapability: (channelId: string) =>
+    request<Capability>(`/api/v1/capabilities/${channelId}/probe`, { method: 'POST' }),
+
+  // Product slice: invite campaigns (no session required).
+  campaigns: () => request<CampaignList>('/api/v1/campaigns'),
+  campaign: (id: string) => request<CampaignDetail>(`/api/v1/campaigns/${id}`),
+  createCampaign: (payload: {
+    name: string
+    channel_id?: string
+    target?: string
+    risk_mode?: string
+    requires_approval?: boolean
+    note?: string
+  }) => request<Campaign>('/api/v1/campaigns', { method: 'POST', body: JSON.stringify(payload) }),
+  setCampaignStatus: (id: string, status: string) =>
+    request<Campaign>(`/api/v1/campaigns/${id}/status`, {
+      method: 'POST',
+      body: JSON.stringify({ status }),
+    }),
+  deleteCampaign: (id: string) =>
+    request<{ deleted: boolean }>(`/api/v1/campaigns/${id}`, { method: 'DELETE' }),
+  addCampaignLink: (
+    id: string,
+    payload: { label?: string; join_request?: boolean; member_limit?: number },
+  ) =>
+    request<CampaignLink>(`/api/v1/campaigns/${id}/links`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  revokeCampaignLink: (id: string, linkId: string) =>
+    request<CampaignLink>(`/api/v1/campaigns/${id}/links/${linkId}/revoke`, { method: 'POST' }),
+
+  // Product slice: donor quality indicators.
+  donors: () => request<DonorList>('/api/v1/donors'),
+  analyzeDonor: (sourceId: string) =>
+    request<DonorMetric>(`/api/v1/donors/analyze/${sourceId}`, { method: 'POST' }),
+  analyzeAllDonors: () => request<DonorList>('/api/v1/donors/analyze', { method: 'POST' }),
+
+  // Product slice: backup destinations.
+  destinations: () => request<DestinationList>('/api/v1/backup/destinations'),
+  addDestination: (payload: {
+    kind: string
+    label?: string
+    enabled?: boolean
+    config?: Record<string, unknown>
+    token?: string
+  }) =>
+    request<Destination>('/api/v1/backup/destinations', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateDestination: (id: string, payload: Record<string, unknown>) =>
+    request<Destination>(`/api/v1/backup/destinations/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  checkDestination: (id: string) =>
+    request<Destination>(`/api/v1/backup/destinations/${id}/check`, { method: 'POST' }),
+  removeDestination: (id: string) =>
+    request<{ deleted: boolean }>(`/api/v1/backup/destinations/${id}`, { method: 'DELETE' }),
+  deliverToDestinations: () =>
+    request<DeliveryResult[]>('/api/v1/backup/destinations/deliver', { method: 'POST' }),
+
+  // Product slice: first-run promotion wizard.
+  wizardPresets: () => request<WizardPreset[]>('/api/v1/promotion/presets'),
+  wizardState: () => request<WizardState>('/api/v1/promotion'),
+  setWizardPreset: (preset: string) =>
+    request<WizardState>('/api/v1/promotion/preset', {
+      method: 'POST',
+      body: JSON.stringify({ preset }),
+    }),
+  setWizardStep: (step: string) =>
+    request<WizardState>('/api/v1/promotion/step', {
+      method: 'POST',
+      body: JSON.stringify({ step }),
+    }),
+  finishWizard: () => request<WizardState>('/api/v1/promotion/finish', { method: 'POST' }),
+  dismissWizard: () => request<WizardState>('/api/v1/promotion/dismiss', { method: 'POST' }),
+
+  // Product slice: conservative auto-update.
+  updateStatus: () => request<UpdateStatus>('/api/v1/update'),
+  setUpdateEnabled: (enabled: boolean) =>
+    request<UpdateStatus>('/api/v1/update/enabled', {
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
+    }),
+  checkUpdate: () => request<UpdateStatus>('/api/v1/update/check', { method: 'POST' }),
+  downloadUpdate: () => request<UpdateStatus>('/api/v1/update/download', { method: 'POST' }),
 }

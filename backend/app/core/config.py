@@ -107,6 +107,18 @@ class Settings(BaseSettings):
     # because session files grant full account access; handle them separately.
     backup_include_sessions: bool = False
 
+    # --- Auto update (product slice) ---
+    # Master switch. Off by default: the app never contacts GitHub unless asked.
+    auto_update_enabled: bool = False
+    # GitHub repository ("owner/repo") whose releases are checked. Empty disables
+    # the feature; the public GitHub API needs no token for a public repo.
+    auto_update_repo: str = "Surimat/Telegram-Channel-Management-Suite"
+    # Seconds between background checks (0 = only manual checks).
+    auto_update_check_interval: int = 21600
+    # Install a downloaded update automatically on the next shutdown. Off by
+    # default: the owner confirms each install explicitly.
+    auto_update_install_on_shutdown: bool = False
+
     # --- Tiny AI (PHASE 7) ---
     # Master switch. Off by default: the system works on rules alone.
     ai_enabled: bool = False
@@ -206,6 +218,10 @@ class Settings(BaseSettings):
     def resolve_models_dir(self) -> Path:
         p = Path(self.models_dir)
         return p if p.is_absolute() else (paths.project_root() / p).resolve()
+
+    def resolve_updates_dir(self) -> Path:
+        """Directory where a downloaded update is staged (git-ignored)."""
+        return (paths.project_root() / "updates").resolve()
 
     def resolve_database_url(self) -> str:
         """Resolve a relative SQLite path against the project root."""
