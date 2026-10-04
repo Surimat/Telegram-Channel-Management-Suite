@@ -37,7 +37,7 @@ COPY migrations/ ./migrations/
 COPY --from=frontend /src/backend/app/static/ ./backend/app/static/
 
 # Runtime data directories (populated via volumes at run time).
-RUN mkdir -p data sessions backups logs exports
+RUN mkdir -p data sessions backups logs exports updates
 
 EXPOSE 8000
 
