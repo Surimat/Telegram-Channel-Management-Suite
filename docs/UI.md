@@ -156,6 +156,8 @@ Wording rule — instead of `BOT_TOKEN missing`, write:
 | `/logs` | `LogsView` | 1 |
 | `/queue` | `QueueView` | 1 |
 | `/system` | `SystemView` (Setup Wizard) | 1 |
+| `/diagnostics` | `DiagnosticsView` (status + safe actions + redacted report) | polish |
+| `/backup` | `BackupView` (backup / restore + config export/import) | 10 |
 
 ### Audience & Sources pages (`SourcesView.vue`, `AudienceView.vue`, PHASE 5)
 

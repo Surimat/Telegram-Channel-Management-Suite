@@ -10,6 +10,7 @@ Version string is **1.0.4** across `backend/app/__init__.py`, `pyproject.toml`, 
 All gates pass: `pytest` **462 passed** (stable), `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend and frontend gates.
 **Repository status:** `main == develop == 3f42c3d` (tags `v1.0.0`, `v1.0.1`, `v1.0.2`, `v1.0.3`, `v1.0.4`); each GitHub Release carries the Windows portable ZIP + `.sha256` (built by CI, D-060).
 **Branch:** develop (working branch); main is released and updated only via pull request.
+**Latest maintenance (docs-consistency pass):** a factual audit found and fixed real documentation drift — `docs/API.md` (obsolete `/api/v1/system/backups*` + `/api/v1/system/config/*` tables replaced with the real `/api/v1/system/database[/upgrade]` endpoints; added the missing `/api/v1/help/*` section; removed a stale duplicate Invites table with a non-existent `/start` endpoint), `docs/UI.md` (added the missing `/diagnostics` and `/backup` routes to the built-views inventory), `docs/SETUP.md` (Setup Wizard check list corrected to the 15 real checks), and this file's `DECISIONS.md` range (D-001…D-062). Verified the portable ZIP artifact (`v1.0.4`, checksum matches, no `.env`/sessions/DB/secrets, embedded `runtime/python.exe`), the production Docker flow (health, SPA, migrations, restart, persistent volumes), and the full startup matrix (fresh/existing/unclean shutdown, AI model missing, Telegram unavailable, no manager bot/session, pending migration) — the app never crashes and shows friendly status. Gates re-run green. No product/code change.
 
 ---
 
@@ -26,7 +27,7 @@ Git: shallow clone → history may be incomplete. Run
 ### Documentation & memory (PHASE 0)
 - `docs/` — `ARCHITECTURE.md`, `ROADMAP.md`, `SETUP.md`, `SECURITY.md`,
   `UI.md`, `API.md`, `TROUBLESHOOTING.md`.
-- `agent/` — this file, `NEXT_TASK.md`, `DECISIONS.md` (D-001…D-037),
+- `agent/` — this file, `NEXT_TASK.md`, `DECISIONS.md` (D-001…D-062),
   `CHANGELOG.md`.
 - `.gitignore` (secrets/sessions/data/logs/backups/models protected),
   `.env.example`, `README.md`.

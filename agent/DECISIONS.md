@@ -1193,3 +1193,28 @@ user with a traceback instead of an explanation.
 `::test_report_payload_survives_db_failure`, and
 `tests/test_scheduler.py::test_scheduler_start_survives_recovery_failure`.
 
+---
+
+## D-063 — 2026-10-04 — Docs/memory are verified against code each maintenance pass
+
+**Decision:** Documentation and persistent memory (`README.md`, `docs/*.md`,
+`agent/*.md`) are treated as claims to verify against the actual code, not as
+free-form prose. During a maintenance pass the API surface, routes, setup checks,
+page inventory and version strings are diffed against the source; every mismatch
+is fixed in the same commit.
+
+**Why:** A factual audit of v1.0.4 found real drift that would mislead a user or a
+new agent — `docs/API.md` documented `/api/v1/system/backups*` and
+`/api/v1/system/config/*` paths that do not exist, omitted `/api/v1/help/*`, and
+carried a duplicate Invites table with a non-existent `/start` endpoint;
+`docs/UI.md` was missing the `/diagnostics` and `/backup` routes; `docs/SETUP.md`
+listed Setup Wizard checks that do not exist; `agent/CURRENT_STATE.md` cited a
+stale `DECISIONS.md` range. The repository is the source of truth, so a doc that
+contradicts the code is a bug.
+
+**Consequence:** Each release/maintenance pass re-checks docs against code (the
+route table vs `backend/app/api/v1/*`, the router vs `docs/UI.md`, the setup
+checks vs `GET /api/v1/system/setup`, the version string across
+`backend/app/__init__.py`, `pyproject.toml` and `frontend/package.json`). No
+product behaviour changes.
+

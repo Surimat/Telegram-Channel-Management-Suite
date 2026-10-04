@@ -49,12 +49,22 @@ Health endpoints live at the root (`/health`, `/health/deep`) for probes.
 | GET | `/api/v1/system/status` | overall system status summary |
 | GET | `/api/v1/system/setup` | run Setup Wizard checks |
 | GET | `/api/v1/system/info` | version, paths, environment |
+| GET | `/api/v1/system/database` | database migration state in plain language |
+| POST | `/api/v1/system/database/upgrade` | apply pending migrations (pre-migration backup first) |
 | POST | `/api/v1/system/shutdown` | graceful shutdown (portable/stop.bat) |
-| GET | `/api/v1/system/backups` | list backups |
-| POST | `/api/v1/system/backups` | create backup |
-| POST | `/api/v1/system/backups/restore` | restore backup |
-| GET | `/api/v1/system/config/export` | export configuration |
-| POST | `/api/v1/system/config/import` | import configuration |
+
+Backups and configuration export/import live under `/api/v1/backup` — see the
+**Backup / Restore** section below.
+
+---
+
+## Help / UI preferences
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/help/topics` | contextual help topics (what / why / default) |
+| GET | `/api/v1/help/prefs` | UI preferences (e.g. novice mode) |
+| PUT | `/api/v1/help/prefs` | update UI preferences |
 
 ---
 
@@ -166,20 +176,6 @@ Export / import:
 Notes: responses never contain raw phone numbers or secrets; PII export is off by
 default and gated by the `AUDIENCE_STORE_PII` setting. Scan completeness values:
 `complete`, `partial`, `no_access`, `failed`, `unknown`.
-
----
-
-## Invites
-
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/api/v1/invites` | list invite jobs |
-| POST | `/api/v1/invites/preview` | build dry-run summary + counts |
-| POST | `/api/v1/invites` | create job (requires confirmation) |
-| POST | `/api/v1/invites/{id}/start` | start |
-| POST | `/api/v1/invites/{id}/pause` | pause |
-| POST | `/api/v1/invites/{id}/stop` | stop |
-| GET | `/api/v1/invites/{id}/tasks` | per-user task status |
 
 ---
 

@@ -133,6 +133,7 @@ async def test_collect_reports_every_subsystem() -> None:
 async def test_report_payload_contains_no_secrets_or_db_contents() -> None:
     from backend.app.core.config import get_settings
     from backend.app.core.security import seal_secret
+    from backend.app.db.models.audience import AudienceUser, MemberStatus
     from backend.app.db.models.bot import Bot, BotKind
     from backend.app.db.models.session import SessionStatus, UserSession
     from backend.app.db.session import session_scope
@@ -160,6 +161,17 @@ async def test_report_payload_contains_no_secrets_or_db_contents() -> None:
                 phone_masked="+7999***4567",
             )
         )
+        session.add(
+            AudienceUser(
+                telegram_user_id=2000002,
+                username="audience_person",
+                first_name="Secret",
+                last_name="Person",
+                display_name="Secret Person",
+                status=MemberStatus.ACTIVE,
+                phone_masked="+7999***4567",
+            )
+        )
     async with session_scope() as session:
         content, filename, media_type = await DiagnosticsService(session).build_report("json")
     assert filename.endswith(".json")
@@ -172,8 +184,14 @@ async def test_report_payload_contains_no_secrets_or_db_contents() -> None:
     assert _PHONE not in text
     assert "phone_masked" not in text
     assert "password" not in text
-    # But the report is useful: it names the manager bot and version.
+    # No audience user records (names/ids of the parsed audience).
+    assert "audience_person" not in text
+    assert "Secret Person" not in text
+    assert "2000002" not in text
+    # The report is aggregate/status only, never a row dump (table *names* may
+    # appear in the schema section, but no row values do).
     payload = json.loads(text)
+    # But the report is useful: it names the manager bot and version.
     assert payload["application"]["version"]
     assert payload["telegram"]["bots"][0]["username"] == "manager_bot"
     assert payload["report"]["redaction"]

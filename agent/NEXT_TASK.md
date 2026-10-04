@@ -42,6 +42,17 @@ memory + commit):
   the owner (D-035).
 - Any new feature explicitly requested by the owner.
 
+### 2a. Docs-consistency pass (done)
+
+A factual audit brought the docs and memory back in line with the v1.0.4 code:
+`docs/API.md` (obsolete `/api/v1/system/backups*` + `/api/v1/system/config/*`
+tables → the real `/api/v1/system/database[/upgrade]`; added `/api/v1/help/*`;
+removed a stale duplicate Invites table), `docs/UI.md` (added `/diagnostics` and
+`/backup` to the built-views inventory), `docs/SETUP.md` (Setup Wizard list
+corrected to the 15 real checks) and `agent/CURRENT_STATE.md` (DECISIONS range).
+No code change; gates re-run green (462 passed). See `agent/CHANGELOG.md`
+[Unreleased].
+
 ### What exists (do not rebuild)
 
 - PHASE 0–11 complete; `agent/CURRENT_STATE.md` lists what is done (§2, §2a–§2d).

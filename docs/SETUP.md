@@ -278,17 +278,20 @@ After the app is running, open the Web UI → **System → Setup Wizard**. It ch
 in plain language:
 
 - runtime / Python;
-- database;
-- Telegram API credentials;
-- Bot API;
+- database (migration state);
+- filesystem / writable directories;
+- security key (`APP_SECRET_KEY`);
+- Telegram API access;
+- the Telethon library (user accounts);
+- the sessions folder;
 - manager bot;
 - managed bots;
-- user sessions;
-- channel access;
-- required permissions;
-- frontend;
-- scheduler;
-- filesystem / writable directories.
+- automatic reactions;
+- user accounts;
+- audience;
+- invites;
+- tiny AI (optional);
+- Mini App (optional).
 
 Each item shows: **STATUS**, a description, what it means, and what to do next —
 with human-friendly wording instead of raw error codes.

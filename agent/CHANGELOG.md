@@ -5,6 +5,42 @@ Dates are ISO-8601.
 
 ---
 
+## [Unreleased] — documentation consistency pass
+
+Maintenance only (no new features, no new phase). Documentation and persistent
+memory brought back in line with the shipped v1.0.4 code after a factual audit.
+
+### Documentation
+- `docs/API.md` — the **Setup / System** table listed obsolete
+  `/api/v1/system/backups*` and `/api/v1/system/config/*` paths that do not exist
+  in the code; replaced with the real `/api/v1/system/database` and
+  `/api/v1/system/database/upgrade` endpoints and a pointer to the
+  `/api/v1/backup` section. Added the missing **Help / UI preferences**
+  (`/api/v1/help/*`) section. Removed a stale duplicate **Invites** table that
+  documented a non-existent `/api/v1/invites/{id}/start` endpoint.
+- `docs/UI.md` — the "Built views" inventory was missing the `/diagnostics` and
+  `/backup` routes; added them.
+- `docs/SETUP.md` — the Setup Wizard check list named items that do not exist
+  (Bot API, channel access, required permissions, frontend, scheduler) and
+  omitted real ones; corrected to the actual checks returned by
+  `GET /api/v1/system/setup`.
+- `agent/CURRENT_STATE.md` — the `DECISIONS.md` range said D-001…D-037; corrected
+  to D-001…D-062.
+
+### Verified (no change needed)
+- README, ROADMAP, RELEASE_CHECKLIST, SECURITY, TROUBLESHOOTING and ARCHITECTURE
+  already match the code (version `1.0.4`, Diagnostics, Channel Registry, Alembic
+  migrations, portable/Docker flows).
+- Gates re-run green: `pytest` **462 passed**, `ruff` clean, `vue-tsc` +
+  `npm run build` clean.
+
+### Tests
+- `tests/test_diagnostics.py::test_report_payload_contains_no_secrets_or_db_contents`
+  — strengthened to seed an audience user record and assert the redacted report
+  leaks no audience names, ids or full phone numbers (only status/aggregates).
+
+---
+
 ## [1.0.4] — 2026-10-04
 
 Released 2026-10-04 (merge `3f42c3d`, PR #5; tag `v1.0.4`; the Release workflow
