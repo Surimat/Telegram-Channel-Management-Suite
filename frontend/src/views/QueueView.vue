@@ -3,6 +3,25 @@ import { onMounted, ref } from 'vue'
 import { api, type Job } from '@/api/client'
 import InfoHint from '@/components/InfoHint.vue'
 
+// Plain-language labels so beginners never see raw kinds like "invite.batch".
+const KIND_LABELS: Record<string, string> = {
+  'reaction.job': 'Реакции',
+  'audience.scan': 'Сканирование аудитории',
+  'invite.batch': 'Приглашения',
+  message: 'Сообщение',
+  other: 'Прочее',
+}
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Ожидает',
+  scheduled: 'Запланировано',
+  running: 'Выполняется',
+  done: 'Готово',
+  failed: 'Ошибка',
+  cancelled: 'Отменено',
+}
+const kindLabel = (k: string) => KIND_LABELS[k] ?? k
+const statusLabel = (s: string) => STATUS_LABELS[s] ?? s
+
 const jobs = ref<Job[]>([])
 const loading = ref(true)
 const error = ref('')
@@ -78,8 +97,8 @@ onMounted(load)
         </thead>
         <tbody>
           <tr v-for="job in jobs" :key="job.id">
-            <td>{{ job.kind }}</td>
-            <td>{{ job.status }}</td>
+            <td>{{ kindLabel(job.kind) }}</td>
+            <td>{{ statusLabel(job.status) }}</td>
             <td>{{ job.attempts }} / {{ job.max_attempts }}</td>
             <td class="muted">{{ job.scheduled_at || '—' }}</td>
             <td>
