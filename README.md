@@ -63,7 +63,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/RELEASE_CHECKLIST.md](docs/RELE
 ## Deployment modes
 
 - **Local dev** — `python -m backend.app.main` (http://127.0.0.1:8000).
-- **Windows portable** — unpack, run `portable/run.bat`; no Python/Node/Docker.
+- **Windows portable** — unpack the ZIP, run `run.bat`; no Python/Node/Docker.
 - **VPS / Docker** — `docker compose -f docker/docker-compose.yml up -d --build`,
   with an optional Caddy TLS overlay (`docker/docker-compose.proxy.yml`).
   See [docs/SETUP.md](docs/SETUP.md).

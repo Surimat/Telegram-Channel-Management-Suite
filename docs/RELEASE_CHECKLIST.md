@@ -6,7 +6,7 @@ repository root unless stated otherwise.
 ## 1. Code quality gates (must pass)
 
 ```bash
-python -m pytest                 # full suite — currently 447 passed
+python -m pytest                 # full suite — currently 462 passed
 ruff check backend tests         # must be clean
 cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 ```
@@ -65,21 +65,38 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 
 ## 6. Release verification (fill in per release)
 
-| Gate | v1.0.3 | Notes |
+| Gate | v1.0.4 (planned) | Notes |
 | --- | --- | --- |
 | Git merge (`develop → main`) | | merge commit SHA |
-| Version consistency (`1.0.3` everywhere) | | app / pyproject / frontend |
+| Version consistency (`1.0.4` everywhere) | | app / pyproject / frontend |
 | CI green on `develop` head | | `.github/workflows/ci.yml` |
-| Diagnostics tests (`test_diagnostics.py`) | | redaction + report + API |
+| Diagnostics tests (`test_diagnostics.py`) | | redaction + report + API + degradation |
 | Portable build (`build_portable.sh`) | | ZIP name + size |
 | Automated Release workflow | | `v*` tag → release created by CI |
-| GitHub Release `v1.0.3` published | | tag matches |
+| GitHub Release `v1.0.4` published | | tag matches |
 | ZIP attached | | asset present, non-empty |
 | `.sha256` attached + matches ZIP | | `sha256sum -c` |
 | Security (artifact + git tree clean) | | no secrets/sessions/DB/exports |
 | Docker (`/health` + SPA) | | build + run |
 | Frontend build | | `vue-tsc` + `npm run build` |
 | Tests (`pytest` / `ruff`) | | counts |
+
+### Prior release — v1.0.3
+
+| Gate | v1.0.3 | Notes |
+| --- | --- | --- |
+| Git merge (`develop → main`) | ✅ | merge commit `f18f53a` (PR #4) |
+| Version consistency (`1.0.3` everywhere) | ✅ | app / pyproject / frontend |
+| CI green on `develop` head | ✅ | `.github/workflows/ci.yml` |
+| Diagnostics tests (`test_diagnostics.py`) | ✅ | redaction + report + API |
+| Automated Release workflow | ✅ | `v1.0.3` tag → release created by CI |
+| GitHub Release `v1.0.3` published | ✅ | tag matches |
+| ZIP attached | ✅ | ~24 MB Windows portable ZIP |
+| `.sha256` attached + matches ZIP | ✅ | `sha256sum -c` |
+| Security (artifact + git tree clean) | ✅ | no secrets/sessions/DB; empty runtime dirs |
+| Docker (`/health` + SPA) | ✅ | verified post-release on `develop` |
+| Frontend build | ✅ | `vue-tsc` + `npm run build` |
+| Tests (`pytest` / `ruff`) | ✅ | 447 passed at release; 462 after maintenance |
 
 ## Known non-blocking items (documented, do not block a release)
 
