@@ -1,6 +1,6 @@
 [project]
 name = "telegram-channel-management-suite"
-version = "1.0.3"
+version = "1.0.4"
 description = "Local-first Telegram channel management suite."
 requires-python = ">=3.11"
 

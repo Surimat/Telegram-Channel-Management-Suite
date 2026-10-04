@@ -170,6 +170,11 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
       diagnostic report** (ZIP/JSON/TXT) with a server-side secret scan before
       export; and safe maintenance actions (restart scheduler, recheck Telegram,
       recheck channels, clean up stuck local jobs) that never delete user data.
+- [x] **Startup robustness (v1.0.4)**: a damaged/unreadable database no longer
+      crashes startup or the Diagnostics page — every DB-backed check degrades to
+      a friendly row, the report falls back to safe empty sections, and the DB
+      row explains recovery; the Queue page shows plain Russian job labels.
+      No new phases or features.
 - [ ] Optional (remaining, non-blocking): a full automated BotFather Mini App
       flow (the one-click menu-button registration exists, D-054); richer
       analytics; additional AI backends. No new phases are planned — see
@@ -179,6 +184,14 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ## Release
 
+- **v1.0.4 (2026-10-04):** startup-robustness patch — a corrupt/unreadable
+  database no longer crashes application startup or the **Диагностика** page
+  (checks degrade to friendly rows, the report falls back to safe empty sections,
+  and the DB row explains recovery; D-062); the Queue page shows plain Russian
+  job kind/status labels; `docs/TROUBLESHOOTING.md` gained a damaged-database
+  entry. No new phases or features. Published from `develop` via a reviewed
+  `develop → main` PR, tagged `v1.0.4`; the Windows portable ZIP + `.sha256` are
+  attached to the GitHub Release by the automated Release workflow (D-060).
 - **v1.0.3 (2026-10-04):** product-polish patch — the **Diagnostics** page
   (per-component status in plain language), a **redacted diagnostic report**
   (ZIP/JSON/TXT with a server-side secret scan) and **safe maintenance actions**

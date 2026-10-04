@@ -4,11 +4,11 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-04
-**Current phase:** **v1.x maintenance polish (no new phases).** `main` = `f18f53a` (tag `v1.0.3`, GitHub Release with the Windows portable ZIP + `.sha256`); `develop` carries post-1.0.3 maintenance commits (startup robustness + Diagnostics polish, see `agent/CHANGELOG.md` → Unreleased). `v1.0.3` work: the **Diagnostics** page (per-component status in plain language), a **redacted diagnostic report** (ZIP/JSON/TXT with a server-side secret scan), and **safe maintenance actions** (restart scheduler, recheck Telegram, recheck channels, clean up stuck local jobs) — none of which delete user data (D-061). `v1.0.0`/`v1.0.1`/`v1.0.2`/`v1.0.3` stay immutable (D-050).
+**Current phase:** **v1.x maintenance polish (no new phases).** Releasing **v1.0.4** (startup-robustness patch). `main` = `f18f53a` (tag `v1.0.3`); `develop` carries the post-1.0.3 maintenance commits (see `agent/CHANGELOG.md` → `[1.0.4]`). The `v1.0.3` work: the **Diagnostics** page (per-component status in plain language), a **redacted diagnostic report** (ZIP/JSON/TXT with a server-side secret scan), and **safe maintenance actions** (restart scheduler, recheck Telegram, recheck channels, clean up stuck local jobs) — none of which delete user data (D-061). `v1.0.0`/`v1.0.1`/`v1.0.2`/`v1.0.3` stay immutable (D-050).
 Earlier (already released): the post-1.0 hardening — **versioned Alembic migrations** replace `create_all` at startup (D-052); a **shared Channel Registry** (`channels` table + `/api/v1/channels` + RU-first channel page) so invites, post ingestion, audience sources and the permission probe all share one channel identity; analytics can be scoped per channel (D-055); **reproducible, cross-platform portable packaging** and the **Release workflow** (D-056/D-060).
-Version string is **1.0.3** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
+Version string is **1.0.4** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock (prepared for the v1.0.4 tag).
 All gates pass: `pytest` **462 passed** (stable), `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend and frontend gates.
-**Repository status:** `main` = `f18f53a` (tag `v1.0.3`); `develop` = `bc909f5` (3 commits ahead of `origin/develop` until pushed) — tags `v1.0.0`, `v1.0.1`, `v1.0.2`, `v1.0.3`; the `v1.0.3` GitHub Release carries the Windows portable ZIP + `.sha256` (built by CI, D-060).
+**Repository status:** `main` = `f18f53a` (tag `v1.0.3`); `develop` is the release-prep branch for **v1.0.4** — tags `v1.0.0`, `v1.0.1`, `v1.0.2`, `v1.0.3`; each GitHub Release carries the Windows portable ZIP + `.sha256` (built by CI, D-060).
 **Branch:** develop (working branch); main is released and updated only via pull request.
 
 ---

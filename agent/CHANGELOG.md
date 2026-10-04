@@ -5,9 +5,10 @@ Dates are ISO-8601.
 
 ---
 
-## [Unreleased] — v1.x maintenance
+## [1.0.4] — 2026-10-04
 
-Startup robustness and Diagnostics polish (no new phases, no new large features).
+Patch release: startup robustness and Diagnostics polish (no new phases, no new
+large features).
 
 ### Fixed
 - **A corrupt/unreadable database no longer crashes the app or the Diagnostics
