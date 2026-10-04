@@ -10,6 +10,8 @@
 #   --arch ARCH          amd64 (default) | win32 | arm64
 #   --requirements FILE  install these deps into <runtime_dir>/site-packages
 #   --app-rel PATH       relative app path added to the ._pth (default: ../app)
+#   --no-deps            only fetch/extract CPython; do NOT install dependencies
+#                        (the caller stages wheels itself; used by build_portable.sh)
 #   --dry-run            print the plan and exit (no network, no writes)
 #
 # Environment:
@@ -33,6 +35,7 @@ ARCH="amd64"
 REQUIREMENTS=""
 APP_REL="../app"
 DRY_RUN=0
+NO_DEPS=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -40,6 +43,7 @@ while [ $# -gt 0 ]; do
     --arch) ARCH="${2:-}"; shift 2 ;;
     --requirements) REQUIREMENTS="${2:-}"; shift 2 ;;
     --app-rel) APP_REL="${2:-}"; shift 2 ;;
+    --no-deps) NO_DEPS=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     *) echo "error: unknown option: $1" >&2; exit 2 ;;
   esac
@@ -140,7 +144,9 @@ echo "==> Wrote $PTH_FILE"
 # Bootstrap pip and install dependencies only if we can run the embedded
 # interpreter (i.e. we are on Windows). Otherwise leave a clear next step.
 PY_EXE="$RUNTIME_DIR/python.exe"
-if [ -x "$PY_EXE" ] || { [ -f "$PY_EXE" ] && command -v "$PY_EXE" >/dev/null 2>&1; }; then
+if [ "$NO_DEPS" = "1" ]; then
+  echo "==> --no-deps: skipping dependency installation (caller stages wheels)."
+elif [ -x "$PY_EXE" ] || { [ -f "$PY_EXE" ] && command -v "$PY_EXE" >/dev/null 2>&1; }; then
   if [ -n "$REQUIREMENTS" ] && [ -f "$REQUIREMENTS" ]; then
     echo "==> Bootstrapping pip into the embedded runtime"
     if download "https://bootstrap.pypa.io/get-pip.py" "$TMP/get-pip.py"; then

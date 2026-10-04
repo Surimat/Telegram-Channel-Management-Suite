@@ -10,9 +10,15 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app import __version__
-from backend.app.api.schemas.system import SetupCheck, SystemStatus
+from backend.app.api.schemas.system import (
+    DatabaseMigrationResult,
+    DatabaseMigrationStatus,
+    SetupCheck,
+    SystemStatus,
+)
 from backend.app.core.config import Settings, get_settings
 from backend.app.core.logging import get_logger
+from backend.app.db import migrate
 from backend.app.db.session import get_session
 from backend.app.services.system_service import SystemService
 
@@ -76,6 +82,34 @@ async def system_info(settings: Settings = Depends(get_settings)) -> dict[str, o
         "scheduler_enabled": settings.scheduler_enabled,
         "ai_enabled": settings.ai_enabled,
     }
+
+
+@router.get("/database", response_model=DatabaseMigrationStatus)
+async def database_migration_status() -> DatabaseMigrationStatus:
+    """Report the database migration state in plain language."""
+    status = await migrate.database_status()
+    return DatabaseMigrationStatus(
+        state=status.state,
+        message=status.message,
+        current_revision=status.current_revision,
+        head_revision=status.head_revision,
+        pending_count=len(status.pending),
+        error=status.error,
+    )
+
+
+@router.post("/database/upgrade", response_model=DatabaseMigrationResult)
+async def database_migration_upgrade() -> DatabaseMigrationResult:
+    """Apply pending database updates (a pre-migration backup is taken first)."""
+    logger.info("Database upgrade requested from the UI")
+    result = await migrate.upgrade_database()
+    return DatabaseMigrationResult(
+        state=result.state,
+        message=result.message,
+        applied=result.applied,
+        backup_file=result.backup_file,
+        error=result.error,
+    )
 
 
 @router.post("/shutdown")

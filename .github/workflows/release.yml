@@ -1,0 +1,96 @@
+name: Release
+
+# Reproducible release automation.
+#
+# On a version tag (v*), verify the code, build the self-contained Windows
+# portable ZIP (embedded CPython + win_amd64 wheels + built SPA) and attach it
+# (with a SHA-256 checksum) to the GitHub Release for that tag. Can also be run
+# manually to produce the artifact without touching a release.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build (informational, e.g. 1.0.1)"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify (ruff + pytest + SPA build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: ruff check backend tests
+
+      - name: Tests (pytest)
+        run: pytest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend install + build
+        working-directory: frontend
+        run: npm ci && npm run build
+
+  portable:
+    name: Windows portable ZIP
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build portable distribution (with embedded Windows runtime)
+        env:
+          PYTHON: python
+        run: bash scripts/build_portable.sh dist/TCMS
+
+      - name: Show artifact
+        run: ls -lh dist/*.zip dist/*.sha256
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-portable
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error
+
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${GITHUB_REF_NAME}" dist/*.zip dist/*.sha256 --clobber

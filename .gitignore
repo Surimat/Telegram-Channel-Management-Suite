@@ -100,6 +100,9 @@ portable/runtime/
 portable/app/
 portable/build/
 runtime/
+# Portable release archives (built by scripts/build_portable.sh).
+Telegram-Channel-Management-Suite-Windows-Portable-*.zip
+Telegram-Channel-Management-Suite-Windows-Portable-*.zip.sha256
 
 # --- AI models (large binaries) ---
 # Only ignore a top-level models/ directory, never source packages.

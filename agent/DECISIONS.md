@@ -842,3 +842,233 @@ and a "how to fix" hint. Results never contain api_hash, phone or session conten
 
 ---
 
+
+---
+
+## D-050 — 2026-10-03 — v1.0.0 released from `develop`; version bumped afterward, tag immutable — LOCKED
+
+**Decision:** Release `v1.0.0` is the `develop → main` **merge commit**
+`82c1059`, tagged `v1.0.0` (annotated) with a GitHub Release. PR #1 was marked
+ready (it had been a draft) and merged via the GitHub API; no force push, no
+history rewrite. `develop` was fast-forwarded to `82c1059` and the stale local
+`main` fast-forwarded to `origin/main`. After the release, `develop` may advance
+(e.g. the application version string `0.1.0 -> 1.0.0`); the published tag is
+**immutable** and `main` stays exactly at the release commit until the next PR.
+
+**Why:** The tag must point at exactly the reviewed, merged code. Bumping the
+version string before the merge would have made the image report `1.0.0` without
+a reviewed release; doing it after keeps the release honest and the tag stable,
+while still aligning the reported version with the release going forward.
+
+**Consequence:** `origin/main` = `82c1059` (the released artifact reports
+`0.1.0`, a cosmetic pre-merge value). `develop` head is `72a432d` and reports
+`1.0.0`. The next `develop -> main` PR will make `main` report `1.0.0`. Fixed
+build hygiene: Vite `emptyOutDir` no longer deletes the tracked
+`backend/app/static/.gitkeep` (a `frontend/public/.gitkeep` is re-emitted).
+
+---
+
+## D-051 — 2026-10-03 — Versioned migrations at startup; one shared Channel Registry — LOCKED
+
+**Decision:** (a) Startup applies **Alembic** versioned migrations instead of
+`create_all`; the runner (`backend/app/db/migrate.py`) is guarded so a fresh
+install, an existing `create_all` database (adopt + stamp) and a normal upgrade
+all converge, with a pre-migration backup and transaction-per-migration. (b) The
+suite keeps **one shared channel identity**: a `channels` table
+(`Channel`, `ChannelKind`, `ChannelStatus`) is the single source for a channel's
+reference/title/kind/verification/module toggles, exposed at `/api/v1/channels`.
+Modules (reactions/audience/invites/analytics) reference a channel by `channel_id`
+instead of each storing its own target string; the first channel becomes the
+default and a default is always promoted when the current one is removed.
+
+**Why:** `create_all` cannot evolve an installed schema and silently drifts from
+the models; a real migration path is required before the schema grows. A single
+channel registry removes duplicated, inconsistent target strings across modules
+and lets the UI offer one channel picker everywhere, which is the RU-first,
+low-friction experience the owner needs.
+
+**Consequence:** Schema changes ship as migrations under `migrations/versions/`;
+the baseline revision is regenerated (not shipped) until the next release, so
+`channels` and `invite_jobs.channel_id` are part of the baseline. The invite
+manager resolves its target from `channel_id` when a registry channel is chosen,
+falling back to a manually typed target. Docker and the portable build copy
+`alembic.ini` + `migrations/`.
+
+---
+
+## D-052 — 2026-10-03 — Migration adoption is baseline-aware; modules link to the registry — LOCKED
+
+**Decision:** (a) The Alembic adoption path is **baseline-aware**: an existing
+`create_all` database is stamped at the *baseline* revision (whose schema equals
+the shipped `create_all` schema) and then upgraded through the delta migrations —
+it is never stamped straight at head. `_schema_matches_baseline()` inspects the
+live schema to decide, and `database_status` reports a pending upgrade instead of
+"up to date" when a stamped database still lacks delta tables. (b) Modules link
+to the shared Channel Registry by a **nullable, backfilled** `channel_id`/
+`registry_channel_id` string column (empty string = "no registry link"), not by a
+hard foreign key, so existing rows and manual (non-registry) targets keep working
+while the UI offers the picker.
+
+**Why:** A v1.0.0 install (built with `create_all`, no `channels` table) was
+being stamped at *head* without running the registry migration, so the app
+crashed on the missing `channels` table. Stamping at the baseline and upgrading
+fixes that. The soft link keeps the migration SQLite-safe (a NOT NULL column
+cannot be added to a populated table without a server default, and a server
+default would show up as model/migration drift) and preserves backward
+compatibility for rows created before the registry existed.
+
+**Consequence:** Migration history is baseline (`0191baf5265f`) → registry delta
+(`561f0631d045`) → registry links for posts/sources (`e3b5890e407e`) → permission
+link (`6816b29afc76`). Tests cover the v1.0.0 → develop upgrade with existing rows
+and the registry-link API paths (posts, sources, invites, permission probe). A
+numeric Telegram chat id on a post remains the transport identity; the registry
+link is the stable owner-selected identity.
+
+---
+
+## D-053 — 2026-10-03 — CI runs the real quality gates on `main` and `develop` — LOCKED
+
+**Decision:** A GitHub Actions workflow (`.github/workflows/ci.yml`) runs two
+independent jobs on every push and pull request targeting `main` or `develop`:
+a **backend** job (`ruff check backend tests` then `pytest`, Python 3.12, pip
+cache) and a **frontend** job (`npm ci` then `npm run build`, Node 20, npm
+cache). The workflow is required to be green on the PR head before release
+(added to `docs/RELEASE_CHECKLIST.md`).
+
+**Why:** The suite has 413 tests, a strict lint config and a TypeScript SPA
+build, but nothing enforced them on the remote — `main`/`develop` could silently
+break for a contributor without the local toolchain. CI makes the local gates
+authoritative on every change and is the minimum viable safety net for a
+long-lived repo that must survive agent/session handoffs.
+
+**Consequence:** No test/lint/build changes may be merged to `main` with a red
+CI. CI is intentionally minimal (no Docker/portable jobs) to keep the free
+runner fast and avoid requiring credentials; Docker and portable builds remain
+documented manual gates. The workflow uses only official actions and the
+already-committed lockfile.
+
+---
+
+## D-054 — 2026-10-03 — Mini App registration is a one-click, provider-backed owner action — LOCKED
+
+**Decision:** Mini App deployment no longer requires the owner to talk to
+@BotFather by hand. `POST /api/v1/miniapp/setup` validates a **public HTTPS**
+URL, points the manager bot's chat menu button at it via a new
+`TelegramBotProvider.set_menu_button(title, url)` method, and persists
+`miniapp_public_url` + `miniapp_enabled` as UI-editable settings. The Settings
+page exposes this as a "Мини-приложение Telegram" card. Validation and provider
+failures return plain-RU `{ok, message, how_to_fix}` and are logged to the
+event center.
+
+**Why:** BotFather registration was the last manual, error-prone step in PHASE 9
+and is easy to get wrong (HTTP vs HTTPS, missing public URL). Routing it through
+the existing provider abstraction keeps Telegram details out of the service layer
+(D-001) and lets the fake provider cover the whole flow in tests. It never
+bypasses Telegram limits (D-049) — a rejected registration is surfaced honestly.
+
+**Consequence:** `set_menu_button` is added to the provider protocol; providers
+without a menu-button API may return `False`. HTTPS-only validation is enforced
+in the service (Telegram will not open non-HTTPS Web Apps), so a plain local
+`http://127.0.0.1` install still works but cannot be a Mini App target. The URL
+is normalised (trailing slash trimmed) and stored as a non-secret setting; the
+bot token is never read into the response or logs.
+
+---
+
+## D-055 — 2026-10-03 — Analytics can be scoped per registry channel — LOCKED
+
+**Decision:** Every analytics view (`/api/v1/analytics/overview|content|reactions|audience`)
+accepts an optional `channel_id` (a Channel Registry row id, D-051). Posts are
+scoped by `posts.registry_channel_id`; reaction jobs are scoped by joining their
+post; audience users by joining the sources linked to that channel; invite
+outcomes by joining the invite job's `channel_id`. Omitting the parameter keeps
+the original global aggregates exactly as before. The Analytics page exposes a
+channel selector and defaults to the registry's default channel.
+
+**Why:** The registry was wired into ingestion, sources, invites and the
+permission probe, but analytics still summed every channel together — the last
+gap in the "one shared channel identity" work. Scoping is read-only and purely
+additive, so no existing behaviour or API contract changes for callers that omit
+`channel_id`.
+
+**Consequence:** `AnalyticsRepository` query methods take an optional
+`channel_id`; `AnalyticsService.content/reactions/audience/overview` thread it
+through; `AnalyticsOverviewOut` gained a `channel_id` field (defaults to `""`).
+Audience scoping relies on sources having a `channel_id`, so unlinked sources are
+only counted globally — acceptable for a single-owner install and honest about
+what the data supports.
+
+---
+
+## D-056 — 2026-10-04 — Base `uvicorn` + a pinned Windows runtime lock — LOCKED
+
+**Decision:** The runtime dependency list uses base `uvicorn` (not
+`uvicorn[standard]`), and the portable build installs a **pinned** Windows wheel
+set from `scripts/win-requirements.lock` (win_amd64 / CPython 3.12) rather than
+resolving the loose ranges on the build host. `scripts/build_win_runtime.py`
+downloads the official Windows *embeddable* CPython plus those wheels and extracts
+them flat into `runtime/site-packages`; `pyaes` (Telethon's only sdist-only
+dependency, pure Python) is extracted from its sdist so no compiler is needed.
+The build is cross-platform — a Linux/macOS/Windows host produces the same
+Windows runtime.
+
+**Why:** `uvicorn[standard]` pulls uvloop/httptools/websockets, which the app
+never uses (no WebSockets; the default asyncio loop is fine) and which made
+cross-platform wheel resolution fail (`uvloop` is excluded on win32 by its
+environment marker, so a `--platform win_amd64` download could not resolve the
+extra). A pinned lock makes the shipped runtime reproducible and lets the
+portable ZIP be built in CI on Linux. Keeping the base package also trims the
+portable runtime and matches the "no dependencies without necessity" rule.
+
+**Consequence:** `--reload` now requires `watchfiles` (documented in
+`backend/app/main.py` and `docs/SETUP.md`); production never reloads, so this is
+dev-only. `scripts/fetch_embedded_python.sh` remains for a host-driven build and
+gained `--no-deps`. The portable ZIP name is
+`Telegram-Channel-Management-Suite-Windows-Portable-<version>.zip`.
+
+---
+
+## D-057 — 2026-10-04 — Release target is `v1.0.1` (patch) — LOCKED
+
+**Decision:** The post-1.0 work on `develop` is published as **v1.0.1** (the
+release the owner asked for). The application version string stays at `1.0.1`
+across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` and
+`frontend/package-lock.json` (it was already `1.0.1` on `develop`, so no bump was
+needed; the earlier drift concern was cosmetic). `v1.0.0` and its tag stay
+immutable; the release is the `develop → main` merge commit, tagged `v1.0.1`,
+with a GitHub Release whose portable ZIP is attached by
+`.github/workflows/release.yml`.
+
+**Why:** The owner explicitly targets `v1.0.1` for this release. `develop` already
+carried the `1.0.1` version string, so the only inconsistency was documentation
+(the changelog still said `1.0.0`); that is fixed here. D-050 (immutable published
+tags, version set on `develop`) still holds. (An earlier draft of this decision
+proposed `v1.1.0` on SemVer grounds; overridden by the explicit owner target.)
+
+**Consequence:** `/health`, `/health/deep` and `/api/v1/system/*` report `1.0.1`
+after the merge. The version is the single source of truth in
+`backend/app/__init__.py`; `scripts/build_portable.sh` reads it for the ZIP name
+(`…-Windows-Portable-1.0.1.zip`).
+
+---
+
+## D-058 — 2026-10-04 — Async fixtures: dispose the engine before resetting it
+
+**Decision:** In `tests/conftest.py`, `_dispose_engine_between_tests` declares a
+dependency on `_isolated_env` so pytest finalizes it *first* (dispose) and
+`_isolated_env` *second* (reset). Tests that need a session use the
+`session_scope()` context manager, never `async for session in get_session():
+... break`.
+
+**Why:** The autouse finalizers ran in the wrong order — `_isolated_env` reset
+`_engine = None` before `_dispose_engine_between_tests` called
+`dispose_engine()`, so the engine was never actually disposed. Open aiosqlite
+connections then survived into a later test and were garbage-collected on a
+closed event loop, intermittently failing with `GeneratorExit` /
+`TypeError: object NoneType can not be used in an await expression`. Iterating
+the FastAPI `get_session()` dependency with `break` leaks its async generator
+the same way (never finalized in its own loop).
+
+**Consequence:** The suite is deterministic: 427 passed across repeated runs,
+no "Event loop is closed" noise. Any new test must use `session_scope()` (or
+explicitly `aclose()` a `get_session()` generator) rather than `break`.

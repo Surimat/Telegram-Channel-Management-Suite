@@ -1,8 +1,15 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { api, type PermissionResult, type SessionSummary, type UserSession } from '@/api/client'
+import {
+  api,
+  type Channel,
+  type PermissionResult,
+  type SessionSummary,
+  type UserSession,
+} from '@/api/client'
 
 const accounts = ref<UserSession[]>([])
+const channels = ref<Channel[]>([])
 const summary = ref<SessionSummary | null>(null)
 const loading = ref(true)
 const busyId = ref('')
@@ -29,6 +36,7 @@ const importForm = ref({ api_id: '', api_hash: '', phone: '', session_file_path:
 // Permission probe (post-1.0 hardening)
 const permAccountId = ref('')
 const permTarget = ref('')
+const permChannelId = ref('')
 const permResult = ref<PermissionResult | null>(null)
 const permHistory = ref<PermissionResult[]>([])
 const permBusy = ref(false)
@@ -65,7 +73,8 @@ async function runPermissionCheck() {
   try {
     permResult.value = await api.permissionCheck({
       account_id: permAccountId.value,
-      target: permTarget.value,
+      target: permChannelId.value ? undefined : permTarget.value,
+      channel_id: permChannelId.value || undefined,
     })
     await loadPermissionHistory()
   } catch (e) {
@@ -105,6 +114,7 @@ async function load() {
   try {
     accounts.value = await api.sessions()
     summary.value = await api.sessionsSummary()
+    channels.value = (await api.channels({ limit: '200' })).items
   } catch (e) {
     error.value = friendlyError(e)
   } finally {
@@ -449,14 +459,23 @@ onMounted(() => {
           </option>
         </select>
       </label>
-      <label class="field">
+      <label v-if="channels.length" class="field">
+        <span>Канал из реестра (необязательно)</span>
+        <select v-model="permChannelId">
+          <option value="">Указать вручную ниже</option>
+          <option v-for="c in channels" :key="c.id" :value="c.id">
+            {{ c.title || c.reference }}
+          </option>
+        </select>
+      </label>
+      <label v-if="!permChannelId" class="field">
         <span>Целевой канал</span>
         <input v-model="permTarget" placeholder="@my_channel или ссылка" />
       </label>
       <div v-if="permError" class="error-text">{{ permError }}</div>
       <button
         class="primary"
-        :disabled="permBusy || !permAccountId || !permTarget"
+        :disabled="permBusy || !permAccountId || (!permTarget && !permChannelId)"
         @click="runPermissionCheck"
       >
         {{ permBusy ? 'Проверяем…' : 'Проверить доступ' }}

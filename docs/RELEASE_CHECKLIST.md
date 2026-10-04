@@ -6,7 +6,7 @@ repository root unless stated otherwise.
 ## 1. Code quality gates (must pass)
 
 ```bash
-python -m pytest                 # full suite — currently 384 passed
+python -m pytest                 # full suite — currently 427 passed
 ruff check backend tests         # must be clean
 cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 ```
@@ -18,12 +18,16 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 - [ ] Working tree is clean after the build (no untracked build artifacts;
       `backend/app/static/.gitkeep` still present — see the `public/.gitkeep`
       note below).
+- [ ] GitHub Actions **CI** (`.github/workflows/ci.yml`) is green on the PR head
+      (backend: ruff + pytest; frontend: `npm ci` + `npm run build`).
 
 ## 2. Packaging / deployment gates
 
-- [ ] **Portable**: `scripts/fetch_embedded_python.sh` (or `SKIP_RUNTIME=1` for
-      an offline plan) and `scripts/build_portable.sh` produce a tree that starts
-      with `run.bat`. Smoke test: `tests/test_portable_smoke.py`.
+- [ ] **Portable**: `scripts/build_portable.sh` (cross-platform) stages an
+      embedded Windows CPython via `scripts/build_win_runtime.py` from the pinned
+      `scripts/win-requirements.lock`, and writes a versioned ZIP + `.sha256`.
+      Smoke tests: `tests/test_portable_smoke.py` (startup, offline tree, ZIP
+      layout, builder dry-runs).
 - [ ] **Docker**: `docker build -f docker/Dockerfile -t tcms .` succeeds;
       `docker compose -f docker/docker-compose.yml up` serves `/health` and the
       SPA. (Skip honestly if Docker is unavailable in the environment.)
@@ -51,8 +55,10 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
       history rewrite).
 - [ ] PR `develop → main` is `mergeable` and merged.
 - [ ] `main` is synced back into `develop` (`git fetch --all --prune`).
-- [ ] Tag `v1.0.0` created on the merged `main` commit.
-- [ ] GitHub Release `v1.0.0` published with notes.
+- [ ] Tag `vX.Y.Z` created on the merged `main` commit.
+- [ ] GitHub Release `vX.Y.Z` published with notes; the **Release** workflow
+      (`.github/workflows/release.yml`) attaches the Windows portable ZIP +
+      `.sha256` to it.
 
 ## Known non-blocking items (documented, do not block a release)
 

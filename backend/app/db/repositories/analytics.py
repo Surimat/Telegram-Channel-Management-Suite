@@ -19,7 +19,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.models.audience import AudienceSource, AudienceUser, SourceUserLink
-from backend.app.db.models.invite import InviteStatus, InviteTask
+from backend.app.db.models.invite import InviteJob, InviteStatus, InviteTask
 from backend.app.db.models.post import Post
 from backend.app.db.models.reaction import ReactionJob, ReactionJobStatus
 
@@ -55,32 +55,70 @@ class AnalyticsRepository:
     def _value(enum_or_value) -> str:  # type: ignore[no-untyped-def]
         return str(getattr(enum_or_value, "value", enum_or_value))
 
+    # ------------------------------------------------------------------
+    # Optional Channel Registry scoping (D-051/D-055)
+    # ------------------------------------------------------------------
+    # ``channel_id`` is the shared registry row id. When omitted every query
+    # behaves exactly as before (global aggregates). When set, posts are scoped
+    # by their ``registry_channel_id``; reaction jobs and audience users are
+    # scoped through their link to those posts/sources.
+    @staticmethod
+    def _scoped_posts(stmt, channel_id: str | None):  # type: ignore[no-untyped-def]
+        return stmt.where(Post.registry_channel_id == channel_id) if channel_id else stmt
+
+    @staticmethod
+    def _scoped_reactions(stmt, channel_id: str | None):  # type: ignore[no-untyped-def]
+        if not channel_id:
+            return stmt
+        return stmt.join(Post, Post.id == ReactionJob.post_id).where(
+            Post.registry_channel_id == channel_id
+        )
+
+    @staticmethod
+    def _channel_source_ids(channel_id: str):  # type: ignore[no-untyped-def]
+        return select(AudienceSource.id).where(AudienceSource.channel_id == channel_id)
+
+    def _scoped_audience_users(self, stmt, channel_id: str | None):  # type: ignore[no-untyped-def]
+        if not channel_id:
+            return stmt
+        return stmt.where(AudienceUser.id.in_(select(SourceUserLink.user_id).where(
+            SourceUserLink.source_id.in_(self._channel_source_ids(channel_id))
+        )))
+
     # ==================================================================
     # Content / posts
     # ==================================================================
-    async def posts_total(self) -> int:
-        return await self._scalar(select(func.count()).select_from(Post))
-
-    async def posts_since(self, since: datetime) -> int:
-        stmt = select(func.count()).select_from(Post).where(Post.created_at >= since)
+    async def posts_total(self, channel_id: str | None = None) -> int:
+        stmt = self._scoped_posts(select(func.count()).select_from(Post), channel_id)
         return await self._scalar(stmt)
 
-    async def posts_by_category(self) -> dict[str, int]:
+    async def posts_since(self, since: datetime, channel_id: str | None = None) -> int:
+        stmt = select(func.count()).select_from(Post).where(Post.created_at >= since)
+        stmt = self._scoped_posts(stmt, channel_id)
+        return await self._scalar(stmt)
+
+    async def posts_by_category(self, channel_id: str | None = None) -> dict[str, int]:
         stmt = select(Post.category, func.count()).group_by(Post.category)
+        stmt = self._scoped_posts(stmt, channel_id)
         return {str(cat or "unknown"): int(n) for cat, n in await self._rows(stmt)}
 
-    async def posts_by_source(self) -> dict[str, int]:
+    async def posts_by_source(self, channel_id: str | None = None) -> dict[str, int]:
         """Posts grouped by classification source (rules / llm / manual / fallback)."""
         stmt = select(Post.classification_source, func.count()).group_by(Post.classification_source)
+        stmt = self._scoped_posts(stmt, channel_id)
         return {str(src or "unknown"): int(n) for src, n in await self._rows(stmt)}
 
-    async def posts_by_status(self) -> dict[str, int]:
+    async def posts_by_status(self, channel_id: str | None = None) -> dict[str, int]:
         stmt = select(Post.status, func.count()).group_by(Post.status)
+        stmt = self._scoped_posts(stmt, channel_id)
         return {self._value(st): int(n) for st, n in await self._rows(stmt)}
 
-    async def posts_per_day(self, days: int = 30) -> list[dict[str, object]]:
+    async def posts_per_day(
+        self, days: int = 30, channel_id: str | None = None
+    ) -> list[dict[str, object]]:
         since = datetime.now(UTC) - timedelta(days=days)
         stmt = select(Post.created_at).where(Post.created_at >= since)
+        stmt = self._scoped_posts(stmt, channel_id)
         rows = await self._scalars(stmt)
         return self._bucket_counts(days, rows)
 
@@ -97,15 +135,20 @@ class AnalyticsRepository:
     # ==================================================================
     # Reactions
     # ==================================================================
-    async def reactions_total(self) -> int:
-        stmt = select(func.count()).select_from(ReactionJob)
+    async def reactions_total(self, channel_id: str | None = None) -> int:
+        stmt = self._scoped_reactions(
+            select(func.count()).select_from(ReactionJob), channel_id
+        )
         return await self._scalar(stmt)
 
-    async def reactions_by_status(self) -> dict[str, int]:
+    async def reactions_by_status(self, channel_id: str | None = None) -> dict[str, int]:
         stmt = select(ReactionJob.status, func.count()).group_by(ReactionJob.status)
+        stmt = self._scoped_reactions(stmt, channel_id)
         return {self._value(st): int(n) for st, n in await self._rows(stmt)}
 
-    async def reactions_by_emoji(self, limit: int = 12) -> list[dict[str, object]]:
+    async def reactions_by_emoji(
+        self, limit: int = 12, channel_id: str | None = None
+    ) -> list[dict[str, object]]:
         stmt = (
             select(ReactionJob.reaction, func.count())
             .where(ReactionJob.reaction != "")
@@ -113,9 +156,10 @@ class AnalyticsRepository:
             .order_by(func.count().desc())
             .limit(limit)
         )
+        stmt = self._scoped_reactions(stmt, channel_id)
         return [{"reaction": str(r), "count": int(n)} for r, n in await self._rows(stmt)]
 
-    async def reactions_by_category(self) -> dict[str, int]:
+    async def reactions_by_category(self, channel_id: str | None = None) -> dict[str, int]:
         """Reaction count per post category (join jobs → posts)."""
         stmt = (
             select(Post.category, func.count())
@@ -123,67 +167,93 @@ class AnalyticsRepository:
             .join(Post, Post.id == ReactionJob.post_id)
             .group_by(Post.category)
         )
+        if channel_id:
+            stmt = stmt.where(Post.registry_channel_id == channel_id)
         return {str(cat or "unknown"): int(n) for cat, n in await self._rows(stmt)}
 
-    async def reactions_by_bot(self, limit: int = 20) -> list[dict[str, object]]:
+    async def reactions_by_bot(
+        self, limit: int = 20, channel_id: str | None = None
+    ) -> list[dict[str, object]]:
         stmt = (
             select(ReactionJob.bot_id, func.count())
             .group_by(ReactionJob.bot_id)
             .order_by(func.count().desc())
             .limit(limit)
         )
+        stmt = self._scoped_reactions(stmt, channel_id)
         return [{"bot_id": str(b), "count": int(n)} for b, n in await self._rows(stmt)]
 
-    async def reactions_per_day(self, days: int = 30) -> list[dict[str, object]]:
+    async def reactions_per_day(
+        self, days: int = 30, channel_id: str | None = None
+    ) -> list[dict[str, object]]:
         since = datetime.now(UTC) - timedelta(days=days)
         stmt = select(ReactionJob.created_at).where(ReactionJob.created_at >= since)
+        stmt = self._scoped_reactions(stmt, channel_id)
         rows = await self._scalars(stmt)
         return self._bucket_counts(days, rows)
 
-    async def reactions_completed_per_day(self, days: int = 30) -> list[dict[str, object]]:
+    async def reactions_completed_per_day(
+        self, days: int = 30, channel_id: str | None = None
+    ) -> list[dict[str, object]]:
         since = datetime.now(UTC) - timedelta(days=days)
         stmt = (
             select(ReactionJob.completed_at)
             .where(ReactionJob.completed_at.is_not(None), ReactionJob.completed_at >= since)
             .where(ReactionJob.status == ReactionJobStatus.DONE)
         )
+        stmt = self._scoped_reactions(stmt, channel_id)
         rows = await self._scalars(stmt)
         return self._bucket_counts(days, rows)
 
     # ==================================================================
     # Audience
     # ==================================================================
-    async def audience_total(self) -> int:
-        stmt = select(func.count()).select_from(AudienceUser)
+    async def audience_total(self, channel_id: str | None = None) -> int:
+        stmt = self._scoped_audience_users(
+            select(func.count()).select_from(AudienceUser), channel_id
+        )
         return await self._scalar(stmt)
 
-    async def audience_since(self, since: datetime) -> int:
+    async def audience_since(self, since: datetime, channel_id: str | None = None) -> int:
         stmt = (
             select(func.count())
             .select_from(AudienceUser)
             .where(AudienceUser.first_seen_at >= since)
         )
+        stmt = self._scoped_audience_users(stmt, channel_id)
         return await self._scalar(stmt)
 
-    async def audience_per_day(self, days: int = 30) -> list[dict[str, object]]:
+    async def audience_per_day(
+        self, days: int = 30, channel_id: str | None = None
+    ) -> list[dict[str, object]]:
         since = datetime.now(UTC) - timedelta(days=days)
         stmt = select(AudienceUser.first_seen_at).where(AudienceUser.first_seen_at >= since)
+        stmt = self._scoped_audience_users(stmt, channel_id)
         rows = await self._scalars(stmt)
         return self._bucket_counts(days, rows)
 
-    async def audience_by_status(self) -> dict[str, int]:
+    async def audience_by_status(self, channel_id: str | None = None) -> dict[str, int]:
         stmt = select(AudienceUser.status, func.count()).group_by(AudienceUser.status)
+        stmt = self._scoped_audience_users(stmt, channel_id)
         return {self._value(st): int(n) for st, n in await self._rows(stmt)}
 
-    async def audience_sources_total(self) -> int:
+    async def audience_sources_total(self, channel_id: str | None = None) -> int:
         stmt = select(func.count()).select_from(AudienceSource)
+        if channel_id:
+            stmt = stmt.where(AudienceSource.channel_id == channel_id)
         return await self._scalar(stmt)
 
-    async def audience_links_total(self) -> int:
+    async def audience_links_total(self, channel_id: str | None = None) -> int:
         stmt = select(func.count()).select_from(SourceUserLink)
+        if channel_id:
+            stmt = stmt.where(
+                SourceUserLink.source_id.in_(self._channel_source_ids(channel_id))
+            )
         return await self._scalar(stmt)
 
-    async def top_sources(self, limit: int = 10) -> list[dict[str, object]]:
+    async def top_sources(
+        self, limit: int = 10, channel_id: str | None = None
+    ) -> list[dict[str, object]]:
         """Sources ranked by how many users they contributed (link count)."""
         stmt = (
             select(
@@ -198,6 +268,8 @@ class AnalyticsRepository:
             .order_by(func.count(SourceUserLink.id).desc())
             .limit(limit)
         )
+        if channel_id:
+            stmt = stmt.where(AudienceSource.channel_id == channel_id)
         return [
             {
                 "id": str(sid),
@@ -208,7 +280,9 @@ class AnalyticsRepository:
             for sid, title, username, n in (await self.session.execute(stmt)).all()
         ]
 
-    async def source_effectiveness(self, limit: int = 10) -> list[dict[str, object]]:
+    async def source_effectiveness(
+        self, limit: int = 10, channel_id: str | None = None
+    ) -> list[dict[str, object]]:
         """Per-source scan quality: discovered vs. new vs. duplicates vs. errors."""
         stmt = (
             select(
@@ -224,6 +298,8 @@ class AnalyticsRepository:
             .order_by(AudienceSource.new_count.desc(), AudienceSource.discovered_count.desc())
             .limit(limit)
         )
+        if channel_id:
+            stmt = stmt.where(AudienceSource.channel_id == channel_id)
         out: list[dict[str, object]] = []
         for sid, title, username, discovered, new, dups, errors, completeness in (
             await self.session.execute(stmt)
@@ -245,7 +321,15 @@ class AnalyticsRepository:
     # ==================================================================
     # Invites
     # ==================================================================
-    async def invite_totals(self) -> dict[str, int]:
-        stmt = select(InviteTask.status, func.count()).group_by(InviteTask.status)
+    async def invite_totals(self, channel_id: str | None = None) -> dict[str, int]:
+        if channel_id:
+            stmt = (
+                select(InviteTask.status, func.count())
+                .join(InviteJob, InviteJob.id == InviteTask.job_id)
+                .where(InviteJob.channel_id == channel_id)
+                .group_by(InviteTask.status)
+            )
+        else:
+            stmt = select(InviteTask.status, func.count()).group_by(InviteTask.status)
         counts = {self._value(st): int(n) for st, n in await self._rows(stmt)}
         return {status.value: counts.get(status.value, 0) for status in InviteStatus}

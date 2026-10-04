@@ -11,6 +11,11 @@ const notifications = ref<NotificationSettings | null>(null)
 const notificationsSaved = ref(false)
 const notificationsError = ref('')
 
+const miniappUrl = ref('')
+const miniappBusy = ref(false)
+const miniappResult = ref('')
+const miniappOk = ref(false)
+
 async function load() {
   loading.value = true
   error.value = ''
@@ -25,6 +30,27 @@ async function load() {
     notifications.value = await api.managerNotifications()
   } catch {
     notifications.value = null
+  }
+  try {
+    const cfg = await api.miniappConfig()
+    miniappUrl.value = cfg.public_url
+  } catch {
+    // Mini App config is optional for this page.
+  }
+}
+
+async function setupMiniApp() {
+  miniappBusy.value = true
+  miniappResult.value = ''
+  try {
+    const result = await api.miniappSetup(miniappUrl.value)
+    miniappOk.value = result.ok
+    miniappResult.value = result.ok ? result.message : `${result.message} ${result.how_to_fix}`
+  } catch (e) {
+    miniappOk.value = false
+    miniappResult.value = e instanceof Error ? e.message : 'Не удалось подключить мини-приложение.'
+  } finally {
+    miniappBusy.value = false
   }
 }
 
@@ -134,6 +160,38 @@ onMounted(load)
         <span v-if="notificationsSaved" class="muted" style="margin-left: 12px">Сохранено</span>
         <span v-if="notificationsError" class="error-text" style="margin-left: 12px">
           {{ notificationsError }}
+        </span>
+      </p>
+    </div>
+
+    <div class="card" style="margin-top: 20px">
+      <h3>Мини-приложение Telegram</h3>
+      <p class="muted">
+        Мини-приложение открывает эту же панель прямо из Telegram — кнопкой меню у бота.
+        Для работы нужен публичный адрес по HTTPS (локальный
+        <code>http://127.0.0.1</code> не подойдёт). Обычный локальный веб-интерфейс
+        работает и без этого.
+      </p>
+
+      <label class="field">
+        <span>Публичный адрес приложения</span>
+        <input v-model="miniappUrl" type="text" placeholder="https://ваш-домен" />
+      </label>
+      <p class="muted">
+        Укажите адрес, по которому панель доступна из интернета. Мы зарегистрируем его в
+        Telegram как кнопку меню бота. Токен бота при этом нигде не показывается.
+      </p>
+
+      <p style="margin-top: 16px">
+        <button class="primary" :disabled="miniappBusy" @click="setupMiniApp">
+          {{ miniappBusy ? 'Подключаем…' : 'Подключить мини-приложение' }}
+        </button>
+        <span
+          v-if="miniappResult"
+          :class="miniappOk ? 'muted' : 'error-text'"
+          style="margin-left: 12px"
+        >
+          {{ miniappResult }}
         </span>
       </p>
     </div>

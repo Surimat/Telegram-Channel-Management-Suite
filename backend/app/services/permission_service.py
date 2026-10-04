@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.config import Settings, get_settings
 from backend.app.db.base import utcnow
 from backend.app.db.models.permission import PermissionCheck
+from backend.app.db.repositories.channels import ChannelRepository
 from backend.app.db.repositories.permissions import PermissionCheckRepository
 from backend.app.providers.errors import (
     ChatAdminRequiredError,
@@ -92,6 +93,7 @@ class PermissionResult:
     retry_after: int | None = None
     checked_at: Any = None
     check_id: str | None = None
+    registry_channel_id: str = ""
 
 
 class PermissionService:
@@ -114,9 +116,25 @@ class PermissionService:
             kwargs["provider_factory"] = self._session_provider_factory
         return SessionService(self.session, **kwargs)
 
-    async def check(self, account_id: str, target: str) -> PermissionResult:
-        """Probe ``account_id`` access to ``target`` and persist the result."""
+    async def check(
+        self, account_id: str, target: str = "", *, registry_channel_id: str = ""
+    ) -> PermissionResult:
+        """Probe ``account_id`` access to ``target`` and persist the result.
+
+        When ``registry_channel_id`` is given the target is resolved from the
+        shared Channel Registry (decision D-052) and the link is stored with the
+        result, so the probe and the registry agree on one channel identity.
+        """
         target = (target or "").strip()
+        if registry_channel_id:
+            channel = await ChannelRepository(self.session).get(registry_channel_id)
+            if channel is None:
+                raise PermissionServiceError(
+                    "Выбранный канал не найден.",
+                    how_to_fix="Обновите список каналов на странице «Каналы».",
+                    status_code=404,
+                )
+            target = channel.reference
         if not target:
             raise PermissionServiceError(
                 "Укажите канал, группу или пользователя.",
@@ -162,6 +180,7 @@ class PermissionService:
         finally:
             await provider.aclose()
 
+        result.registry_channel_id = registry_channel_id
         check = await self._persist(result)
         result.check_id = check.id
         result.checked_at = check.created_at
@@ -239,6 +258,7 @@ class PermissionService:
             account_label=result.account_label,
             target=result.target,
             target_title=result.target_title,
+            registry_channel_id=result.registry_channel_id,
             status=result.status,
             channel_found=result.channel_found,
             authorized=result.authorized,
@@ -270,6 +290,7 @@ class PermissionService:
             account_label=check.account_label,
             target=check.target,
             target_title=check.target_title,
+            registry_channel_id=check.registry_channel_id,
             channel_found=check.channel_found,
             authorized=check.authorized,
             can_read_info=check.can_read_info,

@@ -14,10 +14,12 @@ This exercises the true startup path (lifespan, DB init, SPA mount), not mocks.
 from __future__ import annotations
 
 import os
+import re
 import socket
 import subprocess
 import sys
 import time
+import zipfile
 from pathlib import Path
 
 import httpx
@@ -129,3 +131,100 @@ def test_fetch_embedded_python_skip_env() -> None:
     result = _run_helper(["/tmp/ignored-runtime"], env={"SKIP_RUNTIME": "1"})
     assert result.returncode == 0
     assert "not fetching" in result.stdout
+
+
+def test_fetch_embedded_python_no_deps_flag(tmp_path: Path) -> None:
+    """--no-deps still plans CPython staging but skips dependency install."""
+    runtime = tmp_path / "runtime"
+    result = _run_helper(
+        [str(runtime), "--version", "3.12.7", "--no-deps", "--dry-run"],
+    )
+    assert result.returncode == 0, result.stderr
+    assert "python-3.12.7-embed-amd64.zip" in result.stdout
+    assert "would pip install" not in result.stdout.lower()
+
+
+def _run_builder(args: list[str]) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, str(REPO_ROOT / "scripts" / "build_win_runtime.py"), *args],
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_build_win_runtime_dry_run(tmp_path: Path) -> None:
+    """The cross-platform runtime builder plans a correct layout offline."""
+    runtime = tmp_path / "runtime"
+    result = _run_builder([str(runtime), "--app-rel", "../app", "--dry-run"])
+    assert result.returncode == 0, result.stderr
+    assert "python-3.12.7-embed-amd64.zip" in result.stdout
+    assert "python312._pth" in result.stdout
+    assert "../app" in result.stdout
+    assert not runtime.exists(), "dry run must not touch the filesystem"
+
+
+def test_build_win_runtime_no_deps_dry_run(tmp_path: Path) -> None:
+    runtime = tmp_path / "runtime"
+    result = _run_builder([str(runtime), "--no-deps", "--dry-run"])
+    assert result.returncode == 0, result.stderr
+    assert "would download win wheels" not in result.stdout.lower()
+
+
+def test_build_portable_stages_offline_tree(tmp_path: Path) -> None:
+    """build_portable.sh (offline: no runtime, no npm, no zip) produces the tree."""
+    out = tmp_path / "TCMS"
+    result = subprocess.run(
+        [
+            "bash",
+            str(REPO_ROOT / "scripts" / "build_portable.sh"),
+            str(out),
+            "--no-runtime",
+            "--no-zip",
+            "--no-frontend",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode == 0, result.stderr
+    # Launchers, app code and the mutable-state directories must all be present.
+    for name in ("run.bat", "stop.bat", "README.txt", ".env.example"):
+        assert (out / name).is_file(), f"missing {name}"
+    for name in ("data", "sessions", "backups", "logs", "exports", "models"):
+        assert (out / name).is_dir(), f"missing runtime dir: {name}"
+    assert (out / "app" / "backend" / "app" / "main.py").is_file()
+    # A portable tree must never contain secrets or mutable data.
+    for pattern in (".env", "*.session", "*.db"):
+        assert not list(out.rglob(pattern)), f"portable tree leaked {pattern}"
+
+
+def test_build_portable_zip_layout(tmp_path: Path) -> None:
+    """The versioned ZIP has run.bat at the root and keeps the mutable dirs."""
+    dist = tmp_path / "dist"
+    out = dist / "TCMS"
+    result = subprocess.run(
+        [
+            "bash",
+            str(REPO_ROOT / "scripts" / "build_portable.sh"),
+            str(out),
+            "--no-runtime",
+            "--no-frontend",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode == 0, result.stderr
+    zips = list(dist.glob("*.zip"))
+    assert len(zips) == 1, zips
+    with zipfile.ZipFile(zips[0]) as zf:
+        names = zf.namelist()
+    assert "run.bat" in names
+    assert "app/backend/app/main.py" in names
+    assert "data/" in names and "sessions/" in names
+    # The version in the archive name matches the application version.
+    version = (REPO_ROOT / "backend" / "app" / "__init__.py").read_text()
+    match = re.search(r'__version__ = "([^"]+)"', version)
+    assert match and match.group(1) in zips[0].name
+
+

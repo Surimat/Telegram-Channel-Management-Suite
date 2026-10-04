@@ -117,6 +117,11 @@ Wording rule — instead of `BOT_TOKEN missing`, write:
 - Minimum Mini App sections: Dashboard, Bots, Reactions, Queue, Audience
   statistics, System health, Settings.
 - Mobile-friendly layout; Telegram WebApp theme integration where useful.
+- **Setup helper:** Settings has a "Мини-приложение Telegram" card. The owner
+  enters the public HTTPS URL and clicks "Подключить мини-приложение"; the
+  backend registers it as the manager bot's Web App menu button
+  (`POST /api/v1/miniapp/setup`) and remembers the URL. Non-HTTPS or empty URLs
+  are rejected with a plain-language explanation; the bot token is never shown.
 
 ---
 
@@ -137,6 +142,7 @@ Wording rule — instead of `BOT_TOKEN missing`, write:
 |-------|------|-------|
 | `/` | `DashboardView` | 1 |
 | `/bots` | `BotsView` | 2 |
+| `/channels` | `ChannelsView` | hardening |
 | `/reactions` | `ReactionsView` | 3 |
 | `/sessions` | `SessionsView` | 4 |
 | `/sources` | `SourcesView` | 5 |
@@ -207,7 +213,9 @@ friendly messages with a suggested fix.
 ### Analytics page (`AnalyticsView.vue`, PHASE 8)
 
 A read-only page that explains the numbers in plain Russian. A period switch
-(7/14/30/90/365 дней) reloads `GET /api/v1/analytics/overview`. Content:
+(7/14/30/90/365 дней) and a channel selector (registry channels + "Все каналы",
+defaulting to the registry's default channel) reload
+`GET /api/v1/analytics/overview`. Content:
 
 - **Кратко о главном** — the backend's plain-language takeaways (bulleted).
 - **Headline cards** — posts, planned reactions (+ success rate), audience (+ new
@@ -270,8 +278,13 @@ The **Резервные копии** section lets a non-technical owner protect
 
 ## 9. Hardening additions (post-1.0)
 
-Three owner-facing additions, all RU-first and consistent with §1–§4:
-
+Four owner-facing additions, all RU-first and consistent with §1–§4:
+- **Channels page** (`ChannelsView.vue`, `/channels`): the shared channel
+  registry. Add a channel once (@username, t.me link or numeric ID), verify it
+  with a chosen account, toggle which modules it feeds (реакции/аудитория/
+  приглашения/аналитика), and mark a default. The default is auto-promoted when
+  the current one is removed. Verification is honest — a privacy/FloodWait result
+  shows a plain-language status and hint, never bypassing Telegram.
 - **Permission probe** (Sessions page): pick an account + a channel and press
   "Проверить доступ". The result is a plain-language status (`ok`, `partial`,
   `no_access`, `auth_required`, `admin_required`, `privacy_restricted`,

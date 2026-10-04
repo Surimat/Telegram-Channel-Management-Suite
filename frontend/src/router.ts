@@ -6,6 +6,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/ai', name: 'ai', component: () => import('@/views/AiView.vue') },
   { path: '/analytics', name: 'analytics', component: () => import('@/views/AnalyticsView.vue') },
   { path: '/bots', name: 'bots', component: () => import('@/views/BotsView.vue') },
+  { path: '/channels', name: 'channels', component: () => import('@/views/ChannelsView.vue') },
   { path: '/sessions', name: 'sessions', component: () => import('@/views/SessionsView.vue') },
   { path: '/sources', name: 'sources', component: () => import('@/views/SourcesView.vue') },
   { path: '/audience', name: 'audience', component: () => import('@/views/AudienceView.vue') },

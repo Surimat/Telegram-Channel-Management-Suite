@@ -275,10 +275,14 @@ per-person PII (D-010/D-029). `days` is clamped to `1..365` (default `30`).
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/v1/analytics/overview?days=` | headline + content + reactions + audience + a list of takeaways |
-| GET | `/api/v1/analytics/content?days=` | posts total/window, per-day series, category/source/status mix, summary |
-| GET | `/api/v1/analytics/reactions?days=` | status mix, success rate, planned/completed per day, emoji/bot/category mix |
-| GET | `/api/v1/analytics/audience?days=` | audience total, new 7d, per-day growth, status mix, top sources, source effectiveness, invite outcomes |
+| GET | `/api/v1/analytics/overview?days=&channel_id=` | headline + content + reactions + audience + a list of takeaways |
+| GET | `/api/v1/analytics/content?days=&channel_id=` | posts total/window, per-day series, category/source/status mix, summary |
+| GET | `/api/v1/analytics/reactions?days=&channel_id=` | status mix, success rate, planned/completed per day, emoji/bot/category mix |
+| GET | `/api/v1/analytics/audience?days=&channel_id=` | audience total, new 7d, per-day growth, status mix, top sources, source effectiveness, invite outcomes |
+
+`channel_id` optionally scopes every analytics view to one registry channel
+(`/api/v1/channels`). Omit it for global aggregates; the Analytics page defaults
+to the channel marked as default in the registry.
 
 `by_category`/`by_source`/`by_status` entries are titled for the UI. Charts in the
 frontend are dependency-free inline SVG (`Sparkline.vue`, `BarList.vue`, D-037).
@@ -336,6 +340,7 @@ local Web UI.
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/api/v1/miniapp/config` | feature flag, manager bot username, plain-language availability + how-to-fix |
+| POST | `/api/v1/miniapp/setup` | register a public HTTPS URL as the manager bot's Web App menu button (owner action; persists `miniapp_public_url` + `miniapp_enabled`) |
 | POST | `/api/v1/miniapp/auth` | verify Telegram WebApp `initData` (HMAC-SHA256), set a signed session cookie |
 | GET | `/api/v1/miniapp/me` | report whether the current session cookie is valid |
 | POST | `/api/v1/miniapp/logout` | clear the session cookie |
@@ -395,7 +400,7 @@ flood_wait | error`. Responses never expose an api_hash, phone or session conten
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| POST | `/api/v1/permissions/check` | probe one account against a channel (`account_id`, `target`) |
+| POST | `/api/v1/permissions/check` | probe one account against a channel (`account_id`, `target` or `channel_id`) |
 | GET | `/api/v1/permissions/latest` | most recent check (or `null`) |
 | GET | `/api/v1/permissions/history?limit=` | recent checks, newest first |
 
@@ -415,6 +420,46 @@ are never returned.
 
 Admin IDs come from `MANAGER_BOT_ADMIN_IDS` (comma-separated). The runtime polls
 the manager bot only while the app runs and never blocks the durable scheduler.
+
+---
+
+## Channel Registry (hardening)
+
+One shared channel identity for every module. A channel stores its reference
+(normalized `@username` / numeric ID), resolved title/kind, verification state and
+per-module toggles. `reference` accepts `@name`, `name`, `t.me/name` or a numeric
+ID and is normalized on input. Verification reuses the permission probe and never
+bypasses Telegram limits.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/channels?search=&status=&limit=&offset=` | list channels |
+| GET | `/api/v1/channels/summary` | counts + default channel |
+| GET | `/api/v1/channels/{id}` | one channel |
+| POST | `/api/v1/channels` | add (`reference`, optional `title`/`kind`/`make_default`/`note`) |
+| PATCH | `/api/v1/channels/{id}` | update editable fields |
+| POST | `/api/v1/channels/{id}/verify` | verify with an account (`account_id`) |
+| POST | `/api/v1/channels/{id}/modules` | set module toggles (`modules`) |
+| POST | `/api/v1/channels/{id}/default` | make this the default channel |
+| DELETE | `/api/v1/channels/{id}` | remove (a default is promoted if needed) |
+
+The first channel added becomes the default. Invite create/preview accept an
+optional `channel_id`; when set, the target and title come from the registry.
+
+Registry links are used by other modules too:
+
+- `POST /api/v1/reactions/posts` accepts an optional `registry_channel_id`; when
+  set, the post's `channel_username` (and numeric `channel_id` when the registry
+  channel has a known Telegram id) are filled from the registry. `PostOut` echoes
+  `registry_channel_id`.
+- `POST /api/v1/audience/sources` accepts an optional `channel_id`; when set, the
+  source `reference`/`username`/`telegram_id` come from the registry (or the
+  source is created with the registry reference). `SourceOut` echoes `channel_id`.
+- `POST /api/v1/permissions/check` accepts an optional `channel_id` in place of
+  `target`; the probe resolves the reference from the registry and stores the link
+  (`registry_channel_id`) with the result.
+
+An unknown registry id returns a friendly `404`.
 
 ---
 

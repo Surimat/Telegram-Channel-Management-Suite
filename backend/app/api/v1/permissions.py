@@ -34,7 +34,11 @@ async def check_permissions(
 ) -> PermissionResultOut:
     """Probe one account's access to one channel and return the honest result."""
     try:
-        result = await service.check(payload.account_id, payload.target)
+        result = await service.check(
+            payload.account_id,
+            payload.target,
+            registry_channel_id=payload.channel_id,
+        )
     except PermissionServiceError as exc:
         _raise(exc)
     return PermissionResultOut.from_result(result)

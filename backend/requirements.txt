@@ -2,7 +2,10 @@
 # Keep this list minimal; add libraries only when a phase needs them.
 
 fastapi>=0.115,<0.200
-uvicorn[standard]>=0.30,<1.0
+# Base uvicorn only: the [standard] extra pulls uvloop/httptools/websockets,
+# none of which this app uses (no WebSockets; default asyncio loop is fine).
+# Keeping the base keeps the Windows portable runtime small and cross-buildable.
+uvicorn>=0.30,<1.0
 pydantic>=2.7,<3.0
 pydantic-settings>=2.3,<3.0
 SQLAlchemy>=2.0,<2.1
@@ -14,3 +17,5 @@ aiogram>=3.13,<4.0
 telethon>=1.36,<2.0
 # At-rest encryption for sealed bot tokens (Fernet).
 cryptography>=42,<47
+# Versioned database migrations (PHASE hardening). Ships in the portable build.
+alembic>=1.13,<2.0

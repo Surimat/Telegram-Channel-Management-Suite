@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import {
   api,
+  type Channel,
   type ReactionJob,
   type ReactionProfile,
   type ReactionRule,
@@ -27,6 +28,8 @@ const simProfileId = ref('')
 const simBotCount = ref(6)
 const simSeed = ref<number | ''>(42)
 const simulating = ref(false)
+const channels = ref<Channel[]>([])
+const ingestChannelId = ref('')
 
 // Profile editor state.
 const editingProfile = ref<Partial<ReactionProfile> | null>(null)
@@ -52,16 +55,18 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [s, p, r, j] = await Promise.all([
+    const [s, p, r, j, ch] = await Promise.all([
       api.reactionStatus(),
       api.reactionProfiles(),
       api.reactionRules(),
       api.reactionJobs(),
+      api.channels({ limit: '200' }),
     ])
     stats.value = s
     profiles.value = p
     rules.value = r
     jobs.value = j.items
+    channels.value = ch.items
     if (!simProfileId.value && p.length) {
       simProfileId.value = p.find((x) => x.is_default)?.id ?? p[0].id
     }
@@ -195,7 +200,11 @@ async function runSimulation() {
 
 async function ingestPost() {
   try {
-    await api.createPost({ text: simText.value, plan: true })
+    await api.createPost({
+      text: simText.value,
+      plan: true,
+      registry_channel_id: ingestChannelId.value || undefined,
+    })
     notice.value = 'Пост добавлен, реакции запланированы.'
     await load()
     tab.value = 'queue'
@@ -519,6 +528,15 @@ onMounted(load)
         <label class="field">
           <span>Зерно (для повторяемого результата)</span>
           <input type="number" v-model.number="simSeed" />
+        </label>
+        <label v-if="channels.length" class="field">
+          <span>Канал поста (для добавления в очередь)</span>
+          <select v-model="ingestChannelId">
+            <option value="">Не указывать</option>
+            <option v-for="c in channels" :key="c.id" :value="c.id">
+              {{ c.title || c.reference }}
+            </option>
+          </select>
         </label>
         <div class="actions">
           <button class="primary" :disabled="simulating" @click="runSimulation">

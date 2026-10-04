@@ -15,6 +15,8 @@ from backend.app.api.schemas.miniapp import (
     MiniAppAuthResponse,
     MiniAppConfig,
     MiniAppMeResponse,
+    MiniAppSetupRequest,
+    MiniAppSetupResponse,
     MiniAppUserOut,
 )
 from backend.app.core.config import get_settings
@@ -71,6 +73,18 @@ async def authenticate(
             photo_url=user.photo_url,
         ),
         expires_in=settings.miniapp_session_ttl,
+    )
+
+
+@router.post("/setup", response_model=MiniAppSetupResponse)
+async def setup(
+    payload: MiniAppSetupRequest,
+    service: MiniAppService = Depends(get_miniapp_service),
+) -> MiniAppSetupResponse:
+    """Register the Mini App menu button with Telegram (owner action)."""
+    result = await service.setup(payload.public_url)
+    return MiniAppSetupResponse(
+        ok=result.ok, message=result.message, how_to_fix=result.how_to_fix
     )
 
 

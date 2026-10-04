@@ -29,6 +29,10 @@ RUN pip install --no-cache-dir -r backend/requirements.txt
 # Application code.
 COPY backend/ ./backend/
 
+# Versioned database migrations (applied at startup; guarded by a backup).
+COPY alembic.ini ./alembic.ini
+COPY migrations/ ./migrations/
+
 # Built SPA from stage 1.
 COPY --from=frontend /src/backend/app/static/ ./backend/app/static/
 

@@ -45,8 +45,14 @@ def _isolated_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[N
 
 
 @pytest_asyncio.fixture(autouse=True)
-async def _dispose_engine_between_tests() -> AsyncIterator[None]:
-    """Close all DB connections after each test to avoid GC warnings."""
+async def _dispose_engine_between_tests(_isolated_env) -> AsyncIterator[None]:
+    """Close all DB connections after each test to avoid GC warnings.
+
+    Depends on ``_isolated_env`` so it is set up *after* it and therefore torn
+    down *before* it: the engine must be disposed (in the test's event loop)
+    before ``_isolated_env`` resets it, otherwise open connections are garbage
+    collected on a closed loop and can fail the next test.
+    """
     yield
     from backend.app.db.session import dispose_engine
 
@@ -278,6 +284,27 @@ async def manager_client() -> AsyncIterator[AsyncClient]:
         return FakeTelegramBotProvider(token)
 
     app.dependency_overrides[get_provider_factory] = lambda: _factory
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+
+@pytest_asyncio.fixture
+async def channel_client() -> AsyncIterator[AsyncClient]:
+    """API client for the Channel Registry, wired to a fake with real access.
+
+    Uses the same fake session provider as the permission probe so verification
+    succeeds without any network or real Telegram account.
+    """
+    from backend.app.api.deps import get_session_provider_factory
+    from backend.app.db.session import init_models
+    from backend.app.main import create_app
+    from backend.app.providers.fake_session import FakePermissionScenario
+
+    await init_models()
+    app = create_app()
+    factory = make_fake_session_factory(permission=FakePermissionScenario(can_invite=True))
+    app.dependency_overrides[get_session_provider_factory] = lambda: factory
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac

@@ -233,15 +233,19 @@ async def create_post(
     service: ReactionService = Depends(get_reaction_service),
 ) -> PostOut:
     """Ingest a post: classify it and (optionally) plan reactions."""
-    post = await service.ingest_post(
-        text=payload.text,
-        telegram_message_id=payload.telegram_message_id,
-        channel_id=payload.channel_id,
-        channel_username=payload.channel_username,
-        force_category=payload.force_category,
-        plan=payload.plan,
-        mode=payload.mode,
-    )
+    try:
+        post = await service.ingest_post(
+            text=payload.text,
+            telegram_message_id=payload.telegram_message_id,
+            channel_id=payload.channel_id,
+            channel_username=payload.channel_username,
+            registry_channel_id=payload.registry_channel_id,
+            force_category=payload.force_category,
+            plan=payload.plan,
+            mode=payload.mode,
+        )
+    except ReactionServiceError as exc:
+        raise _http(exc) from exc
     return PostOut.model_validate(post)
 
 

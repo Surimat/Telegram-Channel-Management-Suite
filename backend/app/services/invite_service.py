@@ -38,6 +38,7 @@ from backend.app.db.repositories.audience import (
     AudienceSourceRepository,
     AudienceUserRepository,
 )
+from backend.app.db.repositories.channels import ChannelRepository
 from backend.app.db.repositories.invites import (
     InviteJobRepository,
     InviteTaskRepository,
@@ -176,7 +177,8 @@ class InviteService:
     async def preview(
         self,
         *,
-        target: str,
+        target: str = "",
+        channel_id: str = "",
         account_ids: list[str] | None = None,
         source_ids: list[str] | None = None,
         filters: dict[str, Any] | None = None,
@@ -184,10 +186,19 @@ class InviteService:
         sample_limit: int = 10,
     ) -> dict[str, Any]:
         """Dry-run: count the audience slice and describe the planned run."""
+        if channel_id:
+            channel = await ChannelRepository(self.session).get(channel_id)
+            if channel is None:
+                raise InviteServiceError(
+                    "Выбранный канал не найден.",
+                    how_to_fix="Обновите список каналов на странице «Каналы».",
+                    status_code=404,
+                )
+            target = channel.reference
         if not (target or "").strip():
             raise InviteServiceError(
                 "Не указан целевой канал.",
-                how_to_fix="Укажите канал или группу, куда приглашать людей.",
+                how_to_fix="Выберите канал из списка или укажите его вручную.",
             )
         merged = self._coerce_filters(filters)
         if source_ids:
@@ -246,7 +257,8 @@ class InviteService:
         self,
         *,
         name: str = "",
-        target: str,
+        target: str = "",
+        channel_id: str = "",
         account_ids: list[str] | None = None,
         source_ids: list[str] | None = None,
         filters: dict[str, Any] | None = None,
@@ -256,10 +268,26 @@ class InviteService:
         max_per_account: int | None = None,
         max_total: int | None = None,
     ) -> InviteJob:
+        # A channel chosen from the shared registry supplies the target and its
+        # display title, so the owner does not retype it (decision D-051).
+        channel_ref = ""
+        channel_title = ""
+        if channel_id:
+            channel = await ChannelRepository(self.session).get(channel_id)
+            if channel is None:
+                raise InviteServiceError(
+                    "Выбранный канал не найден.",
+                    how_to_fix="Обновите список каналов на странице «Каналы».",
+                    status_code=404,
+                )
+            channel_ref = channel.reference
+            channel_title = channel.title or channel.reference
+            target = channel_ref
+
         if not (target or "").strip():
             raise InviteServiceError(
                 "Не указан целевой канал.",
-                how_to_fix="Укажите канал или группу, куда приглашать людей.",
+                how_to_fix="Выберите канал из списка или укажите его вручную.",
             )
         merged = self._coerce_filters(filters)
         if source_ids:
@@ -293,7 +321,8 @@ class InviteService:
         job = InviteJob(
             name=name or f"Приглашение в {target}",
             target=target,
-            target_title=target,
+            target_title=channel_title or target,
+            channel_id=channel_id or "",
             account_ids=json.dumps([a.id for a in accounts]),
             source_ids=json.dumps(list(merged.get("source_ids") or [])),
             filters=json.dumps({k: v for k, v in merged.items() if k != "source_ids"}),

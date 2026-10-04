@@ -22,6 +22,11 @@ class PermissionCheck(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     account_label: Mapped[str] = mapped_column(String(160), default="", nullable=False)
     target: Mapped[str] = mapped_column(String(255), default="", nullable=False)
     target_title: Mapped[str] = mapped_column(String(255), default="", nullable=False)
+    # Optional link to the shared Channel Registry (decision D-052): when the
+    # owner probes a registered channel, the result is retrievable per channel.
+    registry_channel_id: Mapped[str] = mapped_column(
+        String(64), default="", index=True, nullable=False
+    )
 
     # Machine code: ok | partial | no_access | auth_required | admin_required |
     # privacy_restricted | flood_wait | error

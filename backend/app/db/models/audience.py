@@ -96,6 +96,9 @@ class AudienceSource(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     # The raw reference the operator entered (username, link, or id).
     reference: Mapped[str] = mapped_column(String(255), default="", nullable=False)
+    # Optional link to the shared Channel Registry (decision D-051): when the
+    # owner picks a registered channel, its reference is reused here.
+    channel_id: Mapped[str] = mapped_column(String(64), default="", index=True, nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # Which user account performs the scan (nullable → any healthy account).

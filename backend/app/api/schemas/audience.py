@@ -22,6 +22,7 @@ class SourceOut(BaseModel):
     telegram_id: int | None = None
     source_type: str
     reference: str = ""
+    channel_id: str = ""
     enabled: bool
     account_id: str | None = None
     scan_status: str
@@ -42,10 +43,16 @@ class SourceOut(BaseModel):
 
 
 class SourceCreateIn(BaseModel):
-    reference: str = Field(description="Username (@name), ссылка t.me/... или Telegram ID")
+    reference: str = Field(
+        default="",
+        description="Username (@name), ссылка t.me/... или Telegram ID",
+    )
     title: str = ""
     source_type: str = "unknown"
     account_id: str | None = None
+    # Optional shared Channel Registry link (decision D-051): when set, the
+    # reference and title come from the registered channel.
+    channel_id: str = ""
 
 
 class SourceUpdateIn(BaseModel):

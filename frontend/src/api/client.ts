@@ -198,6 +198,7 @@ export interface Post {
   telegram_message_id: number | null
   channel_id: number | null
   channel_username: string
+  registry_channel_id: string
   text: string
   category: string
   category_title: string
@@ -528,6 +529,7 @@ export interface AudienceSource {
   telegram_id: number | null
   source_type: string
   reference: string
+  channel_id: string
   enabled: boolean
   account_id: string | null
   scan_status: string
@@ -777,6 +779,7 @@ export interface AnalyticsHeadline {
 
 export interface AnalyticsOverview {
   days: number
+  channel_id: string
   generated_at: string
   headline: AnalyticsHeadline
   content: ContentAnalytics
@@ -815,6 +818,12 @@ export interface MiniAppMe {
   is_admin: boolean
   telegram_id: number | null
   expires_at: number | null
+}
+
+export interface MiniAppSetupResult {
+  ok: boolean
+  message: string
+  how_to_fix: string
 }
 
 // Backup / restore (PHASE 10)
@@ -864,6 +873,7 @@ export interface PermissionResult {
   account_label: string
   target: string
   target_title: string
+  registry_channel_id: string
   channel_found: boolean
   authorized: boolean
   can_read_info: boolean
@@ -907,6 +917,57 @@ export interface NotificationCategory {
 export interface NotificationSettings {
   enabled: boolean
   categories: NotificationCategory[]
+}
+
+// Channel Registry (hardening: one shared channel identity, decision D-051)
+export interface Channel {
+  id: string
+  reference: string
+  telegram_id: number | null
+  username: string
+  title: string
+  kind: string
+  status: string
+  is_default: boolean
+  modules: Record<string, boolean>
+  verification_status: string
+  verification_message: string
+  verification_hint: string
+  participants_count: number | null
+  last_verified_at: string | null
+  note: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ChannelList {
+  items: Channel[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export interface ChannelSummary {
+  total: number
+  verified: number
+  with_warning: number
+  with_error: number
+  default_channel_id: string | null
+  default_channel_label: string
+}
+
+export interface ChannelVerification {
+  channel_id: string
+  status: string
+  status_label: string
+  found: boolean
+  title: string
+  username: string
+  kind: string
+  participants_count: number | null
+  message: string
+  how_to_fix: string
+  retry_after: number | null
 }
 
 export const api = {
@@ -1005,6 +1066,8 @@ export const api = {
   createPost: (payload: {
     text: string
     channel_id?: number
+    channel_username?: string
+    registry_channel_id?: string
     telegram_message_id?: number
     force_category?: string
     plan?: boolean
@@ -1057,7 +1120,8 @@ export const api = {
 
   // Invite Manager (PHASE 6)
   invitePreview: (payload: {
-    target: string
+    target?: string
+    channel_id?: string
     account_ids?: string[]
     source_ids?: string[]
     filters?: Record<string, unknown>
@@ -1071,7 +1135,8 @@ export const api = {
     request<InviteJobList>('/api/v1/invites?' + new URLSearchParams(params).toString()),
   createInviteJob: (payload: {
     name?: string
-    target: string
+    target?: string
+    channel_id?: string
     account_ids?: string[]
     source_ids?: string[]
     filters?: Record<string, unknown>
@@ -1127,10 +1192,11 @@ export const api = {
   audienceSources: (params: Record<string, string> = {}) =>
     request<SourceList>('/api/v1/audience/sources?' + new URLSearchParams(params).toString()),
   createSource: (payload: {
-    reference: string
+    reference?: string
     title?: string
     source_type?: string
     account_id?: string | null
+    channel_id?: string
   }) =>
     request<AudienceSource>('/api/v1/audience/sources', {
       method: 'POST',
@@ -1219,14 +1285,22 @@ export const api = {
     }),
 
   // Analytics (PHASE 8)
-  analyticsOverview: (days = 30) =>
-    request<AnalyticsOverview>(`/api/v1/analytics/overview?days=${days}`),
-  analyticsContent: (days = 30) =>
-    request<ContentAnalytics>(`/api/v1/analytics/content?days=${days}`),
-  analyticsReactions: (days = 30) =>
-    request<ReactionsAnalytics>(`/api/v1/analytics/reactions?days=${days}`),
-  analyticsAudience: (days = 30) =>
-    request<AudienceAnalytics>(`/api/v1/analytics/audience?days=${days}`),
+  analyticsOverview: (days = 30, channelId = '') =>
+    request<AnalyticsOverview>(
+      `/api/v1/analytics/overview?days=${days}&channel_id=${encodeURIComponent(channelId)}`,
+    ),
+  analyticsContent: (days = 30, channelId = '') =>
+    request<ContentAnalytics>(
+      `/api/v1/analytics/content?days=${days}&channel_id=${encodeURIComponent(channelId)}`,
+    ),
+  analyticsReactions: (days = 30, channelId = '') =>
+    request<ReactionsAnalytics>(
+      `/api/v1/analytics/reactions?days=${days}&channel_id=${encodeURIComponent(channelId)}`,
+    ),
+  analyticsAudience: (days = 30, channelId = '') =>
+    request<AudienceAnalytics>(
+      `/api/v1/analytics/audience?days=${days}&channel_id=${encodeURIComponent(channelId)}`,
+    ),
 
   // Telegram Mini App (PHASE 9)
   miniappConfig: () => request<MiniAppConfig>('/api/v1/miniapp/config'),
@@ -1237,6 +1311,11 @@ export const api = {
     }),
   miniappMe: () => request<MiniAppMe>('/api/v1/miniapp/me'),
   miniappLogout: () => request<{ ok: boolean }>('/api/v1/miniapp/logout', { method: 'POST' }),
+  miniappSetup: (publicUrl: string) =>
+    request<MiniAppSetupResult>('/api/v1/miniapp/setup', {
+      method: 'POST',
+      body: JSON.stringify({ public_url: publicUrl }),
+    }),
 
   // Backup / restore (PHASE 10)
   backupInfo: () => request<BackupInfo>('/api/v1/backup/info'),
@@ -1260,7 +1339,7 @@ export const api = {
   configExportUrl: () => '/api/v1/backup/config/export',
 
   // Post-1.0 hardening: permission probe
-  permissionCheck: (payload: { account_id: string; target: string }) =>
+  permissionCheck: (payload: { account_id: string; target?: string; channel_id?: string }) =>
     request<PermissionResult>('/api/v1/permissions/check', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -1278,4 +1357,36 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(payload),
     }),
+
+  // Channel Registry (hardening: one shared channel identity)
+  channels: (params: Record<string, string> = {}) =>
+    request<ChannelList>('/api/v1/channels?' + new URLSearchParams(params).toString()),
+  channel: (id: string) => request<Channel>(`/api/v1/channels/${id}`),
+  channelsSummary: () => request<ChannelSummary>('/api/v1/channels/summary'),
+  addChannel: (payload: {
+    reference: string
+    title?: string
+    kind?: string
+    make_default?: boolean
+    note?: string
+  }) => request<Channel>('/api/v1/channels', { method: 'POST', body: JSON.stringify(payload) }),
+  updateChannel: (id: string, payload: Record<string, unknown>) =>
+    request<Channel>(`/api/v1/channels/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  setChannelDefault: (id: string) =>
+    request<Channel>(`/api/v1/channels/${id}/default`, { method: 'POST' }),
+  setChannelModules: (id: string, modules: Record<string, boolean>) =>
+    request<Channel>(`/api/v1/channels/${id}/modules`, {
+      method: 'POST',
+      body: JSON.stringify({ modules }),
+    }),
+  verifyChannel: (id: string, accountId: string) =>
+    request<ChannelVerification>(`/api/v1/channels/${id}/verify`, {
+      method: 'POST',
+      body: JSON.stringify({ account_id: accountId }),
+    }),
+  removeChannel: (id: string) =>
+    request<null>(`/api/v1/channels/${id}`, { method: 'DELETE' }),
 }

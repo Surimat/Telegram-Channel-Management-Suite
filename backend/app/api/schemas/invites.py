@@ -26,7 +26,8 @@ class InviteFiltersIn(BaseModel):
 
 
 class InvitePreviewIn(BaseModel):
-    target: str
+    target: str = ""
+    channel_id: str = ""
     account_ids: list[str] = Field(default_factory=list)
     source_ids: list[str] = Field(default_factory=list)
     filters: dict[str, Any] = Field(default_factory=dict)
@@ -59,7 +60,8 @@ class InvitePreviewOut(BaseModel):
 
 class InviteJobCreateIn(BaseModel):
     name: str = ""
-    target: str
+    target: str = ""
+    channel_id: str = ""
     account_ids: list[str] = Field(default_factory=list)
     source_ids: list[str] = Field(default_factory=list)
     filters: dict[str, Any] = Field(default_factory=dict)
@@ -77,6 +79,7 @@ class InviteJobOut(BaseModel):
     name: str = ""
     target: str = ""
     target_title: str = ""
+    channel_id: str = ""
     status: str
     dry_run: bool = False
     confirmed_at: datetime | None = None

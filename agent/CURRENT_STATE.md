@@ -3,19 +3,36 @@
 > Persistent project memory. **A new agent must be able to continue from this
 > file + git + code alone.** Update this after every major phase.
 
-**Last updated:** 2026-10-03
-**Current phase:** **Release 1.0.** PHASE 0–11, the RC/hardening pass, and the
-post-1.0 hardening pass (manager-bot runtime + notifications + account permission
-probe) are complete, committed and pushed on `develop`. All gates pass:
-`pytest` **384 passed**, `ruff` clean, `vue-tsc` + `npm run build` clean.
-The active task is to merge PR #1 (`develop → main`) and tag `v1.0.0`
-(see `docs/RELEASE_CHECKLIST.md`).
-**Next phase:** optional only — Alembic migrations, channel-binding registry/UI,
-Mini App BotFather registration helper.
-**Repository status:** `develop` (working branch) is ahead of `origin/main`; the
-local `main` still points at the PHASE 3 commit until PR #1 merges. No force push,
-no history rewrite.
-**Branch:** `develop` (tracks `origin/develop`); `main` is updated only via pull request.
+**Last updated:** 2026-10-04
+**Current phase:** **Release publication.** v1.0.0 is released
+(`main == origin/main == 82c1059`, tag `v1.0.0`). `develop` carries the post-1.0
+hardening plus the release-engineering work: (1) **versioned Alembic migrations**
+replace `create_all` at startup (D-052); (2) a **shared Channel Registry**
+(`channels` table + `/api/v1/channels` + RU-first "Каналы" page) so invites,
+post ingestion, audience sources and the permission probe all share one channel
+identity; analytics can be scoped per channel (D-055); (3) **reproducible,
+cross-platform portable packaging** (`scripts/build_win_runtime.py` +
+`scripts/win-requirements.lock` + `scripts/build_portable.sh` now emits a
+versioned ZIP) and a **Release workflow** (`.github/workflows/release.yml`)
+(D-056).
+Version string is **1.0.1** across `backend/app/__init__.py`, `pyproject.toml`,
+`frontend/package.json` + lock (D-057).
+All gates pass: `pytest` **427 passed** (stable across repeated runs; the
+Mini App "Event loop is closed" flake is fixed — see below), `ruff` clean,
+`vue-tsc` + `npm run build`
+clean, Docker image builds and serves `/health` + SPA, portable tree starts
+end-to-end (incl. a path with spaces/Cyrillic) with backup/restore and graceful
+shutdown; **GitHub Actions CI** (D-053) enforces the backend and frontend gates.
+**Test-harness fix:** the Mini App tests iterated the FastAPI `get_session()`
+dependency with `break`, leaking the async-generator session; it was GC'd on a
+later test's closed loop and intermittently raised `GeneratorExit`/`TypeError`
+(observed once in CI). `tests/conftest.py` now disposes the engine *before*
+`_isolated_env` resets it, and the Mini App tests use `session_scope()`.
+**Next phase:** publish the **v1.0.1** release — merge the `develop → main` PR,
+tag `v1.0.1`, publish the GitHub Release with the auto-attached portable ZIP.
+**Repository status:** `main == origin/main == 82c1059` (tag `v1.0.0`); `develop`
+is ahead of `main` (post-release hardening + release engineering).
+**Branch:** `develop` (working branch); `main` is released and updated only via pull request.
 
 ---
 
@@ -36,6 +53,8 @@ Git: shallow clone → history may be incomplete. Run
   `CHANGELOG.md`.
 - `.gitignore` (secrets/sessions/data/logs/backups/models protected),
   `.env.example`, `README.md`.
+- `.github/workflows/ci.yml` — CI on pushes/PRs to `main`/`develop`: backend
+  (`ruff` + `pytest`) and frontend (`npm ci` + `npm run build`).
 
 ### Backend application (PHASE 1) — runnable
 Layered architecture: **core → db/models → db/repositories → services → api**.
@@ -260,17 +279,21 @@ Layered architecture: **core → db/models → db/repositories → services → 
 - `backend/app/db/repositories/analytics.py` — `AnalyticsRepository`: read-only
   aggregates over posts, reaction jobs, audience sources/users/links and invite
   tasks. Per-day series are bucketed in Python (`_buckets`/`_day_key`) for
-  portability; helpers `_rows`/`_scalar`/`_scalars`/`_value`.
+  portability; helpers `_rows`/`_scalar`/`_scalars`/`_value`. Every query takes an
+  optional `channel_id` (D-055) and scopes via `_scoped_posts`/`_scoped_reactions`/
+  `_scoped_audience_users`/`_channel_source_ids`.
 - `backend/app/services/analytics_service.py` — `AnalyticsService`:
-  `content()`/`reactions()`/`audience()`/`overview()`, RU plain-language
-  summaries, percent-change vs. the previous window, titled counts
-  (`_CATEGORY_TITLES`/`_SOURCE_TITLES`/`_AUDIENCE_STATUS_TITLES`), `_clamp_days`.
+  `content()`/`reactions()`/`audience()`/`overview()` (all accept `channel_id`),
+  RU plain-language summaries, percent-change vs. the previous window, titled
+  counts (`_CATEGORY_TITLES`/`_SOURCE_TITLES`/`_AUDIENCE_STATUS_TITLES`),
+  `_clamp_days`.
 - `backend/app/api/schemas/analytics.py` + `api/v1/analytics.py` —
-  `GET /api/v1/analytics/overview|content|reactions|audience?days=1..365`;
+  `GET /api/v1/analytics/overview|content|reactions|audience?days=1..365&channel_id=`;
   registered in `v1/router.py`; `api/deps.py::get_analytics_service`.
-- `frontend/src/views/AnalyticsView.vue` — period switch, headline metrics,
-  sparklines, category/emoji bars, audience status, source effectiveness table;
-  `/analytics` route + sidebar «Аналитика».
+  `AnalyticsOverviewOut` echoes `channel_id`.
+- `frontend/src/views/AnalyticsView.vue` — channel + period switches, headline
+  metrics, sparklines, category/emoji bars, audience status, source effectiveness
+  table; `/analytics` route + sidebar «Аналитика».
 - `frontend/src/components/Sparkline.vue` + `BarList.vue` — dependency-free
   inline-SVG/CSS charts (D-037).
 - `frontend/src/views/DashboardView.vue` — new "Что показывают цифры" block
@@ -287,11 +310,15 @@ Layered architecture: **core → db/models → db/repositories → services → 
   tokens keyed by `derive_key("miniapp-session")`; `MiniAppSessionError`.
 - `backend/app/miniapp/service.py` — `MiniAppService`: sealed manager-token read,
   owner allow-list (`settings.admin_ids`), DB-overridable `miniapp_enabled` /
-  `miniapp_public_url`, plain-language `MiniAppStatus`.
+  `miniapp_public_url`, plain-language `MiniAppStatus`, and `setup()` — the
+  one-click registration helper (D-054) that points the manager bot's Web App
+  menu button at a public HTTPS URL.
 - `backend/app/api/schemas/miniapp.py` + `api/v1/miniapp.py` —
-  `GET /config`, `POST /auth` (sets `HttpOnly` `tcms_miniapp` cookie),
-  `GET /me`, `POST /logout`; registered in `v1/router.py`;
-  `api/deps.py::get_miniapp_service`.
+  `GET /config`, `POST /setup` (register menu button), `POST /auth` (sets
+  `HttpOnly` `tcms_miniapp` cookie), `GET /me`, `POST /logout`; registered in
+  `v1/router.py`; `api/deps.py::get_miniapp_service`.
+- `backend/app/providers/base.py` — `TelegramBotProvider.set_menu_button`;
+  implemented by `aiogram_bot.py` (`set_chat_menu_button`) and `fake_bot.py`.
 - `backend/app/services/system_service.py` — `miniapp_check` added to the Setup
   Wizard checks.
 - `backend/app/core/config.py` + `.env.example` — `miniapp_enabled` (off by
@@ -319,11 +346,18 @@ Layered architecture: **core → db/models → db/repositories → services → 
 - `frontend/src/views/BackupView.vue` (Резервные копии) + route + nav + client
   types/methods.
 - `portable/run.bat` (sets `TCMS_ROOT`/`PYTHONPATH`, opens browser),
-  `portable/stop.bat`, `portable/README.txt`; `scripts/build_portable.sh`
-  (now stages the embedded runtime automatically, D-043),
-  `scripts/fetch_embedded_python.sh`.
+  `portable/stop.bat`, `portable/README.txt`.
+- **Release-engineering packaging (D-056/D-057):** `scripts/build_portable.sh`
+  is now cross-platform and emits a versioned ZIP (+ `.sha256`);
+  `scripts/build_win_runtime.py` stages the embedded Windows CPython + pinned
+  `win_amd64` wheels from `scripts/win-requirements.lock` (extracted flat, no
+  compiler — `pyaes` comes from its pure-Python sdist);
+  `scripts/fetch_embedded_python.sh` retained (now with `--no-deps`).
+  `.github/workflows/release.yml` builds and attaches the ZIP to the GitHub
+  Release on a `v*` tag.
 - `tests/` — `test_backup_service.py` (9), `test_backup_api.py` (7),
-  `test_portable_smoke.py` (1 startup smoke + 3 runtime-fetcher tests).
+  `test_portable_smoke.py` (1 startup smoke + offline-tree/ZIP-layout + builder
+  dry-runs).
 
 ### PHASE 11 — VPS / Docker production config
 - `docker/Dockerfile` — multi-stage (Node SPA build → `python:3.12-slim`,
@@ -383,7 +417,7 @@ Layered architecture: **core → db/models → db/repositories → services → 
   durable jobs, execution via the provider with FloodWait handling, and startup
   recovery — verified live in offline mode (add bot → enable → ingest → job
   created) and covered by 48 tests.
-- `ruff check backend tests` → clean. `pytest` → **384 passed** (after the hardening tests).
+- `ruff check backend tests` → clean. `pytest` → **413 passed** (after the hardening tests).
 - Frontend `npm run build` → outputs to `backend/app/static/` successfully
   (`vue-tsc` clean).
 - **Sessions (PHASE 4)**: guided auth wizard (start → code → 2FA), `.session`
@@ -421,13 +455,13 @@ Layered architecture: **core → db/models → db/repositories → services → 
 
 ## 4. What does NOT exist yet
 
-- Channel binding: there is no dedicated channel registry/binding UI yet, though
-  posts carry `channel_id`/`channel_username` and analytics aggregate by channel
-  indirectly.
-- Alembic migrations (currently `create_all` at startup) — the last documented
-  hardening gap.
-- Mini App: BotFather Web App registration and a public HTTPS URL are the owner's
-  deployment step (documented; not automated). The Mini App is off by default.
+- Mini App: BotFather Web App **menu-button** registration is automated
+  (`POST /api/v1/miniapp/setup`, D-054); providing a public HTTPS URL remains the
+  owner's deployment step. The Mini App is off by default.
+- Reactions/audience store their own channel text in places; invites, posts,
+  audience sources, the permission probe and analytics consume the registry.
+- ~~Channel binding registry/UI~~ — **done** (hardening, see §2b).
+- ~~Alembic migrations~~ — **done** (hardening, see §2b).
 - ~~Account permission probe~~ — **done** (post-1.0 hardening, see §2a).
 - ~~Manager-bot runtime / command loop / notifications~~ — **done** (post-1.0
   hardening, see §2a).
@@ -473,17 +507,117 @@ Layered architecture: **core → db/models → db/repositories → services → 
 
 Decisions: D-047, D-048, D-049.
 
+## 2b. Hardening (2026-10-03) — versioned migrations + Channel Registry
+
+**Versioned Alembic migrations (replace `create_all` at startup).**
+- `alembic.ini`, `migrations/env.py`, `migrations/script.py.mako`, and a baseline
+  revision under `migrations/versions/` autogenerated from the models (revision id
+  changes whenever the baseline is regenerated).
+- `backend/app/db/migrate.py` — guarded runner: fresh install / existing
+  `create_all` DB (adopt + stamp) / normal upgrade, pre-migration backup,
+  transaction-per-migration, DB state constants.
+- `backend/app/core/paths.py` — `project_root()`, `code_root()`, `alembic_ini()`
+  (migration dir resolved relative to code, not the mutable data root).
+- `backend/app/main.py` — startup applies migrations (no `create_all`).
+- `backend/app/services/system_service.py` — DB check is migration-aware;
+  `api/schemas/system.py` + `api/v1/system.py` expose migration status/upgrade.
+- `docker/Dockerfile` ships `alembic.ini` + `migrations/`; `scripts/build_portable.sh`
+  copies them into the portable bundle.
+- Docs: `docs/database-migrations.md`. Tests: `tests/test_migrations.py`.
+
+**Channel Registry (one shared channel identity).**
+- `backend/app/db/models/channel.py` (`Channel`, `ChannelKind`, `ChannelStatus`) —
+  reference/telegram_id/username/title/kind/status/is_default/modules(JSON)/
+  verification fields/participants_count/note; registered in models `__init__`.
+- `backend/app/db/repositories/channels.py`, `services/channel_service.py`
+  (`normalize_reference`, add/verify/set_modules/set_default/delete/list/summary),
+  `api/schemas/channels.py`, `api/v1/channels.py`, `api/deps.py::get_channel_service`,
+  router registered. Verification reuses `PermissionService` (never bypasses limits).
+- Invite integration: `invite_jobs.channel_id` added; invite create/preview resolve
+  the target from the chosen registry channel (fallback to a typed target).
+- Post ingestion + audience sources: `posts.registry_channel_id` and
+  `audience_sources.channel_id` link to the registry; the API resolves the
+  channel's reference/username from a chosen registry id (friendly 404 if
+  unknown). Migration `e3b5890e407e`.
+- Permission probe: `permission_checks.registry_channel_id` links a probe to the
+  chosen registry channel; `POST /api/v1/permissions/check` accepts `channel_id`
+  and `ChannelService.verify` links its probe. Migration `6816b29afc76`.
+- Frontend: RU-first "Каналы" page (`ChannelsView.vue`, nav + route), channel
+  types/methods in `api/client.ts`; invite form, audience source form, reactions
+  simulation/ingest panel and the Sessions permission panel each gained a channel
+  picker.
+- Tests: `tests/test_channels.py` (21) + `tests/test_permission_service.py` + `conftest.py::channel_client`.
+
+Decisions: D-051, D-052.
+
+**Migration adoption fix (high severity).** A v1.0.0 install (built with
+`create_all`, no `channels` table) was stamped at Alembic *head* without running
+the registry migration, so the app crashed on the missing `channels` table.
+`migrate.py` is now **baseline-aware**: it stamps such a database at the baseline
+revision and upgrades through the deltas, and `database_status` reports a pending
+upgrade. Migration history: `0191baf5265f` (baseline = v1.0.0 schema) →
+`561f0631d045` (channel registry) → `e3b5890e407e` (registry links for sources
+and posts) → `6816b29afc76` (registry link for permission checks). Regression
+test upgrades a v1.0.0-shaped database with existing rows. Decisions: D-052.
+
+## 2c. Release engineering (2026-10-04) — reproducible, installable packaging
+
+**Version is `1.0.1`** across `backend/app/__init__.py`,
+`pyproject.toml`, `frontend/package.json` and `frontend/package-lock.json`
+(previously an inconsistent `1.0.1`; D-057).
+
+**Cross-platform, reproducible Windows portable runtime.**
+- `scripts/build_win_runtime.py` — downloads the official Windows **embeddable**
+  CPython (`python-3.12.7-embed-amd64.zip`) and the pinned `win_amd64` wheels,
+  extracts them flat into `runtime/site-packages`, and writes `python312._pth`
+  (`python312.zip`, `.`, `../app`, `site-packages`, `import site`). No compiler:
+  `pyaes` (Telethon dep, sdist-only) is extracted from its pure-Python sdist.
+- `scripts/win-requirements.lock` — pinned Windows runtime set (uvicorn base, not
+  `[standard]`; see D-056).
+- `scripts/build_portable.sh` — cross-platform; builds the SPA, stages the app +
+  runtime, and writes a versioned ZIP
+  (`Telegram-Channel-Management-Suite-Windows-Portable-<version>.zip`) plus
+  `.sha256`. New flags `--no-runtime`, `--no-zip`, `--no-frontend`.
+- `scripts/fetch_embedded_python.sh` — retained (host-driven path), gained
+  `--no-deps`.
+
+**CI/release automation.**
+- `.github/workflows/release.yml` — on a `v*` tag (or manual dispatch): verify
+  (ruff + pytest + SPA build), build the portable ZIP, upload it as an artifact
+  and attach it (+ checksum) to the GitHub Release.
+- `.github/workflows/ci.yml` (D-053) unchanged.
+
+**Dependencies.** `backend/requirements.txt` now uses base `uvicorn` instead of
+`uvicorn[standard]` (the app uses no WebSockets and the default asyncio loop;
+this removes uvloop/httptools/watchfiles/websockets and keeps the portable
+runtime small and cross-buildable). `--reload` now needs `watchfiles`
+(documented).
+
+**Verification (this pass).** `pytest` **427 passed**; `ruff` clean; `vue-tsc` +
+`npm run build` clean; `docker build` succeeded and the container served
+`/health` + the SPA; the staged portable tree started end-to-end from a path with
+spaces and Cyrillic, applied migrations, created a backup, restored it, and shut
+down gracefully via `/api/v1/system/shutdown`. Decisions: D-056, D-057.
+
 ## 5. Next action
 
-The code is stable and feature-complete; the next action is the **release**, not
-new features:
+**v1.0.0 is released** (`main` = `82c1059`, tag + GitHub Release published) and
+the post-1.0 work is ready to publish as **v1.0.1**. Next action: complete the
+release-publication checklist (see `docs/RELEASE_CHECKLIST.md`):
 
-1. Merge PR #1 (`develop → main`).
-2. Tag `v1.0.0` on the merged `main` commit + publish a GitHub Release.
-3. Continue on `develop` with optional items only:
-   - Alembic migrations (replace `create_all`) — last documented gap.
-   - Channel-binding registry/UI.
-   - Mini App BotFather registration helper.
+1. Merge the `develop → main` PR (reviewed; no force).
+2. Tag `v1.0.1` on the merged `main` commit; publish the GitHub Release. The
+   **Release** workflow (`.github/workflows/release.yml`) attaches the Windows
+   portable ZIP + `.sha256`.
+3. Sync `main` back into `develop`.
+
+After that, only optional items remain (analytics is already per-channel):
+
+1. Mini App BotFather registration helper (D-054 covers one-click menu-button
+   registration; a full BotFather flow is not automated).
+
+Open PR: **#2** (draft, `develop → main`) — "Post-1.0 hardening: versioned
+migrations + shared Channel Registry".
 
 See `agent/NEXT_TASK.md` and `docs/RELEASE_CHECKLIST.md`. Do **not** re-open
 PHASE 8–11 — they are complete.
@@ -588,7 +722,8 @@ cd frontend && npm install && npm run build && cd ..
   URL: https://github.com/Surimat/Telegram-Channel-Management-Suite/pull/1
 - **Never push directly to `main`.** All work goes to `develop` (or feature
   branches off it) and lands in `main` only via a reviewed pull request.
-- `main` still points at the PHASE 3 commit (`f06ba53`) until PR #1 merges.
+- `main` was at the PHASE 3 commit (`f06ba53`) until PR #1 merged; it now points
+  at the release merge commit `82c1059` (same as `develop`).
 - **RC sync (2026-10-03):** PHASE 7–11 + polish + RC hardening pushed to
   `develop` (`fd53ad1`…`e65a374`; fast-forward, no force). `origin/develop` is
   now at `e65a374` (RC hardening). PR #1 retitled to **"Full roadmap (PHASE 0–11)
@@ -598,8 +733,17 @@ cd frontend && npm install && npm run build && cd ..
   notifications + permission probe) pushed to `develop` as a fast-forward
   (`ba30578`…`727b0f8`; no force). Functional commit `c0174a8`; `origin/develop`
   is now at `727b0f8`. PR #1 retitled to **"Full roadmap (PHASE 0–11) + RC &
-  post-1.0 hardening"** with an updated body; still **open**, `merged: false` —
-  **not merged** (awaiting owner confirmation).
+  post-1.0 hardening"** with an updated body.
+- **Release v1.0.0 (2026-10-03):** release-prep commits `b442e08` (build fix:
+  keep `backend/app/static/.gitkeep` across Vite builds), `f53cadf` (memory/docs
+  sync to actual state, new `docs/RELEASE_CHECKLIST.md`) and `6a45e0a`
+  (AGENTS release section) pushed to `develop`. PR #1 was marked ready and
+  **merged into `main`** with merge commit `82c1059` (no force, no history
+  rewrite). `develop` fast-forwarded to `82c1059` (both branches 0 ahead / 0
+  behind). Local stale `main` (`f06ba53`) fast-forwarded to `origin/main`.
+  Annotated tag **`v1.0.0`** created on `82c1059` and pushed; **GitHub Release
+  `v1.0.0`** published:
+  https://github.com/Surimat/Telegram-Channel-Management-Suite/releases/tag/v1.0.0
 - No history rewrite, no force push.
 - Secret audit before push: `.env`, `data/*.db`, session files and portable
   runtimes are git-ignored and confirmed absent from the remote; the mutable

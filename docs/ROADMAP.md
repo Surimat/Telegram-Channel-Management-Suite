@@ -152,16 +152,28 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
       loop + notification forwarding, D-047/D-048) and a standalone account
       permission probe (`ok`/`partial`/`no_access`/`auth_required`/`admin_required`/
       `privacy_restricted`/`flood_wait`/`error`, D-049).
-- [ ] Optional (remaining): Alembic migrations; channel-binding registry/UI;
-      Mini App BotFather registration helper.
+- [x] **Post-1.0 hardening (v1.0.1)**: versioned Alembic migrations; channel
+      registry/UI; Mini App menu-button registration helper; per-channel
+      analytics; reproducible cross-platform portable packaging + Release
+      workflow.
+- [ ] Optional (remaining): a full automated BotFather Mini App flow (the
+      one-click menu-button registration exists, D-054).
 
 ---
 
 ## Release
 
-- **v1.0.0** — first production release of the complete suite plus post-1.0
-  hardening. See `docs/RELEASE_CHECKLIST.md` and `agent/CHANGELOG.md`.
-- After v1.0.0, development continues on `develop`; no artificial new phases.
+- **v1.0.1 (2026-10-04):** post-1.0 hardening release — versioned Alembic
+  migrations, the shared Channel Registry, per-channel analytics, GitHub Actions
+  CI, the Mini App setup helper, and reproducible cross-platform portable
+  packaging with an automated Release workflow. Version string is
+  `1.0.1`. Published from `develop` via a reviewed `develop → main` PR, tagged
+  `v1.0.1`; the Windows portable ZIP is attached to the GitHub Release.
+- **v1.0.0 (2026-10-03):** first production release — the complete PHASE 0–11
+  suite plus RC and post-1.0 hardening. Annotated tag `v1.0.0` + GitHub Release
+  on the `develop → main` merge commit `82c1059`. See `docs/RELEASE_CHECKLIST.md`
+  and `agent/CHANGELOG.md`. After v1.0.0, development continues on `develop`; no
+  artificial new phases.
 
 ---
 

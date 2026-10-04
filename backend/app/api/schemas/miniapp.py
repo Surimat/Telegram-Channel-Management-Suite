@@ -41,3 +41,16 @@ class MiniAppMeResponse(BaseModel):
     is_admin: bool = False
     telegram_id: int | None = None
     expires_at: int | None = None
+
+
+class MiniAppSetupRequest(BaseModel):
+    public_url: str = Field(
+        default="",
+        description="Public HTTPS URL to register as the bot's Web App menu button.",
+    )
+
+
+class MiniAppSetupResponse(BaseModel):
+    ok: bool = Field(description="Whether the Mini App was registered successfully.")
+    message: str = Field(description="Plain-language result (RU).")
+    how_to_fix: str = Field(default="", description="What the owner can do next.")
