@@ -4,11 +4,11 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-04
-**Current phase:** **v1.0.3 product polish (Diagnostics).** `main` = `61d39fa` (tag `v1.0.2`). `develop` carries the `v1.0.3` work: the **Diagnostics** page (per-component status in plain language), a **redacted diagnostic report** (ZIP/JSON/TXT with a server-side secret scan), and **safe maintenance actions** (restart scheduler, recheck Telegram, recheck channels, clean up stuck local jobs) — none of which delete user data (D-061). `v1.0.0`/`v1.0.1`/`v1.0.2` stay immutable (D-050).
+**Current phase:** **v1.0.3 product polish (Diagnostics).** `main` = `f18f53a` (tag `v1.0.3`, GitHub Release with the Windows portable ZIP + `.sha256`). The `v1.0.3` work: the **Diagnostics** page (per-component status in plain language), a **redacted diagnostic report** (ZIP/JSON/TXT with a server-side secret scan), and **safe maintenance actions** (restart scheduler, recheck Telegram, recheck channels, clean up stuck local jobs) — none of which delete user data (D-061). `v1.0.0`/`v1.0.1`/`v1.0.2` stay immutable (D-050).
 Earlier (already released): the post-1.0 hardening — **versioned Alembic migrations** replace `create_all` at startup (D-052); a **shared Channel Registry** (`channels` table + `/api/v1/channels` + RU-first channel page) so invites, post ingestion, audience sources and the permission probe all share one channel identity; analytics can be scoped per channel (D-055); **reproducible, cross-platform portable packaging** and the **Release workflow** (D-056/D-060).
 Version string is **1.0.3** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
 All gates pass: `pytest` **447 passed** (stable), `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend and frontend gates.
-**Repository status:** `main` = `61d39fa` (tags `v1.0.0`, `v1.0.1`, `v1.0.2`; the `v1.0.2` GitHub Release carries the Windows portable ZIP + `.sha256`); `develop` = the `v1.0.3` polish.
+**Repository status:** `main == develop == f18f53a` (tags `v1.0.0`, `v1.0.1`, `v1.0.2`, `v1.0.3`); the `v1.0.3` GitHub Release carries the Windows portable ZIP + `.sha256` (built by CI, D-060).
 **Branch:** develop (working branch); main is released and updated only via pull request.
 
 ---
@@ -622,28 +622,23 @@ Full suite: **447 passed**, `ruff` clean, `vue-tsc` + `npm run build` clean.
 
 ## 5. Next action
 
-**v1.0.3 is the current polish on `develop`** (Diagnostics + redacted report; see
-§2d). `main` = `61d39fa` (tag `v1.0.2`, GitHub Release with the Windows portable
-ZIP + `.sha256`). The v1.0.2 release chain was fully automated by CI (D-060).
+**v1.0.3 is released.** `main == develop == f18f53a` (tag `v1.0.3`); the Release
+workflow created the GitHub Release and attached the Windows portable ZIP +
+`.sha256` (D-060). CI is green.
 
 **NEXT_TASK = MAINTENANCE / OPTIONAL EXTENSIONS.** The roadmap (PHASE 0–11) is
-complete and shipped; there is **no required next phase**. Publish v1.0.3 with the
-standard flow (push `develop` → CI green → reviewed `develop → main` PR → tag
-`v1.0.3` on the merge commit → Release workflow builds/attaches the ZIP). Then
-optional future work (pick only if the owner asks; do **not** open a new phase
-unprompted):
+complete and shipped; there is **no required next phase**. Optional future work
+(pick only if the owner asks; do **not** open a new phase unprompted):
 
 1. A fully automated @BotFather Mini App flow (the one-click menu-button
    registration already exists, D-054).
 2. Replace the per-request Mini App `initData` check with short-lived signed
-   session tokens if the panel is ever exposed beyond the owner (D-035 notes the
-   current decision).
+   session tokens if the panel is ever exposed beyond the owner (D-035).
 3. Any new feature requested by the owner — record a decision, keep the
    vertical-slice workflow (backend + DB + UI + tests + docs + memory + commit).
 
-Before any future release: follow `docs/RELEASE_CHECKLIST.md` (now with a
-per-release verification table). Do **not** move `v1.0.0`/`v1.0.1`/`v1.0.2`
-tags (D-050).
+Before any future release: follow `docs/RELEASE_CHECKLIST.md`. Do **not** move
+`v1.0.0`/`v1.0.1`/`v1.0.2`/`v1.0.3` tags (D-050).
 
 ### RC verification (2026-10-03) — done against a live server in offline mode
 

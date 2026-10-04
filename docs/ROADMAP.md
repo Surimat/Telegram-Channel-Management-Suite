@@ -177,6 +177,14 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ## Release
 
+- **v1.0.3 (2026-10-04):** product-polish patch — the **Diagnostics** page
+  (per-component status in plain language), a **redacted diagnostic report**
+  (ZIP/JSON/TXT with a server-side secret scan) and **safe maintenance actions**
+  (restart scheduler, recheck Telegram, recheck channels, clean up stuck local
+  jobs), none of which delete user data (D-061). Also a UI-wording consistency
+  pass. Published from `develop` via a reviewed `develop → main` PR (merge commit
+  `f18f53a`), tagged `v1.0.3`; the Windows portable ZIP + `.sha256` are attached
+  to the GitHub Release by the automated Release workflow (D-060).
 - **v1.0.2 (2026-10-04):** release-engineering patch — the Release workflow
   creates/updates the GitHub Release itself and attaches the Windows portable ZIP
   + `.sha256` (D-060), making a `v*` tag a fully automated release with no manual

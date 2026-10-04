@@ -7,6 +7,9 @@ Dates are ISO-8601.
 
 ## [1.0.3] — 2026-10-04
 
+Released 2026-10-04 (merge `f18f53a`, tag `v1.0.3`; the Release workflow
+built the Windows portable ZIP + `.sha256` and attached them — D-060).
+
 Product polish: a **Diagnostics** page so a non-technical owner can understand the
 system state and hand a developer a **redacted** report without reading logs.
 No new phases, no new large features.
