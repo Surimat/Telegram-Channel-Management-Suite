@@ -9,7 +9,7 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v1.0.2`.**
+**Current stable release: `v1.0.3`.**
 
 ## What it does
 
@@ -51,7 +51,7 @@ Persistent memory so work can continue across sessions:
 ## Status
 
 **PHASE 0–11 complete.** The suite is feature-complete against the planned
-roadmap and shipped as **v1.0.2** (the roadmap has no open phases; remaining work
+roadmap and shipped as **v1.0.3** (the roadmap has no open phases; remaining work
 is maintenance / optional extensions). Post-1.0 additions include versioned
 Alembic migrations (replacing `create_all`), the shared Channel Registry,
 per-channel analytics, GitHub Actions CI, a one-click Mini App setup helper,
