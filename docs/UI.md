@@ -337,3 +337,7 @@ Use exactly one term per entity across the UI, docs and API text:
 
 Do not use "База участников", "Задачи", "Объект", "Пользователь Telegram"
 etc. as synonyms for the terms above.
+
+Internal values must never reach the user raw: job kinds (`reaction.job`,
+`audience.scan`, `invite.batch`) and statuses (`pending`/`running`/…) are shown as
+plain Russian labels (see `QueueView.vue`), just like subsystem statuses.

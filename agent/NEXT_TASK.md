@@ -5,11 +5,13 @@
 
 **Updated:** 2026-10-04
 **Status:** MAINTENANCE / OPTIONAL EXTENSIONS. The roadmap (PHASE 0–11) is complete.
-**v1.0.3 is released.** `main == develop == f18f53a` (tag `v1.0.3`, GitHub
-Release with the Windows portable ZIP + `.sha256`, built by CI — D-060). The
-v1.0.3 work was the **Diagnostics** polish (Diagnostics page + redacted report +
-safe maintenance actions). Suite is green at **447 passed**; `ruff` clean;
-`vue-tsc` + `npm run build` clean; CI enforces the gates (D-053).
+**v1.0.3 is released** (`main` = `f18f53a`, tag `v1.0.3`, GitHub Release with the
+Windows portable ZIP + `.sha256`, built by CI — D-060). The v1.0.3 work was the
+**Diagnostics** polish (Diagnostics page + redacted report + safe maintenance
+actions). Post-1.0.3 maintenance commits are on `develop` (`bc909f5`): startup
+robustness (a corrupt DB is explained, not fatal) + Queue page plain-language
+labels. Suite is green at **462 passed**; `ruff` clean; `vue-tsc` + `npm run
+build` clean; CI enforces the gates (D-053).
 
 ---
 
@@ -63,7 +65,7 @@ memory + commit):
 ### Verification checklist for any change
 
 ```bash
-python -m pytest                 # must stay green (currently 447 passed)
+python -m pytest                 # must stay green (currently 462 passed)
 ruff check backend tests         # must stay clean
 cd frontend && npx vue-tsc --noEmit && npm run build   # outputs to backend/app/static
 ```

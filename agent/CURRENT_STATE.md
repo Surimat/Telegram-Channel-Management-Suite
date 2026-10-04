@@ -4,11 +4,11 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-04
-**Current phase:** **v1.0.3 product polish (Diagnostics).** `main` = `f18f53a` (tag `v1.0.3`, GitHub Release with the Windows portable ZIP + `.sha256`). The `v1.0.3` work: the **Diagnostics** page (per-component status in plain language), a **redacted diagnostic report** (ZIP/JSON/TXT with a server-side secret scan), and **safe maintenance actions** (restart scheduler, recheck Telegram, recheck channels, clean up stuck local jobs) — none of which delete user data (D-061). `v1.0.0`/`v1.0.1`/`v1.0.2` stay immutable (D-050).
+**Current phase:** **v1.x maintenance polish (no new phases).** `main` = `f18f53a` (tag `v1.0.3`, GitHub Release with the Windows portable ZIP + `.sha256`); `develop` carries post-1.0.3 maintenance commits (startup robustness + Diagnostics polish, see `agent/CHANGELOG.md` → Unreleased). `v1.0.3` work: the **Diagnostics** page (per-component status in plain language), a **redacted diagnostic report** (ZIP/JSON/TXT with a server-side secret scan), and **safe maintenance actions** (restart scheduler, recheck Telegram, recheck channels, clean up stuck local jobs) — none of which delete user data (D-061). `v1.0.0`/`v1.0.1`/`v1.0.2`/`v1.0.3` stay immutable (D-050).
 Earlier (already released): the post-1.0 hardening — **versioned Alembic migrations** replace `create_all` at startup (D-052); a **shared Channel Registry** (`channels` table + `/api/v1/channels` + RU-first channel page) so invites, post ingestion, audience sources and the permission probe all share one channel identity; analytics can be scoped per channel (D-055); **reproducible, cross-platform portable packaging** and the **Release workflow** (D-056/D-060).
 Version string is **1.0.3** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
-All gates pass: `pytest` **447 passed** (stable), `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend and frontend gates.
-**Repository status:** `main == develop == f18f53a` (tags `v1.0.0`, `v1.0.1`, `v1.0.2`, `v1.0.3`); the `v1.0.3` GitHub Release carries the Windows portable ZIP + `.sha256` (built by CI, D-060).
+All gates pass: `pytest` **462 passed** (stable), `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend and frontend gates.
+**Repository status:** `main` = `f18f53a` (tag `v1.0.3`); `develop` = `bc909f5` (3 commits ahead of `origin/develop` until pushed) — tags `v1.0.0`, `v1.0.1`, `v1.0.2`, `v1.0.3`; the `v1.0.3` GitHub Release carries the Windows portable ZIP + `.sha256` (built by CI, D-060).
 **Branch:** develop (working branch); main is released and updated only via pull request.
 
 ---
@@ -614,17 +614,42 @@ records or private logs. Header `X-Diagnostics-Redacted: true`.
 
 **Tests.** `tests/test_diagnostics.py` — redaction of every secret kind, mapping
 key-dropping, the safety scan, report generation (json/txt/zip), absence of
-secrets/DB contents, status aggregation, the API, and non-destructive cleanup.
-Full suite: **447 passed**, `ruff` clean, `vue-tsc` + `npm run build` clean.
+secrets/DB contents, status aggregation, the API, non-destructive cleanup, and
+graceful degradation (a failing check or report section yields a friendly row /
+safe empty section instead of HTTP 500). Full suite: **462 passed**, `ruff`
+clean, `vue-tsc` + `npm run build` clean.
 
-**UI wording.** Audience page title → «Аудитория»; invites task list → «Задания»
-(one term per entity; `docs/UI.md` §11). Decisions: D-061.
+**UI wording.** Audience page title → «Аудитория»; invites task list → «Задания»;
+Queue page → Russian labels for job kinds/statuses (one term per entity;
+`docs/UI.md` §11). Decisions: D-061.
+
+## 2e. Post-1.0.3 maintenance (2026-10-04, on `develop`)
+
+Startup robustness + Diagnostics polish. No new phases/features.
+
+- **Corrupt database is explained, not fatal.** A damaged `data/app.db` used to
+  make the Diagnostics page return HTTP 500 (the exact case it exists to explain)
+  and could abort scheduler recovery during startup. Now every DB-backed check in
+  `DiagnosticsService.collect` is guarded (`_guarded`) and degrades to a friendly
+  `error` row; the report's DB-backed sections fall back to safe empty values
+  (`_safe`); `SystemService.database_check` reports a damaged file distinctly
+  (via `_schema_readable`) with a concrete recovery step; and
+  `Scheduler.start()` guards `_recover()`. The app now starts and explains.
+- **Queue page labels** — `frontend/src/views/QueueView.vue` maps raw job kinds
+  (`reaction.job`, `audience.scan`, `invite.batch`) and statuses to plain Russian.
+- `docs/TROUBLESHOOTING.md` gained a damaged-database entry; `docs/ROADMAP.md`
+  corrected stale Alembic/PHASE-2 claims.
+- Tests added: `tests/test_diagnostics.py` (degradation) and
+  `tests/test_scheduler.py` (recovery-failure resilience).
+- Verified: Docker image builds and runs (health, SPA, migrations, persistent
+  volumes, graceful + SIGKILL restart all OK); the released v1.0.3 portable ZIP
+  contains no `.env`/`.db`/`.session`/`.gguf` and empty runtime dirs.
 
 ## 5. Next action
 
-**v1.0.3 is released.** `main == develop == f18f53a` (tag `v1.0.3`); the Release
-workflow created the GitHub Release and attached the Windows portable ZIP +
-`.sha256` (D-060). CI is green.
+**v1.0.3 is released** (`main` = `f18f53a`, tag `v1.0.3`; the Release workflow
+created the GitHub Release and attached the Windows portable ZIP + `.sha256`,
+D-060). Post-1.0.3 maintenance commits sit on `develop` (`bc909f5`). CI is green.
 
 **NEXT_TASK = MAINTENANCE / OPTIONAL EXTENSIONS.** The roadmap (PHASE 0–11) is
 complete and shipped; there is **no required next phase**. Optional future work

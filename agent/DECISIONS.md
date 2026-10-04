@@ -1159,3 +1159,37 @@ restarted from the UI with identical wiring. Diagnostics is a read-only view plu
 explicit safe actions; it never mutates Telegram state except through the
 existing, limit-respecting services. New tests live in `tests/test_diagnostics.py`.
 
+---
+
+## D-062 — 2026-10-04 — Diagnostics and startup degrade gracefully; never crash on a bad DB — LOCKED
+
+**Decision:** The application must start and the Diagnostics page must render even
+when the database is damaged, unreadable or mid-migration. A failing check is
+reported as a friendly `error` row with a "what to do" step; a failing report
+section falls back to a safe empty value. Startup must not be aborted by a
+database problem.
+
+**Implementation:**
+1. `DiagnosticsService.collect` runs every DB-backed check through `_guarded`, so
+   one failure yields an `error` row (friendly title/meaning/how-to-fix) instead
+   of an HTTP 500. `DiagnosticsService.build_report_payload` uses `_safe` so a
+   failing section becomes `[]`/`{}` rather than aborting the report.
+2. `SystemService.database_check` distinguishes a damaged/unreadable DB file
+   (schema probe `_schema_readable` fails) from a benign "version unknown" case,
+   and returns an `error` row with a concrete recovery step.
+3. `Scheduler.start()` wraps `_recover()` in a guard; the loop already tolerates
+   per-tick errors, so a DB problem cannot crash application startup.
+
+**Why:** The whole point of the Diagnostics page is to be the place a
+non-technical owner is sent when something is wrong. A page that 500s precisely
+when the database is corrupt defeats its purpose, and a startup crash leaves the
+user with a traceback instead of an explanation.
+
+**Consequence:** Diagnostics is a best-effort, read-only view; a row may read
+"error" while the rest still renders. This does not weaken the redaction rule
+(D-061) — the degraded rows and report contain no secrets. New regression tests:
+`tests/test_diagnostics.py::test_collect_degrades_when_a_check_fails`,
+`::test_collect_degrades_when_database_check_raises`,
+`::test_report_payload_survives_db_failure`, and
+`tests/test_scheduler.py::test_scheduler_start_survives_recovery_failure`.
+
