@@ -6,7 +6,7 @@ repository root unless stated otherwise.
 ## 1. Code quality gates (must pass)
 
 ```bash
-python -m pytest                 # full suite — currently 427 passed
+python -m pytest                 # full suite — currently 428 passed
 ruff check backend tests         # must be clean
 cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 ```
@@ -58,7 +58,24 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 - [ ] Tag `vX.Y.Z` created on the merged `main` commit.
 - [ ] GitHub Release `vX.Y.Z` published with notes; the **Release** workflow
       (`.github/workflows/release.yml`) attaches the Windows portable ZIP +
-      `.sha256` to it.
+      `.sha256` to it — no manual step (D-060).
+
+## 6. Release verification (fill in per release)
+
+| Gate | v1.0.2 | Notes |
+| --- | --- | --- |
+| Git merge (`develop → main`) | | merge commit SHA |
+| Version consistency (`1.0.2` everywhere) | | app / pyproject / frontend |
+| CI green on `develop` head | | `.github/workflows/ci.yml` |
+| Portable build (`build_portable.sh`) | | ZIP name + size |
+| Automated Release workflow | | `v*` tag → release created by CI |
+| GitHub Release `v1.0.2` published | | tag matches |
+| ZIP attached | | asset present, non-empty |
+| `.sha256` attached + matches ZIP | | `sha256sum -c` |
+| Security (artifact + git tree clean) | | no secrets/sessions/DB/exports |
+| Docker (`/health` + SPA) | | build + run |
+| Frontend build | | `vue-tsc` + `npm run build` |
+| Tests (`pytest` / `ruff`) | | counts |
 
 ## Known non-blocking items (documented, do not block a release)
 

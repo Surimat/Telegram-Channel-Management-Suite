@@ -4,17 +4,21 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-04
-**Current phase:** **v1.0.1 released.** `main == origin/main == develop == d267cf6`
-(tag `v1.0.1`; PR #2 `develop → main` merged; GitHub Release published). `develop`
-is at the release commit. The post-1.0 hardening landed: (1) **versioned Alembic
-migrations** replace `create_all` at startup (D-052); (2) a **shared Channel
+**Current phase:** **v1.0.2 release (release-engineering patch).** `main` = `d267cf6`
+(tag `v1.0.1`); `develop` carries the `v1.0.2` release prep: version bumped to
+**1.0.2** and the Release workflow now **creates the GitHub Release itself**
+(D-060), so a `v*` tag yields a fully automated Windows portable release with no
+manual fallback. No product/functional changes. `v1.0.0`/`v1.0.1` stay immutable
+(D-050).
+Earlier (already on `main`): the post-1.0 hardening — **versioned Alembic
+migrations** replace `create_all` at startup (D-052); a **shared Channel
 Registry** (`channels` table + `/api/v1/channels` + RU-first "Каналы" page) so
 invites, post ingestion, audience sources and the permission probe all share one
-channel identity; analytics can be scoped per channel (D-055); (3) **reproducible,
+channel identity; analytics can be scoped per channel (D-055); **reproducible,
 cross-platform portable packaging** (`scripts/build_win_runtime.py` +
 `scripts/win-requirements.lock` + `scripts/build_portable.sh` emits a versioned
-ZIP) and a **Release workflow** (`.github/workflows/release.yml`) (D-056).
-Version string is **1.0.1** across `backend/app/__init__.py`, `pyproject.toml`,
+ZIP) and the **Release workflow** (`.github/workflows/release.yml`) (D-056).
+Version string is **1.0.2** across `backend/app/__init__.py`, `pyproject.toml`,
 `frontend/package.json` + lock (D-057).
 All gates pass: `pytest` **428 passed** (stable across repeated runs; the
 Mini App "Event loop is closed" flake is fixed — see below), `ruff` clean,
@@ -27,13 +31,15 @@ dependency with `break`, leaking the async-generator session; it was GC'd on a
 later test's closed loop and intermittently raised `GeneratorExit`/`TypeError`
 (observed once in CI). `tests/conftest.py` now disposes the engine *before*
 `_isolated_env` resets it, and the Mini App tests use `session_scope()`.
-**Release-engineering fix:** the Release workflow's portable job failed because
-`build_portable.sh` wrote the ZIP to a non-existent `dist/TCMS/dist/...` for a
-relative output dir; `OUT` is now resolved to an absolute path against the
-caller's cwd (D-059). `v1.0.1` is **not** re-tagged (D-050); the fix lands on
-`develop` for the next release and the ZIP for `v1.0.1` was built from `d267cf6`.
-**Repository status:** `main == origin/main == develop == d267cf6` (tags `v1.0.0`,
-`v1.0.1`); the `v1.0.1` GitHub Release carries the Windows portable ZIP + `.sha256`.
+**Release-engineering fixes:** (1) `build_portable.sh` wrote the ZIP to a
+non-existent `dist/TCMS/dist/...` for a relative output dir; `OUT` is now
+resolved to an absolute path against the caller's cwd (D-059, verified: pre-fix +
+GNU `zip` → exit 15; post-fix → ZIP written). (2) The Release workflow only ran
+`gh release upload`, which cannot create a Release — so `v1.0.1` needed a manual
+attach; it now creates the Release when missing (D-060).
+**Repository status:** `main` = `d267cf6` (tag `v1.0.1`); `develop` = the
+`v1.0.2` release prep. The `v1.0.1` GitHub Release carries the Windows portable
+ZIP + `.sha256` (built from `d267cf6`).
 **Branch:** `develop` (working branch); `main` is released and updated only via pull request.
 
 ---
@@ -564,9 +570,9 @@ test upgrades a v1.0.0-shaped database with existing rows. Decisions: D-052.
 
 ## 2c. Release engineering (2026-10-04) — reproducible, installable packaging
 
-**Version is `1.0.1`** across `backend/app/__init__.py`,
+**Version is `1.0.2`** across `backend/app/__init__.py`,
 `pyproject.toml`, `frontend/package.json` and `frontend/package-lock.json`
-(previously an inconsistent `1.0.1`; D-057).
+(was `1.0.1`; D-057, D-060).
 
 **Cross-platform, reproducible Windows portable runtime.**
 - `scripts/build_win_runtime.py` — downloads the official Windows **embeddable**
@@ -603,15 +609,21 @@ down gracefully via `/api/v1/system/shutdown`. Decisions: D-056, D-057.
 
 ## 5. Next action
 
-**v1.0.0 is released** (`main` = `82c1059`, tag + GitHub Release published) and
-the post-1.0 work is ready to publish as **v1.0.1**. Next action: complete the
-release-publication checklist (see `docs/RELEASE_CHECKLIST.md`):
+**v1.0.2 is the current release task.** `v1.0.1` is published (`main` = `d267cf6`,
+tag + GitHub Release + portable ZIP). `develop` carries the `v1.0.2` prep:
+version `1.0.2` and the Release workflow now **creates the GitHub Release itself**
+(D-060). Next action: complete the release-publication checklist
+(`docs/RELEASE_CHECKLIST.md`):
 
-1. Merge the `develop → main` PR (reviewed; no force).
-2. Tag `v1.0.1` on the merged `main` commit; publish the GitHub Release. The
-   **Release** workflow (`.github/workflows/release.yml`) attaches the Windows
-   portable ZIP + `.sha256`.
-3. Sync `main` back into `develop`.
+1. Push `develop`; wait for CI green.
+2. Merge the `develop → main` PR (reviewed; no force).
+3. Tag `v1.0.2` on the merged `main` commit and push it. The **Release** workflow
+   (`.github/workflows/release.yml`) verifies, builds the Windows portable ZIP,
+   **creates the GitHub Release** and attaches the ZIP + `.sha256` — no manual
+   step.
+4. Verify the release assets + checksum; sync `main` back into `develop`.
+5. Update memory (`agent/*`, `docs/*`, `README.md`, `AGENTS.md`) and set
+   `NEXT_TASK` to MAINTENANCE / OPTIONAL EXTENSIONS.
 
 After that, only optional items remain (analytics is already per-channel):
 

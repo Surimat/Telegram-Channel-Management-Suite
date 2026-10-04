@@ -156,6 +156,11 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
       registry/UI; Mini App menu-button registration helper; per-channel
       analytics; reproducible cross-platform portable packaging + Release
       workflow.
+- [x] **Release-engineering patch (v1.0.2)**: the Release workflow now creates the
+      GitHub Release itself (`gh release create --verify-tag`) and attaches the
+      portable ZIP + checksum, so a `v*` tag is a fully automated release; the
+      portable-build relative-output-path fix (D-059) rides along. No product
+      changes.
 - [ ] Optional (remaining): a full automated BotFather Mini App flow (the
       one-click menu-button registration exists, D-054).
 
@@ -163,6 +168,12 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ## Release
 
+- **v1.0.2 (2026-10-04):** release-engineering patch — the Release workflow
+  creates/updates the GitHub Release itself and attaches the Windows portable ZIP
+  + `.sha256` (D-060), making a `v*` tag a fully automated release with no manual
+  fallback; carries the `build_portable.sh` relative-output-path fix (D-059). No
+  product/functional changes. Published from `develop` via a reviewed
+  `develop → main` PR.
 - **v1.0.1 (2026-10-04):** post-1.0 hardening release — versioned Alembic
   migrations, the shared Channel Registry, per-channel analytics, GitHub Actions
   CI, the Mini App setup helper, and reproducible cross-platform portable

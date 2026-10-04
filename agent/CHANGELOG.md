@@ -5,6 +5,32 @@ Dates are ISO-8601.
 
 ---
 
+## [1.0.2] — 2026-10-04
+
+Release-engineering patch: makes the **Windows portable release fully
+automated**. No product/functional changes.
+
+### Fixed
+- **The Release workflow could not create a GitHub Release by itself.** It only
+  ran `gh release upload`, which fails unless the Release already exists — so a
+  fresh tag produced a green *build* but no published Release/artifact, requiring
+  a manual fallback (as happened for `v1.0.1`). `.github/workflows/release.yml`
+  now **creates the Release when missing** (`gh release create --verify-tag`,
+  with generated notes) and otherwise updates the existing one, then attaches the
+  ZIP + `.sha256`. A `v*` tag now yields a complete, reproducible release with no
+  manual step.
+- **Portable ZIP build for a relative output dir** (carried from `develop`,
+  D-059): `scripts/build_portable.sh` resolves `OUT` to an absolute path against
+  the caller's cwd, so the ZIP is written correctly when CI passes `dist/TCMS`.
+  Covered by `test_build_portable_zip_with_relative_output`.
+
+### Changed
+- **Version string `1.0.2`** across `backend/app/__init__.py`, `pyproject.toml`,
+  and `frontend/package.json` + `package-lock.json`. `v1.0.0`/`v1.0.1` and their
+  tags stay immutable (D-050).
+
+---
+
 ## [1.0.1] — 2026-10-04
 
 Post-1.0 hardening release: versioned migrations, the shared Channel Registry,
