@@ -5,29 +5,30 @@
 
 **Updated:** 2026-10-04
 **Status:** MAINTENANCE / OPTIONAL EXTENSIONS. The roadmap (PHASE 0–11) is complete.
-**v1.0.3 is released** (`main` = `f18f53a`, tag `v1.0.3`, GitHub Release with the
-Windows portable ZIP + `.sha256`, built by CI — D-060). The v1.0.3 work was the
-**Diagnostics** polish (Diagnostics page + redacted report + safe maintenance
-actions). Post-1.0.3 maintenance commits are on `develop` (`bc909f5`): startup
-robustness (a corrupt DB is explained, not fatal) + Queue page plain-language
-labels. Suite is green at **462 passed**; `ruff` clean; `vue-tsc` + `npm run
-build` clean; CI enforces the gates (D-053).
+**v1.0.4 is released** (`main == develop == 3f42c3d`, tag `v1.0.4`, GitHub Release
+with the Windows portable ZIP + `.sha256`, built by CI — D-060). The v1.0.4 patch:
+a damaged database is explained instead of crashing startup/Diagnostics (D-062),
+plain-language Queue labels, and beginner in-UI help. Suite is green at **462
+passed**; `ruff` clean; `vue-tsc` + `npm run build` clean; CI enforces the gates
+(D-053).
 
 ---
 
-## Active task: maintenance only (v1.0.3 released)
+## Active task: maintenance only (v1.0.4 released)
 
 **Do NOT add new large features and do NOT open a new PHASE.** The goal is to keep
 v1.x a tidy product for a real user: accuracy of docs, diagnostics, supportability.
 
 ### 1. Release history (done)
 
-v1.0.3 published: PR #4 (`develop → main`, merge commit `f18f53a`) → tag
-`v1.0.3` → Release workflow created the GitHub Release and attached the Windows
-portable ZIP + `.sha256`. No manual step.
+v1.0.4 published: PR #5 (`develop → main`, merge commit `3f42c3d`) → tag
+`v1.0.4` → Release workflow created the GitHub Release and attached the Windows
+portable ZIP + `.sha256`. No manual step. (v1.0.3: PR #4, merge `f18f53a`, tag
+`v1.0.3`.)
 
 Follow `docs/RELEASE_CHECKLIST.md`. Do **not** push directly to `main`; land via a
-reviewed PR. Do **not** move/rewrite `v1.0.0`/`v1.0.1`/`v1.0.2`/`v1.0.3` tags (D-050).
+reviewed PR. Do **not** move/rewrite `v1.0.0`/`v1.0.1`/`v1.0.2`/`v1.0.3`/`v1.0.4`
+tags (D-050).
 
 ### 2. Maintenance / optional extensions (only if the owner asks)
 

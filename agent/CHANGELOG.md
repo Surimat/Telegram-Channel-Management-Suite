@@ -7,6 +7,9 @@ Dates are ISO-8601.
 
 ## [1.0.4] — 2026-10-04
 
+Released 2026-10-04 (merge `3f42c3d`, PR #5; tag `v1.0.4`; the Release workflow
+built the Windows portable ZIP + `.sha256` and attached them — D-060).
+
 Patch release: startup robustness and Diagnostics polish (no new phases, no new
 large features).
 
