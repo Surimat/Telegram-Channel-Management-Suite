@@ -45,8 +45,14 @@ def _isolated_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[N
 
 
 @pytest_asyncio.fixture(autouse=True)
-async def _dispose_engine_between_tests() -> AsyncIterator[None]:
-    """Close all DB connections after each test to avoid GC warnings."""
+async def _dispose_engine_between_tests(_isolated_env) -> AsyncIterator[None]:
+    """Close all DB connections after each test to avoid GC warnings.
+
+    Depends on ``_isolated_env`` so it is set up *after* it and therefore torn
+    down *before* it: the engine must be disposed (in the test's event loop)
+    before ``_isolated_env`` resets it, otherwise open connections are garbage
+    collected on a closed loop and can fail the next test.
+    """
     yield
     from backend.app.db.session import dispose_engine
 

@@ -12,6 +12,15 @@ per-channel analytics, CI, the Mini App setup helper, and reproducible
 installable packaging. Published from `develop` via a reviewed `develop → main`
 PR, tagged `v1.0.1`; the Windows portable ZIP is attached to the GitHub Release.
 
+### Fixed
+- **Flaky `test_setup_requires_manager_bot` / "Event loop is closed".** Tests
+  that iterated the FastAPI `get_session()` dependency with `break` leaked the
+  async-generator session; SQLAlchemy/aiosqlite garbage-collected it on a later
+  test's closed loop, intermittently failing `GeneratorExit`. `tests/conftest.py`
+  now disposes the engine *before* `_isolated_env` resets it (teardown order),
+  and the Mini App tests use the `session_scope()` context manager. Full suite
+  is now stable: 427 passed across repeated runs, no event-loop-closed noise.
+
 ### Added
 - **Reproducible, cross-platform portable packaging.** `scripts/build_win_runtime.py`
   stages a self-contained Windows CPython (official *embeddable* package + pinned

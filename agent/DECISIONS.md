@@ -1049,3 +1049,26 @@ proposed `v1.1.0` on SemVer grounds; overridden by the explicit owner target.)
 after the merge. The version is the single source of truth in
 `backend/app/__init__.py`; `scripts/build_portable.sh` reads it for the ZIP name
 (`…-Windows-Portable-1.0.1.zip`).
+
+---
+
+## D-058 — 2026-10-04 — Async fixtures: dispose the engine before resetting it
+
+**Decision:** In `tests/conftest.py`, `_dispose_engine_between_tests` declares a
+dependency on `_isolated_env` so pytest finalizes it *first* (dispose) and
+`_isolated_env` *second* (reset). Tests that need a session use the
+`session_scope()` context manager, never `async for session in get_session():
+... break`.
+
+**Why:** The autouse finalizers ran in the wrong order — `_isolated_env` reset
+`_engine = None` before `_dispose_engine_between_tests` called
+`dispose_engine()`, so the engine was never actually disposed. Open aiosqlite
+connections then survived into a later test and were garbage-collected on a
+closed event loop, intermittently failing with `GeneratorExit` /
+`TypeError: object NoneType can not be used in an await expression`. Iterating
+the FastAPI `get_session()` dependency with `break` leaks its async generator
+the same way (never finalized in its own loop).
+
+**Consequence:** The suite is deterministic: 427 passed across repeated runs,
+no "Event loop is closed" noise. Any new test must use `session_scope()` (or
+explicitly `aclose()` a `get_session()` generator) rather than `break`.

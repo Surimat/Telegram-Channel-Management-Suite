@@ -39,6 +39,8 @@ Done recently (do not rebuild):
   `scripts/build_win_runtime.py`, `scripts/win-requirements.lock`,
   `scripts/build_portable.sh` (versioned ZIP + checksum).
 - **Version is `1.0.1`** across the app package, `pyproject.toml` and the frontend (D-057).
+- **Async test-harness flake fixed** (D-058): engine is disposed before reset;
+  Mini App tests use `session_scope()`. Suite is deterministic (427 passed).
 
 Do **not** create artificial new phases and do **not** re-open PHASE 8–11.
 

@@ -17,10 +17,17 @@ versioned ZIP) and a **Release workflow** (`.github/workflows/release.yml`)
 (D-056).
 Version string is **1.0.1** across `backend/app/__init__.py`, `pyproject.toml`,
 `frontend/package.json` + lock (D-057).
-All gates pass: `pytest` **427 passed**, `ruff` clean, `vue-tsc` + `npm run build`
+All gates pass: `pytest` **427 passed** (stable across repeated runs; the
+Mini App "Event loop is closed" flake is fixed — see below), `ruff` clean,
+`vue-tsc` + `npm run build`
 clean, Docker image builds and serves `/health` + SPA, portable tree starts
 end-to-end (incl. a path with spaces/Cyrillic) with backup/restore and graceful
 shutdown; **GitHub Actions CI** (D-053) enforces the backend and frontend gates.
+**Test-harness fix:** the Mini App tests iterated the FastAPI `get_session()`
+dependency with `break`, leaking the async-generator session; it was GC'd on a
+later test's closed loop and intermittently raised `GeneratorExit`/`TypeError`
+(observed once in CI). `tests/conftest.py` now disposes the engine *before*
+`_isolated_env` resets it, and the Mini App tests use `session_scope()`.
 **Next phase:** publish the **v1.0.1** release — merge the `develop → main` PR,
 tag `v1.0.1`, publish the GitHub Release with the auto-attached portable ZIP.
 **Repository status:** `main == origin/main == 82c1059` (tag `v1.0.0`); `develop`

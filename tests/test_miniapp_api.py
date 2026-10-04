@@ -18,7 +18,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 from backend.app.db.models.bot import BotKind
-from backend.app.db.session import get_session, init_models
+from backend.app.db.session import init_models, session_scope
 from backend.app.main import create_app
 from backend.app.services.bot_service import BotService
 
@@ -49,12 +49,10 @@ def init_data(telegram_id: int = 777, now: float | None = None) -> str:
 async def _add_manager(token: str = MANAGER_TOKEN) -> None:
     from tests.conftest import make_fake_provider_factory
 
-    async for session in get_session():
+    async with session_scope() as session:
         await BotService(
             session, provider_factory=make_fake_provider_factory()
         ).add_bot(token, kind=BotKind.MANAGER)
-        await session.commit()
-        break
 
 
 @pytest_asyncio.fixture

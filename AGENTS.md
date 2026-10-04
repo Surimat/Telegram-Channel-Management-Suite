@@ -56,6 +56,12 @@ See `docs/RELEASE_CHECKLIST.md`. A release requires all gates green (`pytest`,
 `ruff`, `vue-tsc`/`npm run build`), a clean secret scan, memory/docs updated, and
 PR `develop → main` merged (never a direct push to `main`).
 
+The version lives in `backend/app/__init__.py` (mirrored in `pyproject.toml` and
+`frontend/package.json`). Tag the merged `main` commit `vX.Y.Z`; the **Release**
+workflow (`.github/workflows/release.yml`) then builds the Windows portable ZIP
+via `scripts/build_portable.sh` and attaches it (+ `.sha256`) to the GitHub
+Release. The portable build is reproducible and runs on a Linux CI host.
+
 ## Security (non-negotiable)
 
 Never commit or display `.env`, bot tokens, API hashes, session files,

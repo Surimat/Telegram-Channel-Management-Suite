@@ -13,7 +13,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 from backend.app.db.models.bot import BotKind
-from backend.app.db.session import get_session, init_models
+from backend.app.db.session import init_models, session_scope
 from backend.app.main import create_app
 from backend.app.miniapp.service import MiniAppService
 from backend.app.providers.fake_bot import FakeTelegramBotProvider
@@ -35,12 +35,10 @@ class _RecordingFactory:
 
 
 async def _add_manager(token: str = MANAGER_TOKEN) -> None:
-    async for session in get_session():
+    async with session_scope() as session:
         await BotService(
             session, provider_factory=lambda t, **k: FakeTelegramBotProvider(t)
         ).add_bot(token, kind=BotKind.MANAGER)
-        await session.commit()
-        break
 
 
 @pytest_asyncio.fixture
@@ -95,13 +93,12 @@ async def test_setup_registers_menu_button_and_settings(setup_client) -> None:
     # The public URL + enabled flag are persisted for the config endpoint.
     from backend.app.services.settings_service import SettingsService
 
-    async for session in get_session():
+    async with session_scope() as session:
         assert await SettingsService(session).get_typed("miniapp_enabled") is True
         assert (
             await SettingsService(session).get_typed("miniapp_public_url")
             == "https://tcms.example.com"
         )
-        break
 
 
 async def test_setup_requires_manager_bot(monkeypatch) -> None:
@@ -137,10 +134,9 @@ async def test_setup_service_reports_provider_error() -> None:
 
     await init_models()
     await _add_manager()
-    async for session in get_session():
+    async with session_scope() as session:
         result = await MiniAppService(
             session, provider_factory=_FailingFactory()
         ).setup("https://tcms.example.com")
-        break
     assert result.ok is False
     assert result.message
