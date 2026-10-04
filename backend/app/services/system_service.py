@@ -52,15 +52,7 @@ class SystemService:
         # Connection is fine — now report the schema/migration state.
         from backend.app.db import migrate
 
-        try:
-            status = await migrate.database_status()
-        except Exception:  # pragma: no cover - defensive
-            return Check(
-                "database",
-                "База данных",
-                STATUS_OK,
-                "Хранилище данных работает и доступно.",
-            )
+        status = await migrate.database_status()
 
         if status.state == migrate.DB_STATE_FAILED:
             return Check(
@@ -103,6 +95,15 @@ class SystemService:
                 "Обновление завершено. База данных готова.",
             )
         if status.state == migrate.DB_STATE_UNKNOWN:
+            if not await self._schema_readable():
+                return Check(
+                    "database",
+                    "База данных",
+                    STATUS_ERROR,
+                    "Файл базы данных повреждён или не является базой данных.",
+                    "Восстановите базу из раздела «Резервные копии» или удалите "
+                    "data/app.db, если данные не нужны, и перезапустите приложение.",
+                )
             return Check(
                 "database",
                 "База данных",
@@ -116,6 +117,20 @@ class SystemService:
             STATUS_OK,
             "База данных готова.",
         )
+
+    async def _schema_readable(self) -> bool:
+        """Return ``True`` only if the schema (``alembic_version``) can be read.
+
+        Used to tell a genuinely damaged/unreadable database file apart from a
+        benign "version unknown" case, so the user gets an accurate status.
+        """
+        try:
+            engine = get_engine()
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT version_num FROM alembic_version"))
+            return True
+        except Exception:  # pragma: no cover - depends on environment
+            return False
 
     def filesystem_check(self) -> Check:
         dirs = {

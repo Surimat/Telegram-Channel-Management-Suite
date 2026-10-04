@@ -80,6 +80,27 @@ they are the project's persistent memory.
 
 ---
 
+### The database file is damaged
+
+**Symptom:** the Web UI opens but **Диагностика** shows «Файл базы данных
+повреждён или не является базой данных», and other rows show «Не удалось
+прочитать данные из базы».
+
+**Cause:** `data/app.db` is corrupt (interrupted write, full disk, a non-SQLite
+file, or a copy of the wrong file). The app no longer crashes on this — it starts
+and explains the problem so you can recover.
+
+**What to do:**
+1. Open **Резервные копии** and restore the most recent working backup.
+2. If you have no backup and do not need the data, stop the app, delete
+   `data/app.db` (and any `app.db-wal`/`app.db-journal` beside it), and restart —
+   a fresh database is created automatically.
+3. Restart the app; **Диагностика → База данных** should read «Готово».
+
+Never edit the database file by hand; use **Резервные копии** or the app.
+
+---
+
 ### "Database locked" / data not saving
 
 - SQLite allows few concurrent writers. Make sure only one instance runs.

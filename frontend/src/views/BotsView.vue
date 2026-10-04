@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { api, type Bot, type BotSummary, type ManagedBotPreview } from '@/api/client'
+import InfoHint from '@/components/InfoHint.vue'
 
 const bots = ref<Bot[]>([])
 const summary = ref<BotSummary | null>(null)
@@ -112,7 +113,7 @@ onMounted(load)
 
 <template>
   <div>
-    <h2 class="page-title">Боты</h2>
+    <h2 class="page-title">Боты <InfoHint topic="managed_bot" /></h2>
     <p class="page-subtitle">
       Здесь собраны все боты: управляющий, управляемые и обычные. Секретные токены
       хранятся в зашифрованном виде и никогда не показываются.

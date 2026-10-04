@@ -9,6 +9,7 @@ import {
   type ScanResult,
   type UserSession,
 } from '@/api/client'
+import InfoHint from '@/components/InfoHint.vue'
 
 const sources = ref<AudienceSource[]>([])
 const dashboard = ref<AudienceDashboard | null>(null)
@@ -215,7 +216,7 @@ onUnmounted(() => {
 
 <template>
   <div>
-    <h2 class="page-title">Источники аудитории</h2>
+    <h2 class="page-title">Источники аудитории <InfoHint topic="source" /></h2>
     <p class="page-subtitle">
       Источник — это канал, группа или объект Telegram, из которого система собирает
       участников. Сканирование никогда не обходит ограничения Telegram: если список

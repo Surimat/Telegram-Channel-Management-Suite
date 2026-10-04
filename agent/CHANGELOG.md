@@ -5,7 +5,41 @@ Dates are ISO-8601.
 
 ---
 
+## [1.0.4] — 2026-10-04
+
+Patch release: startup robustness and Diagnostics polish (no new phases, no new
+large features).
+
+### Fixed
+- **A corrupt/unreadable database no longer crashes the app or the Diagnostics
+  page.** The Diagnostics page is exactly where a user is sent when something is
+  wrong, but it returned HTTP 500 when `data/app.db` was damaged — the very case
+  it exists to explain. Every DB-backed check is now guarded and degrades to a
+  friendly row, and the report falls back to safe empty sections; the database
+  row reports «Файл базы данных повреждён или не является базой данных» with a
+  concrete recovery step. Scheduler recovery is also guarded so a DB problem
+  cannot abort application startup.
+- **Queue page showed raw job values** (`invite.batch`, `reaction.job`, English
+  statuses). It now shows plain Russian labels for kinds and statuses.
+
+### Documentation
+- `docs/TROUBLESHOOTING.md` — added a "database file is damaged" recovery entry
+  (symptom / cause / what to do).
+- `docs/ROADMAP.md` — corrected stale claims (Alembic is implemented, not
+  deferred; PHASE 2 is complete).
+
+### Tests
+- `tests/test_diagnostics.py` — graceful degradation when a check or report
+  section fails (corrupt DB).
+- `tests/test_scheduler.py` — scheduler startup survives a failing recovery.
+- Suite: **462 passed**; `ruff` clean; `vue-tsc` + `npm run build` clean.
+
+---
+
 ## [1.0.3] — 2026-10-04
+
+Released 2026-10-04 (merge `f18f53a`, tag `v1.0.3`; the Release workflow
+built the Windows portable ZIP + `.sha256` and attached them — D-060).
 
 Product polish: a **Diagnostics** page so a non-technical owner can understand the
 system state and hand a developer a **redacted** report without reading logs.

@@ -7,6 +7,7 @@ import {
   type ChannelSummary,
   type UserSession,
 } from '@/api/client'
+import InfoHint from '@/components/InfoHint.vue'
 
 const channels = ref<Channel[]>([])
 const summary = ref<ChannelSummary | null>(null)
@@ -146,7 +147,7 @@ onMounted(() => load())
 
 <template>
   <div>
-    <h2 class="page-title">Каналы</h2>
+    <h2 class="page-title">Каналы <InfoHint topic="channel" /></h2>
     <p class="page-subtitle">
       Здесь хранится один список ваших каналов и групп. Добавьте канал один раз — и
       выбирайте его в реакциях, аудитории и приглашениях, не вводя заново. Проверка

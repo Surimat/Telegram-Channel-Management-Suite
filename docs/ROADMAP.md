@@ -18,7 +18,9 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ## PHASE 1 — Application skeleton ✅
 - [x] FastAPI app factory, config (pydantic-settings), logging.
-- [x] SQLAlchemy async + SQLite, Base (Alembic deferred; `create_all` for now).
+- [x] SQLAlchemy async + SQLite, Base. (Originally `create_all`; since v1.0.1
+      versioned **Alembic** migrations are the source of truth — see PHASE 1
+      hardening below and `docs/database-migrations.md`.)
 - [x] Health checks (`/health`, `/health/deep`).
 - [x] Settings table + settings service.
 - [x] Events (log/error center) model + service.
@@ -28,7 +30,7 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 - [x] Docker foundation (`Dockerfile`, `docker-compose.yml`).
 - [x] Tests: config, db, health, api smoke. Commit.
 
-## PHASE 2 — Telegram foundation 🟡
+## PHASE 2 — Telegram foundation ✅
 - [x] `TelegramBotProvider` interface + aiogram impl + fake impl + registry.
 - [x] Bot inventory: `Bot` model + repository + `BotService`.
 - [x] Managed bots: list/register, health, add, disable, remove, get/replace
@@ -168,6 +170,11 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
       diagnostic report** (ZIP/JSON/TXT) with a server-side secret scan before
       export; and safe maintenance actions (restart scheduler, recheck Telegram,
       recheck channels, clean up stuck local jobs) that never delete user data.
+- [x] **Startup robustness (v1.0.4)**: a damaged/unreadable database no longer
+      crashes startup or the Diagnostics page — every DB-backed check degrades to
+      a friendly row, the report falls back to safe empty sections, and the DB
+      row explains recovery; the Queue page shows plain Russian job labels.
+      No new phases or features.
 - [ ] Optional (remaining, non-blocking): a full automated BotFather Mini App
       flow (the one-click menu-button registration exists, D-054); richer
       analytics; additional AI backends. No new phases are planned — see
@@ -177,6 +184,22 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ## Release
 
+- **v1.0.4 (2026-10-04):** startup-robustness patch — a corrupt/unreadable
+  database no longer crashes application startup or the **Диагностика** page
+  (checks degrade to friendly rows, the report falls back to safe empty sections,
+  and the DB row explains recovery; D-062); the Queue page shows plain Russian
+  job kind/status labels; `docs/TROUBLESHOOTING.md` gained a damaged-database
+  entry. No new phases or features. Published from `develop` via a reviewed
+  `develop → main` PR, tagged `v1.0.4`; the Windows portable ZIP + `.sha256` are
+  attached to the GitHub Release by the automated Release workflow (D-060).
+- **v1.0.3 (2026-10-04):** product-polish patch — the **Diagnostics** page
+  (per-component status in plain language), a **redacted diagnostic report**
+  (ZIP/JSON/TXT with a server-side secret scan) and **safe maintenance actions**
+  (restart scheduler, recheck Telegram, recheck channels, clean up stuck local
+  jobs), none of which delete user data (D-061). Also a UI-wording consistency
+  pass. Published from `develop` via a reviewed `develop → main` PR (merge commit
+  `f18f53a`), tagged `v1.0.3`; the Windows portable ZIP + `.sha256` are attached
+  to the GitHub Release by the automated Release workflow (D-060).
 - **v1.0.2 (2026-10-04):** release-engineering patch — the Release workflow
   creates/updates the GitHub Release itself and attaches the Windows portable ZIP
   + `.sha256` (D-060), making a `v*` tag a fully automated release with no manual

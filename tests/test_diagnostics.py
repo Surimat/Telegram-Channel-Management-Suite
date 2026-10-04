@@ -299,3 +299,63 @@ async def test_diagnostics_api_report_zip(diagnostics_client) -> None:
 async def test_diagnostics_api_rejects_bad_format(diagnostics_client) -> None:
     resp = await diagnostics_client.get("/api/v1/diagnostics/report?format=pdf")
     assert resp.status_code == 422
+
+
+# --- graceful degradation ----------------------------------------------------
+# The Diagnostics page is exactly where a user is sent when something is broken,
+# so a failing check (e.g. a corrupt/unreadable database) must degrade that row
+# instead of raising and blanking the whole page.
+
+
+async def test_collect_degrades_when_a_check_fails(monkeypatch) -> None:
+    from backend.app.db.session import session_scope
+    from backend.app.services.diagnostics_service import DiagnosticsService
+
+    async def _boom(*_args, **_kwargs):
+        raise RuntimeError("file is not a database")
+
+    monkeypatch.setattr(DiagnosticsService, "_managed_bots_item", _boom)
+    async with session_scope() as session:
+        report = await DiagnosticsService(session).collect()
+    row = next(i for i in report.items if i.key == "managed_bots")
+    assert row.status == "error"
+    assert row.title  # still has a friendly title
+    assert row.meaning
+    assert row.how_to_fix
+    # The rest of the page still renders.
+    assert len(report.items) >= 14
+    assert report.overall in {"warning", "error"}
+
+
+async def test_collect_degrades_when_database_check_raises(monkeypatch) -> None:
+    from backend.app.db.session import session_scope
+    from backend.app.services import system_service
+    from backend.app.services.diagnostics_service import DiagnosticsService
+
+    async def _boom(self):
+        raise RuntimeError("file is not a database")
+
+    monkeypatch.setattr(system_service.SystemService, "database_check", _boom)
+    async with session_scope() as session:
+        report = await DiagnosticsService(session).collect()
+    row = next(i for i in report.items if i.key == "database")
+    assert row.status == "error"
+    assert "баз" in row.meaning.lower()
+
+
+async def test_report_payload_survives_db_failure(monkeypatch) -> None:
+    from backend.app.db.session import session_scope
+    from backend.app.services.diagnostics_service import DiagnosticsService
+
+    async def _boom(*_args, **_kwargs):
+        raise RuntimeError("file is not a database")
+
+    monkeypatch.setattr(DiagnosticsService, "_bots_payload", _boom)
+    monkeypatch.setattr(DiagnosticsService, "_queue_payload", _boom)
+    async with session_scope() as session:
+        payload = await DiagnosticsService(session).build_report_payload()
+    # Sections that failed fall back to safe empty values, not a crash.
+    assert payload["telegram"]["bots"] == []
+    assert payload["queue"] == {"unavailable": True}
+    # And the report is still produced.
+    assert payload["report"]["kind"] == "diagnostics"

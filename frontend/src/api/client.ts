@@ -982,6 +982,20 @@ export interface MaintenanceResult {
   affected: number
 }
 
+export interface HelpTopic {
+  key: string
+  title: string
+  what: string
+  why: string
+  effect: string
+  when_off: string
+  safe_default: string
+}
+
+export interface UiPrefs {
+  show_explanations: boolean
+}
+
 export interface ChannelSummary {
   total: number
   verified: number
@@ -1433,4 +1447,13 @@ export const api = {
     request<MaintenanceResult>(`/api/v1/diagnostics/actions/${key}`, { method: 'POST' }),
   diagnosticsReportUrl: (format: 'json' | 'txt' | 'zip' = 'zip') =>
     `/api/v1/diagnostics/report?format=${format}`,
+
+  // Help / explanations (novice mode): shared by Web UI, Mini App, Setup Wizard.
+  helpTopics: () => request<HelpTopic[]>('/api/v1/help/topics'),
+  helpPrefs: () => request<UiPrefs>('/api/v1/help/prefs'),
+  updateHelpPrefs: (payload: { show_explanations?: boolean }) =>
+    request<UiPrefs>('/api/v1/help/prefs', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
 }

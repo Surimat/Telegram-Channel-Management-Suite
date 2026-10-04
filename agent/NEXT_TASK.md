@@ -5,31 +5,29 @@
 
 **Updated:** 2026-10-04
 **Status:** MAINTENANCE / OPTIONAL EXTENSIONS. The roadmap (PHASE 0–11) is complete.
-`main` = `61d39fa` (tag `v1.0.2`, GitHub Release with the Windows portable ZIP +
-`.sha256`). `develop` carries the **v1.0.3 product polish** (Diagnostics + redacted
-report + safe maintenance actions). Suite is green at **447 passed**; `ruff`
-clean; `vue-tsc` + `npm run build` clean; CI enforces the gates (D-053).
+**v1.0.3 is released** (`main` = `f18f53a`, tag `v1.0.3`, GitHub Release with the
+Windows portable ZIP + `.sha256`, built by CI — D-060). The v1.0.3 work was the
+**Diagnostics** polish (Diagnostics page + redacted report + safe maintenance
+actions). Post-1.0.3 maintenance commits are on `develop` (`bc909f5`): startup
+robustness (a corrupt DB is explained, not fatal) + Queue page plain-language
+labels. Suite is green at **462 passed**; `ruff` clean; `vue-tsc` + `npm run
+build` clean; CI enforces the gates (D-053).
 
 ---
 
-## Active task: publish v1.0.3, then maintenance only
+## Active task: maintenance only (v1.0.3 released)
 
 **Do NOT add new large features and do NOT open a new PHASE.** The goal is to keep
 v1.x a tidy product for a real user: accuracy of docs, diagnostics, supportability.
 
-### 1. Publish v1.0.3 (standard flow)
+### 1. Release history (done)
 
-1. Push `develop`; confirm CI green.
-2. Open/merge the reviewed `develop → main` PR (no force).
-3. Tag the merged `main` commit `v1.0.3` (annotated) and push it.
-4. The **Release** workflow (`.github/workflows/release.yml`) creates the GitHub
-   Release and attaches the Windows portable ZIP + `.sha256` — fully automated
-   (D-060).
-5. Verify the release, assets and checksum; sync `main` back into `develop`.
-6. Update memory; keep this task at MAINTENANCE / OPTIONAL EXTENSIONS.
+v1.0.3 published: PR #4 (`develop → main`, merge commit `f18f53a`) → tag
+`v1.0.3` → Release workflow created the GitHub Release and attached the Windows
+portable ZIP + `.sha256`. No manual step.
 
 Follow `docs/RELEASE_CHECKLIST.md`. Do **not** push directly to `main`; land via a
-reviewed PR. Do **not** move/rewrite `v1.0.0`/`v1.0.1`/`v1.0.2` tags (D-050).
+reviewed PR. Do **not** move/rewrite `v1.0.0`/`v1.0.1`/`v1.0.2`/`v1.0.3` tags (D-050).
 
 ### 2. Maintenance / optional extensions (only if the owner asks)
 
@@ -67,7 +65,7 @@ memory + commit):
 ### Verification checklist for any change
 
 ```bash
-python -m pytest                 # must stay green (currently 447 passed)
+python -m pytest                 # must stay green (currently 462 passed)
 ruff check backend tests         # must stay clean
 cd frontend && npx vue-tsc --noEmit && npm run build   # outputs to backend/app/static
 ```

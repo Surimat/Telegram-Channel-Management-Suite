@@ -117,6 +117,7 @@ find "$OUT" -name "*.db" -delete 2>/dev/null || true
 # 4. Copy the portable launcher files to the distribution root.
 cp "$ROOT/portable/run.bat" "$OUT/run.bat"
 cp "$ROOT/portable/stop.bat" "$OUT/stop.bat"
+cp "$ROOT/portable/open_when_ready.ps1" "$OUT/open_when_ready.ps1"
 cp "$ROOT/portable/README.txt" "$OUT/README.txt"
 cp "$ROOT/.env.example" "$OUT/.env.example"
 

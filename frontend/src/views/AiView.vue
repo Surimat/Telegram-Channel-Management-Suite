@@ -9,6 +9,7 @@ import {
   type AiOverview,
   type AiSettingHelp,
 } from '@/api/client'
+import InfoHint from '@/components/InfoHint.vue'
 
 type Tab = 'overview' | 'model' | 'settings' | 'testing' | 'diagnostics'
 const tab = ref<Tab>('overview')
@@ -197,7 +198,7 @@ onMounted(load)
 
 <template>
   <div>
-    <h2 class="page-title">Мини-ИИ</h2>
+    <h2 class="page-title">Мини-ИИ <InfoHint topic="tiny_ai" /></h2>
     <p class="page-subtitle">
       Локальный классификатор помогает определить категорию поста, когда обычных правил
       недостаточно. Работает полностью на вашем компьютере. Его можно выключить — система

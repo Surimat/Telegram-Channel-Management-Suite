@@ -9,7 +9,7 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v1.0.2`.**
+**Current stable release: `v1.0.4`.**
 
 ## What it does
 
@@ -51,7 +51,7 @@ Persistent memory so work can continue across sessions:
 ## Status
 
 **PHASE 0–11 complete.** The suite is feature-complete against the planned
-roadmap and shipped as **v1.0.2** (the roadmap has no open phases; remaining work
+roadmap and shipped as **v1.0.4** (the roadmap has no open phases; remaining work
 is maintenance / optional extensions). Post-1.0 additions include versioned
 Alembic migrations (replacing `create_all`), the shared Channel Registry,
 per-channel analytics, GitHub Actions CI, a one-click Mini App setup helper,
@@ -63,7 +63,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/RELEASE_CHECKLIST.md](docs/RELE
 ## Deployment modes
 
 - **Local dev** — `python -m backend.app.main` (http://127.0.0.1:8000).
-- **Windows portable** — unpack, run `portable/run.bat`; no Python/Node/Docker.
+- **Windows portable** — unpack the ZIP, run `run.bat`; no Python/Node/Docker.
 - **VPS / Docker** — `docker compose -f docker/docker-compose.yml up -d --build`,
   with an optional Caddy TLS overlay (`docker/docker-compose.proxy.yml`).
   See [docs/SETUP.md](docs/SETUP.md).
