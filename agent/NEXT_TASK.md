@@ -6,17 +6,17 @@
 **Updated:** 2026-10-04
 **Status:** MAINTENANCE / OPTIONAL EXTENSIONS. The roadmap (PHASE 0–11) is complete.
 **v1.0.5 is released** (merge `496598f` on `main`; PR #6; tag `v1.0.5`;
-`develop` is one docs commit ahead, `44b7501`;
-GitHub Release with the Windows portable ZIP + `.sha256`, built by CI — D-060). The v1.0.5 product
-slice: bot↔channel **bindings** + channel **reaction capabilities**, session-free
-invite **Кампании** + explainable **donor quality**, **backup delivery
-destinations**, a resumable first-run **Setup Wizard**, and a conservative,
-off-by-default **auto-update**. Suite is green at **491 passed**; `ruff` clean;
-`vue-tsc` + `npm run build` clean; CI enforces the gates (D-053).
+GitHub Release with the Windows portable ZIP + `.sha256`, built by CI — D-060).
+**v1.1.0 is in progress on `develop`** — a maintenance/minor release that adds
+optional per-account **network routes (proxies)**, **donor discovery** (candidate
+proposals only) and a **lightweight local encoder** classifier mode, plus matching
+Diagnostics rows and redacted-report sections. Version strings already read
+`1.1.0`. Suite is green at **555 passed**; `ruff` clean; `vue-tsc` + `npm run
+build` clean; CI enforces the gates (D-053).
 
 ---
 
-## Active task: maintenance only (v1.0.5 released)
+## Active task: maintenance only (v1.1.0 in progress)
 
 **Do NOT add new large features and do NOT open a new PHASE.** The goal is to keep
 v1.x a tidy product for a real user: accuracy of docs, diagnostics, supportability.
@@ -74,6 +74,11 @@ memory. Docs are re-checked against the code each maintenance pass (D-063).
 - Product slice (D-064): `/api/v1/bindings`, `/api/v1/capabilities`,
   `/api/v1/campaigns`, `/api/v1/donors`, `/api/v1/backup/destinations`,
   `/api/v1/promotion`, `/api/v1/update` + RU-first UI.
+- v1.1.0 (in progress): `/api/v1/proxies` (network routes, D-065),
+  `/api/v1/discovery` (donor discovery, D-066) and the lightweight local
+  **encoder** classifier mode (D-067); migration
+  `20261004_2047_76d92fe3e70b_v1_1_account_hub_proxies_and_donor_` adds
+  `proxy_profiles`, `donor_candidates` and `user_sessions.proxy_id`.
 - Portable build: `scripts/build_portable.sh` (+ `build_win_runtime.py`,
   `win-requirements.lock`). Release process: `docs/RELEASE_CHECKLIST.md`.
 
@@ -90,7 +95,7 @@ memory. Docs are re-checked against the code each maintenance pass (D-063).
 ### Verification checklist for any change
 
 ```bash
-python -m pytest                 # must stay green (currently 491 passed)
+python -m pytest                 # must stay green (currently 555 passed)
 ruff check backend tests         # must stay clean
 cd frontend && npx vue-tsc --noEmit && npm run build   # outputs to backend/app/static
 ```

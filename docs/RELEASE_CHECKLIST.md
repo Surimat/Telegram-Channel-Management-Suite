@@ -65,6 +65,20 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 
 ## 6. Release verification (fill in per release)
 
+### v1.1.0 (in progress on `develop`)
+
+| Gate | v1.1.0 | Notes |
+| --- | --- | --- |
+| Version consistency (`1.1.0` everywhere) | ✅ | app / pyproject / frontend (+ lock) |
+| New API tests | ✅ | `test_proxy_api.py`, `test_proxy_service.py`, `test_discovery_api.py`, `test_donor_discovery.py`, `test_encoder.py`, `test_session_import.py` |
+| Diagnostics tests (`test_diagnostics.py`) | ✅ | new `proxies`/`donor_candidates` rows + report sections + redaction |
+| Migration drift check | ✅ | `20261004_2047_76d92fe3e70b`; `compare_metadata` = none |
+| Frontend build | ✅ | `vue-tsc` + `npm run build` |
+| Tests (`pytest` / `ruff`) | ✅ | 555 passed; ruff clean |
+| Git merge (`develop → main`) | ⏳ | pending reviewed PR (not yet released) |
+| CI green on `develop` head | ⏳ | `.github/workflows/ci.yml` |
+| Automated Release workflow + ZIP/`.sha256` | ⏳ | after merge + tag (D-060) |
+
 ### v1.0.5 (released 2026-10-04)
 
 | Gate | v1.0.5 | Notes |

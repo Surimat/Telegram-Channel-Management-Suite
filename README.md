@@ -9,7 +9,8 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v1.0.5`.**
+**Current stable release: `v1.0.5`.** Next patch/minor release in progress: `v1.1.0`
+(network routes, donor discovery, lightweight encoder — see Status below).
 
 ## What it does
 
@@ -18,13 +19,18 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 - **Bot ↔ channel bindings** — connect a bot to a channel, verify its rights and
   the channel's available reactions (bot-only, no account needed).
 - **User Sessions** — MTProto accounts with an interactive auth wizard.
+- **Network routes (proxies)** — optional per-account connection routes; a route
+  never bypasses Telegram limits.
 - **Audience** — parse members of channels/groups, search, tag, export.
+- **Donor discovery** — search donor channels by topic; results are candidates
+  that become sources only on an explicit click.
 - **Invite Manager** — build, dry-run, approve and run invite campaigns.
 - **Кампании** — invite-link promotion with the manager bot only (no account) and
   explainable source-quality indicators.
 - **Reaction Manager** — reaction profiles, emoji weights, delays, simulation.
 - **Rules Engine** — per-category rules with allowed/preferred/forbidden emoji.
-- **Tiny AI** — optional local classifier (rules-only mode is fully supported).
+- **Tiny AI** — optional local classifier (rules-only mode is fully supported);
+  a lightweight local **encoder** mode works with no model download.
 - **Analytics** — per-channel content, reactions, audience and takeaways.
 - **Channel Registry** — one shared channel identity for every module.
 - **Mini App** — the same SPA opens inside Telegram (one-click setup helper).
@@ -68,6 +74,9 @@ with a **redacted diagnostic report** for support, and a **product slice**:
 bot↔channel bindings + reaction capabilities, session-free invite **Кампании**
 with source-quality indicators, **backup delivery destinations**, a first-run
 **Setup Wizard**, and a conservative, off-by-default **auto-update**.
+**v1.1.0 (in progress)** adds optional per-account **network routes (proxies)**,
+**donor discovery** (candidate proposals only), and a **lightweight local
+encoder** classifier mode that needs no model download.
 See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
 ## Deployment modes

@@ -1,4 +1,4 @@
-# API — Telegram Channel Management Suite
+# API ŌĆö Telegram Channel Management Suite
 
 REST API served by FastAPI. The **Web UI and the Telegram Mini App use the same
 API**. OpenAPI schema is auto-generated at `/docs` (Swagger) and `/redoc`.
@@ -53,7 +53,7 @@ Health endpoints live at the root (`/health`, `/health/deep`) for probes.
 | POST | `/api/v1/system/database/upgrade` | apply pending migrations (pre-migration backup first) |
 | POST | `/api/v1/system/shutdown` | graceful shutdown (portable/stop.bat) |
 
-Backups and configuration export/import live under `/api/v1/backup` — see the
+Backups and configuration export/import live under `/api/v1/backup` ŌĆö see the
 **Backup / Restore** section below.
 
 ---
@@ -105,11 +105,11 @@ through the link and notifies the manager via a `managed_bot` update.
 
 ---
 
-## Sessions (user accounts) — PHASE 4
+## Sessions (user accounts) ŌĆö PHASE 4
 
 All Telegram access goes through the `SessionProvider` abstraction. Responses
 expose only `phone_masked` (e.g. `+7999***4567`) and `has_session` /
-`has_api_hash` / `session_file_exists` booleans — never the api_hash, the full
+`has_api_hash` / `session_file_exists` booleans ŌĆö never the api_hash, the full
 phone number or the session file contents.
 
 | Method | Path | Purpose |
@@ -117,22 +117,22 @@ phone number or the session file contents.
 | GET | `/api/v1/sessions` | list accounts (`status`, `enabled` filters) |
 | GET | `/api/v1/sessions/summary` | counts by status (total/active/online/...) |
 | GET | `/api/v1/sessions/{id}` | one account |
-| POST | `/api/v1/sessions/auth/start` | start wizard (api_id, api_hash, phone) → code sent |
+| POST | `/api/v1/sessions/auth/start` | start wizard (api_id, api_hash, phone) ŌåÆ code sent |
 | POST | `/api/v1/sessions/{id}/code` | submit login code (may advance to 2FA) |
 | POST | `/api/v1/sessions/{id}/password` | submit 2FA password |
 | POST | `/api/v1/sessions/import` | import an existing `.session` file by path |
 | POST | `/api/v1/sessions/{id}/health` | health check (updates status) |
 | POST | `/api/v1/sessions/{id}/enable` | enable the account |
 | POST | `/api/v1/sessions/{id}/disable` | disable the account |
-| POST | `/api/v1/sessions/{id}/logout` | reset local session → re-authorize |
+| POST | `/api/v1/sessions/{id}/logout` | reset local session ŌåÆ re-authorize |
 | DELETE | `/api/v1/sessions/{id}` | delete the account + its session file |
 
-Wizard steps: `idle` → `code` → `password` (optional 2FA) → `done`. An interrupted
+Wizard steps: `idle` ŌåÆ `code` ŌåÆ `password` (optional 2FA) ŌåÆ `done`. An interrupted
 flow is reset to `auth_required` on startup (`SessionService.recover()`).
 
 ---
 
-## Audience & Sources — PHASE 5 (implemented)
+## Audience & Sources ŌĆö PHASE 5 (implemented)
 
 All paths are under `/api/v1/audience`. Sources:
 
@@ -229,11 +229,11 @@ A rule carries: `category`, `keywords`, `phrases`, `regexes`, `exclusions`,
 | GET | `/api/v1/reactions/jobs` | list reaction jobs (`?status=`) |
 
 Each reaction job stores `post_id`, `bot_id`, `reaction`, `scheduled_at`,
-`status`, `attempts`, `error`, `completed_at` — and a matching durable queue row.
+`status`, `attempts`, `error`, `completed_at` ŌĆö and a matching durable queue row.
 
 ---
 
-## AI classifier (optional) — PHASE 7 (implemented)
+## AI classifier (optional) ŌĆö PHASE 7 (implemented)
 
 The Rules Engine is always the deterministic default. The tiny AI is consulted
 only when rules are unsure, and every AI failure degrades to the rules result.
@@ -245,7 +245,7 @@ The LLM never picks emoji; emoji selection stays deterministic (D-021/D-033).
 | GET | `/api/v1/ai/overview` | status + lifetime metrics + today's metrics |
 | GET | `/api/v1/ai/settings` | all AI settings with plain-language help (what/why/large/safe) |
 | PUT | `/api/v1/ai/settings` | update AI settings (validated; DB override) |
-| POST | `/api/v1/ai/classify` | classify a text: `{text, mode}` → category/tone/confidence/source + routing flags |
+| POST | `/api/v1/ai/classify` | classify a text: `{text, mode}` ŌåÆ category/tone/confidence/source + routing flags |
 | POST | `/api/v1/ai/test` | alias of `/classify` for the UI's testing panel |
 | GET | `/api/v1/ai/models` | list `.gguf` files found in the models directory |
 | POST | `/api/v1/ai/model/check` | verify runtime + model file (load test, load time) |
@@ -254,19 +254,21 @@ The LLM never picks emoji; emoji selection stays deterministic (D-021/D-033).
 | GET | `/api/v1/ai/metrics` | aggregate classification counters/latency |
 | GET | `/api/v1/ai/history` | recent AI diagnostics records (`?limit=&offset=`) |
 
-`mode` is `auto` (rules-first, default), `rules` (rules only) or `ai` (AI only,
-falls back to rules). `source` is `rules` / `llm` / `manual` / `fallback`.
+`mode` is `auto` (rules-first, default), `rules` (rules only), `encoder` (the
+lightweight local encoder only — no model download, weak-PC friendly) or `ai`
+(AI only, falls back to rules). `source` is `rules` / `llm` / `encoder` /
+`manual` / `fallback`.
 Model files are user-provided runtime assets: never committed, never downloaded
-automatically.
+automatically. The lightweight encoder needs no model file at all.
 
 ---
 
-## Analytics — PHASE 8 (implemented)
+## Analytics ŌĆö PHASE 8 (implemented)
 
 Read-only aggregates over data the suite already stores (posts, reaction jobs,
 audience sources/users/links, invite tasks). Every response carries a
 plain-language RU `summary`; the backend owns the copy so the Web UI and the Mini
-App share it (D-036). Responses contain only aggregate counts — no secrets or
+App share it (D-036). Responses contain only aggregate counts ŌĆö no secrets or
 per-person PII (D-010/D-029). `days` is clamped to `1..365` (default `30`).
 
 | Method | Path | Purpose |
@@ -327,7 +329,7 @@ contain tokens, session contents, `api_hash` or raw phone numbers.
 
 ---
 
-## Mini App authentication (PHASE 9 — implemented)
+## Mini App authentication (PHASE 9 ŌĆö implemented)
 
 The Mini App reuses the same SPA and the same API (D-003). These endpoints only
 establish *who* the Telegram caller is; all business endpoints are shared with the
@@ -357,7 +359,7 @@ Auth details:
 
 ---
 
-## Backup / restore (PHASE 10 — implemented)
+## Backup / restore (PHASE 10 ŌĆö implemented)
 
 Backups are single `.tcmsbak` zip files (SQLite database + `manifest.json`).
 Restoring always writes a safety backup of the current state first. Configuration
@@ -486,12 +488,12 @@ cancels long-overdue pending jobs); it is hidden while the scheduler is running.
 
 ---
 
-## Bot ↔ channel bindings & reaction capabilities
+## Bot Ōåö channel bindings & reaction capabilities
 
 A binding connects a bot to a registry channel for a function (`reactions`,
 `posting`, `editing`) and records the **verified** admin rights. Capabilities
 record which reactions Telegram reports as available for a channel. Everything is
-**bot-only** — no user session is required — and tokens are never returned.
+**bot-only** ŌĆö no user session is required ŌĆö and tokens are never returned.
 
 | Method | Path | Purpose |
 |--------|------|---------|
@@ -532,7 +534,7 @@ call.
 
 Explainable source-quality indicators for scanned audience sources. The service
 reports a probability **band** and a confidence level; when an account is not
-connected and member data is unavailable, no bot share is invented — the estimate
+connected and member data is unavailable, no bot share is invented ŌĆö the estimate
 stays `null` and only confidence is shown.
 
 | Method | Path | Purpose |
@@ -547,7 +549,7 @@ stays `null` and only confidence is shown.
 
 Each new backup is delivered to every **enabled** destination. A local
 destination is created automatically and cannot be deleted; remote destinations
-(Telegram, Google Drive, Яндекс.Диск) are optional and only contacted when the
+(Telegram, Google Drive, ą»ąĮą┤ąĄą║čü.ąöąĖčüą║) are optional and only contacted when the
 owner enables them. Credentials are sealed at rest and never returned.
 
 | Method | Path | Purpose |
@@ -569,7 +571,7 @@ it is. Without a user session, session-gated steps are `optional`, not required.
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/v1/promotion/presets` | available presets (minimal → professional) |
+| GET | `/api/v1/promotion/presets` | available presets (minimal ŌåÆ professional) |
 | GET | `/api/v1/promotion` | current wizard state + per-step status |
 | POST | `/api/v1/promotion/preset` | switch preset (`preset`) |
 | POST | `/api/v1/promotion/step` | mark a step (`step`) |
@@ -591,6 +593,43 @@ default; when enabled it only checks and downloads. `state` is one of `idle`,
 | POST | `/api/v1/update/enabled` | enable/disable checking (`enabled`) |
 | POST | `/api/v1/update/check` | check for a newer release |
 | POST | `/api/v1/update/download` | download + verify the release archive |
+
+---
+
+## Proxy profiles / network routes (v1.1)
+
+Owner-facing CRUD for connection routes. A proxy is a normal connection route
+for a user account — it **never** lifts Telegram limits (FloodWait, privacy,
+admin rights) and must not be used to bypass them. The password is accepted on
+input, sealed at rest and never returned (`has_password` only). The list response
+always carries the explicit non-bypass notice.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/proxies` | list profiles + non-bypass notice |
+| POST | `/api/v1/proxies` | add a profile (`name`, `kind`, `host`, `port`, optional `username`/`password`) |
+| PUT | `/api/v1/proxies/{id}` | update a profile (empty `password` clears it) |
+| DELETE | `/api/v1/proxies/{id}` | delete a profile; bound accounts return to a direct connection |
+| POST | `/api/v1/proxies/{id}/check` | honest reachability check (`ok`/`error`/`timeout` + how-to-fix) |
+| POST | `/api/v1/proxies/bind` | bind an account (`account_id`, `profile_id`; empty = direct) |
+
+---
+
+## Donor discovery (v1.1)
+
+Search for donor channels by topic. Results are **candidates** — proposals only.
+A candidate becomes an audience source solely through an explicit
+`POST /candidates/{id}/add`. Metrics that Telegram hid stay at zero and the
+`partial`/`confidence` fields say so; nothing bypasses Telegram limits.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/discovery/providers` | provider availability (telegram / web / manual) |
+| POST | `/api/v1/discovery/search` | run a search (`topic`, optional filters) |
+| GET | `/api/v1/discovery/candidates` | stored candidates + provider status |
+| POST | `/api/v1/discovery/compare` | compare 2–10 candidates, name the best |
+| POST | `/api/v1/discovery/candidates/{id}/add` | explicitly add a candidate to sources |
+| POST | `/api/v1/discovery/candidates/clear` | clear stored candidates (sources are kept) |
 
 ---
 

@@ -147,8 +147,8 @@ Wording rule — instead of `BOT_TOKEN missing`, write:
 | `/bots` | `BotsView` | 2 |
 | `/channels` | `ChannelsView` | hardening |
 | `/reactions` | `ReactionsView` | 3 |
-| `/sessions` | `SessionsView` | 4 |
-| `/sources` | `SourcesView` | 5 |
+| `/sessions` | `SessionsView` (accounts + network routes / proxies) | 4 |
+| `/sources` | `SourcesView` (sources + donor discovery) | 5 |
 | `/audience` | `AudienceView` | 5 |
 | `/invites` | `InvitesView` | 6 |
 | `/campaigns` | `CampaignsView` (invite-link campaigns + donor quality) | polish |
@@ -313,8 +313,10 @@ Four owner-facing additions, all RU-first and consistent with §1–§4:
 The first place a non-technical owner should look when something is off:
 
 - A table lists every subsystem (application, database, Telegram API, manager
-  bot, managed bots, accounts, channels, audience, reactions, invites, AI,
-  scheduler/queue, storage, portable runtime) with a colour status badge
+  bot, managed bots, accounts, network routes/proxies, channels, bot↔channel
+  bindings, channel reaction capabilities, audience, donors, donor candidates,
+  reactions, invites, campaigns, AI, scheduler/queue, storage, backup
+  destinations, update, portable runtime) with a colour status badge
   (`Готово` / `Внимание` / `Ошибка` / `Не настроено`) and two plain-language
   columns: **«Что это значит»** and **«Что делать»**.
 - **«Создать отчёт диагностики»** downloads a **redacted** report (ZIP/JSON/TXT)
@@ -368,6 +370,7 @@ Use exactly one term per entity across the UI, docs and API text:
 | Reaction configuration set | **Профиль реакции** |
 | Unit of scheduled work | **Задание** |
 | Durable job list | **Очередь** |
+| Account connection route (proxy) | **Сетевой маршрут** (прокси) |
 
 Do not use "База участников", "Задачи", "Объект", "Пользователь Telegram"
 etc. as synonyms for the terms above.

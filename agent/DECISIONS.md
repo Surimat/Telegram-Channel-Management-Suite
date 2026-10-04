@@ -1269,3 +1269,57 @@ and created by the portable build. New tests: `test_bindings_api.py`,
 `test_campaigns_api.py`, `test_product_api.py`, plus the extended
 `test_diagnostics.py`. Suite: **491 passed**.
 
+
+---
+
+## D-065 — 2026-10-04 — Network routes (proxies) are a connection route, never a limit bypass — LOCKED
+
+**Decision:** An owner may attach an optional proxy to a user account
+(`proxy_profiles` + `user_sessions.proxy_id`, `/api/v1/proxies`). A proxy is a
+plain connection route: it does **not** lift Telegram FloodWait, privacy or admin
+limits and must never be used to circumvent them. The password is accepted on
+input, sealed at rest (`seal_secret`) and never returned (`has_password` only).
+Every list response carries an explicit non-bypass notice.
+
+**Why:** Some users genuinely need a route (no direct Telegram access), but the
+project forbids bypassing Telegram limits (D-006). Keeping the route strictly
+mechanical and the messaging explicit keeps that line clear.
+
+**Consequence:** `ProxyStatus` is one of `UNKNOWN`/`OK`/`ERROR`/`TIMEOUT`; the
+reachability check is honest and reports how to fix. Deleting a profile returns
+its accounts to a direct connection. Diagnostics gained a `proxies` row and the
+report a `proxies` section (host/kind/status only — never the password).
+
+---
+
+## D-066 — 2026-10-04 — Donor discovery returns candidate proposals; sources are added only explicitly — LOCKED
+
+**Decision:** Donor search (`/api/v1/discovery`) stores **candidates**
+(`donor_candidates`) and never adds a source automatically. A candidate becomes
+an audience source solely through an explicit
+`POST /discovery/candidates/{id}/add`. Provider availability is surfaced honestly;
+hidden metrics stay zero with a `partial`/`confidence` marker rather than being
+invented.
+
+**Why:** Discovery must help the owner find donor channels without silently
+committing their account to new sources or bypassing Telegram limits (D-006).
+
+**Consequence:** Providers are pluggable (`telegram` today; `web`/`manual`
+placeholders). The list shows fit/confidence; comparison (2–10 candidates) names
+the best with a reason. Diagnostics gained `donor_candidates`; the report gained
+a matching section.
+
+---
+
+## D-067 — 2026-10-04 — A lightweight local encoder is a first-class classifier mode with no model download — LOCKED
+
+**Decision:** `mode="encoder"` (and the encoder stage of `auto`) uses a small,
+dependency-free local encoder that needs **no model file and no download**, so it
+works on a weak Windows PC. It is deterministic and advisory: rules remain the
+deterministic default and every encoder failure degrades to the rules result.
+
+**Why:** The product must give useful classification on the weakest machines
+without requiring the owner to obtain a `.gguf` model.
+
+**Consequence:** `MODE_ENCODER` is added to the classifier modes and `source` can
+be `encoder`; the AI test panel exposes it. No new dependency, no new phase.

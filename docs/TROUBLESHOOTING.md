@@ -38,6 +38,8 @@ confirmation).
 | **AI model missing** | AI enabled but no valid `.gguf` path | Optional. **Диагностика** → Мини-ИИ shows `Не настроено`/`Внимание`; set the model in **AI** or leave AI off |
 | **Database migration required** | The app version is newer than the database schema | **Диагностика** → База данных shows the pending state; restart the app — migrations run automatically at startup |
 | **Backup restore** | Wrong `APP_SECRET_KEY`, or the running process still holds the old DB | Restore the original key or re-enter the token; restart the app after restoring. See the table below |
+| **Network route (proxy) fails** | Wrong host/port/credentials, or the proxy is down | **Аккаунты → Сетевые маршруты**, press **«Проверить»**; fix or remove the route. A route never bypasses Telegram limits |
+| **Donor discovery finds nothing** | No account connected, topic too narrow, or hidden data | Connect an account; broaden keywords; candidates must be added explicitly. See below |
 
 ---
 
@@ -247,6 +249,32 @@ No user account is required for this — the bot alone is enough.
 - Telegram / Google Drive / Яндекс.Диск are optional; a bad token shows a
   plain-language error. Disable or remove the destination, or re-enter its token.
 - The **local** destination is the primary store and cannot be removed.
+
+---
+
+### Network route (proxy) does not work
+
+**What it means:** a proxy is an optional connection route for an account. It does
+**not** lift Telegram limits and is not a way around FloodWait/privacy/admin
+restrictions.
+
+**How to fix:**
+1. Open **Аккаунты → Сетевые маршруты (прокси)** and press **«Проверить»** on the
+   profile. The status is honest: `Доступен` / `Ошибка подключения` / `Нет ответа`.
+2. Check host, port and (if the proxy requires it) login/password. Credentials are
+   stored sealed and are never shown again.
+3. Assign the route to an account with the **Маршрут** column on the accounts table.
+4. If the proxy is down, set the account back to **Прямое подключение** — a missing
+   route never blocks the account permanently.
+
+### Donor discovery finds nothing
+
+- Donor search needs a working **account** (the Telegram provider runs through it);
+  if no account is connected, the provider list explains that it is unavailable.
+- The topic may be too narrow; try broader keywords or clear the subscriber range.
+- A found channel is only a **candidate** — press **«Добавить в источники»** to use
+  it. Hidden subscriber/activity data stays zero and is marked as partial; nothing
+  is invented and no limits are bypassed.
 
 ---
 

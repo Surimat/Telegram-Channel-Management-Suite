@@ -184,6 +184,13 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
       sealed); a resumable first-run **Setup Wizard**; and a conservative,
       off-by-default **auto-update** that only checks and stages a SHA-256-verified
       file. New API + RU-first UI + tests; no new phases.
+- [x] **Maintenance additions (v1.1.0, in progress)**: optional per-account
+      **network routes (proxies)** — CRUD, honest reachability check and account
+      binding, explicitly never a limit bypass; **donor discovery** — search donor
+      channels by topic with candidate proposals that become audience sources only
+      on an explicit click; and a **lightweight local encoder** classifier mode
+      that needs no model download. New API + RU-first UI + tests; Diagnostics and
+      the redacted report gained matching rows/sections. No new phases.
 - [ ] Optional (remaining, non-blocking): a full automated BotFather Mini App
       flow (the one-click menu-button registration exists, D-054); richer
       analytics; additional AI backends. No new phases are planned — see
