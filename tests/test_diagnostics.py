@@ -113,12 +113,18 @@ async def test_collect_reports_every_subsystem() -> None:
         "managed_bots",
         "sessions",
         "channels",
+        "bindings",
+        "capabilities",
         "audience",
+        "donors",
         "reactions",
         "invites",
+        "campaigns",
         "ai",
         "scheduler",
         "storage",
+        "backup_destinations",
+        "update",
         "portable_runtime",
     }
     assert expected.issubset(keys)
@@ -133,6 +139,7 @@ async def test_collect_reports_every_subsystem() -> None:
 async def test_report_payload_contains_no_secrets_or_db_contents() -> None:
     from backend.app.core.config import get_settings
     from backend.app.core.security import seal_secret
+    from backend.app.db.models.audience import AudienceUser, MemberStatus
     from backend.app.db.models.bot import Bot, BotKind
     from backend.app.db.models.session import SessionStatus, UserSession
     from backend.app.db.session import session_scope
@@ -160,6 +167,17 @@ async def test_report_payload_contains_no_secrets_or_db_contents() -> None:
                 phone_masked="+7999***4567",
             )
         )
+        session.add(
+            AudienceUser(
+                telegram_user_id=2000002,
+                username="audience_person",
+                first_name="Secret",
+                last_name="Person",
+                display_name="Secret Person",
+                status=MemberStatus.ACTIVE,
+                phone_masked="+7999***4567",
+            )
+        )
     async with session_scope() as session:
         content, filename, media_type = await DiagnosticsService(session).build_report("json")
     assert filename.endswith(".json")
@@ -172,8 +190,14 @@ async def test_report_payload_contains_no_secrets_or_db_contents() -> None:
     assert _PHONE not in text
     assert "phone_masked" not in text
     assert "password" not in text
-    # But the report is useful: it names the manager bot and version.
+    # No audience user records (names/ids of the parsed audience).
+    assert "audience_person" not in text
+    assert "Secret Person" not in text
+    assert "2000002" not in text
+    # The report is aggregate/status only, never a row dump (table *names* may
+    # appear in the schema section, but no row values do).
     payload = json.loads(text)
+    # But the report is useful: it names the manager bot and version.
     assert payload["application"]["version"]
     assert payload["telegram"]["bots"][0]["username"] == "manager_bot"
     assert payload["report"]["redaction"]
@@ -203,6 +227,34 @@ async def test_report_unknown_format_rejected() -> None:
     async with session_scope() as session:
         with pytest.raises(DiagnosticsError):
             await DiagnosticsService(session).build_report("pdf")
+
+
+async def test_report_includes_product_sections_and_stays_clean() -> None:
+    """The report covers the product slices and still contains no secrets."""
+    from backend.app.db.models.campaign import InviteCampaign
+    from backend.app.db.models.channel import Channel
+    from backend.app.db.models.donor import DonorMetrics
+    from backend.app.db.session import session_scope
+    from backend.app.services.diagnostics_service import DiagnosticsService
+
+    async with session_scope() as session:
+        session.add(Channel(reference="@diag", title="Диагностика"))
+        session.add(InviteCampaign(name="Кампания", target="+invite-secret-link"))
+        session.add(DonorMetrics(title="Донор", quality="suspect", bot_probability="high"))
+    async with session_scope() as session:
+        content, _name, _mime = await DiagnosticsService(session).build_report("json")
+    payload = json.loads(content.decode("utf-8"))
+    for section in (
+        "bindings",
+        "capabilities",
+        "campaigns",
+        "donors",
+        "backup_destinations",
+        "update",
+    ):
+        assert section in payload
+    # Campaign names may appear (owner-facing) but no secrets/links leak.
+    assert "+invite-secret-link" not in content.decode("utf-8")
 
 
 async def test_cleanup_action_resets_stuck_jobs_without_deleting_data() -> None:

@@ -41,6 +41,10 @@ class PlanParams:
     delay_max: float = 900.0
     delay_preset: DelayPreset = DelayPreset.NORMAL
     max_bots_per_post: int = 0
+    # Channel reaction capabilities (product slice). ``None`` = unknown (the
+    # profile set is used unchanged); a list = the emoji Telegram confirmed.
+    channel_available: list[str] | None = None
+    bot_compatible: list[str] | None = None
 
 
 @dataclass(slots=True)
@@ -155,12 +159,29 @@ class ReactionPlanner:
     def _emoji_pool(
         params: PlanParams, match: RuleMatch | None
     ) -> tuple[list[str], dict[str, float]]:
-        """Combine the profile's emoji with the rule's allowed/forbidden policy."""
+        """Combine the profile's emoji with the rule's allowed/forbidden policy.
+
+        The channel's *real* capabilities (product slice) are applied first, so a
+        profile can never schedule an emoji Telegram does not support in this
+        channel. When the capability set is unknown (``None``), the profile set is
+        used unchanged.
+        """
         pool = list(params.allowed_emoji)
+        if params.channel_available is not None:
+            available = set(params.channel_available)
+            pool = [e for e in pool if e in available]
+        if params.bot_compatible is not None:
+            compatible = set(params.bot_compatible)
+            pool = [e for e in pool if e in compatible]
         if match and match.allowed_reactions:
             # Prefer the intersection when the rule restricts the profile.
             restricted = [e for e in pool if e in match.allowed_reactions]
-            pool = restricted or list(match.allowed_reactions)
+            pool = restricted or [
+                e for e in match.allowed_reactions if e in pool
+            ] or list(match.allowed_reactions)
+            if params.channel_available is not None:
+                available = set(params.channel_available)
+                pool = [e for e in pool if e in available]
         if match and match.forbidden_reactions:
             forbidden = set(match.forbidden_reactions)
             pool = [e for e in pool if e not in forbidden]

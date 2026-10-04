@@ -47,7 +47,9 @@ from backend.app.db.models.reaction import (
     ReactionRule,
 )
 from backend.app.db.repositories.ai import AiRepository
+from backend.app.db.repositories.bindings import BindingRepository
 from backend.app.db.repositories.bots import BotRepository
+from backend.app.db.repositories.capabilities import CapabilityRepository
 from backend.app.db.repositories.channels import ChannelRepository
 from backend.app.db.repositories.posts import PostRepository
 from backend.app.db.repositories.reactions import (
@@ -70,6 +72,7 @@ from backend.app.rules.engine import (
 from backend.app.services.events_service import EventsService
 from backend.app.services.queue_service import QueueService
 from backend.app.services.reaction_planner import PlanParams, ReactionPlanner
+from backend.app.services.reaction_policy import intersect_reactions
 
 ProviderFactory = Callable[..., TelegramBotProvider]
 
@@ -155,6 +158,9 @@ class ReactionService:
         self.ai_repo = AiRepository(session)
         self.planner = ReactionPlanner()
         self._provider_factory = provider_factory
+        # Bot-only mode (product slice): bindings + channel reaction capabilities.
+        self.bindings = BindingRepository(session)
+        self.capabilities = CapabilityRepository(session)
         # Injectable RNG keeps simulation/tests deterministic (D-021).
         self._rng = rng
         # PHASE 7: optional injected classifier (rules + AI router). When omitted,
@@ -401,7 +407,12 @@ class ReactionService:
     # Planning / simulation
     # ======================================================================
     @staticmethod
-    def _plan_params(profile: ReactionProfile) -> PlanParams:
+    def _plan_params(
+        profile: ReactionProfile,
+        *,
+        channel_available: list[str] | None = None,
+        bot_compatible: list[str] | None = None,
+    ) -> PlanParams:
         return PlanParams(
             allowed_emoji=list(_loads(profile.allowed_emoji, [])),  # type: ignore[arg-type]
             emoji_weights=dict(_loads(profile.emoji_weights, {})),  # type: ignore[arg-type]
@@ -411,7 +422,93 @@ class ReactionService:
             delay_max=profile.delay_max,
             delay_preset=DelayPreset(str(profile.delay_preset)),
             max_bots_per_post=profile.max_bots_per_post,
+            channel_available=channel_available,
+            bot_compatible=bot_compatible,
         )
+
+    async def _channel_capabilities(
+        self, registry_channel_id: str
+    ) -> tuple[list[str] | None, list[str] | None]:
+        """Return (channel_available, bot_compatible) for a registry channel.
+
+        Both are ``None`` when the channel is unknown or its reactions were never
+        probed — the planner then uses the profile unchanged. A probed channel
+        that reported an empty set yields an empty list, which correctly forbids
+        every emoji (the planner skips instead of failing).
+        """
+        if not registry_channel_id:
+            return None, None
+        row = await self.capabilities.get(registry_channel_id)
+        if row is None or row.status != "ok":
+            return None, None
+        available = list(_loads(row.available_reactions, []))  # type: ignore[arg-type]
+        bot = list(_loads(row.bot_reactions, []))  # type: ignore[arg-type]
+        return available, (bot or available)
+
+    async def active_bots_for_channel(
+        self, registry_channel_id: str
+    ) -> tuple[list[Bot], str]:
+        """Bots able to react in a channel, preferring verified bindings.
+
+        Returns ``(bots, mode)`` where ``mode`` is ``"bot"`` when the list comes
+        from ready bindings (true no-session operation) or ``"legacy"`` when it
+        falls back to every enabled bot (channels that predate bindings).
+        """
+        if registry_channel_id:
+            ready = await self.bindings.ready_bots_for_channel(registry_channel_id)
+            bots: list[Bot] = []
+            for binding in ready:
+                bot = await self.bots.get(binding.bot_id)
+                if bot is not None and bot.enabled and bot.has_token:
+                    bots.append(bot)
+            if bots:
+                return bots, "bot"
+        return await self.active_bots(), "legacy"
+
+    async def capability_view(self, registry_channel_id: str) -> dict[str, object]:
+        """Reaction capability summary for a channel (for the UI)."""
+        row = await self.capabilities.get(registry_channel_id)
+        if row is None:
+            return {
+                "channel_id": registry_channel_id,
+                "status": "unknown",
+                "available": [],
+                "bot_reactions": [],
+                "reactions_limit": 0,
+                "paid_available": False,
+                "message": "Набор реакций канала ещё не проверялся.",
+            }
+        return {
+            "channel_id": row.channel_id,
+            "status": row.status,
+            "available": list(_loads(row.available_reactions, [])),  # type: ignore[arg-type]
+            "bot_reactions": list(_loads(row.bot_reactions, [])),  # type: ignore[arg-type]
+            "reactions_limit": row.reactions_limit,
+            "paid_available": row.paid_reactions_available,
+            "message": row.message,
+        }
+
+    async def reaction_policy_preview(
+        self, profile_id: str | None, registry_channel_id: str
+    ) -> dict[str, object]:
+        """Show which profile emoji survive the channel-capability intersection."""
+        profile = await self.resolve_profile(profile_id)
+        requested = list(_loads(profile.allowed_emoji, []))  # type: ignore[arg-type]
+        available, bot = await self._channel_capabilities(registry_channel_id)
+        result = intersect_reactions(
+            requested=requested,
+            channel_available=available,
+            bot_compatible=bot,
+        )
+        return {
+            "profile_id": profile.id,
+            "profile_name": profile.name,
+            "requested": requested,
+            "usable": result.candidates,
+            "channel_known": result.channel_known,
+            "can_react": result.can_react,
+            "skipped_reason": result.skipped_reason,
+        }
 
     async def _rule_specs(self) -> list[RuleSpec]:
         rules = await self.rules.list(enabled=True)
@@ -722,6 +819,11 @@ class ReactionService:
                 how_to_fix="Добавьте хотя бы одного обычного бота с действующим токеном.",
                 status_code=409,
             )
+        # Prefer bots verified as ready for this exact channel (bot-only mode);
+        # fall back to every enabled bot for channels that predate bindings.
+        channel_bots, _mode = await self.active_bots_for_channel(post.registry_channel_id)
+        if channel_bots:
+            bots = channel_bots
         pairs = [(b.id, b.username or f"bot{b.telegram_id}") for b in bots]
         # Rebuild the category's reaction policy so the planner can never pick a
         # forbidden emoji (e.g. 🎉 on a sad post). Simulation already did this;
@@ -733,11 +835,30 @@ class ReactionService:
             matched_terms=[t.strip() for t in (post.matched_terms or "").split(",") if t.strip()],
         )
         match = await self._result_to_match(result)
+        available, compatible = await self._channel_capabilities(post.registry_channel_id)
+        params = self._plan_params(
+            profile, channel_available=available, bot_compatible=compatible
+        )
+        if params.channel_available is not None and not params.allowed_emoji:
+            # The channel's real capability set excludes every profile emoji.
+            # Skip honestly instead of scheduling reactions Telegram will reject.
+            post.status = PostStatus.SKIPPED
+            await self.session.flush()
+            await self.session.commit()
+            await self.events.warning(
+                "reactions.reaction_service",
+                "Реакции для поста пропущены: нет подходящих реакций для этого канала.",
+                explanation="Набор реакций профиля не пересекается с доступными в канале.",
+                how_to_fix="Проверьте набор реакций канала или измените профиль.",
+                operation="plan_post",
+                status="skipped",
+            )
+            return []
         base_time = utcnow()
         planned = self.planner.plan(
             post_id=post.id,
             bots=pairs,
-            params=self._plan_params(profile),
+            params=params,
             match=match,
             base_time=base_time,
             rng=self._rng_for(seed),

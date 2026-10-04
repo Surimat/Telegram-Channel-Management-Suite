@@ -35,6 +35,7 @@ finished modern desktop/web application, **not** a technical admin panel.
 | Audience | Parsed users: search, filter, tags, sort, export |
 | Sources | Audience sources: channels/groups/entities, scan, stats |
 | Invites | Invite queue: build, dry-run, approve, run, monitor |
+| Кампании | Invite-link campaigns (no account needed) + source quality |
 | Reactions | Reaction profiles, emoji weights, delays, simulation |
 | Rules | Category rules: allowed/preferred/forbidden, confidence, priority |
 | AI | Tiny classifier: enable/disable, model, confidence routing |
@@ -150,12 +151,15 @@ Wording rule — instead of `BOT_TOKEN missing`, write:
 | `/sources` | `SourcesView` | 5 |
 | `/audience` | `AudienceView` | 5 |
 | `/invites` | `InvitesView` | 6 |
+| `/campaigns` | `CampaignsView` (invite-link campaigns + donor quality) | polish |
 | `/ai` | `AiView` (Обзор / Модель / Настройки / Проверка / Диагностика) | 7 |
 | `/analytics` | `AnalyticsView` | 8 |
 | `/settings` | `SettingsView` | 1 |
 | `/logs` | `LogsView` | 1 |
 | `/queue` | `QueueView` | 1 |
 | `/system` | `SystemView` (Setup Wizard) | 1 |
+| `/diagnostics` | `DiagnosticsView` (status + safe actions + redacted report) | polish |
+| `/backup` | `BackupView` (backup / restore + config export/import) | 10 |
 
 ### Audience & Sources pages (`SourcesView.vue`, `AudienceView.vue`, PHASE 5)
 
@@ -286,7 +290,10 @@ Four owner-facing additions, all RU-first and consistent with §1–§4:
   with a chosen account, toggle which modules it feeds (реакции/аудитория/
   приглашения/аналитика), and mark a default. The default is auto-promoted when
   the current one is removed. Verification is honest — a privacy/FloodWait result
-  shows a plain-language status and hint, never bypassing Telegram.
+  shows a plain-language status and hint, never bypassing Telegram. The same
+  table now has a **«Бот и реакции»** column: connect a bot to the channel, verify
+  its rights, and probe the channel's available reactions — all **bot-only**, no
+  user account required.
 - **Permission probe** (Sessions page): pick an account + a channel and press
   "Проверить доступ". The result is a plain-language status (`ok`, `partial`,
   `no_access`, `auth_required`, `admin_required`, `privacy_restricted`,
@@ -321,7 +328,34 @@ The first place a non-technical owner should look when something is off:
 
 ---
 
-## 11. Terminology (one word per entity)
+## 11. Product polish: campaigns, destinations, wizard, update
+
+Owner-facing additions that make the suite usable without a user account and
+without reading docs:
+
+- **Кампании** (`CampaignsView.vue`, `/campaigns`): invite-link promotion that
+  works with the manager bot only. Create a campaign, pick a channel and a
+  **risk mode** (conservative by default), create and revoke invite links, and
+  see joins/requests. The page also shows **source quality** — an explainable
+  band (`Хороший источник` / `Средний` / `Похоже на накрутку` /
+  `Недостаточно данных`) plus confidence; when member data is unavailable no bot
+  share is invented, it reads "не измерено".
+- **Резервные копии → Места хранения** (`BackupView.vue`, `/backup`): each new
+  backup is delivered to every enabled destination. A local folder is created
+  automatically and cannot be removed; Telegram / Google Drive / Яндекс.Диск are
+  optional. Credentials are sealed and never shown; "Проверить" reports
+  reachability in plain language.
+- **Мастер первой настройки** (System page): a resumable wizard with presets
+  (minimal → professional). Every step reflects **real** state and never claims
+  to be done unless it is; without an account, session-gated steps are
+  `optional`, not required.
+- **Обновления** (System page): conservative auto-update — off by default, only
+  checks and downloads a **SHA-256-verified** file, and never installs anything
+  without an explicit owner action.
+
+---
+
+## 12. Terminology (one word per entity)
 
 Use exactly one term per entity across the UI, docs and API text:
 

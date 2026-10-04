@@ -17,13 +17,20 @@ from backend.app.providers.registry import build_bot_provider, build_session_pro
 from backend.app.services.analytics_service import AnalyticsService
 from backend.app.services.audience_service import AudienceService
 from backend.app.services.backup_service import BackupService
+from backend.app.services.binding_service import BindingService
 from backend.app.services.bot_service import BotService, ProviderFactory
+from backend.app.services.campaign_service import CampaignService
+from backend.app.services.capability_service import CapabilityService
 from backend.app.services.channel_service import ChannelService
+from backend.app.services.destination_service import DestinationService
 from backend.app.services.diagnostics_service import DiagnosticsService
+from backend.app.services.donor_service import DonorService
 from backend.app.services.invite_service import InviteService
 from backend.app.services.permission_service import PermissionService
+from backend.app.services.promotion_service import PromotionService
 from backend.app.services.reaction_service import ReactionService
 from backend.app.services.session_service import SessionProviderFactory, SessionService
+from backend.app.services.update_service import UpdateService
 
 
 def get_provider_factory() -> ProviderFactory:
@@ -111,3 +118,42 @@ def get_diagnostics_service(
     session: AsyncSession = Depends(get_session),
 ) -> DiagnosticsService:
     return DiagnosticsService(session)
+
+
+def get_binding_service(
+    session: AsyncSession = Depends(get_session),
+    provider_factory: ProviderFactory = Depends(get_provider_factory),
+) -> BindingService:
+    return BindingService(session, provider_factory=provider_factory)
+
+
+def get_capability_service(
+    session: AsyncSession = Depends(get_session),
+    provider_factory: ProviderFactory = Depends(get_provider_factory),
+) -> CapabilityService:
+    return CapabilityService(session, provider_factory=provider_factory)
+
+
+def get_campaign_service(
+    session: AsyncSession = Depends(get_session),
+    provider_factory: ProviderFactory = Depends(get_provider_factory),
+) -> CampaignService:
+    return CampaignService(session, provider_factory=provider_factory)
+
+
+def get_donor_service(session: AsyncSession = Depends(get_session)) -> DonorService:
+    return DonorService(session)
+
+
+def get_destination_service(session: AsyncSession = Depends(get_session)) -> DestinationService:
+    return DestinationService(session)
+
+
+def get_promotion_service(session: AsyncSession = Depends(get_session)) -> PromotionService:
+    return PromotionService(session)
+
+
+def get_update_service(
+    session: AsyncSession = Depends(get_session),
+) -> UpdateService:
+    return UpdateService(session)

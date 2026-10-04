@@ -10,10 +10,13 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from backend.app.providers.types import (
+    BotChannelStatus,
     BotIdentity,
     BotUpdate,
+    InviteLinkResult,
     ManagedBotAccess,
     ManagedBotRef,
+    ReactionCapability,
 )
 
 
@@ -98,5 +101,73 @@ class TelegramBotProvider(Protocol):
         ``timeout`` of 0 returns immediately (used by the short-poll loop). The
         fake provider serves updates from a scripted queue so the whole command
         loop can be tested without Telegram.
+        """
+        ...
+
+    # --- Bot ↔ channel administration (product slice: bot-only mode) ---------
+    async def get_chat(self, chat_id: int | str) -> dict[str, object]:
+        """Return basic chat info (id, title, username, type, counts).
+
+        Raises :class:`~backend.app.providers.errors` when the chat cannot be
+        resolved. The returned mapping holds only display-safe fields.
+        """
+        ...
+
+    async def get_bot_channel_status(
+        self, chat_id: int | str, bot_id: int
+    ) -> BotChannelStatus:
+        """Return the *verified* status of ``bot_id`` inside ``chat_id``.
+
+        Uses the official ``getChatMember`` call. Never assumes a permission:
+        an unconfirmed right stays ``False``. This is what lets the Reaction
+        Manager run without a user session — the bot's own rights are checked
+        directly.
+        """
+        ...
+
+    async def get_reaction_capabilities(self, chat_id: int | str) -> ReactionCapability:
+        """Return the reactions Telegram reports as available in ``chat_id``.
+
+        Telegram exposes this per chat (not globally). When it cannot be
+        determined, returns ``determined=False`` rather than guessing.
+        """
+        ...
+
+    async def create_invite_link(
+        self,
+        chat_id: int | str,
+        *,
+        name: str = "",
+        join_request: bool = False,
+        member_limit: int = 0,
+        expire_date: int | None = None,
+    ) -> InviteLinkResult:
+        """Create a named invite link (optionally a join-request link).
+
+        Works with the official Bot API, so promotion via links is available in
+        bot-only mode (no user session required).
+        """
+        ...
+
+    async def export_invite_link(self, chat_id: int | str) -> InviteLinkResult:
+        """Return the chat's primary invite link (``exportChatInviteLink``)."""
+        ...
+
+    async def revoke_invite_link(self, chat_id: int | str, link: str) -> bool:
+        """Revoke an invite link (``revokeChatInviteLink``)."""
+        ...
+
+    async def send_document(
+        self,
+        chat_id: int | str,
+        *,
+        filename: str,
+        content: bytes,
+        caption: str = "",
+    ) -> bool:
+        """Send a file as a document (used by the Telegram backup destination).
+
+        Returns True on success. Callers must never pass session files here
+        without an explicit, confirmed opt-in.
         """
         ...

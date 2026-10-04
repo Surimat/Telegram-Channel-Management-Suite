@@ -24,7 +24,7 @@
 #   <output>/
 #     app/         <- the application code (backend + built static frontend)
 #     runtime/     <- embedded CPython (python.exe + site-packages)
-#     data/ sessions/ backups/ logs/ exports/ models/
+#     data/ sessions/ backups/ logs/ exports/ models/ updates/
 #     run.bat stop.bat README.txt .env.example
 set -euo pipefail
 
@@ -88,7 +88,7 @@ fi
 echo "==> Preparing output tree"
 rm -rf "$OUT"
 mkdir -p "$OUT/app" "$OUT/runtime" "$OUT/data" "$OUT/sessions" \
-         "$OUT/backups" "$OUT/logs" "$OUT/exports" "$OUT/models"
+         "$OUT/backups" "$OUT/logs" "$OUT/exports" "$OUT/models" "$OUT/updates"
 
 # 3. Copy application code (no VCS, caches, data or secrets).
 echo "==> Copying application code"

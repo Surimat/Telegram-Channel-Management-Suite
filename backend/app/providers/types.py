@@ -181,6 +181,81 @@ class BotUpdate:
     text: str = ""
 
 
+# --- Bot ↔ channel administration (product slice: bot-only mode) -------------
+
+
+@dataclass(slots=True)
+class BotChannelStatus:
+    """The *verified* status of a bot inside a channel (never assumed).
+
+    ``present`` is only True when Telegram confirmed the bot is a member/admin.
+    ``is_admin`` plus the individual ``can_*`` flags come straight from
+    ``getChatMember``; a missing flag stays False.
+    """
+
+    found: bool = False              # the chat itself resolved
+    present: bool = False            # the bot is a member or administrator
+    status: str = "unknown"          # administrator | member | left | kicked | unknown
+    is_admin: bool = False
+    can_post_messages: bool = False
+    can_edit_messages: bool = False
+    can_delete_messages: bool = False
+    can_manage_chat: bool = False
+    can_invite_users: bool = False
+    can_restrict_members: bool = False
+    can_pin_messages: bool = False
+    can_set_reactions: bool = False
+    chat_id: int | None = None
+    chat_title: str = ""
+    chat_username: str = ""
+    chat_kind: str = ""
+    message: str = ""
+    how_to_fix: str = ""
+
+
+@dataclass(slots=True)
+class ReactionCapability:
+    """The reactions Telegram reports as available in one chat.
+
+    ``available`` is the full emoji set Telegram exposes for the chat;
+    ``bot_compatible`` is the subset a bot is allowed to set. Both are honest:
+    an empty list with ``determined=False`` means "could not determine", never
+    "no reactions exist".
+    """
+
+    determined: bool = False
+    available: list[str] = field(default_factory=list)
+    bot_compatible: list[str] = field(default_factory=list)
+    reactions_limit: int = 0
+    paid_available: bool = False
+    message: str = ""
+
+
+@dataclass(slots=True)
+class InviteLinkResult:
+    """A created invite link (safe to display; never a secret)."""
+
+    ok: bool
+    link: str = ""
+    name: str = ""
+    join_request: bool = False
+    member_limit: int = 0
+    message: str = ""
+    how_to_fix: str = ""
+
+
+@dataclass(slots=True)
+class JoinRequestInfo:
+    """A join request observed for a chat (Bot API ``ChatJoinRequest``)."""
+
+    user_id: int
+    username: str = ""
+    display_name: str = ""
+    chat_id: int | None = None
+    invite_link: str = ""
+    created_at: float | None = None
+
+
 # --- Account permission probe (post-1.0 hardening) ---------------------------
 
 

@@ -278,20 +278,34 @@ After the app is running, open the Web UI → **System → Setup Wizard**. It ch
 in plain language:
 
 - runtime / Python;
-- database;
-- Telegram API credentials;
-- Bot API;
+- database (migration state);
+- filesystem / writable directories;
+- security key (`APP_SECRET_KEY`);
+- Telegram API access;
+- the Telethon library (user accounts);
+- the sessions folder;
 - manager bot;
 - managed bots;
-- user sessions;
-- channel access;
-- required permissions;
-- frontend;
-- scheduler;
-- filesystem / writable directories.
+- automatic reactions;
+- user accounts;
+- audience;
+- invites;
+- tiny AI (optional);
+- Mini App (optional).
 
 Each item shows: **STATUS**, a description, what it means, and what to do next —
 with human-friendly wording instead of raw error codes.
+
+The **System** page also shows the resumable **Мастер первой настройки** (Setup
+Wizard): pick a preset (minimal → professional) and follow the steps. It reflects
+real system state — a step is never shown as done unless it is, and steps that
+need a user account become **optional** when no account is added. You can run the
+suite with bots only (no MTProto account): add a channel, connect a bot to it,
+and use **Кампании** for invite-link promotion.
+
+The **System** page also has an **Обновления** card: auto-update is off by
+default. When enabled it only checks GitHub Releases and can stage a
+SHA-256-verified file — it never installs anything without your action.
 
 The dedicated **Web UI → Диагностика** page shows the same subsystem state at any
 time (not just first run) and adds:

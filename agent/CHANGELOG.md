@@ -5,7 +5,117 @@ Dates are ISO-8601.
 
 ---
 
+## [1.0.5] — 2026-10-04
+
+Product-slice release: the suite becomes useful **without a user (MTProto)
+account**, gains a first-run guide and a conservative updater. No new phase.
+
+### Added — bot-only bindings & reaction capabilities
+- `db/models/binding.py` (`BotChannelBinding`) + `db/repositories/bindings.py`;
+  `services/binding_service.py` verifies real admin rights via the bot provider.
+- `db/models/capability.py` (`ChannelCapabilities`) + `db/repositories/capabilities.py`;
+  `services/capability_service.py` probes the channel's available reactions.
+- `api/v1/bindings.py` + `api/schemas/bindings.py`: `/api/v1/bindings*` and
+  `/api/v1/capabilities/*` (tokens never returned).
+- `services/reaction_policy.py::intersect_reactions` + `reaction_planner` now
+  honour the channel's confirmed emoji set, so a profile can never schedule an
+  unsupported reaction.
+
+### Added — invite campaigns (session-free)
+- `db/models/campaign.py` (`InviteCampaign`, `InviteLink`, `JoinRequest`) +
+  `db/repositories/campaigns.py`; `services/campaign_service.py` with conservative
+  risk modes, invite-link create/revoke and join-request counters.
+- `api/v1/campaigns.py` + `api/schemas/campaigns.py`: `/api/v1/campaigns*`.
+
+### Added — donor quality
+- `db/models/donor.py` (`DonorMetrics`) + `db/repositories/donors.py`;
+  `services/donor_heuristics.py` + `services/donor_service.py` produce explainable
+  quality bands; the bot-share estimate stays `null` when member data is missing.
+- `GET/POST /api/v1/donors*`.
+
+### Added — backup delivery destinations
+- `db/models/backup_destination.py` + `db/repositories/destinations.py`;
+  `services/destination_service.py` + `services/backup_backends/*` (local,
+  Telegram, Google Drive, Яндекс.Диск). Credentials are sealed; a local
+  destination is auto-created and cannot be deleted. Fixes backup delivery so the
+  archive bytes (not raw DB bytes) reach every enabled destination.
+- `POST /api/v1/backup/destinations*`.
+
+### Added — first-run wizard & conservative auto-update
+- `db/models/onboarding.py` + `services/promotion_service.py`: `/api/v1/promotion*`
+  reflects real system state; session-gated steps become `optional` without a
+  session.
+- `db/models/update_state.py` + `services/update_service.py` + `core/versioning.py`:
+  `/api/v1/update*` — off by default, checks GitHub releases and stages a
+  SHA-256-verified file; never auto-installs.
+
+### Added — Diagnostics
+- New subsystem rows (`bindings`, `capabilities`, `backup_destinations`) and
+  redacted-report sections (`queue`, `bindings`, `capabilities`, `campaigns`,
+  `donors`, `backup_destinations`, `update`).
+
+### Added — Frontend (RU-first)
+- New `CampaignsView.vue` (`/campaigns`); a "Бот и реакции" column in
+  `ChannelsView.vue`; backup **destinations** in `BackupView.vue`; the Setup
+  Wizard + Update cards in `SystemView.vue`. New API types/methods in
+  `api/client.ts`, routes + sidebar link in `App.vue`/`router.ts`.
+
+### Added — Database
+- One Alembic migration `7cb72d22d35b` ("product slice") for all new tables;
+  autogenerate drift check is clean.
+
+### Changed
+- Version bumped to `1.0.5` (`backend/app/__init__.py`, `pyproject.toml`,
+  `frontend/package.json` + lock). `updates/` is git-ignored and created by
+  `scripts/build_portable.sh`.
+
+### Tests
+- `tests/test_bindings_api.py`, `tests/test_campaigns_api.py`,
+  `tests/test_product_api.py`; `tests/test_diagnostics.py` extended for the new
+  sections. Suite: **491 passed**; `ruff` clean; `vue-tsc` + `npm run build` clean.
+
+---
+
+## [Unreleased] — documentation consistency pass
+
+Maintenance only (no new features, no new phase). Documentation and persistent
+memory brought back in line with the shipped v1.0.4 code after a factual audit.
+
+### Documentation
+- `docs/API.md` — the **Setup / System** table listed obsolete
+  `/api/v1/system/backups*` and `/api/v1/system/config/*` paths that do not exist
+  in the code; replaced with the real `/api/v1/system/database` and
+  `/api/v1/system/database/upgrade` endpoints and a pointer to the
+  `/api/v1/backup` section. Added the missing **Help / UI preferences**
+  (`/api/v1/help/*`) section. Removed a stale duplicate **Invites** table that
+  documented a non-existent `/api/v1/invites/{id}/start` endpoint.
+- `docs/UI.md` — the "Built views" inventory was missing the `/diagnostics` and
+  `/backup` routes; added them.
+- `docs/SETUP.md` — the Setup Wizard check list named items that do not exist
+  (Bot API, channel access, required permissions, frontend, scheduler) and
+  omitted real ones; corrected to the actual checks returned by
+  `GET /api/v1/system/setup`.
+- `agent/CURRENT_STATE.md` — the `DECISIONS.md` range said D-001…D-037; corrected
+  to D-001…D-062.
+
+### Verified (no change needed)
+- README, ROADMAP, RELEASE_CHECKLIST, SECURITY, TROUBLESHOOTING and ARCHITECTURE
+  already match the code (version `1.0.4`, Diagnostics, Channel Registry, Alembic
+  migrations, portable/Docker flows).
+- Gates re-run green: `pytest` **462 passed**, `ruff` clean, `vue-tsc` +
+  `npm run build` clean.
+
+### Tests
+- `tests/test_diagnostics.py::test_report_payload_contains_no_secrets_or_db_contents`
+  — strengthened to seed an audience user record and assert the redacted report
+  leaks no audience names, ids or full phone numbers (only status/aggregates).
+
+---
+
 ## [1.0.4] — 2026-10-04
+
+Released 2026-10-04 (merge `3f42c3d`, PR #5; tag `v1.0.4`; the Release workflow
+built the Windows portable ZIP + `.sha256` and attached them — D-060).
 
 Patch release: startup robustness and Diagnostics polish (no new phases, no new
 large features).

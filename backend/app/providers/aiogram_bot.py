@@ -37,10 +37,13 @@ from backend.app.providers.errors import (
     UnauthorizedError,
 )
 from backend.app.providers.types import (
+    BotChannelStatus,
     BotIdentity,
     BotUpdate,
+    InviteLinkResult,
     ManagedBotAccess,
     ManagedBotRef,
+    ReactionCapability,
 )
 
 
@@ -210,3 +213,142 @@ class AiogramBotProvider:
                 )
             )
         return result
+
+    # --- Bot ↔ channel administration (product slice: bot-only mode) ---------
+    async def get_chat(self, chat_id: int | str) -> dict[str, object]:
+        chat = await self._call(self._bot.get_chat(chat_id=chat_id))
+        return {
+            "id": getattr(chat, "id", None),
+            "title": str(getattr(chat, "title", "") or ""),
+            "username": str(getattr(chat, "username", "") or ""),
+            "type": str(getattr(chat, "type", "") or ""),
+            "description": str(getattr(chat, "description", "") or ""),
+            "members_count": getattr(chat, "members_count", None),
+        }
+
+    async def get_bot_channel_status(
+        self, chat_id: int | str, bot_id: int
+    ) -> BotChannelStatus:
+        try:
+            member = await self._call(
+                self._bot.get_chat_member(chat_id=chat_id, user_id=bot_id)
+            )
+        except TelegramProviderError as exc:
+            # A "user not found / not a member" is a normal negative result, not
+            # a hard failure: report it as not-present so the UI can offer the
+            # "add the bot" step.
+            return BotChannelStatus(
+                found=False,
+                present=False,
+                status="unknown",
+                message=exc.message,
+                how_to_fix=exc.how_to_fix,
+            )
+        status = str(getattr(member, "status", "") or "unknown")
+        present = status in {"administrator", "creator", "member", "restricted"}
+        is_admin = status in {"administrator", "creator"}
+        return BotChannelStatus(
+            found=True,
+            present=present,
+            status=status,
+            is_admin=is_admin,
+            can_post_messages=bool(getattr(member, "can_post_messages", False)),
+            can_edit_messages=bool(getattr(member, "can_edit_messages", False)),
+            can_delete_messages=bool(getattr(member, "can_delete_messages", False)),
+            can_manage_chat=bool(getattr(member, "can_manage_chat", False)),
+            can_invite_users=bool(getattr(member, "can_invite_users", False)),
+            can_restrict_members=bool(getattr(member, "can_restrict_members", False)),
+            can_pin_messages=bool(getattr(member, "can_pin_messages", False)),
+            # Telegram's Bot API has no dedicated "can set reactions" right; an
+            # administrator (or a member in a channel where reactions are open)
+            # may react. We treat administrator/creator as allowed and otherwise
+            # leave it False until a real reaction succeeds.
+            can_set_reactions=is_admin,
+        )
+
+    async def get_reaction_capabilities(self, chat_id: int | str) -> ReactionCapability:
+        try:
+            chat = await self._call(self._bot.get_chat(chat_id=chat_id))
+        except TelegramProviderError as exc:
+            return ReactionCapability(
+                determined=False,
+                message=exc.message,
+            )
+        available_raw = getattr(chat, "available_reactions", None)
+        if available_raw is None:
+            return ReactionCapability(
+                determined=False,
+                message="Telegram не сообщил набор реакций для этого канала.",
+            )
+        emoji: list[str] = []
+        for item in available_raw or []:
+            value = getattr(item, "emoji", None)
+            if value:
+                emoji.append(str(value))
+        return ReactionCapability(
+            determined=True,
+            available=emoji,
+            bot_compatible=list(emoji),
+            reactions_limit=int(getattr(chat, "max_reaction_count", 0) or 0),
+            paid_available=bool(getattr(chat, "has_paid_media", False)),
+            message="Набор реакций получен от Telegram.",
+        )
+
+    async def create_invite_link(
+        self,
+        chat_id: int | str,
+        *,
+        name: str = "",
+        join_request: bool = False,
+        member_limit: int = 0,
+        expire_date: int | None = None,
+    ) -> InviteLinkResult:
+        kwargs: dict[str, object] = {}
+        if name:
+            kwargs["name"] = name
+        if join_request:
+            kwargs["creates_join_request"] = True
+        if member_limit:
+            kwargs["member_limit"] = member_limit
+        if expire_date:
+            kwargs["expire_date"] = expire_date
+        try:
+            link = await self._call(self._bot.create_chat_invite_link(chat_id=chat_id, **kwargs))
+        except TelegramProviderError as exc:
+            return InviteLinkResult(ok=False, message=exc.message, how_to_fix=exc.how_to_fix)
+        return InviteLinkResult(
+            ok=True,
+            link=str(getattr(link, "invite_link", "") or ""),
+            name=str(getattr(link, "name", "") or name),
+            join_request=bool(getattr(link, "creates_join_request", join_request)),
+            member_limit=int(getattr(link, "member_limit", 0) or 0),
+        )
+
+    async def export_invite_link(self, chat_id: int | str) -> InviteLinkResult:
+        try:
+            link = await self._call(self._bot.export_chat_invite_link(chat_id=chat_id))
+        except TelegramProviderError as exc:
+            return InviteLinkResult(ok=False, message=exc.message, how_to_fix=exc.how_to_fix)
+        return InviteLinkResult(ok=True, link=str(link or ""))
+
+    async def revoke_invite_link(self, chat_id: int | str, link: str) -> bool:
+        result = await self._call(
+            self._bot.revoke_chat_invite_link(chat_id=chat_id, invite_link=link)
+        )
+        return bool(result)
+
+    async def send_document(
+        self,
+        chat_id: int | str,
+        *,
+        filename: str,
+        content: bytes,
+        caption: str = "",
+    ) -> bool:
+        from aiogram.types import BufferedInputFile
+
+        document = BufferedInputFile(content, filename=filename)
+        await self._call(
+            self._bot.send_document(chat_id=chat_id, document=document, caption=caption or None)
+        )
+        return True

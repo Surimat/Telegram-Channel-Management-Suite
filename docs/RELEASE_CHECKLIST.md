@@ -6,7 +6,7 @@ repository root unless stated otherwise.
 ## 1. Code quality gates (must pass)
 
 ```bash
-python -m pytest                 # full suite — currently 462 passed
+python -m pytest                 # full suite — currently 491 passed
 ruff check backend tests         # must be clean
 cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 ```
@@ -65,21 +65,41 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 
 ## 6. Release verification (fill in per release)
 
-| Gate | v1.0.4 (planned) | Notes |
+### v1.0.5 (released 2026-10-04)
+
+| Gate | v1.0.5 | Notes |
 | --- | --- | --- |
-| Git merge (`develop → main`) | | merge commit SHA |
-| Version consistency (`1.0.4` everywhere) | | app / pyproject / frontend |
-| CI green on `develop` head | | `.github/workflows/ci.yml` |
-| Diagnostics tests (`test_diagnostics.py`) | | redaction + report + API + degradation |
-| Portable build (`build_portable.sh`) | | ZIP name + size |
-| Automated Release workflow | | `v*` tag → release created by CI |
-| GitHub Release `v1.0.4` published | | tag matches |
-| ZIP attached | | asset present, non-empty |
-| `.sha256` attached + matches ZIP | | `sha256sum -c` |
-| Security (artifact + git tree clean) | | no secrets/sessions/DB/exports |
-| Docker (`/health` + SPA) | | build + run |
-| Frontend build | | `vue-tsc` + `npm run build` |
-| Tests (`pytest` / `ruff`) | | counts |
+| Git merge (`develop → main`) | ✅ | reviewed PR |
+| Version consistency (`1.0.5` everywhere) | ✅ | app / pyproject / frontend (+ lock) |
+| CI green on `develop` head | ✅ | `.github/workflows/ci.yml` |
+| Diagnostics tests (`test_diagnostics.py`) | ✅ | redaction + report + new sections + degradation |
+| New API tests | ✅ | `test_bindings_api.py`, `test_campaigns_api.py`, `test_product_api.py` |
+| Migration drift check | ✅ | `7cb72d22d35b`; `compare_metadata` = none |
+| Automated Release workflow | ✅ | `v1.0.5` tag → release created by CI |
+| GitHub Release `v1.0.5` published | ✅ | tag matches |
+| ZIP attached | ✅ | Windows portable ZIP |
+| `.sha256` attached + matches ZIP | ✅ | `sha256sum -c` |
+| Security (artifact + git tree clean) | ✅ | no secrets/sessions/DB; empty runtime dirs |
+| Docker (`/health` + SPA) | ✅ | build + run + restart verified |
+| Frontend build | ✅ | `vue-tsc` + `npm run build` |
+| Tests (`pytest` / `ruff`) | ✅ | 491 passed |
+
+### Prior release — v1.0.4
+
+| Gate | v1.0.4 | Notes |
+| --- | --- | --- |
+| Git merge (`develop → main`) | ✅ | merge commit `3f42c3d` (PR #5) |
+| Version consistency (`1.0.4` everywhere) | ✅ | app / pyproject / frontend (+ lock) |
+| CI green on `develop` head | ✅ | `.github/workflows/ci.yml` |
+| Diagnostics tests (`test_diagnostics.py`) | ✅ | redaction + report + API + degradation |
+| Automated Release workflow | ✅ | `v1.0.4` tag → release created by CI |
+| GitHub Release `v1.0.4` published | ✅ | tag matches |
+| ZIP attached | ✅ | ~24 MB Windows portable ZIP |
+| `.sha256` attached + matches ZIP | ✅ | `sha256sum -c` OK |
+| Security (artifact + git tree clean) | ✅ | no secrets/sessions/DB; empty runtime dirs |
+| Docker (`/health` + SPA) | ✅ | build + run + restart verified |
+| Frontend build | ✅ | `vue-tsc` + `npm run build` |
+| Tests (`pytest` / `ruff`) | ✅ | 462 passed |
 
 ### Prior release — v1.0.3
 

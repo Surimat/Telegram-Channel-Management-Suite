@@ -13,8 +13,54 @@ from backend.app.db.models.audience import (
     SourceType,
     SourceUserLink,
 )
+from backend.app.db.models.backup_destination import (
+    DESTINATION_TITLES,
+    BackupDestination,
+    DestinationKind,
+    DestinationStatus,
+)
+from backend.app.db.models.binding import (
+    FUNCTION_EDITING,
+    FUNCTION_POSTING,
+    FUNCTION_REACTIONS,
+    FUNCTION_TITLES,
+    BindingRole,
+    BindingStatus,
+    BotChannelBinding,
+)
 from backend.app.db.models.bot import Bot, BotHealth, BotKind
+from backend.app.db.models.campaign import (
+    CampaignStatus,
+    InviteCampaign,
+    InviteLink,
+    JoinRequest,
+    JoinRequestStatus,
+    LinkStatus,
+)
+from backend.app.db.models.capability import (
+    CAPABILITY_ERROR,
+    CAPABILITY_MESSAGES,
+    CAPABILITY_OK,
+    CAPABILITY_UNAVAILABLE,
+    CAPABILITY_UNKNOWN,
+    ChannelCapabilities,
+)
 from backend.app.db.models.channel import Channel, ChannelKind, ChannelStatus
+from backend.app.db.models.donor import (
+    CONFIDENCE_HIGH,
+    CONFIDENCE_LOW,
+    CONFIDENCE_MEDIUM,
+    PROBABILITY_HIGH,
+    PROBABILITY_LOW,
+    PROBABILITY_MEDIUM,
+    PROBABILITY_TITLES,
+    QUALITY_AVERAGE,
+    QUALITY_GOOD,
+    QUALITY_SUSPECT,
+    QUALITY_TITLES,
+    QUALITY_UNKNOWN,
+    DonorMetrics,
+)
 from backend.app.db.models.event import Event, EventLevel
 from backend.app.db.models.invite import (
     TERMINAL_INVITE_STATUSES,
@@ -24,6 +70,14 @@ from backend.app.db.models.invite import (
     InviteTask,
 )
 from backend.app.db.models.job import Job, JobStatus
+from backend.app.db.models.onboarding import (
+    PRESET_ADVANCED,
+    PRESET_BASIC,
+    PRESET_BOT_ONLY,
+    PRESET_MINIMAL,
+    PRESET_PROFESSIONAL,
+    PromotionProgress,
+)
 from backend.app.db.models.permission import PermissionCheck
 from backend.app.db.models.post import Post, PostStatus
 from backend.app.db.models.reaction import (
@@ -35,33 +89,96 @@ from backend.app.db.models.reaction import (
 )
 from backend.app.db.models.session import SessionStatus, UserSession
 from backend.app.db.models.setting import Setting
+from backend.app.db.models.update_state import (
+    UPDATE_APPLYING,
+    UPDATE_AVAILABLE,
+    UPDATE_CHECKING,
+    UPDATE_DOWNLOADED,
+    UPDATE_ERROR,
+    UPDATE_FAILED,
+    UPDATE_IDLE,
+    UPDATE_MESSAGES,
+    UPDATE_UP_TO_DATE,
+    UpdateState,
+)
 
 __all__ = [
+    "CAPABILITY_ERROR",
+    "CAPABILITY_MESSAGES",
+    "CAPABILITY_OK",
+    "CAPABILITY_UNAVAILABLE",
+    "CAPABILITY_UNKNOWN",
+    "CONFIDENCE_HIGH",
+    "CONFIDENCE_LOW",
+    "CONFIDENCE_MEDIUM",
+    "DESTINATION_TITLES",
+    "FUNCTION_EDITING",
+    "FUNCTION_POSTING",
+    "FUNCTION_REACTIONS",
+    "FUNCTION_TITLES",
+    "PRESET_ADVANCED",
+    "PRESET_BASIC",
+    "PRESET_BOT_ONLY",
+    "PRESET_MINIMAL",
+    "PRESET_PROFESSIONAL",
+    "PROBABILITY_HIGH",
+    "PROBABILITY_LOW",
+    "PROBABILITY_MEDIUM",
+    "PROBABILITY_TITLES",
+    "QUALITY_AVERAGE",
+    "QUALITY_GOOD",
+    "QUALITY_SUSPECT",
+    "QUALITY_TITLES",
+    "QUALITY_UNKNOWN",
     "TERMINAL_INVITE_STATUSES",
+    "UPDATE_APPLYING",
+    "UPDATE_AVAILABLE",
+    "UPDATE_CHECKING",
+    "UPDATE_DOWNLOADED",
+    "UPDATE_ERROR",
+    "UPDATE_FAILED",
+    "UPDATE_IDLE",
+    "UPDATE_MESSAGES",
+    "UPDATE_UP_TO_DATE",
     "AiMetric",
     "AiRecord",
     "AudienceSource",
     "AudienceUser",
+    "BackupDestination",
+    "BindingRole",
+    "BindingStatus",
     "Bot",
+    "BotChannelBinding",
     "BotHealth",
     "BotKind",
+    "CampaignStatus",
     "Channel",
+    "ChannelCapabilities",
     "ChannelKind",
     "ChannelStatus",
     "Completeness",
     "DelayPresetDB",
+    "DestinationKind",
+    "DestinationStatus",
+    "DonorMetrics",
     "Event",
     "EventLevel",
+    "InviteCampaign",
     "InviteJob",
     "InviteJobStatus",
+    "InviteLink",
     "InviteStatus",
     "InviteTask",
     "Job",
     "JobStatus",
+    "JoinRequest",
+    "JoinRequestStatus",
+    "LinkStatus",
     "MemberStatus",
     "PermissionCheck",
     "Post",
     "PostStatus",
+    "PromotionProgress",
     "ReactionJob",
     "ReactionJobStatus",
     "ReactionProfile",
@@ -71,5 +188,6 @@ __all__ = [
     "Setting",
     "SourceType",
     "SourceUserLink",
+    "UpdateState",
     "UserSession",
 ]

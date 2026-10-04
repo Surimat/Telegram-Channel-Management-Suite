@@ -39,10 +39,15 @@ from backend.app.core.config import Settings, get_settings
 from backend.app.core.logging import get_logger
 from backend.app.core.redaction import REDACTED, redact_and_verify, redact_text
 from backend.app.db import migrate
+from backend.app.db.models.backup_destination import DestinationStatus
+from backend.app.db.models.binding import BindingStatus
 from backend.app.db.models.bot import BotKind
+from backend.app.db.models.capability import CAPABILITY_OK, CAPABILITY_UNAVAILABLE
 from backend.app.db.models.channel import ChannelStatus
 from backend.app.db.models.event import EventLevel
 from backend.app.db.models.session import SessionStatus
+from backend.app.db.models.update_state import UPDATE_AVAILABLE, UPDATE_ERROR, UPDATE_FAILED
+from backend.app.db.repositories.bindings import BindingRepository
 from backend.app.db.repositories.bots import BotRepository
 from backend.app.db.repositories.channels import ChannelRepository
 from backend.app.db.repositories.jobs import JobRepository
@@ -92,11 +97,17 @@ _CHECK_TITLES = {
     "managed_bots": "Управляемые боты",
     "sessions": "Аккаунты Telegram",
     "channels": "Каналы",
+    "bindings": "Подключения ботов к каналам",
+    "capabilities": "Реакции каналов",
     "audience": "Аудитория",
     "reactions": "Реакции",
     "invites": "Приглашения",
+    "campaigns": "Кампании приглашений",
+    "donors": "Качество источников",
     "ai": "Мини-ИИ",
     "scheduler": "Планировщик и очередь",
+    "backup_destinations": "Места хранения копий",
+    "update": "Обновления",
 }
 
 logger = get_logger(__name__)
@@ -154,12 +165,18 @@ class DiagnosticsService:
             await self._guarded("managed_bots", self._managed_bots_item),
             await self._guarded("sessions", self._sessions_item),
             await self._guarded("channels", self._channels_item),
+            await self._guarded("bindings", self._bindings_item),
+            await self._guarded("capabilities", self._capabilities_item),
             await self._guarded("audience", self._audience_item),
+            await self._guarded("donors", self._donors_item),
             await self._guarded("reactions", lambda: self.system.reactions_check(self.session)),
             await self._guarded("invites", lambda: self.system.invites_check(self.session)),
+            await self._guarded("campaigns", self._campaigns_item),
             await self._guarded("ai", self._ai_item),
             await self._guarded("scheduler", lambda: self._scheduler_item(app_state)),
             self._storage_item(),
+            await self._guarded("backup_destinations", self._backup_destinations_item),
+            await self._guarded("update", self._update_item),
             self._portable_item(),
         ]
         diagnostic_items = [
@@ -349,6 +366,195 @@ class DiagnosticsService:
             "",
         )
 
+    async def _bindings_item(self):  # type: ignore[no-untyped-def]
+        from backend.app.services.system_service import Check
+
+        bindings = await BindingRepository(self.session).list_all()
+        if not bindings:
+            return Check(
+                "bindings",
+                "Подключения ботов к каналам",
+                STATUS_NOT_CONFIGURED,
+                "Боты пока не подключены к каналам. Это нужно для реакций без аккаунта.",
+                "Откройте «Каналы» → выберите канал → «Подключить бота».",
+            )
+        ready = sum(1 for b in bindings if b.status == BindingStatus.READY)
+        problem = sum(
+            1
+            for b in bindings
+            if b.status in {BindingStatus.NEEDS_PERMISSION, BindingStatus.ERROR}
+        )
+        if problem:
+            return Check(
+                "bindings",
+                "Подключения ботов к каналам",
+                STATUS_WARNING,
+                f"Подключений: {len(bindings)}, готово: {ready}, требуют внимания: {problem}.",
+                "Проверьте проблемные подключения и выдайте боту права администратора.",
+            )
+        return Check(
+            "bindings",
+            "Подключения ботов к каналам",
+            STATUS_OK,
+            f"Готовых подключений: {ready} из {len(bindings)}.",
+            "",
+        )
+
+    async def _capabilities_item(self):  # type: ignore[no-untyped-def]
+        from backend.app.db.repositories.capabilities import CapabilityRepository
+        from backend.app.services.system_service import Check
+
+        rows = await CapabilityRepository(self.session).list_all()
+        if not rows:
+            return Check(
+                "capabilities",
+                "Реакции каналов",
+                STATUS_NOT_CONFIGURED,
+                "Наборы реакций каналов ещё не проверялись.",
+                "Это необязательно: реакции работают, пока не заданы ограничения.",
+            )
+        known = sum(1 for r in rows if r.status == CAPABILITY_OK)
+        unavailable = sum(1 for r in rows if r.status == CAPABILITY_UNAVAILABLE)
+        if unavailable and not known:
+            return Check(
+                "capabilities",
+                "Реакции каналов",
+                STATUS_WARNING,
+                f"Проверено каналов: {len(rows)}, недоступны: {unavailable}.",
+                "Подключите бота к каналу, чтобы узнать доступные реакции.",
+            )
+        return Check(
+            "capabilities",
+            "Реакции каналов",
+            STATUS_OK,
+            f"Проверено каналов: {len(rows)}, известен набор реакций: {known}.",
+            "",
+        )
+
+    async def _donors_item(self):  # type: ignore[no-untyped-def]
+        from backend.app.db.repositories.donors import DonorRepository
+        from backend.app.services.system_service import Check
+
+        rows = await DonorRepository(self.session).list_all()
+        if not rows:
+            return Check(
+                "donors",
+                "Качество источников",
+                STATUS_NOT_CONFIGURED,
+                "Источники ещё не оценивались.",
+                "Откройте «Аудитория» → «Качество источников» и запустите оценку.",
+            )
+        suspect = sum(1 for r in rows if r.quality == "suspect")
+        if suspect:
+            return Check(
+                "donors",
+                "Качество источников",
+                STATUS_WARNING,
+                f"Оценено источников: {len(rows)}. С признаками накрутки: {suspect}.",
+                "Проверьте источники со статусом «Подозрительный» перед закупкой рекламы.",
+            )
+        return Check(
+            "donors",
+            "Качество источников",
+            STATUS_OK,
+            f"Оценено источников: {len(rows)}. Явных проблем не найдено.",
+            "",
+        )
+
+    async def _campaigns_item(self):  # type: ignore[no-untyped-def]
+        from backend.app.db.repositories.campaigns import CampaignRepository
+        from backend.app.services.system_service import Check
+
+        _rows, total = await CampaignRepository(self.session).list(limit=1)
+        if total == 0:
+            return Check(
+                "campaigns",
+                "Кампании приглашений",
+                STATUS_NOT_CONFIGURED,
+                "Кампаний приглашений нет — это необязательно.",
+                "Продвижение ссылками доступно без входа в аккаунт: «Приглашения» → «Кампании».",
+            )
+        return Check(
+            "campaigns",
+            "Кампании приглашений",
+            STATUS_OK,
+            f"Кампаний: {total}.",
+            "",
+        )
+
+    async def _backup_destinations_item(self):  # type: ignore[no-untyped-def]
+        from backend.app.db.repositories.destinations import DestinationRepository
+        from backend.app.services.system_service import Check
+
+        rows = await DestinationRepository(self.session).list_all()
+        if not rows:
+            return Check(
+                "backup_destinations",
+                "Места хранения копий",
+                STATUS_NOT_CONFIGURED,
+                "Места хранения ещё не настроены.",
+                "Откройте «Резервные копии»: локальное место создаётся автоматически.",
+            )
+        enabled = [r for r in rows if r.enabled]
+        broken = [
+            r
+            for r in enabled
+            if r.status in {DestinationStatus.ERROR, DestinationStatus.WARNING}
+        ]
+        if broken:
+            return Check(
+                "backup_destinations",
+                "Места хранения копий",
+                STATUS_WARNING,
+                f"Мест хранения: {len(rows)}, включено: {len(enabled)}, "
+                f"с проблемами: {len(broken)}.",
+                "Проверьте проблемные места хранения кнопкой «Проверить».",
+            )
+        return Check(
+            "backup_destinations",
+            "Места хранения копий",
+            STATUS_OK,
+            f"Мест хранения: {len(rows)}, включено: {len(enabled)}.",
+            "",
+        )
+
+    async def _update_item(self):  # type: ignore[no-untyped-def]
+        from backend.app.db.repositories.destinations import UpdateStateRepository
+        from backend.app.services.system_service import Check
+
+        row = await UpdateStateRepository(self.session).get()
+        if row is None or not row.auto_update_enabled:
+            return Check(
+                "update",
+                "Обновления",
+                STATUS_NOT_CONFIGURED,
+                "Автоматическая проверка обновлений выключена — это нормально.",
+                "Включить можно в разделе «Система» → «Обновления».",
+            )
+        if row.state == UPDATE_AVAILABLE:
+            return Check(
+                "update",
+                "Обновления",
+                STATUS_WARNING,
+                f"Доступна новая версия {row.latest_version}.",
+                "Откройте «Система» → «Обновления», чтобы скачать и установить её.",
+            )
+        if row.state in {UPDATE_ERROR, UPDATE_FAILED}:
+            return Check(
+                "update",
+                "Обновления",
+                STATUS_ERROR,
+                "Не удалось проверить или установить обновление.",
+                "Проверьте подключение к интернету и повторите проверку.",
+            )
+        return Check(
+            "update",
+            "Обновления",
+            STATUS_OK,
+            row.message or "Обновления проверяются автоматически.",
+            "",
+        )
+
     async def _audience_item(self):  # type: ignore[no-untyped-def]
         from backend.app.services.audience_service import AudienceService
         from backend.app.services.system_service import Check
@@ -513,6 +719,12 @@ class DiagnosticsService:
                 "channels": await self._safe(self._channels_payload, []),
             },
             "queue": await self._safe(self._queue_payload, {"unavailable": True}),
+            "bindings": await self._safe(self._bindings_payload, []),
+            "capabilities": await self._safe(self._capabilities_payload, []),
+            "campaigns": await self._safe(self._campaigns_payload, []),
+            "donors": await self._safe(self._donors_payload, []),
+            "backup_destinations": await self._safe(self._destinations_payload, []),
+            "update": await self._safe(self._update_payload, {}),
             "ai": await self._ai_payload(),
             "dependencies": _dependency_versions(),
             "last_errors": await self._safe(self._last_errors_payload, []),
@@ -632,6 +844,107 @@ class DiagnosticsService:
             }
             for channel in channels
         ]
+
+    async def _bindings_payload(self) -> list[dict[str, object]]:
+        bindings = await BindingRepository(self.session).list_all()
+        return [
+            {
+                "function": b.function,
+                "channel_label": redact_text(b.channel_label or ""),
+                "status": str(b.status),
+                "role": str(b.role),
+                "can_set_reactions": b.can_set_reactions,
+                "can_invite_users": b.can_invite_users,
+                "can_post_messages": b.can_post_messages,
+                "last_checked": _iso(b.last_checked),
+                "last_error": redact_text(b.last_error or ""),
+            }
+            for b in bindings
+        ]
+
+    async def _capabilities_payload(self) -> list[dict[str, object]]:
+        from backend.app.db.repositories.capabilities import CapabilityRepository
+
+        rows = await CapabilityRepository(self.session).list_all()
+        return [
+            {
+                "channel_id": r.channel_id,
+                "status": r.status,
+                "reactions_limit": r.reactions_limit,
+                "paid_reactions_available": r.paid_reactions_available,
+                "available_reactions_count": len(_load_list(r.available_reactions)),
+                "bot_reactions_count": len(_load_list(r.bot_reactions)),
+                "last_checked": _iso(r.last_checked),
+            }
+            for r in rows
+        ]
+
+    async def _campaigns_payload(self) -> list[dict[str, object]]:
+        from backend.app.db.repositories.campaigns import CampaignRepository
+
+        rows, _ = await CampaignRepository(self.session).list(limit=500)
+        return [
+            {
+                "name": redact_text(c.name or ""),
+                "status": str(c.status),
+                "risk_mode": c.risk_mode,
+                "links_count": c.links_count,
+                "joins_count": c.joins_count,
+                "requests_count": c.requests_count,
+            }
+            for c in rows
+        ]
+
+    async def _donors_payload(self) -> list[dict[str, object]]:
+        from backend.app.db.repositories.donors import DonorRepository
+
+        rows = await DonorRepository(self.session).list_all()
+        return [
+            {
+                "title": redact_text(r.title or ""),
+                "quality": r.quality,
+                "quality_score": r.quality_score,
+                "bot_probability": r.bot_probability,
+                "confidence": r.confidence,
+                "participant_data": r.participant_data,
+                "subscribers": r.subscribers,
+                "last_analyzed": _iso(r.last_analyzed),
+            }
+            for r in rows
+        ]
+
+    async def _destinations_payload(self) -> list[dict[str, object]]:
+        from backend.app.db.repositories.destinations import DestinationRepository
+
+        rows = await DestinationRepository(self.session).list_all()
+        return [
+            {
+                "kind": str(r.kind),
+                "label": redact_text(r.label or ""),
+                "enabled": r.enabled,
+                "status": str(r.status),
+                "has_credentials": bool(r.credentials_encrypted),
+                "last_backup_at": _iso(r.last_backup_at),
+                "last_error": redact_text(r.last_error or ""),
+            }
+            for r in rows
+        ]
+
+    async def _update_payload(self) -> dict[str, object]:
+        from backend.app.db.repositories.destinations import UpdateStateRepository
+
+        row = await UpdateStateRepository(self.session).get()
+        if row is None:
+            return {"enabled": False, "state": "idle"}
+        return {
+            "enabled": row.auto_update_enabled,
+            "state": row.state,
+            "current_version": row.current_version,
+            "latest_version": row.latest_version,
+            "staged": bool(row.staged_file),
+            "last_checked_at": _iso(row.last_checked_at),
+            "last_error": redact_text(row.last_error or ""),
+        }
 
     async def _queue_payload(self) -> dict[str, object]:
         counts = await self.jobs.status_counts()
@@ -910,6 +1223,17 @@ def _portable_runtime_label() -> str | None:
 
 def _iso(value: datetime | None) -> str | None:
     return value.isoformat() if value is not None else None
+
+
+def _load_list(raw: str) -> list[str]:
+    """Decode a JSON string list; never raises."""
+    import json as _json
+
+    try:
+        value = _json.loads(raw or "[]")
+    except (ValueError, TypeError):
+        return []
+    return [str(v) for v in value] if isinstance(value, list) else []
 
 
 def _render_text(payload: object) -> str:
