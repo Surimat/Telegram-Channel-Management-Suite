@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { api, type DiagnosticsReport, type MaintenanceAction } from '@/api/client'
+import InfoHint from '@/components/InfoHint.vue'
 
 const report = ref<DiagnosticsReport | null>(null)
 const actions = ref<MaintenanceAction[]>([])
@@ -108,7 +109,7 @@ onMounted(load)
 
 <template>
   <div>
-    <h2 class="page-title">Диагностика</h2>
+    <h2 class="page-title">Диагностика <InfoHint topic="update" /></h2>
     <p class="page-subtitle">
       Здесь видно состояние каждого компонента простыми словами. Если что-то не работает,
       создайте отчёт диагностики и покажите его разработчику — искать логи вручную не нужно.

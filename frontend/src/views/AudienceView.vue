@@ -10,6 +10,7 @@ import {
   type FilterPreset,
   type ImportResult,
 } from '@/api/client'
+import InfoHint from '@/components/InfoHint.vue'
 
 const users = ref<AudienceUser[]>([])
 const total = ref(0)
@@ -312,7 +313,7 @@ onMounted(async () => {
 
 <template>
   <div>
-    <h2 class="page-title">Аудитория</h2>
+    <h2 class="page-title">Аудитория <InfoHint topic="audience" /></h2>
     <p class="page-subtitle">
       Здесь хранятся все собранные участники. Используйте поиск, фильтры и теги,
       чтобы отобрать нужную аудиторию для приглашений. База не отправляется наружу:

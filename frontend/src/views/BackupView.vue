@@ -7,6 +7,7 @@ import {
   type BackupInfo,
   type BackupList,
 } from '@/api/client'
+import InfoHint from '@/components/InfoHint.vue'
 
 const info = ref<BackupInfo | null>(null)
 const list = ref<BackupList | null>(null)
@@ -174,7 +175,7 @@ onMounted(load)
 
 <template>
   <div>
-    <h2 class="page-title">Резервные копии</h2>
+    <h2 class="page-title">Резервные копии <InfoHint topic="backup" /></h2>
     <p class="page-subtitle">
       Сохраняйте и восстанавливайте данные приложения. Конфигурацию можно перенести между
       установками отдельным файлом.

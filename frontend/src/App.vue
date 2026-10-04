@@ -3,25 +3,30 @@ import { onMounted } from 'vue'
 import { RouterView, RouterLink } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useMiniAppStore } from '@/stores/miniapp'
+import { useHelpStore } from '@/stores/help'
 
 const mini = useMiniAppStore()
 const { inTelegram, loading, authenticated, error, hint, user } = storeToRefs(mini)
+const help = useHelpStore()
 
 // Shown at the bottom inside Telegram (mobile-first). The desktop sidebar keeps
 // the full list; the Mini App shows the sections required by the brief.
 const mobileNav = [
   { to: '/', label: 'Панель' },
   { to: '/bots', label: 'Боты' },
+  { to: '/sessions', label: 'Аккаунты' },
   { to: '/audience', label: 'Аудитория' },
   { to: '/reactions', label: 'Реакции' },
   { to: '/queue', label: 'Очередь' },
   { to: '/analytics', label: 'Аналитика' },
+  { to: '/diagnostics', label: 'Диагностика' },
   { to: '/system', label: 'Система' },
   { to: '/settings', label: 'Настройки' },
 ]
 
 onMounted(() => {
   mini.bootstrap()
+  help.load()
 })
 </script>
 

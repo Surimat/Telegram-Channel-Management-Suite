@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { api, type NotificationSettings, type Setting } from '@/api/client'
+import InfoHint from '@/components/InfoHint.vue'
+import { useHelpStore } from '@/stores/help'
 
 const settings = ref<Setting[]>([])
 const loading = ref(true)
 const error = ref('')
 const saved = ref(false)
+
+const help = useHelpStore()
+const { showExplanations } = storeToRefs(help)
 
 const notifications = ref<NotificationSettings | null>(null)
 const notificationsSaved = ref(false)
@@ -99,6 +105,23 @@ onMounted(load)
       отображаются.
     </p>
 
+    <div class="card" style="margin-bottom: 20px">
+      <h3>Показывать пояснения</h3>
+      <p class="muted">
+        Рядом с важными элементами будет появляться кнопка «Что это?» с объяснением
+        простыми словами: что это, зачем нужно и что будет, если выключить. Полезно
+        новичкам; опытные пользователи могут выключить.
+      </p>
+      <label class="toggle-row">
+        <input
+          :checked="showExplanations"
+          type="checkbox"
+          @change="help.setShowExplanations(($event.target as HTMLInputElement).checked)"
+        />
+        <span><strong>Показывать пояснения</strong> — включено по умолчанию</span>
+      </label>
+    </div>
+
     <div v-if="loading" class="card">Загрузка...</div>
     <div v-else-if="error" class="card error-text">{{ error }}</div>
     <div v-else-if="!settings.length" class="card empty">
@@ -137,7 +160,7 @@ onMounted(load)
     </div>
 
     <div v-if="notifications" class="card" style="margin-top: 20px">
-      <h3>Уведомления управляющего бота</h3>
+      <h3>Уведомления управляющего бота <InfoHint topic="manager_bot" /></h3>
       <p class="muted">
         Управляющий бот может присылать важные события в Telegram. Включайте только нужные
         категории, чтобы не получать лишние сообщения.
@@ -165,7 +188,7 @@ onMounted(load)
     </div>
 
     <div class="card" style="margin-top: 20px">
-      <h3>Мини-приложение Telegram</h3>
+      <h3>Мини-приложение Telegram <InfoHint topic="miniapp" /></h3>
       <p class="muted">
         Мини-приложение открывает эту же панель прямо из Telegram — кнопкой меню у бота.
         Для работы нужен публичный адрес по HTTPS (локальный

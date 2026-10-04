@@ -8,6 +8,7 @@ import {
   type InviteTask,
   type UserSession,
 } from '@/api/client'
+import InfoHint from '@/components/InfoHint.vue'
 
 const jobs = ref<InviteJob[]>([])
 const sessions = ref<UserSession[]>([])
@@ -169,7 +170,7 @@ onMounted(load)
 
 <template>
   <div>
-    <h2 class="page-title">Приглашения</h2>
+    <h2 class="page-title">Приглашения <InfoHint topic="invite" /></h2>
     <p class="page-subtitle">
       Приглашайте людей из аудитории в ваш канал. Перед запуском система показывает сводку:
       сколько человек, из каких источников и с каких аккаунтов. Ограничения Telegram (пауза

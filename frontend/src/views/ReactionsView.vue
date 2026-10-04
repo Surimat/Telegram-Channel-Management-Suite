@@ -9,6 +9,7 @@ import {
   type ReactionStats,
   type SimulationResult,
 } from '@/api/client'
+import InfoHint from '@/components/InfoHint.vue'
 
 type Tab = 'overview' | 'profiles' | 'rules' | 'simulation' | 'queue'
 const tab = ref<Tab>('overview')
@@ -221,7 +222,7 @@ onMounted(load)
 
 <template>
   <div>
-    <h2 class="page-title">Реакции</h2>
+    <h2 class="page-title">Реакции <InfoHint topic="reaction_profile" /></h2>
     <p class="page-subtitle">
       Автоматические реакции ботов на посты канала. Здесь можно настроить профили, правила
       классификации, посмотреть план в режиме симуляции и отслеживать очередь заданий.

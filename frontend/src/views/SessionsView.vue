@@ -7,6 +7,7 @@ import {
   type SessionSummary,
   type UserSession,
 } from '@/api/client'
+import InfoHint from '@/components/InfoHint.vue'
 
 const accounts = ref<UserSession[]>([])
 const channels = ref<Channel[]>([])
@@ -255,7 +256,7 @@ onMounted(() => {
 
 <template>
   <div>
-    <h2 class="page-title">Аккаунты</h2>
+    <h2 class="page-title">Аккаунты <InfoHint topic="telegram_account" /></h2>
     <p class="page-subtitle">
       Пользовательские аккаунты Telegram нужны для анализа аудитории и приглашений.
       Файлы сессий хранятся локально и никогда не попадают в git, а секреты — только

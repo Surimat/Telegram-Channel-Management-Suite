@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { api, type Job } from '@/api/client'
+import InfoHint from '@/components/InfoHint.vue'
 
 const jobs = ref<Job[]>([])
 const loading = ref(true)
@@ -37,7 +38,7 @@ onMounted(load)
 
 <template>
   <div>
-    <h2 class="page-title">Очередь заданий</h2>
+    <h2 class="page-title">Очередь заданий <InfoHint topic="queue" /></h2>
     <p class="page-subtitle">
       Здесь выполняются запланированные действия (реакции, приглашения, сканирование). Задания
       сохраняются и продолжаются даже после перезапуска программы.
