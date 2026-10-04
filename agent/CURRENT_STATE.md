@@ -4,13 +4,12 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-04
-**Current phase:** **v1.0.2 release (release-engineering patch).** `main` = `d267cf6`
-(tag `v1.0.1`); `develop` carries the `v1.0.2` release prep: version bumped to
-**1.0.2** and the Release workflow now **creates the GitHub Release itself**
-(D-060), so a `v*` tag yields a fully automated Windows portable release with no
-manual fallback. No product/functional changes. `v1.0.0`/`v1.0.1` stay immutable
-(D-050).
-Earlier (already on `main`): the post-1.0 hardening — **versioned Alembic
+**Current phase:** **v1.0.2 released (release-engineering patch).** `main ==
+origin/main == develop == 61d39fa` (merge commit of PR #3; tag `v1.0.2`). GitHub
+Actions created the Release **itself** and attached the Windows portable ZIP +
+`.sha256` (D-060) — fully automated, no manual step. `v1.0.0`/`v1.0.1` stay
+immutable (D-050). No product/functional changes in this release.
+Earlier (already released): the post-1.0 hardening — **versioned Alembic
 migrations** replace `create_all` at startup (D-052); a **shared Channel
 Registry** (`channels` table + `/api/v1/channels` + RU-first "Каналы" page) so
 invites, post ingestion, audience sources and the permission probe all share one
@@ -37,9 +36,9 @@ resolved to an absolute path against the caller's cwd (D-059, verified: pre-fix 
 GNU `zip` → exit 15; post-fix → ZIP written). (2) The Release workflow only ran
 `gh release upload`, which cannot create a Release — so `v1.0.1` needed a manual
 attach; it now creates the Release when missing (D-060).
-**Repository status:** `main` = `d267cf6` (tag `v1.0.1`); `develop` = the
-`v1.0.2` release prep. The `v1.0.1` GitHub Release carries the Windows portable
-ZIP + `.sha256` (built from `d267cf6`).
+**Repository status:** `main == develop == 61d39fa` (tags `v1.0.0`, `v1.0.1`,
+`v1.0.2`); the `v1.0.2` GitHub Release carries the Windows portable ZIP +
+`.sha256` (ZIP digest `b6e343fa…`, checksum verified).
 **Branch:** `develop` (working branch); `main` is released and updated only via pull request.
 
 ---
@@ -609,32 +608,26 @@ down gracefully via `/api/v1/system/shutdown`. Decisions: D-056, D-057.
 
 ## 5. Next action
 
-**v1.0.2 is the current release task.** `v1.0.1` is published (`main` = `d267cf6`,
-tag + GitHub Release + portable ZIP). `develop` carries the `v1.0.2` prep:
-version `1.0.2` and the Release workflow now **creates the GitHub Release itself**
-(D-060). Next action: complete the release-publication checklist
-(`docs/RELEASE_CHECKLIST.md`):
+**v1.0.2 is released.** `main == develop == 61d39fa` (tag `v1.0.2`); the Release
+workflow **created the GitHub Release itself** and attached the Windows portable
+ZIP + `.sha256` (D-060) — the manual fallback used for `v1.0.1` is no longer
+needed. CI is green on `main` and `develop`.
 
-1. Push `develop`; wait for CI green.
-2. Merge the `develop → main` PR (reviewed; no force).
-3. Tag `v1.0.2` on the merged `main` commit and push it. The **Release** workflow
-   (`.github/workflows/release.yml`) verifies, builds the Windows portable ZIP,
-   **creates the GitHub Release** and attaches the ZIP + `.sha256` — no manual
-   step.
-4. Verify the release assets + checksum; sync `main` back into `develop`.
-5. Update memory (`agent/*`, `docs/*`, `README.md`, `AGENTS.md`) and set
-   `NEXT_TASK` to MAINTENANCE / OPTIONAL EXTENSIONS.
+There is **no required next task**. The roadmap (PHASE 0–11) is complete and
+shipped. Optional future work (pick only if the owner asks; do **not** open a new
+phase unprompted):
 
-After that, only optional items remain (analytics is already per-channel):
+1. A fully automated @BotFather Mini App flow (the one-click menu-button
+   registration already exists, D-054).
+2. Replace the per-request Mini App `initData` check with short-lived signed
+   session tokens if the panel is ever exposed beyond the owner (D-035 notes the
+   current decision).
+3. Any new feature requested by the owner — record a decision, keep the
+   vertical-slice workflow (backend + DB + UI + tests + docs + memory + commit).
 
-1. Mini App BotFather registration helper (D-054 covers one-click menu-button
-   registration; a full BotFather flow is not automated).
-
-Open PR: **#2** (draft, `develop → main`) — "Post-1.0 hardening: versioned
-migrations + shared Channel Registry".
-
-See `agent/NEXT_TASK.md` and `docs/RELEASE_CHECKLIST.md`. Do **not** re-open
-PHASE 8–11 — they are complete.
+Before any future release: follow `docs/RELEASE_CHECKLIST.md` (now with a
+per-release verification table). Do **not** move `v1.0.0`/`v1.0.1`/`v1.0.2`
+tags (D-050).
 
 ### RC verification (2026-10-03) — done against a live server in offline mode
 
@@ -652,9 +645,10 @@ tracked secrets.
 execution), D-045 (invite stuck-task recovery), D-046 (sad-news default rule),
 plus a Reactions-page status-text bug and a duplicate `backup_dir` config field.
 
-**Known gaps (documented, not blocking RC):** no manager-bot command loop yet;
-`create_all` instead of Alembic; Mini App BotFather registration is a deployment
-step (docs).
+**Known gaps (documented, not blocking):** Mini App @BotFather registration is a
+deployment step (the one-click menu-button helper exists, D-054); the manager-bot
+command loop runs only while the app is running (no webhook by default). Both are
+intentional, not defects.
 
 ## 6. Locked decisions (do not break)
 

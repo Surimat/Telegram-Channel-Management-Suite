@@ -4,46 +4,49 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-04
-**Status:** `v1.0.1` is published. `develop` carries the **v1.0.2 release prep**
-(version `1.0.2`; the Release workflow now creates the GitHub Release itself,
-D-060). No product/functional changes. Suite is green at **428 passed**; `ruff`
-clean; SPA builds; portable build works.
+**Status:** **v1.0.2 released.** `main == origin/main == develop == 61d39fa`
+(tag `v1.0.2`; PR #3 merged). GitHub Actions **created the GitHub Release itself**
+and attached the Windows portable ZIP + `.sha256` (D-060) — the manual fallback
+used for `v1.0.1` is gone. CI green on `main` and `develop`. Suite green at
+**428 passed**; `ruff` clean; SPA builds; portable build works.
 
 ---
 
-## Active task: publish v1.0.2 (fully automated portable release)
+## Active task: none required — v1.0.2 is released
 
-Everything for `v1.0.2` is implemented, tested and documented on `develop`. The
-remaining work is publication (no new features):
+The roadmap (PHASE 0–11) is complete and shipped through `v1.0.2`. There is no
+required next task. Do **not** invent a new phase or re-open PHASE 8–11.
 
-1. Push `develop`; confirm CI green.
-2. Open/merge the `develop → main` PR (reviewed; no force).
-3. Tag the merged `main` commit `v1.0.2` (annotated) and push it.
-4. The **Release** workflow (`.github/workflows/release.yml`) now **creates the
-   GitHub Release** (`gh release create --verify-tag`) and attaches the Windows
-   portable ZIP + `.sha256` — the whole chain is automated, no manual fallback.
-5. Verify the release, assets and checksum; sync `main` back into `develop`.
-6. Update memory and set the next task to MAINTENANCE / OPTIONAL EXTENSIONS.
+Optional work (only if the owner asks):
 
-Follow `docs/RELEASE_CHECKLIST.md`. Do **not** push directly to `main`; land via
-a reviewed PR. Do **not** move/rewrite `v1.0.0`/`v1.0.1` tags (D-050).
+1. A fully automated @BotFather Mini App flow (the one-click menu-button
+   registration already exists, D-054).
+2. Short-lived signed Mini App session tokens if the panel is exposed beyond the
+   owner (see D-035 for the current decision).
+3. Any owner-requested feature — record a decision, keep the vertical-slice
+   workflow (backend + DB + UI + tests + docs + memory + commit).
+
+Before any future release: follow `docs/RELEASE_CHECKLIST.md`. Do **not** push
+directly to `main`; land via a reviewed PR. Do **not** move/rewrite
+`v1.0.0`/`v1.0.1`/`v1.0.2` tags (D-050).
 
 Done recently (do not rebuild):
-- GitHub Actions CI (D-053, `.github/workflows/ci.yml`) runs ruff + pytest and the
-  frontend build on `main`/`develop`.
-- **Mini App setup helper** (D-054, `POST /api/v1/miniapp/setup` + the Settings
-  card) registers the bot's Web App menu button — no manual @BotFather step.
-- **Per-channel analytics** (D-055): `/api/v1/analytics/*` accept `channel_id`;
-  the Analytics page has a channel selector.
+- **v1.0.2** (D-060): the Release workflow **creates the GitHub Release** when
+  missing (`gh release create --verify-tag`) and attaches the ZIP + `.sha256`, so
+  a `v*` tag is a complete release with no manual step. Verified: tag `v1.0.2` →
+  run `37192670044` → both jobs success → release assets attached, checksum
+  matches the ZIP digest (`b6e343fa…`).
+- **Portable ZIP relative-path fix** (D-059): `build_portable.sh` normalises `OUT`
+  to an absolute path; regression test added.
+- **GitHub Actions CI** (D-053): ruff + pytest and the frontend build on
+  `main`/`develop`.
+- **Mini App setup helper** (D-054): `POST /api/v1/miniapp/setup` registers the
+  bot's Web App menu button.
+- **Per-channel analytics** (D-055): `/api/v1/analytics/*` accept `channel_id`.
 - **Reproducible portable packaging + Release workflow** (D-056):
   `scripts/build_win_runtime.py`, `scripts/win-requirements.lock`,
-  `scripts/build_portable.sh` (versioned ZIP + checksum).
-- **Async test-harness flake fixed** (D-058): engine is disposed before reset;
-  Mini App tests use `session_scope()`. Suite is deterministic (428 passed).
-- **Portable ZIP relative-path bug fixed** (D-059): `build_portable.sh` resolves
-  `OUT` to an absolute path; regression test added.
-- **Release workflow creates the Release** (D-060): fixes the manual fallback that
-  `v1.0.1` needed (the old workflow only ran `gh release upload`).
+  `scripts/build_portable.sh`.
+- **Async test-harness flake fixed** (D-058): deterministic 428-pass suite.
 
 Do **not** create artificial new phases and do **not** re-open PHASE 8–11.
 
