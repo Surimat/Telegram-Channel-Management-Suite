@@ -4,43 +4,12 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-04
-**Current phase:** **v1.0.2 release (release-engineering patch).** `main` = `d267cf6`
-(tag `v1.0.1`); `develop` carries the `v1.0.2` release prep: version bumped to
-**1.0.2** and the Release workflow now **creates the GitHub Release itself**
-(D-060), so a `v*` tag yields a fully automated Windows portable release with no
-manual fallback. No product/functional changes. `v1.0.0`/`v1.0.1` stay immutable
-(D-050).
-Earlier (already on `main`): the post-1.0 hardening — **versioned Alembic
-migrations** replace `create_all` at startup (D-052); a **shared Channel
-Registry** (`channels` table + `/api/v1/channels` + RU-first "Каналы" page) so
-invites, post ingestion, audience sources and the permission probe all share one
-channel identity; analytics can be scoped per channel (D-055); **reproducible,
-cross-platform portable packaging** (`scripts/build_win_runtime.py` +
-`scripts/win-requirements.lock` + `scripts/build_portable.sh` emits a versioned
-ZIP) and the **Release workflow** (`.github/workflows/release.yml`) (D-056).
-Version string is **1.0.2** across `backend/app/__init__.py`, `pyproject.toml`,
-`frontend/package.json` + lock (D-057).
-All gates pass: `pytest` **428 passed** (stable across repeated runs; the
-Mini App "Event loop is closed" flake is fixed — see below), `ruff` clean,
-`vue-tsc` + `npm run build`
-clean, Docker image builds and serves `/health` + SPA, portable tree starts
-end-to-end (incl. a path with spaces/Cyrillic) with backup/restore and graceful
-shutdown; **GitHub Actions CI** (D-053) enforces the backend and frontend gates.
-**Test-harness fix:** the Mini App tests iterated the FastAPI `get_session()`
-dependency with `break`, leaking the async-generator session; it was GC'd on a
-later test's closed loop and intermittently raised `GeneratorExit`/`TypeError`
-(observed once in CI). `tests/conftest.py` now disposes the engine *before*
-`_isolated_env` resets it, and the Mini App tests use `session_scope()`.
-**Release-engineering fixes:** (1) `build_portable.sh` wrote the ZIP to a
-non-existent `dist/TCMS/dist/...` for a relative output dir; `OUT` is now
-resolved to an absolute path against the caller's cwd (D-059, verified: pre-fix +
-GNU `zip` → exit 15; post-fix → ZIP written). (2) The Release workflow only ran
-`gh release upload`, which cannot create a Release — so `v1.0.1` needed a manual
-attach; it now creates the Release when missing (D-060).
-**Repository status:** `main` = `d267cf6` (tag `v1.0.1`); `develop` = the
-`v1.0.2` release prep. The `v1.0.1` GitHub Release carries the Windows portable
-ZIP + `.sha256` (built from `d267cf6`).
-**Branch:** `develop` (working branch); `main` is released and updated only via pull request.
+**Current phase:** **v1.0.3 product polish (Diagnostics).** `main` = `61d39fa` (tag `v1.0.2`). `develop` carries the `v1.0.3` work: the **Diagnostics** page (per-component status in plain language), a **redacted diagnostic report** (ZIP/JSON/TXT with a server-side secret scan), and **safe maintenance actions** (restart scheduler, recheck Telegram, recheck channels, clean up stuck local jobs) — none of which delete user data (D-061). `v1.0.0`/`v1.0.1`/`v1.0.2` stay immutable (D-050).
+Earlier (already released): the post-1.0 hardening — **versioned Alembic migrations** replace `create_all` at startup (D-052); a **shared Channel Registry** (`channels` table + `/api/v1/channels` + RU-first channel page) so invites, post ingestion, audience sources and the permission probe all share one channel identity; analytics can be scoped per channel (D-055); **reproducible, cross-platform portable packaging** and the **Release workflow** (D-056/D-060).
+Version string is **1.0.3** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
+All gates pass: `pytest` **447 passed** (stable), `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend and frontend gates.
+**Repository status:** `main` = `61d39fa` (tags `v1.0.0`, `v1.0.1`, `v1.0.2`; the `v1.0.2` GitHub Release carries the Windows portable ZIP + `.sha256`); `develop` = the `v1.0.3` polish.
+**Branch:** develop (working branch); main is released and updated only via pull request.
 
 ---
 
@@ -473,6 +442,8 @@ Layered architecture: **core → db/models → db/repositories → services → 
 - ~~Account permission probe~~ — **done** (post-1.0 hardening, see §2a).
 - ~~Manager-bot runtime / command loop / notifications~~ — **done** (post-1.0
   hardening, see §2a).
+- ~~Owner-facing diagnostics / redacted support report~~ — **done** (v1.0.3,
+  see §2d).
 
 ## 2a. Post-1.0 hardening (2026-10-03) — complete in code
 
@@ -607,34 +578,72 @@ runtime small and cross-buildable). `--reload` now needs `watchfiles`
 spaces and Cyrillic, applied migrations, created a backup, restored it, and shut
 down gracefully via `/api/v1/system/shutdown`. Decisions: D-056, D-057.
 
+## 2d. Product polish (v1.0.3, 2026-10-04) — Diagnostics + redacted report
+
+**Version is `1.0.3`** across `backend/app/__init__.py`, `pyproject.toml`,
+`frontend/package.json` + `package-lock.json`.
+
+**Backend.**
+- `backend/app/core/redaction.py` — reusable redaction: masks bot tokens
+  (`\d{6,}:[A-Za-z0-9_-]{30,}`), `api_hash`/`api_id` key-value pairs, Telethon
+  session strings, E.164 phones, registered secrets, and long hex/base64 blobs.
+  `redact_text`, `redact_mapping` (drops forbidden keys), `scan` (finds leaks) and
+  `redact_and_verify` (redact + re-scan safety gate).
+- `backend/app/services/diagnostics_service.py` — `DiagnosticsService`: aggregates
+  14 subsystem checks (application, database via `migrate.database_status`,
+  telegram_api, manager_bot, managed_bots, sessions, channels, audience, reactions,
+  invites, ai, scheduler, storage, portable_runtime) into `DiagnosticsReport`; the
+  report payload (`build_report_payload`) plus `build_report(fmt)` for
+  json/txt/zip; and the safe actions `restart_scheduler`, `recheck_telegram`,
+  `recheck_channels`, `cleanup_jobs`.
+- `backend/app/scheduler/handlers.py` — `register_handlers(scheduler)` (the
+  durable-queue handlers moved out of `main.py`) so a UI scheduler restart rewires
+  identically.
+- `backend/app/api/v1/diagnostics.py` + `api/schemas/diagnostics.py` +
+  `api/deps.py::get_diagnostics_service` — endpoints under `/api/v1/diagnostics`.
+- `backend/app/db/repositories/jobs.py` — added read/safe-mutation helpers:
+  `list_stuck_running`, `list_overdue`, `cancel_many`, `status_counts`,
+  `kind_counts`, `failed_since`, `oldest_pending_at`.
+- **Frontend** — `frontend/src/views/DiagnosticsView.vue` (`/diagnostics`, sidebar
+  «Диагностика»), diagnostics types + methods in `api/client.ts`.
+
+**Report safety.** The report is redacted then re-scanned; if `clean` is false no
+file is produced (`DiagnosticsError` → HTTP 500 with a friendly message). It
+contains no tokens, keys, session data, phones, passwords, DB contents, audience
+records or private logs. Header `X-Diagnostics-Redacted: true`.
+
+**Tests.** `tests/test_diagnostics.py` — redaction of every secret kind, mapping
+key-dropping, the safety scan, report generation (json/txt/zip), absence of
+secrets/DB contents, status aggregation, the API, and non-destructive cleanup.
+Full suite: **447 passed**, `ruff` clean, `vue-tsc` + `npm run build` clean.
+
+**UI wording.** Audience page title → «Аудитория»; invites task list → «Задания»
+(one term per entity; `docs/UI.md` §11). Decisions: D-061.
+
 ## 5. Next action
 
-**v1.0.2 is the current release task.** `v1.0.1` is published (`main` = `d267cf6`,
-tag + GitHub Release + portable ZIP). `develop` carries the `v1.0.2` prep:
-version `1.0.2` and the Release workflow now **creates the GitHub Release itself**
-(D-060). Next action: complete the release-publication checklist
-(`docs/RELEASE_CHECKLIST.md`):
+**v1.0.3 is the current polish on `develop`** (Diagnostics + redacted report; see
+§2d). `main` = `61d39fa` (tag `v1.0.2`, GitHub Release with the Windows portable
+ZIP + `.sha256`). The v1.0.2 release chain was fully automated by CI (D-060).
 
-1. Push `develop`; wait for CI green.
-2. Merge the `develop → main` PR (reviewed; no force).
-3. Tag `v1.0.2` on the merged `main` commit and push it. The **Release** workflow
-   (`.github/workflows/release.yml`) verifies, builds the Windows portable ZIP,
-   **creates the GitHub Release** and attaches the ZIP + `.sha256` — no manual
-   step.
-4. Verify the release assets + checksum; sync `main` back into `develop`.
-5. Update memory (`agent/*`, `docs/*`, `README.md`, `AGENTS.md`) and set
-   `NEXT_TASK` to MAINTENANCE / OPTIONAL EXTENSIONS.
+**NEXT_TASK = MAINTENANCE / OPTIONAL EXTENSIONS.** The roadmap (PHASE 0–11) is
+complete and shipped; there is **no required next phase**. Publish v1.0.3 with the
+standard flow (push `develop` → CI green → reviewed `develop → main` PR → tag
+`v1.0.3` on the merge commit → Release workflow builds/attaches the ZIP). Then
+optional future work (pick only if the owner asks; do **not** open a new phase
+unprompted):
 
-After that, only optional items remain (analytics is already per-channel):
+1. A fully automated @BotFather Mini App flow (the one-click menu-button
+   registration already exists, D-054).
+2. Replace the per-request Mini App `initData` check with short-lived signed
+   session tokens if the panel is ever exposed beyond the owner (D-035 notes the
+   current decision).
+3. Any new feature requested by the owner — record a decision, keep the
+   vertical-slice workflow (backend + DB + UI + tests + docs + memory + commit).
 
-1. Mini App BotFather registration helper (D-054 covers one-click menu-button
-   registration; a full BotFather flow is not automated).
-
-Open PR: **#2** (draft, `develop → main`) — "Post-1.0 hardening: versioned
-migrations + shared Channel Registry".
-
-See `agent/NEXT_TASK.md` and `docs/RELEASE_CHECKLIST.md`. Do **not** re-open
-PHASE 8–11 — they are complete.
+Before any future release: follow `docs/RELEASE_CHECKLIST.md` (now with a
+per-release verification table). Do **not** move `v1.0.0`/`v1.0.1`/`v1.0.2`
+tags (D-050).
 
 ### RC verification (2026-10-03) — done against a live server in offline mode
 
@@ -652,9 +661,10 @@ tracked secrets.
 execution), D-045 (invite stuck-task recovery), D-046 (sad-news default rule),
 plus a Reactions-page status-text bug and a duplicate `backup_dir` config field.
 
-**Known gaps (documented, not blocking RC):** no manager-bot command loop yet;
-`create_all` instead of Alembic; Mini App BotFather registration is a deployment
-step (docs).
+**Known gaps (documented, not blocking):** Mini App @BotFather registration is a
+deployment step (the one-click menu-button helper exists, D-054); the manager-bot
+command loop runs only while the app is running (no webhook by default). Both are
+intentional, not defects.
 
 ## 6. Locked decisions (do not break)
 

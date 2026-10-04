@@ -947,6 +947,41 @@ export interface ChannelList {
   offset: number
 }
 
+export interface DiagnosticItem {
+  key: string
+  title: string
+  status: 'ok' | 'warning' | 'error' | 'not_configured' | 'unknown'
+  status_label: string
+  meaning: string
+  how_to_fix: string
+}
+
+export interface DiagnosticsReport {
+  version: string
+  environment: string
+  overall: string
+  overall_label: string
+  generated_at: string
+  items: DiagnosticItem[]
+}
+
+export interface MaintenanceAction {
+  key: string
+  title: string
+  description: string
+  destructive: boolean
+  requires_confirmation: boolean
+  available: boolean
+}
+
+export interface MaintenanceResult {
+  action: string
+  ok: boolean
+  message: string
+  detail: string
+  affected: number
+}
+
 export interface ChannelSummary {
   total: number
   verified: number
@@ -1389,4 +1424,13 @@ export const api = {
     }),
   removeChannel: (id: string) =>
     request<null>(`/api/v1/channels/${id}`, { method: 'DELETE' }),
+
+  // Diagnostics (product polish): status, safe actions, redacted report.
+  diagnostics: () => request<DiagnosticsReport>('/api/v1/diagnostics'),
+  diagnosticActions: () =>
+    request<MaintenanceAction[]>('/api/v1/diagnostics/actions'),
+  runDiagnosticAction: (key: string) =>
+    request<MaintenanceResult>(`/api/v1/diagnostics/actions/${key}`, { method: 'POST' }),
+  diagnosticsReportUrl: (format: 'json' | 'txt' | 'zip' = 'zip') =>
+    `/api/v1/diagnostics/report?format=${format}`,
 }

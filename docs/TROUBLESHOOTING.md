@@ -1,7 +1,43 @@
 # Troubleshooting — Telegram Channel Management Suite
 
-Plain-language fixes for common problems. The in-app **Logs / Error Center** and
-**Setup Wizard** surface the same guidance.
+Plain-language fixes for common problems. The in-app **Диагностика** page and
+**Logs / Error Center** surface the same guidance.
+
+---
+
+## Start here: the Diagnostics page
+
+Open **Диагностика** in the Web UI. It shows every component with a plain status
+(`Готово` / `Внимание` / `Ошибка` / `Не настроено`), what it means and what to do
+— no Python or log reading needed.
+
+If you need help from a developer, press **«Создать отчёт диагностики»** there.
+The downloaded report (ZIP/JSON/TXT) is **redacted**: it never contains bot
+tokens, keys, session data, phone numbers, passwords or database contents. Attach
+it to your message instead of copying logs by hand.
+
+The page also offers safe actions that never delete your data:
+**Перезапустить планировщик**, **Перепроверить Telegram**, **Перепроверить
+каналы**, **Очистить зависшие локальные задания** (the last one asks for
+confirmation).
+
+---
+
+## Quick table: symptom → cause → what to do
+
+| Symptom | Cause | What to do |
+|---------|-------|------------|
+| **Web UI does not open** | Server not started, wrong port, or frontend not built | Wait a few seconds; open http://127.0.0.1:8000. If port busy set `APP_PORT`. Local dev: `cd frontend && npm run build`. Check **Диагностика** → Приложение / Хранилище |
+| **`run.bat` does not start** | No embedded `runtime\python.exe` and no system Python, or a blocked/antivirus script | Put the Python embeddable package into `runtime\`, or install Python 3.11+; allow the app in antivirus. See "Portable build problems" below |
+| **Telegram bot does not connect** | No token, bot disabled, or network cannot reach api.telegram.org | **Диагностика** → Управляемые боты; add the token in **Боты**; press **Перепроверить Telegram** |
+| **Account requires authorization** | Session expired or never signed in | Open **Аккаунты** → "Проверить"/re-auth wizard. **Диагностика** → Аккаунты Telegram shows `auth_required` |
+| **Channel unavailable** | Wrong reference, no access, or Telegram privacy/admin restriction | **Каналы** → "Проверить" (uses a ready account). **Диагностика** → Каналы. Restrictions are never bypassed |
+| **Audience scan partial** | Telegram hid the member list or a limit hit | Expected, not a bug. **Диагностика** → Аудитория shows "Частичных". Reduce rate; retry later |
+| **Invite paused** | FloodWait, account not ready, or a privacy restriction | **Очередь** shows the reason; wait for the shown time. **Диагностика** → Аккаунты / Очередь. The app never retries in a loop |
+| **FloodWait** | Too many requests for that action | Wait the shown time. Reduce delays/limits in **Настройки**. Never bypass it |
+| **AI model missing** | AI enabled but no valid `.gguf` path | Optional. **Диагностика** → Мини-ИИ shows `Не настроено`/`Внимание`; set the model in **AI** or leave AI off |
+| **Database migration required** | The app version is newer than the database schema | **Диагностика** → База данных shows the pending state; restart the app — migrations run automatically at startup |
+| **Backup restore** | Wrong `APP_SECRET_KEY`, or the running process still holds the old DB | Restore the original key or re-enter the token; restart the app after restoring. See the table below |
 
 ---
 

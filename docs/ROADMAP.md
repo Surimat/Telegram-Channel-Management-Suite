@@ -161,8 +161,17 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
       portable ZIP + checksum, so a `v*` tag is a fully automated release; the
       portable-build relative-output-path fix (D-059) rides along. No product
       changes.
-- [ ] Optional (remaining): a full automated BotFather Mini App flow (the
-      one-click menu-button registration exists, D-054).
+- [x] **Product polish (v1.0.3)**: **Diagnostics** page — per-component status in
+      plain language ("что это значит" + "что делать") for application, database,
+      Telegram API, manager/managed bots, accounts, channels, audience, reactions,
+      invites, AI, scheduler/queue, storage and portable runtime; a **redacted
+      diagnostic report** (ZIP/JSON/TXT) with a server-side secret scan before
+      export; and safe maintenance actions (restart scheduler, recheck Telegram,
+      recheck channels, clean up stuck local jobs) that never delete user data.
+- [ ] Optional (remaining, non-blocking): a full automated BotFather Mini App
+      flow (the one-click menu-button registration exists, D-054); richer
+      analytics; additional AI backends. No new phases are planned — see
+      `agent/NEXT_TASK.md` (MAINTENANCE / OPTIONAL EXTENSIONS).
 
 ---
 

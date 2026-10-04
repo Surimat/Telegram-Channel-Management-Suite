@@ -5,6 +5,57 @@ Dates are ISO-8601.
 
 ---
 
+## [1.0.3] — 2026-10-04
+
+Product polish: a **Diagnostics** page so a non-technical owner can understand the
+system state and hand a developer a **redacted** report without reading logs.
+No new phases, no new large features.
+
+### Added
+- **Diagnostics page** (Web UI → «Диагностика», `/diagnostics`) with one row per
+  subsystem — application, database (migration state/revision), Telegram Bot API,
+  manager bot, managed bots, user sessions, channels, audience, reactions,
+  invites, AI, scheduler/queue, storage, portable runtime — each showing a plain
+  status (`Готово` / `Внимание` / `Ошибка` / `Не настроено`), "что это значит"
+  and "что делать". API: `GET /api/v1/diagnostics`.
+- **Redacted diagnostic report** — `GET /api/v1/diagnostics/report?format=json|txt|zip`
+  (+ `formats`). Contains version, OS/runtime, DB/migration state, enabled
+  modules, Telegram/bot/session/channel statuses (status only, no contents), queue,
+  AI, dependency versions, last errors and safe path names. It is redacted and
+  re-scanned server-side (`core/redaction.py`); if the scan is not clean no file
+  is produced. Response header `X-Diagnostics-Redacted: true`; the UI states
+  "Отчёт безопасно очищен от секретов."
+- **Safe maintenance actions** — `POST /api/v1/diagnostics/actions/{key}`:
+  restart scheduler, recheck Telegram, recheck channels, clean up stuck local
+  jobs. Never deletes user data; `cleanup_jobs` requires confirmation and is
+  hidden while the scheduler runs.
+- `backend/app/core/redaction.py` — reusable secret redaction + verification
+  (tokens, api_hash/api_id, session strings, phones, key/value secrets, long
+  hex/base64), with a safety `scan` that refuses to export a dirty payload.
+- `backend/app/scheduler/handlers.py` — shared durable-queue handler registration
+  (`register_handlers`) so the scheduler restart reuses identical wiring.
+- Tests: `tests/test_diagnostics.py` (redaction, report generation in all three
+  formats, absence of secrets/database contents, status aggregation, API, and
+  non-destructive cleanup).
+
+### Changed
+- **Version string `1.0.3`** across `backend/app/__init__.py`, `pyproject.toml`,
+  `frontend/package.json` + `package-lock.json`.
+- **UI wording consistency**: the audience page title is now «Аудитория» (was
+  «База участников»); the invites task list is «Задания» (was «Задачи»). One term
+  per entity (see `docs/UI.md` §11).
+- Docs updated to match reality: `README.md` (current stable release + feature
+  list + status), `docs/API.md` (Diagnostics endpoints), `docs/UI.md`
+  (Diagnostics + terminology), `docs/SETUP.md` (Diagnostics section),
+  `docs/TROUBLESHOOTING.md` (start-here + symptom→cause→fix table),
+  `docs/ROADMAP.md`, `docs/RELEASE_CHECKLIST.md`, and the `agent/` memory.
+
+### Fixed
+- `_KV_RE` in `core/redaction.py` no longer flags an already-redacted
+  `key=***REDACTED***` value, so the safety scan does not reject its own output.
+
+---
+
 ## [1.0.2] — 2026-10-04
 
 Release-engineering patch: makes the **Windows portable release fully

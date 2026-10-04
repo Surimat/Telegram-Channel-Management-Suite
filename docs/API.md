@@ -463,6 +463,33 @@ An unknown registry id returns a friendly `404`.
 
 ---
 
+## Diagnostics (product polish)
+
+Owner-facing system state in plain language plus a **redacted** support report.
+The report never contains bot tokens, api_hash/api_id, session data, phone
+numbers, passwords, database contents or audience records; every payload is
+redacted and re-scanned server-side before it is returned. If the safety scan is
+unsure, no file is produced (HTTP 500 with a friendly message).
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/diagnostics` | one status row per subsystem (`ok \| warning \| error \| not_configured`), each with "what it means" and "what to do" |
+| GET | `/api/v1/diagnostics/actions` | safe maintenance actions and their state |
+| POST | `/api/v1/diagnostics/actions/{key}` | run a safe action (`restart_scheduler`, `recheck_telegram`, `recheck_channels`, `cleanup_jobs`) |
+| GET | `/api/v1/diagnostics/report?format=json\|txt\|zip` | download the redacted report (`X-Diagnostics-Redacted: true`) |
+| GET | `/api/v1/diagnostics/report/formats` | available export formats |
+
+Subsystems covered: application, database (migration status + revision), Telegram
+Bot API, manager bot, managed bots, user sessions (status only, no contents),
+channels, audience, reactions, invites, AI, scheduler/queue, storage and the
+portable runtime.
+
+Maintenance actions are non-destructive: they never delete user data. Only
+`cleanup_jobs` requires confirmation (it resets jobs stuck in "running" and
+cancels long-overdue pending jobs); it is hidden while the scheduler is running.
+
+---
+
 ## Versioning
 
 The API is versioned (`/api/v1`). Breaking changes go to a new version path.

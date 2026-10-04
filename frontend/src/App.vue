@@ -53,6 +53,7 @@ onMounted(() => {
         <RouterLink class="nav-item" to="/ai">Мини-ИИ</RouterLink>
         <RouterLink class="nav-item" to="/analytics">Аналитика</RouterLink>
         <RouterLink class="nav-item" to="/system">Система</RouterLink>
+        <RouterLink class="nav-item" to="/diagnostics">Диагностика</RouterLink>
         <RouterLink class="nav-item" to="/backup">Резервные копии</RouterLink>
         <RouterLink class="nav-item" to="/queue">Очередь</RouterLink>
         <RouterLink class="nav-item" to="/logs">Логи</RouterLink>

@@ -293,6 +293,18 @@ in plain language:
 Each item shows: **STATUS**, a description, what it means, and what to do next —
 with human-friendly wording instead of raw error codes.
 
+The dedicated **Web UI → Диагностика** page shows the same subsystem state at any
+time (not just first run) and adds:
+
+- a **«Создать отчёт диагностики»** button that downloads a **redacted** report
+  (ZIP/JSON/TXT) to hand to a developer — no manual log hunting. It contains
+  versions, OS/runtime, database/migration state, module/bot/session/channel
+  statuses, queue and AI status, dependency versions and last errors — and never
+  tokens, keys, session data, phone numbers, passwords or database contents;
+- safe maintenance actions that never delete user data: **Перезапустить
+  планировщик**, **Перепроверить Telegram**, **Перепроверить каналы**,
+  **Очистить зависшие локальные задания** (the last asks for confirmation).
+
 ---
 
 ## Adding a Telegram user account
