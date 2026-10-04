@@ -33,6 +33,21 @@ async def test_scheduler_recovers_running_jobs() -> None:
         assert recovered.status == JobStatus.PENDING
 
 
+async def test_scheduler_start_survives_recovery_failure(monkeypatch) -> None:
+    """A failing recovery (e.g. corrupt DB) must not crash app startup."""
+    scheduler = Scheduler()
+
+    async def _boom() -> None:
+        raise RuntimeError("file is not a database")
+
+    monkeypatch.setattr(scheduler, "_recover", _boom)
+    await scheduler.start()
+    try:
+        assert scheduler._task is not None  # loop still started
+    finally:
+        await scheduler.stop()
+
+
 async def test_scheduler_executes_registered_handler() -> None:
     executed: list[str] = []
 

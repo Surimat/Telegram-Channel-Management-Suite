@@ -18,7 +18,9 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ## PHASE 1 — Application skeleton ✅
 - [x] FastAPI app factory, config (pydantic-settings), logging.
-- [x] SQLAlchemy async + SQLite, Base (Alembic deferred; `create_all` for now).
+- [x] SQLAlchemy async + SQLite, Base. (Originally `create_all`; since v1.0.1
+      versioned **Alembic** migrations are the source of truth — see PHASE 1
+      hardening below and `docs/database-migrations.md`.)
 - [x] Health checks (`/health`, `/health/deep`).
 - [x] Settings table + settings service.
 - [x] Events (log/error center) model + service.
@@ -28,7 +30,7 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 - [x] Docker foundation (`Dockerfile`, `docker-compose.yml`).
 - [x] Tests: config, db, health, api smoke. Commit.
 
-## PHASE 2 — Telegram foundation 🟡
+## PHASE 2 — Telegram foundation ✅
 - [x] `TelegramBotProvider` interface + aiogram impl + fake impl + registry.
 - [x] Bot inventory: `Bot` model + repository + `BotService`.
 - [x] Managed bots: list/register, health, add, disable, remove, get/replace

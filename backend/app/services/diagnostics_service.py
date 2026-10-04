@@ -36,6 +36,7 @@ from backend.app.api.schemas.diagnostics import (
 )
 from backend.app.core import paths
 from backend.app.core.config import Settings, get_settings
+from backend.app.core.logging import get_logger
 from backend.app.core.redaction import REDACTED, redact_and_verify, redact_text
 from backend.app.db import migrate
 from backend.app.db.models.bot import BotKind
@@ -84,6 +85,22 @@ ACTION_RECHECK_TELEGRAM = "recheck_telegram"
 ACTION_RECHECK_CHANNELS = "recheck_channels"
 ACTION_CLEANUP_JOBS = "cleanup_jobs"
 
+# Titles for guarded checks, so a failed check still shows a friendly name.
+_CHECK_TITLES = {
+    "database": "База данных",
+    "manager_bot": "Управляющий бот",
+    "managed_bots": "Управляемые боты",
+    "sessions": "Аккаунты Telegram",
+    "channels": "Каналы",
+    "audience": "Аудитория",
+    "reactions": "Реакции",
+    "invites": "Приглашения",
+    "ai": "Мини-ИИ",
+    "scheduler": "Планировщик и очередь",
+}
+
+logger = get_logger(__name__)
+
 
 @dataclass
 class _ActionContext:
@@ -123,19 +140,25 @@ class DiagnosticsService:
     # Status aggregation
     # ------------------------------------------------------------------
     async def collect(self, app_state: object | None = None) -> DiagnosticsReport:
+        # Each check is guarded so one failing subsystem (most importantly an
+        # unreadable/corrupt database) cannot take down the whole page. This is
+        # the page the user is told to open when something is wrong, so it must
+        # always render — degrading individual rows instead of raising.
         items = [
             self._application_item(),
-            await self.system.database_check(),
+            await self._guarded("database", self.system.database_check),
             self._telegram_api_item(),
-            await self.system.manager_bot_db_check(self.session),
-            await self._managed_bots_item(),
-            await self._sessions_item(),
-            await self._channels_item(),
-            await self._audience_item(),
-            await self.system.reactions_check(self.session),
-            await self.system.invites_check(self.session),
-            await self._ai_item(),
-            await self._scheduler_item(app_state),
+            await self._guarded(
+                "manager_bot", lambda: self.system.manager_bot_db_check(self.session)
+            ),
+            await self._guarded("managed_bots", self._managed_bots_item),
+            await self._guarded("sessions", self._sessions_item),
+            await self._guarded("channels", self._channels_item),
+            await self._guarded("audience", self._audience_item),
+            await self._guarded("reactions", lambda: self.system.reactions_check(self.session)),
+            await self._guarded("invites", lambda: self.system.invites_check(self.session)),
+            await self._guarded("ai", self._ai_item),
+            await self._guarded("scheduler", lambda: self._scheduler_item(app_state)),
             self._storage_item(),
             self._portable_item(),
         ]
@@ -170,6 +193,37 @@ class DiagnosticsService:
             f"Программа запущена. Версия {__version__}, режим «{self.settings.app_env}».",
             "",
         )
+
+    async def _guarded(self, key: str, fn: object):  # type: ignore[no-untyped-def]
+        """Run one check; on failure return a DB-unavailable row instead of raising.
+
+        Used for every check that touches the database so the Diagnostics page
+        still renders when the database is corrupt or unreachable.
+        """
+        try:
+            return await fn()  # type: ignore[operator]
+        except Exception as exc:
+            from backend.app.services.system_service import Check
+
+            logger.warning("Diagnostics check %r failed: %s", key, exc)
+            return Check(
+                key,
+                _CHECK_TITLES.get(key, key),
+                STATUS_ERROR,
+                "Не удалось прочитать данные из базы.",
+                (
+                    "База данных повреждена или недоступна. Проверьте папку data/ "
+                    "и раздел «Резервные копии»; подробности — в «Журнале»."
+                ),
+            )
+
+    async def _safe(self, fn: object, fallback: object):  # type: ignore[no-untyped-def]
+        """Await ``fn`` for the report; return ``fallback`` if the DB is unreadable."""
+        try:
+            return await fn()  # type: ignore[operator]
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("Diagnostics report section failed: %s", exc)
+            return fallback
 
     def _telegram_api_item(self):  # type: ignore[no-untyped-def]
         from backend.app.services.system_service import Check
@@ -439,7 +493,7 @@ class DiagnosticsService:
                 "python_implementation": platform.python_implementation(),
                 "portable_runtime": _portable_runtime_label(),
             },
-            "database": await self._database_payload(),
+            "database": await self._safe(self._database_payload, {}),
             "modules": {
                 "scheduler_enabled": self.settings.scheduler_enabled,
                 "manager_runtime_enabled": self.settings.manager_runtime_enabled,
@@ -454,14 +508,14 @@ class DiagnosticsService:
                     and self.settings.telegram_api_hash.get_secret_value()
                 ),
                 "provider": self._provider_label(),
-                "bots": await self._bots_payload(),
-                "sessions": await self._sessions_payload(),
-                "channels": await self._channels_payload(),
+                "bots": await self._safe(self._bots_payload, []),
+                "sessions": await self._safe(self._sessions_payload, []),
+                "channels": await self._safe(self._channels_payload, []),
             },
-            "queue": await self._queue_payload(),
+            "queue": await self._safe(self._queue_payload, {"unavailable": True}),
             "ai": await self._ai_payload(),
             "dependencies": _dependency_versions(),
-            "last_errors": await self._last_errors_payload(),
+            "last_errors": await self._safe(self._last_errors_payload, []),
             "paths": self._paths_payload(),
             "checks": [item.model_dump() for item in report.items],
             "overall": report.overall,

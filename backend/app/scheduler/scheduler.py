@@ -48,7 +48,14 @@ class Scheduler:
         if self._task is not None:
             return
         self._stop.clear()
-        await self._recover()
+        # Recovery touches the database. If the DB is unavailable/corrupt, do not
+        # let it crash application startup: the scheduler loop below tolerates
+        # errors and retries, and the Diagnostics page can then explain the DB
+        # problem to the user instead of the app dying with a traceback.
+        try:
+            await self._recover()
+        except Exception as exc:
+            logger.error("Scheduler recovery failed (continuing): %s", exc)
         self._task = asyncio.create_task(self._run(), name="tcms-scheduler")
         logger.info("Scheduler started")
 
