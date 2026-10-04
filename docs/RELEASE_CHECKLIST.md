@@ -69,7 +69,7 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 
 | Gate | v1.0.5 | Notes |
 | --- | --- | --- |
-| Git merge (`develop → main`) | ✅ | reviewed PR |
+| Git merge (`develop → main`) | ✅ | merge commit `496598f` (PR #6) |
 | Version consistency (`1.0.5` everywhere) | ✅ | app / pyproject / frontend (+ lock) |
 | CI green on `develop` head | ✅ | `.github/workflows/ci.yml` |
 | Diagnostics tests (`test_diagnostics.py`) | ✅ | redaction + report + new sections + degradation |

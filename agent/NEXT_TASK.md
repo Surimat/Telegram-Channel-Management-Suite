@@ -5,8 +5,8 @@
 
 **Updated:** 2026-10-04
 **Status:** MAINTENANCE / OPTIONAL EXTENSIONS. The roadmap (PHASE 0–11) is complete.
-**v1.0.5 is released** (`develop` prepared it; tag `v1.0.5`; GitHub Release with
-the Windows portable ZIP + `.sha256`, built by CI — D-060). The v1.0.5 product
+**v1.0.5 is released** (`main == develop == 496598f`; PR #6; tag `v1.0.5`;
+GitHub Release with the Windows portable ZIP + `.sha256`, built by CI — D-060). The v1.0.5 product
 slice: bot↔channel **bindings** + channel **reaction capabilities**, session-free
 invite **Кампании** + explainable **donor quality**, **backup delivery
 destinations**, a resumable first-run **Setup Wizard**, and a conservative,
@@ -22,9 +22,10 @@ v1.x a tidy product for a real user: accuracy of docs, diagnostics, supportabili
 
 ### 1. Release history (done)
 
-v1.0.5 published from `develop` via a reviewed `develop → main` PR → tag `v1.0.5`
-→ Release workflow creates the GitHub Release and attaches the Windows portable
-ZIP + `.sha256`. No manual step. (v1.0.4: PR #5, merge `3f42c3d`, tag `v1.0.4`;
+v1.0.5 published from `develop` via reviewed PR #6 (`develop → main`, merge
+`496598f`) → tag `v1.0.5` → Release workflow created the GitHub Release and
+attached the Windows portable ZIP + `.sha256` (~24 MB, checksum verified). No
+manual step. (v1.0.4: PR #5, merge `3f42c3d`, tag `v1.0.4`;
 v1.0.3: PR #4, merge `f18f53a`, tag `v1.0.3`.)
 
 Follow `docs/RELEASE_CHECKLIST.md`. Do **not** push directly to `main`; land via a

@@ -201,8 +201,8 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
   resumable first-run **Setup Wizard**, and a conservative, off-by-default
   **auto-update** (checks + stages a SHA-256-verified file, never auto-installs).
   New API + RU-first UI + tests; Diagnostics gained the new subsystem rows and
-  redacted-report sections. No new phases. Published from `develop` via a
-  reviewed `develop → main` PR, tagged `v1.0.5`; the Windows portable ZIP +
+  redacted-report sections. No new phases. Published from `develop` via
+  reviewed PR #6 (`develop → main`, merge `496598f`), tagged `v1.0.5`; the Windows portable ZIP +
   `.sha256` are attached to the GitHub Release by the automated Release workflow
   (D-060).
 - **v1.0.4 (2026-10-04):** startup-robustness patch — a corrupt/unreadable
