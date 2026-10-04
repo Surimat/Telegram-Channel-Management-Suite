@@ -3,16 +3,36 @@
 A modular, locally runnable suite for managing a Telegram channel: a manager bot,
 managed bots, user (MTProto) accounts, audience parsing, invites, automatic
 reactions, a rules engine with an optional tiny AI classifier, analytics, a
-scheduler, a Web UI / Telegram Mini App, and portable Windows + VPS/Docker
-deployment — all from **one codebase**.
+channel registry, a scheduler, a Web UI / Telegram Mini App, backup/restore, and
+portable Windows + VPS/Docker deployment — all from **one codebase**.
 
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
+**Current stable release: `v1.0.2`.**
+
+## What it does
+
+- **Manager Bot** — control the suite from Telegram (admin whitelist, notifications).
+- **Managed Bots** — add/health/remove Telegram bots; tokens sealed at rest.
+- **User Sessions** — MTProto accounts with an interactive auth wizard.
+- **Audience** — parse members of channels/groups, search, tag, export.
+- **Invite Manager** — build, dry-run, approve and run invite campaigns.
+- **Reaction Manager** — reaction profiles, emoji weights, delays, simulation.
+- **Rules Engine** — per-category rules with allowed/preferred/forbidden emoji.
+- **Tiny AI** — optional local classifier (rules-only mode is fully supported).
+- **Analytics** — per-channel content, reactions, audience and takeaways.
+- **Channel Registry** — one shared channel identity for every module.
+- **Mini App** — the same SPA opens inside Telegram (one-click setup helper).
+- **Diagnostics** — per-component status in plain language + a redacted report.
+- **Backup / Restore** — data backups and reviewable config export/import.
+- **Windows Portable** — unpack, run `run.bat`, open the Web UI (zero setup).
+- **Docker / VPS** — one compose file, optional Caddy TLS overlay.
+
 ## Documentation (project memory)
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — how the system fits together
-- [docs/ROADMAP.md](docs/ROADMAP.md) — phased plan
+- [docs/ROADMAP.md](docs/ROADMAP.md) — phased plan (all phases complete)
 - [docs/SETUP.md](docs/SETUP.md) — install & run (local / portable / Docker)
 - [docs/SECURITY.md](docs/SECURITY.md) — secret & limits policy
 - [docs/UI.md](docs/UI.md) — UI/UX principles
@@ -30,16 +50,14 @@ Persistent memory so work can continue across sessions:
 
 ## Status
 
-**PHASE 0–11 complete + post-1.0 hardening (v1.0.2).** The suite is
-feature-complete against the planned roadmap: manager bot + managed bots, MTProto
-user sessions, audience parsing, invites, automatic reactions with a rules engine
-and an optional tiny AI classifier, analytics (per-channel), a durable scheduler,
-one Vue SPA for the Web UI and the Telegram Mini App, backup/restore, a portable
-Windows package, and a VPS/Docker deployment. The post-1.0 work adds versioned
-Alembic migrations, a shared Channel Registry, per-channel analytics, CI, a
-one-click Mini App setup helper, and reproducible cross-platform portable
-packaging (a versioned Windows ZIP is built and attached to each GitHub Release
-automatically by the Release workflow).
+**PHASE 0–11 complete.** The suite is feature-complete against the planned
+roadmap and shipped as **v1.0.2** (the roadmap has no open phases; remaining work
+is maintenance / optional extensions). Post-1.0 additions include versioned
+Alembic migrations (replacing `create_all`), the shared Channel Registry,
+per-channel analytics, GitHub Actions CI, a one-click Mini App setup helper,
+reproducible cross-platform portable packaging (a versioned Windows ZIP is built
+and attached to each GitHub Release automatically), and the **Diagnostics** page
+with a **redacted diagnostic report** for support.
 See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
 ## Deployment modes

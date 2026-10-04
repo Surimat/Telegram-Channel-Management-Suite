@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.base import utcnow
@@ -72,3 +72,68 @@ class JobRepository:
         if jobs:
             await self.session.flush()
         return len(jobs)
+
+    async def list_stuck_running(self) -> list[Job]:
+        """Jobs still marked RUNNING (e.g. after an unclean shutdown)."""
+        stmt = select(Job).where(Job.status == JobStatus.RUNNING)
+        return list((await self.session.execute(stmt)).scalars().all())
+
+    async def list_overdue(
+        self, *, kind: str | None = None, grace_seconds: int = 300, limit: int = 500
+    ) -> list[Job]:
+        """Pending/scheduled jobs whose due time is far in the past.
+
+        ``grace_seconds`` keeps recently scheduled work out of the result so a
+        normal busy queue is never mistaken for stale jobs.
+        """
+        cutoff = utcnow() - timedelta(seconds=max(grace_seconds, 0))
+        stmt = (
+            select(Job)
+            .where(Job.status.in_([JobStatus.PENDING, JobStatus.SCHEDULED]))
+            .where(Job.scheduled_at.is_not(None))
+            .where(Job.scheduled_at < cutoff)
+        )
+        if kind:
+            stmt = stmt.where(Job.kind == kind)
+        stmt = stmt.order_by(Job.scheduled_at.asc()).limit(limit)
+        return list((await self.session.execute(stmt)).scalars().all())
+
+    async def cancel_many(self, job_ids: list[str]) -> int:
+        """Mark the given jobs CANCELLED; returns how many were changed."""
+        if not job_ids:
+            return 0
+        stmt = select(Job).where(Job.id.in_(job_ids))
+        jobs = list((await self.session.execute(stmt)).scalars().all())
+        for job in jobs:
+            job.status = JobStatus.CANCELLED
+        if jobs:
+            await self.session.flush()
+        return len(jobs)
+
+    async def status_counts(self) -> dict[str, int]:
+        stmt = select(Job.status, func.count()).group_by(Job.status)
+        rows = (await self.session.execute(stmt)).all()
+        return {str(status): int(count) for status, count in rows}
+
+    async def kind_counts(self) -> dict[str, int]:
+        stmt = select(Job.kind, func.count()).group_by(Job.kind)
+        rows = (await self.session.execute(stmt)).all()
+        return {str(kind): int(count) for kind, count in rows}
+
+    async def failed_since(self, since: datetime, limit: int = 20) -> list[Job]:
+        stmt = (
+            select(Job)
+            .where(Job.status == JobStatus.FAILED)
+            .where(Job.completed_at.is_not(None))
+            .where(Job.completed_at >= since)
+            .order_by(Job.completed_at.desc())
+            .limit(limit)
+        )
+        return list((await self.session.execute(stmt)).scalars().all())
+
+    async def oldest_pending_at(self) -> datetime | None:
+        stmt = select(func.min(Job.scheduled_at)).where(
+            or_(Job.status == JobStatus.PENDING, Job.status == JobStatus.SCHEDULED)
+        )
+        value = (await self.session.execute(stmt)).scalar_one_or_none()
+        return value

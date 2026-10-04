@@ -39,8 +39,10 @@ finished modern desktop/web application, **not** a technical admin panel.
 | Rules | Category rules: allowed/preferred/forbidden, confidence, priority |
 | AI | Tiny classifier: enable/disable, model, confidence routing |
 | Analytics | Content + audience charts with plain-language explanations |
+| Channels | Shared channel registry: add/verify, module toggles, default |
 | Settings | All configuration, with descriptions and safe defaults |
 | Logs | Log / error center with "Что произошло?" + "Как исправить?" |
+| Диагностика | Per-component status + safe actions + redacted report |
 | Резервные копии | Backup / restore + configuration export/import (PHASE 10) |
 | System | Setup Wizard, health checks, shutdown |
 
@@ -296,3 +298,42 @@ Four owner-facing additions, all RU-first and consistent with §1–§4:
 - **Manager bot card** (System page): shows connection state, bot username,
   admin count, and pending notifications, with a next-step hint when not
   connected. Tokens are never displayed.
+
+---
+
+## 10. Diagnostics page (`DiagnosticsView.vue`, `/diagnostics`)
+
+The first place a non-technical owner should look when something is off:
+
+- A table lists every subsystem (application, database, Telegram API, manager
+  bot, managed bots, accounts, channels, audience, reactions, invites, AI,
+  scheduler/queue, storage, portable runtime) with a colour status badge
+  (`Готово` / `Внимание` / `Ошибка` / `Не настроено`) and two plain-language
+  columns: **«Что это значит»** and **«Что делать»**.
+- **«Создать отчёт диагностики»** downloads a **redacted** report (ZIP/JSON/TXT)
+  the owner can hand to a developer — no manual log hunting. The page states
+  explicitly that the report is cleared of secrets; tokens, keys, session data,
+  phone numbers, passwords and database contents are never included.
+- **Safe actions** ("Перезапустить планировщик", "Перепроверить Telegram",
+  "Перепроверить каналы", "Очистить зависшие локальные задания") are listed with
+  a description. Nothing is deleted; the potentially surprising action asks for
+  confirmation and is hidden while the scheduler is running.
+
+---
+
+## 11. Terminology (one word per entity)
+
+Use exactly one term per entity across the UI, docs and API text:
+
+| Entity | Term |
+|--------|------|
+| Telegram channel/group in the registry | **Канал** |
+| MTProto user account | **Аккаунт** |
+| Manager/managed Telegram bot | **Бот** |
+| Audience origin (channel/group/entity to parse) | **Источник** |
+| Reaction configuration set | **Профиль реакции** |
+| Unit of scheduled work | **Задание** |
+| Durable job list | **Очередь** |
+
+Do not use "База участников", "Задачи", "Объект", "Пользователь Telegram"
+etc. as synonyms for the terms above.

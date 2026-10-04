@@ -67,3 +67,8 @@ Release. The portable build is reproducible and runs on a Linux CI host.
 Never commit or display `.env`, bot tokens, API hashes, session files,
 passwords, DB secrets, or keys. A logging redaction filter is mandatory. See
 `docs/SECURITY.md`.
+
+The **Diagnostics** report (`/api/v1/diagnostics/report`) is redacted and
+re-scanned before export; if the scan is not clean, no file is produced. Never
+add tokens, keys, session data, phone numbers, passwords, database contents or
+audience records to it (D-061).

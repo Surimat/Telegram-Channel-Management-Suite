@@ -224,7 +224,29 @@ repository or a shared/public location.
 
 ---
 
-## 11. Pre-commit security checklist
+## 11. Diagnostics report redaction
+
+The Diagnostics report (`GET /api/v1/diagnostics/report`, D-061) is explicitly a
+*shareable* artifact, so it is redacted by design:
+
+- Every payload passes through `core/redaction.py`: live configured secrets are
+  replaced, and pattern rules mask bot tokens, `api_hash`/`api_id`, Telethon
+  session strings, E.164 phones and long hex/base64 blobs. Forbidden keys
+  (`token`, `api_hash`, `api_id`, `phone`, `password`, `session*`, `secret`,
+  `app_secret_key`, `manager_bot_token`, …) are dropped entirely.
+- The redacted payload is **re-scanned**; if the scan still finds anything that
+  looks like a secret, **no file is produced** (the API returns a friendly error).
+- It never contains session contents, database rows, audience/user records or
+  private logs. Session/bot entries carry status only; paths are reported as
+  folder *names* plus a writable flag.
+- The response carries `X-Diagnostics-Redacted: true` and `Cache-Control:
+  no-store`; the UI states «Отчёт безопасно очищен от секретов».
+- Covered by `tests/test_diagnostics.py` (redaction, absence of secrets/DB
+  contents, scan safety gate).
+
+---
+
+## 12. Pre-commit security checklist
 
 - [ ] `git status` / `git diff --cached` reviewed — no secrets staged.
 - [ ] No new secret printed in code paths (grep for token/hash logging).
@@ -233,3 +255,4 @@ repository or a shared/public location.
 - [ ] No hardcoded credentials anywhere.
 - [ ] Mass operations keep their confirmation + limit guards.
 - [ ] Telegram limit handling (FloodWait/privacy/admin) still respected.
+- [ ] Any new diagnostics field passes the redaction scan (D-061).

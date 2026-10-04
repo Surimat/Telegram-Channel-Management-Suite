@@ -469,3 +469,29 @@ lifecycle events (app start/stop, backup created, AI warnings) publish explicitl
 Notification toggles reuse the existing `settings` table — no new storage.
 
 ---
+
+## 15. Diagnostics (v1.0.3, D-061)
+
+The owner-facing counterpart to the Setup Wizard: a read-only view of system
+state plus a safe, redacted support artifact.
+
+- `core/redaction.py` — the single redaction policy: masks live configured secrets
+  and pattern-matched values (bot tokens, `api_hash`/`api_id`, Telethon session
+  strings, E.164 phones, long hex/base64), drops forbidden keys entirely, and
+  exposes `scan` (findings) + `redact_and_verify` (redact then re-scan as a safety
+  gate).
+- `services/diagnostics_service.py` — `DiagnosticsService.collect()` aggregates
+  one explained status per subsystem (application, database + migration state,
+  Telegram API, manager bot, managed bots, sessions, channels, audience, reactions,
+  invites, AI, scheduler/queue, storage, portable runtime), reusing
+  `SystemService` checks where they exist. `build_report()` produces a redacted
+  JSON/TXT/ZIP; `run_action()` runs the non-destructive maintenance actions.
+- `scheduler/handlers.py` — `register_handlers(scheduler)` hoists the durable-queue
+  wiring out of `main.py` so a UI scheduler restart (an action) reuses it exactly.
+- `api/v1/diagnostics.py` — the router; `api/deps.py::get_diagnostics_service`.
+
+The report is a *shareable* artifact: it never contains tokens, keys, session
+data, phone numbers, passwords, database contents or audience records, and the
+API refuses to return a file that fails the safety scan.
+
+---

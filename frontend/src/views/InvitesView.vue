@@ -337,7 +337,7 @@ onMounted(load)
         </button>
       </div>
 
-      <h4>Задачи</h4>
+      <h4>Задания</h4>
       <p class="muted">
         <span v-for="(count, status) in taskCounts" :key="status" class="badge badge-muted">
           {{ TASK_LABELS[status] || status }}: {{ count }}
