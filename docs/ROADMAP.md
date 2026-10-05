@@ -209,7 +209,7 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
       bounded, restart-safe posting tick (`content.posting`) drives due work.
       New API (`/api/v1/content/*`), a RU-first **Content Studio** UI page and
       tests; no new phases.
-- [x] **Bot Factory + LAN Mesh (v1.3.0, complete on `develop`)**: a guided,
+- [x] **Bot Factory + LAN Mesh (v1.3.0, released)**: a guided,
       local **Bot Factory** that plans a set of worker bots, checks usernames with
       Telegram, creates each bot through the official owner-confirmed @BotFather
       flow and adopts it, then binds it through the existing binding rules
@@ -236,10 +236,10 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
   the official owner-confirmed @BotFather flow, and optionally join several of the
   owner's computers on one local network with no cloud control plane. Standalone
   (one computer) stays the default; neither feature registers Telegram accounts or
-  bypasses Telegram limits. No new phases. To be released from `develop` via a
-  reviewed `develop → main` PR, tagged `v1.3.0`; the Windows portable ZIP +
-  `.sha256` are attached to the GitHub Release by the automated Release workflow
-  (D-060).
+  bypasses Telegram limits. No new phases. Released from `develop` via a reviewed
+  `develop → main` PR (PR #9, merge `7788125`), tagged `v1.3.0`; the Windows
+  portable ZIP + `.sha256` are attached to the GitHub Release by the automated
+  Release workflow (D-060).
 - **v1.2.0 (2026-10-05):** Content Studio — content sources (Telegram / RSS /
   Atom / manual), deduplication, an explainable cleaner, usage-rights tracking,
   markup validation + Telegram-like preview, inline buttons, per-source

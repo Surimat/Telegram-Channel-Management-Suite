@@ -5,7 +5,7 @@ Dates are ISO-8601.
 
 ---
 
-## [1.3.0] — 2026-10-05 — unreleased
+## [1.3.0] — 2026-10-05 — released
 
 Minor release: the **Bot Factory** and the **LAN Mesh / offline control plane**
 (D-077…D-082). Create a set of worker bots for the owner's own channels through
@@ -13,6 +13,12 @@ the official owner-confirmed @BotFather flow, and optionally join several of the
 owner's computers on one local network with no cloud control plane. Neither
 feature registers Telegram accounts or bypasses Telegram limits; Standalone (one
 computer) stays the default.
+
+Released via reviewed PR #9 (`develop → main`, merge `7788125`), tag `v1.3.0`;
+the Release workflow created the GitHub Release and attached the Windows portable
+ZIP + `.sha256` (D-060). Gates: `pytest` 664 passed, `ruff` clean, `vue-tsc` +
+`npm run build` clean, migration up/down clean, Docker smoke and portable smoke
+green, artifact/secret scan clean.
 
 ### Added — Bot Factory
 - `db/models/bot_factory.py`: `BotBatch` (a named creation run) and
@@ -55,7 +61,7 @@ computer) stays the default.
 
 ### Changed
 - Version strings bumped to `1.3.0` (`backend/app/__init__.py`, `pyproject.toml`,
-  `frontend/package.json`).
+  `frontend/package.json`, `frontend/package-lock.json`).
 - Help topics `bot_factory` and `lan_mesh` added; `BotFactoryView` / `MeshView`
   now use them.
 

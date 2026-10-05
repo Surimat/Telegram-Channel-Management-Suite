@@ -79,10 +79,12 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 | Tests (`pytest` / `ruff`) | ✅ | 664 passed; ruff clean |
 | Security (artifact + git tree clean) | ✅ | no secrets/sessions/DB/models in tree; runtime dirs empty |
 | Docker (`/health` + SPA + v1.3 routes) | ✅ | v1.3 routes served by the same SPA/API |
-| Git merge (`develop → main`) | ✅ | reviewed PR `develop → main` |
+| Git merge (`develop → main`) | ✅ | reviewed PR #9 (`develop → main`, merge `7788125`) |
 | CI green on `develop` head | ✅ | `.github/workflows/ci.yml` |
-| Automated Release workflow + ZIP/`.sha256` | ✅ | `v1.3.0` tag → release created by CI (D-060) |
+| Automated Release workflow + ZIP/`.sha256` | ✅ | `v1.3.0` tag → release created by CI, run `37373384249` (D-060) |
 | GitHub Release `v1.3.0` published | ✅ | tag matches |
+| ZIP attached | ✅ | Windows portable ZIP (24.7 MB), checksum verified |
+| `.sha256` attached | ✅ | `Telegram-Channel-Management-Suite-Windows-Portable-1.3.0.zip.sha256` |
 
 ### v1.2.0 (released 2026-10-05)
 

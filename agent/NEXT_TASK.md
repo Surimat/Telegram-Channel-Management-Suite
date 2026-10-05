@@ -4,35 +4,37 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-05
-**Status:** **v1.3.0 Bot Factory + LAN Mesh is complete on `develop` (unreleased).**
-It adds the **Bot Factory** (D-077/D-078): plan a set of worker bots, check
-usernames with Telegram, create each bot through the official owner-confirmed
-@BotFather flow and adopt it, then bind it through the existing binding rules; and
-the **optional LAN Mesh / offline control plane** (D-079…D-082): deterministic
-identity, bounded broadcast discovery + manual peers, one-time-code pairing,
-deterministic coordinator election, fencing leases, a `mesh.tick` maintenance job
-and a guard so only the coordinator polls Telegram. Standalone (one computer)
-stays the default. Pre-release hardening (D-083): pairing never persists/returns
-anything derived from a secret, and `/api/v1/mesh/ping` authenticates the shared
-secret. v1.2.0 (Content Studio) remains released. The roadmap (PHASE 0–11) is
+**Status:** **v1.3.0 Bot Factory + LAN Mesh is released.** Reviewed PR #9
+(`develop → main`, merge `7788125`), tag `v1.3.0`; the Release workflow created the
+GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060).
+`main == develop == 7788125`. It adds the **Bot Factory** (D-077/D-078): plan a
+set of worker bots, check usernames with Telegram, create each bot through the
+official owner-confirmed @BotFather flow and adopt it, then bind it through the
+existing binding rules; and the **optional LAN Mesh / offline control plane**
+(D-079…D-082): deterministic identity, bounded broadcast discovery + manual peers,
+one-time-code pairing, deterministic coordinator election, fencing leases, a
+`mesh.tick` maintenance job and a guard so only the coordinator polls Telegram.
+Standalone (one computer) stays the default. Pre-release hardening (D-083):
+pairing never persists/returns anything derived from a secret, and
+`/api/v1/mesh/ping` authenticates the shared secret. The roadmap (PHASE 0–11) is
 complete. Version strings read `1.3.0`. Suite is green at **664 passed**; `ruff`
 clean; `vue-tsc` + `npm run build` clean; CI enforces the gates (D-053).
 
 ---
 
-## Active task: release v1.3.0
+## Active task: none — v1.3.0 released (maintenance / optional extensions)
 
-The v1.3.0 work is complete and green on `develop`. The remaining work is the
-release itself (maintenance only — **do NOT add new large features and do NOT open
-a new PHASE**).
+There is **no required next task**. The v1.3.0 release is complete: the code is
+green on `develop`, merged to `main` via PR #9 (`7788125`), tagged `v1.3.0`, and
+published as a GitHub Release with the Windows portable ZIP + `.sha256`. Do **not**
+add new large features and do **not** open a new PHASE unless the owner asks.
 
-### 1. Release v1.3.0 (next)
+### 1. Release v1.3.0 (done)
 
-Commit the v1.3.0 work on `develop`, push (fast-forward; **never** force-push),
-open a reviewed PR `develop → main`, merge, tag `v1.3.0` on the merged `main`
-commit; the Release workflow creates the GitHub Release and attaches the Windows
-portable ZIP + `.sha256` (D-060). Sync `main` back into `develop`. Do **not** push
-directly to `main` and do **not** move/rewrite the `v1.0.0`–`v1.2.0` tags (D-050).
+Merged via reviewed PR #9 (`develop → main`, merge `7788125`), tagged `v1.3.0`;
+the Release workflow created the GitHub Release and attached the Windows portable
+ZIP + `.sha256` (D-060). `develop` was synced back to the merge commit. No direct
+push to `main`; the `v1.0.0`–`v1.2.0` tags were not moved (D-050).
 
 ### 2. Release v1.2.0 (done)
 
