@@ -5,6 +5,65 @@ Dates are ISO-8601.
 
 ---
 
+## [1.2.0] — 2026-10-05 — released
+
+Minor release: the **Content Studio** vertical slice (v1.2 content-studio
+foundation). Collect material from sources, prepare it, and publish it to the
+owner's own channels. Nothing is published without an explicit action; the AI
+narrows, it never picks the emoji. No new phase; the roadmap (PHASE 0–11) stays
+complete.
+
+### Added — Content Studio backend
+- `db/models/content.py`: `ContentSource`, `ContentItem`, `MediaAsset`,
+  `Publication`, `ButtonSet`, `CommentPlan` (+ enums for source kind/status,
+  rights status, item status, publication status). Additive migration
+  `20261005_1200_c4a1f8b2e6d9` — an existing v1.1 database upgrades in place.
+- `db/repositories/content.py`: one repository per model, with dedup lookups by
+  source hash, source message id, content hash and media hash.
+- `providers/content_base.py` + `providers/content_sources.py`:
+  `ContentSourceProvider` protocol and Telegram / RSS / Atom / manual providers.
+  Telegram reads through the existing `SessionProvider` and respects content
+  protection (`noforwards` → keep only the link, D-006/D-074).
+- `providers/posting_base.py` + `providers/posting.py`: `PostingProvider`
+  protocol and the bot (`BotPostingProvider` over `TelegramBotProvider`) and user
+  (`UserPostingProvider` over `SessionProvider`) implementations (D-071).
+- `services/content_cleaner.py`: deterministic, explainable, cancellable cleaner.
+- `services/content_markup.py`: `validate_markup`, `validate_buttons`,
+  `render_preview` (Telegram-like preview).
+- `services/content_service.py`: sources CRUD, `grab` (dedup + moderation),
+  items, cleaner preview/apply/revert, rights + attribution, rewrite through the
+  generative LLM backend only, moderation (blocked keywords + quiet hours),
+  `release_held`, dashboard.
+- `services/posting_service.py`: plan / schedule / calendar / buttons / publish
+  (`uncertain` idempotency) / retry / auto-delete / first comments;
+  `tick()` + `due_count()`.
+- `scheduler/handlers.py`: the `content.posting` handler runs a bounded pass and
+  re-schedules itself every `POSTING_TICK_SECONDS` (D-008 style, D-075);
+  `main.py` seeds the first tick; `QueueService.ensure_periodic` added.
+- `api/v1/content.py` + `api/schemas/content.py`: `/api/v1/content/*` router;
+  `api/deps.py::get_posting_service` / `get_content_service`.
+
+### Added — Content Studio UI
+- `frontend/src/views/ContentStudioView.vue` (`/content`, nav «Content Studio»):
+  four tabs — Обзор, Источники, Материалы, Календарь. RU-first; adds sources,
+  grabs material, cleans, checks markup, previews, plans/schedules/publishes.
+- `frontend/src/api/client.ts`: Content Studio types + methods.
+- Help topics `content_studio`, `content_source`, `content_rights`.
+
+### Changed
+- Version strings read `1.2.0` (`backend/app/__init__.py`, `pyproject.toml`,
+  `frontend/package.json` + lock).
+- Docs (`ARCHITECTURE`, `API`, `UI`, `ROADMAP`) and agent memory updated.
+
+### Tests
+- `tests/test_content_posting.py`, `tests/test_content_posting_api.py` (posting
+  engine, moderation, buttons, calendar, publishing API).
+- Extended `tests/test_scheduler.py` (periodic tick + `ensure_periodic`),
+  `tests/test_migrations.py` (v1.2 tables added in place), `tests/test_help.py`.
+- Suite **611 passed**; `ruff` clean; `vue-tsc` + `npm run build` clean.
+
+---
+
 ## [1.1.0] — 2026-10-05 — released
 
 Maintenance/minor release: optional per-account **network routes**, **donor

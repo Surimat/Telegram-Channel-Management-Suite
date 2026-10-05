@@ -22,6 +22,7 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -57,6 +58,21 @@ from backend.app.services.content_rewrite import (
 from backend.app.services.events_service import EventsService
 
 MODULE = "content"
+
+
+def _load_keywords(raw: str) -> list[str]:
+    try:
+        data = json.loads(raw or "[]")
+    except (ValueError, TypeError):
+        return []
+    if not isinstance(data, list):
+        return []
+    return [str(k).strip().lower() for k in data if str(k).strip()]
+
+
+def _matches_blocked(text: str, keywords: list[str]) -> bool:
+    low = (text or "").lower()
+    return any(k in low for k in keywords)
 
 #: A source's content rights are unknown by default → autopublishing warns.
 UNKNOWN_RIGHTS_WARNING = (
@@ -106,6 +122,8 @@ class GrabOutcome:
     message: str
     how_to_fix: str = ""
     item_ids: list[str] | None = None
+    blocked: int = 0
+    held: int = 0
 
 
 class ContentService:
@@ -135,6 +153,7 @@ class ContentService:
                     "kind": kind,
                     "title": titles.get(kind, kind),
                     "available": available,
+                    "requires_account": kind == KIND_TELEGRAM,
                     "message": reason,
                 }
             )
@@ -248,21 +267,36 @@ class ContentService:
 
         new_ids: list[str] = []
         duplicates = 0
+        blocked = 0
+        held = 0
+        quiet = self._quiet_now(source)
+        blocked_keywords = _load_keywords(source.blocked_keywords)
         for fetched in result.items:
-            created = await self._store_fetched(source, fetched)
+            if blocked_keywords and _matches_blocked(fetched.text, blocked_keywords):
+                blocked += 1
+                continue
+            created = await self._store_fetched(source, fetched, held=quiet)
             if created is None:
                 duplicates += 1
             else:
                 new_ids.append(created.id)
+                if created.held:
+                    held += 1
         source.status = ContentSourceStatus.OK
         source.last_error = ""
         source.etag = result.etag or source.etag
         source.last_modified = result.last_modified or source.last_modified
         source.last_seen_item = result.last_seen_item or source.last_seen_item
         source.last_fetch_new = len(new_ids)
+        note = ""
+        if blocked:
+            note += f" Отфильтровано по словам: {blocked}."
+        if held:
+            note += f" Удержано ночной модерацией: {held}."
         await self.events.info(
             MODULE,
             f"Импорт из «{source.title}»: новых {len(new_ids)}, дубликатов {duplicates}.",
+            explanation=note.strip(),
             operation="grab",
         )
         await self.session.commit()
@@ -272,12 +306,16 @@ class ContentService:
             new_items=len(new_ids),
             duplicates=duplicates,
             protected=False,
-            message=f"Новых материалов: {len(new_ids)}. Дубликатов: {duplicates}.",
+            message=(
+                f"Новых материалов: {len(new_ids)}. Дубликатов: {duplicates}.{note}"
+            ),
             item_ids=new_ids,
+            blocked=blocked,
+            held=held,
         )
 
     async def _store_fetched(
-        self, source: ContentSource, fetched: FetchedItem
+        self, source: ContentSource, fetched: FetchedItem, *, held: bool = False
     ) -> ContentItem | None:
         """Persist one fetched item, deduplicating. Returns None on duplicate."""
         guid = str(fetched.extra.get("guid", "") or "")
@@ -310,8 +348,66 @@ class ContentService:
             source_hash=shash,
             content_hash=chash,
             rights_status=RightsStatus.UNKNOWN,
+            held=held,
+            moderation_note="Удержано ночной модерацией." if held else "",
         )
         await self.items.add(item)
+        return item
+
+    def _quiet_now(self, source: ContentSource) -> bool:
+        """True when ``source`` is inside its quiet hours (local time)."""
+        if not source.quiet_hours_enabled:
+            return False
+        try:
+            tz = ZoneInfo(source.quiet_hours_tz or "UTC")
+        except Exception:
+            tz = UTC
+        hour = utcnow().astimezone(tz).hour
+        start, end = source.quiet_hours_start, source.quiet_hours_end
+        if start == end:
+            return False
+        if start < end:
+            return start <= hour < end
+        return hour >= start or hour < end
+
+    async def set_moderation(
+        self,
+        source_id: str,
+        *,
+        blocked_keywords: list[str] | None = None,
+        quiet_hours_enabled: bool | None = None,
+        quiet_hours_start: int | None = None,
+        quiet_hours_end: int | None = None,
+        quiet_hours_tz: str | None = None,
+    ) -> ContentSource:
+        """Update auto-moderation rules for a source (v1.2)."""
+        source = await self.sources.get(source_id)
+        if source is None:
+            raise ContentError("Источник не найден.", status_code=404)
+        if blocked_keywords is not None:
+            cleaned = sorted({k.strip().lower() for k in blocked_keywords if k.strip()})
+            source.blocked_keywords = json.dumps(cleaned, ensure_ascii=False)
+        if quiet_hours_enabled is not None:
+            source.quiet_hours_enabled = quiet_hours_enabled
+        if quiet_hours_start is not None:
+            source.quiet_hours_start = max(0, min(23, int(quiet_hours_start)))
+        if quiet_hours_end is not None:
+            source.quiet_hours_end = max(0, min(23, int(quiet_hours_end)))
+        if quiet_hours_tz is not None:
+            source.quiet_hours_tz = quiet_hours_tz.strip() or "UTC"
+        await self.session.commit()
+        return source
+
+    async def release_held(self, item_id: str) -> ContentItem:
+        """Release a held item into the active draft queue (v1.2)."""
+        item = await self.items.get(item_id)
+        if item is None:
+            raise ContentError("Материал не найден.", status_code=404)
+        item.held = False
+        item.moderation_note = ""
+        if item.status == ContentItemStatus.IMPORTED:
+            item.status = ContentItemStatus.DRAFT
+        await self.session.commit()
         return item
 
     # --- items ---------------------------------------------------------------

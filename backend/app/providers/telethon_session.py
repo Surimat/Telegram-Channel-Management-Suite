@@ -687,6 +687,67 @@ class TelethonSessionProvider:
 
         return await self._call(_run)
 
+    # --- user-account posting (v1.2: expanded mode only) ---------------------
+    async def send_channel_post(
+        self,
+        channel: str | int,
+        *,
+        text: str,
+        media_paths: list[str] | None = None,
+        buttons: list[list[dict[str, object]]] | None = None,
+    ) -> ChannelFetchResult:
+        """Publish a post as the user account (only where truly needed, v1.2)."""
+
+        async def _run(client):  # type: ignore[no-untyped-def]
+            files = list(media_paths or [])
+            buttons_markup = None
+            if buttons:
+                from telethon import Button as _B
+
+                rows = []
+                for row in buttons:
+                    out_row = []
+                    for btn in row:
+                        if str(btn.get("action", "url")) == "url":
+                            out_row.append(
+                                _B.url(str(btn.get("text", "")), str(btn.get("value", "")))
+                            )
+                        else:
+                            out_row.append(
+                                _B.inline(str(btn.get("text", "")), str(btn.get("value", "")))
+                            )
+                    if out_row:
+                        rows.append(out_row)
+                buttons_markup = rows or None
+            if files:
+                messages = await client.send_file(
+                    channel, files, caption=text, buttons=buttons_markup
+                )
+            else:
+                message = await client.send_message(channel, text, buttons=buttons_markup)
+                messages = [message]
+            items = []
+            if not isinstance(messages, list):
+                messages = [messages]
+            for message in messages:
+                items.append(
+                    ChannelMessage(message_id=int(getattr(message, "id", 0) or 0), text=text)
+                )
+            return ChannelFetchResult(ok=True, items=items, message="Опубликовано.")
+
+        return await self._call(_run)
+
+    async def delete_channel_messages(
+        self, channel: str | int, message_ids: list[int]
+    ) -> bool:
+        """Delete messages this suite published as the user account (v1.2)."""
+
+        async def _run(client):  # type: ignore[no-untyped-def]
+            await client.delete_messages(channel, list(message_ids))
+            return True
+
+        return await self._call(_run)
+
     @staticmethod
     def _entity_dict(entity: object) -> dict[str, object]:
         """Translate a Telethon message entity into a plain, display-safe dict."""

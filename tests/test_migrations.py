@@ -214,3 +214,63 @@ def test_status_reports_unknown_without_raising(monkeypatch: pytest.MonkeyPatch)
         assert "no migrations dir" in status.error
 
     asyncio.run(_run())
+
+
+def test_v1_2_content_tables_added_with_server_defaults() -> None:
+    """The v1.2 content migration adds its tables to an existing database.
+
+    Proves the in-place upgrade path: a pre-v1.2 database (schema via
+    ``create_all``, then stamped at head) gains the content tables, and the
+    additive columns carry server defaults so no backfill is required.
+    """
+    import sqlalchemy as sa
+
+    async def _run() -> None:
+        # Build a v1.1-shaped schema, then stamp it at the pre-v1.2 revision.
+        from alembic import command
+
+        cfg = migrate._alembic_config()
+        await asyncio.to_thread(
+            command.upgrade, cfg, "b3d7e1a5c9f2"
+        )
+        await dispose_engine()
+
+        # A v1.1 database has no content tables yet.
+        engine = get_engine()
+        async with engine.connect() as conn:
+            before = await conn.run_sync(
+                lambda c: sa.inspect(c).get_table_names()
+            )
+        assert "content_items" not in before
+        await dispose_engine()
+
+        status = await migrate.database_status()
+        assert status.state == migrate.DB_STATE_PENDING
+        result = await migrate.upgrade_database()
+        assert result.state == migrate.DB_STATE_UPDATED
+
+        engine = get_engine()
+        async with engine.connect() as conn:
+            names = await conn.run_sync(
+                lambda c: sa.inspect(c).get_table_names()
+            )
+            assert {
+                "content_sources",
+                "content_items",
+                "media_assets",
+                "publications",
+                "button_sets",
+                "comment_plans",
+            } <= set(names)
+            cols = await conn.run_sync(
+                lambda c: {col["name"] for col in sa.inspect(c).get_columns("content_items")}
+            )
+            assert {"held", "moderation_note", "content_hash", "language"} <= cols
+            src_cols = await conn.run_sync(
+                lambda c: {
+                    col["name"] for col in sa.inspect(c).get_columns("content_sources")
+                }
+            )
+            assert {"blocked_keywords", "quiet_hours_enabled", "etag"} <= src_cols
+
+    asyncio.run(_run())

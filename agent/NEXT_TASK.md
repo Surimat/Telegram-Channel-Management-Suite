@@ -4,33 +4,38 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-05
-**Status:** **v1.1.0 is released** (PR #7 `develop → main`, merge `3438305`, tag
-`v1.1.0`; GitHub Release with the Windows portable ZIP + `.sha256`, built by CI —
-D-060). The roadmap (PHASE 0–11) is complete. v1.1.0 completed the requested
-vertical slice: the multi-format **Account Hub** importer, optional per-account
-**network routes (proxies)**, **donor discovery**, a **lightweight local encoder**
-(+ optional **ruBERT-tiny2** embeddings) and the **bot-only / risk UX**. Version
-strings read `1.1.0`. Suite is green at **574 passed**; `ruff` clean; `vue-tsc` +
-`npm run build` clean; CI enforces the gates (D-053).
+**Status:** **v1.2.0 Content Studio is complete on `develop` and awaiting
+release.** It adds the v1.2 **content-studio foundation** (D-071…D-076): content
+sources (Telegram / RSS / Atom / manual), deduplication, an explainable cleaner,
+usage-rights tracking + attribution, markup validation + a Telegram-like preview,
+inline buttons, per-source moderation, multi-channel planning/calendar, and
+publishing through a `PostingProvider` (bot by default) with durable auto-delete
+and first comments. v1.1.0 remains released (PR #7 `develop → main`, merge
+`3438305`, tag `v1.1.0`; GitHub Release with the Windows portable ZIP + `.sha256`,
+built by CI — D-060). The roadmap (PHASE 0–11) is complete. Version strings read
+`1.2.0`. Suite is green at **611 passed**; `ruff` clean; `vue-tsc` + `npm run
+build` clean; CI enforces the gates (D-053).
 
 ---
 
-## Active task: maintenance only
+## Active task: release v1.2.0, then maintenance only
 
 **Do NOT add new large features and do NOT open a new PHASE.** The suite is
 feature-complete; there is no required next phase.
 
-### 1. Release v1.1.0 (done)
+### 1. Release v1.2.0 (next)
 
-Merged via reviewed PR #7 (`develop → main`, merge `3438305`), tagged `v1.1.0`;
-the Release workflow created the GitHub Release and attached the Windows portable
-ZIP + `.sha256` (D-060). `develop` was fast-forwarded to `3438305`. Do **not**
-move/rewrite the `v1.0.0`–`v1.1.0` tags (D-050).
+Run the standard flow from `docs/RELEASE_CHECKLIST.md`: commit the v1.2.0 work →
+push `develop` → green CI → reviewed PR `develop → main` → tag `v1.2.0` → the
+Release workflow attaches the Windows portable ZIP + `.sha256` (D-060). Do **not**
+push directly to `main` and do **not** move/rewrite the `v1.0.0`–`v1.1.0` tags
+(D-050).
 
 ### 2. Release history (done)
 
-v1.0.5 published from `develop` via reviewed PR #6 (`develop → main`, merge
-`496598f`) → tag `v1.0.5` → Release workflow created the GitHub Release and
+v1.1.0 merged via reviewed PR #7 (`develop → main`, merge `3438305`), tagged
+`v1.1.0`. v1.0.5 published from `develop` via reviewed PR #6 (`develop → main`,
+merge `496598f`) → tag `v1.0.5` → Release workflow created the GitHub Release and
 attached the Windows portable ZIP + `.sha256` (~24 MB, checksum verified). No
 manual step. (v1.0.4: PR #5, merge `3f42c3d`, tag `v1.0.4`;
 v1.0.3: PR #4, merge `f18f53a`, tag `v1.0.3`.)
@@ -48,7 +53,13 @@ v1.0.3: PR #4, merge `f18f53a`, tag `v1.0.3`.)
 
 ### What exists (do not rebuild)
 
-- PHASE 0–11 complete; `agent/CURRENT_STATE.md` lists what is done (§2, §2a–§2g).
+- PHASE 0–11 complete; `agent/CURRENT_STATE.md` lists what is done (§2, §2a–§2h).
+- **v1.2.0 Content Studio (D-071…D-076):** `/api/v1/content/*` (sources, grab,
+  items, clean, rewrite, rights, buttons, plan, schedule, publish, retry,
+  calendar, dashboard, tick) + the `/content` RU-first UI page. Models
+  `ContentSource`/`ContentItem`/`MediaAsset`/`Publication`/`ButtonSet`/
+  `CommentPlan`; migration `20261005_1200_c4a1f8b2e6d9`. The `content.posting`
+  durable periodic tick drives due work.
 - **v1.1.0 (D-065…D-070):** `/api/v1/proxies` (network routes), `/api/v1/discovery`
   (donor discovery), the lightweight encoder + `/api/v1/ai/encoder/*`, the Account
   Hub importer (`/api/v1/sessions/import/detect`, `/import/artifact`,

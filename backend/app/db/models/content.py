@@ -147,6 +147,16 @@ class ContentSource(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     last_fetch: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # type: ignore[valid-type]
     last_fetch_new: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
+    #: Auto-moderation (v1.2): drop a fetched item before it reaches the drafts.
+    #: A JSON list of lowercase keywords; an empty list disables the filter.
+    blocked_keywords: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
+    #: Night moderation: while local time is inside quiet hours a new item is
+    #: still grabbed but held (status ``held``) instead of becoming a draft.
+    quiet_hours_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    quiet_hours_start: Mapped[int] = mapped_column(Integer, default=23, nullable=False)  # hour 0-23
+    quiet_hours_end: Mapped[int] = mapped_column(Integer, default=8, nullable=False)  # hour 0-23
+    quiet_hours_tz: Mapped[str] = mapped_column(String(64), default="UTC", nullable=False)
+
     def __repr__(self) -> str:  # pragma: no cover - debugging aid
         return f"<ContentSource {self.kind} ref={self.reference!r}>"
 
@@ -192,6 +202,12 @@ class ContentItem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     language: Mapped[str] = mapped_column(String(8), default="ru", nullable=False)
     note: Mapped[str] = mapped_column(Text, default="", nullable=False)
     scheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # type: ignore[valid-type]
+
+    #: Night moderation (v1.2): grabbed during quiet hours but held back from
+    #: the active draft queue until the owner releases it.
+    held: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    #: Reason a fetched item was auto-moderated (kept for transparency).
+    moderation_note: Mapped[str] = mapped_column(Text, default="", nullable=False)
 
     def __repr__(self) -> str:  # pragma: no cover - debugging aid
         return f"<ContentItem id={self.id} status={self.status}>"

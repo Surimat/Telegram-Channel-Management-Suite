@@ -21,6 +21,11 @@ class ContentSourceOut(BaseModel):
     etag: str = ""
     last_modified: str = ""
     last_seen_item: str = ""
+    blocked_keywords: list[str] = Field(default_factory=list)
+    quiet_hours_enabled: bool = False
+    quiet_hours_start: int = 23
+    quiet_hours_end: int = 8
+    quiet_hours_tz: str = "UTC"
 
 
 class ContentSourceListOut(BaseModel):
@@ -46,6 +51,8 @@ class GrabOut(BaseModel):
     message: str
     how_to_fix: str = ""
     item_ids: list[str] = Field(default_factory=list)
+    blocked: int = 0
+    held: int = 0
 
 
 class ContentItemOut(BaseModel):
@@ -73,6 +80,8 @@ class ContentItemOut(BaseModel):
     note: str
     scheduled_at: str = ""
     rights_warning: str = ""
+    held: bool = False
+    moderation_note: str = ""
     created_at: str
     updated_at: str
 
@@ -139,8 +148,165 @@ class ContentDashboardOut(BaseModel):
     publication_counts: dict[str, int]
 
 
+# --- posting / calendar / buttons / preview (v1.2) -------------------------
+
+
+class ButtonIn(BaseModel):
+    text: str
+    action: str = "url"
+    value: str = ""
+
+
+class ButtonSetIn(BaseModel):
+    rows: list[list[ButtonIn]] = Field(default_factory=list)
+
+
+class ButtonSetOut(BaseModel):
+    item_id: str
+    rows: list[list[ButtonIn]]
+    enabled: bool
+
+
+class TargetIn(BaseModel):
+    channel_id: str
+    scheduled_at: str | None = None
+    text_override: str = ""
+
+
+class PlanIn(BaseModel):
+    targets: list[TargetIn] = Field(default_factory=list)
+    mode: str | None = None
+
+
+class PublicationOut(BaseModel):
+    id: str
+    item_id: str
+    channel_id: str
+    channel_username: str
+    status: str
+    status_title: str
+    scheduled_at: str = ""
+    published_at: str = ""
+    delete_at: str = ""
+    telegram_message_ids: list[int] = Field(default_factory=list)
+    error: str = ""
+    attempts: int = 0
+    mode: str = ""
+
+
+class PlanOut(BaseModel):
+    publications: list[PublicationOut]
+
+
+class ScheduleIn(BaseModel):
+    scheduled_at: str | None = None
+
+
+class PublishOut(BaseModel):
+    publication_id: str
+    ok: bool
+    status: str
+    message_ids: list[int] = Field(default_factory=list)
+    message: str = ""
+    how_to_fix: str = ""
+    uncertain: bool = False
+
+
+class CalendarEntryOut(BaseModel):
+    publication_id: str
+    item_id: str
+    title: str
+    channel_id: str
+    channel_title: str
+    status: str
+    status_title: str
+    scheduled_at: str = ""
+    published_at: str = ""
+    delete_at: str = ""
+
+
+class CalendarChannelOut(BaseModel):
+    channel_id: str
+    title: str
+    reference: str
+
+
+class CalendarOut(BaseModel):
+    start: str
+    end: str
+    channels: list[CalendarChannelOut]
+    entries: list[CalendarEntryOut]
+
+
+class ValidationIssueOut(BaseModel):
+    kind: str
+    message: str
+    line: int = 0
+
+
+class ValidationOut(BaseModel):
+    ok: bool
+    issues: list[ValidationIssueOut]
+    button_problems: list[str]
+    first_error: str = ""
+    fixed_text: str = ""
+
+
+class PreviewButtonOut(BaseModel):
+    text: str
+    action: str
+    url: str = ""
+
+
+class PreviewMediaOut(BaseModel):
+    kind: str
+    filename: str
+    caption: str = ""
+
+
+class PreviewOut(BaseModel):
+    text: str
+    entities: list[dict[str, object]]
+    buttons: list[list[PreviewButtonOut]]
+    media: list[PreviewMediaOut]
+    is_album: bool
+    caption_used: bool
+    char_count: int
+    notice: str
+
+
+class ModerationIn(BaseModel):
+    blocked_keywords: list[str] | None = None
+    quiet_hours_enabled: bool | None = None
+    quiet_hours_start: int | None = None
+    quiet_hours_end: int | None = None
+    quiet_hours_tz: str | None = None
+
+
+class ModerationOut(BaseModel):
+    source_id: str
+    blocked_keywords: list[str]
+    quiet_hours_enabled: bool
+    quiet_hours_start: int
+    quiet_hours_end: int
+    quiet_hours_tz: str
+
+
+class TickOut(BaseModel):
+    published: int
+    deleted: int
+    comments: int
+    due: int
+
+
 __all__ = [
     "ApplyCleanIn",
+    "ButtonIn",
+    "ButtonSetIn",
+    "ButtonSetOut",
+    "CalendarChannelOut",
+    "CalendarEntryOut",
+    "CalendarOut",
     "CleanPreviewOut",
     "ContentDashboardOut",
     "ContentItemListOut",
@@ -150,7 +316,21 @@ __all__ = [
     "ContentSourceListOut",
     "ContentSourceOut",
     "GrabOut",
+    "ModerationIn",
+    "ModerationOut",
+    "PlanIn",
+    "PlanOut",
+    "PreviewButtonOut",
+    "PreviewMediaOut",
+    "PreviewOut",
+    "PublicationOut",
+    "PublishOut",
     "RewriteIn",
     "RewriteOut",
     "RightsOut",
+    "ScheduleIn",
+    "TargetIn",
+    "TickOut",
+    "ValidationIssueOut",
+    "ValidationOut",
 ]

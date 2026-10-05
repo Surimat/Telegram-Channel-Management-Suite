@@ -6,7 +6,7 @@ repository root unless stated otherwise.
 ## 1. Code quality gates (must pass)
 
 ```bash
-python -m pytest                 # full suite — currently 574 passed
+python -m pytest                 # full suite — currently 611 passed
 ruff check backend tests         # must be clean
 cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 ```
@@ -64,6 +64,24 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
       `.sha256` to it — no manual step (D-060).
 
 ## 6. Release verification (fill in per release)
+
+### v1.2.0 (released 2026-10-05)
+
+| Gate | v1.2.0 | Notes |
+| --- | --- | --- |
+| Version consistency (`1.2.0` everywhere) | ✅ | app / pyproject / frontend (+ lock) |
+| Content Studio tests | ✅ | `test_content_posting.py`, `test_content_posting_api.py`; extended `test_content_service.py`, `test_content_api.py` |
+| Posting tick tests | ✅ | `test_scheduler.py`: periodic re-schedule + `ensure_periodic` idempotency |
+| Migration upgrade test | ✅ | `test_migrations.py`: v1.2 tables added in place with server defaults |
+| Help topics | ✅ | `content_studio`, `content_source`, `content_rights` required by `test_help.py` |
+| Frontend build | ✅ | `vue-tsc` + `npm run build` (Content Studio page bundled) |
+| Tests (`pytest` / `ruff`) | ✅ | 611 passed; ruff clean |
+| Git merge (`develop → main`) | ⏳ | reviewed `develop → main` PR |
+| CI green on `develop` head | ⏳ | `.github/workflows/ci.yml` |
+| Automated Release workflow + ZIP/`.sha256` | ⏳ | `v1.2.0` tag → release created by CI |
+| GitHub Release `v1.2.0` published | ⏳ | tag matches |
+| Security (artifact + git tree clean) | ✅ | no secrets/sessions/DB/models in tree; runtime dirs empty |
+| Docker (`/health` + SPA + v1.2 routes) | ⏳ | build + run + restart |
 
 ### v1.1.0 (released 2026-10-05)
 

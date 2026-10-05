@@ -16,8 +16,14 @@ from backend.app.db.models.job import Job
 from backend.app.scheduler.scheduler import Scheduler
 from backend.app.services.audience_service import SCAN_JOB_KIND, AudienceService
 from backend.app.services.invite_service import INVITE_JOB_KIND, InviteService
+from backend.app.services.posting_service import POSTING_JOB_KIND, PostingService
 from backend.app.services.queue_service import QueueService
 from backend.app.services.reaction_service import REACTION_JOB_KIND, ReactionService
+
+#: How far ahead the Content Studio posting tick re-schedules itself. Small
+#: enough that a scheduled publication fires close to its time, large enough
+#: that an idle install does not spin.
+POSTING_TICK_SECONDS = 15
 
 
 async def _handle_reaction(session: AsyncSession, job: Job) -> None:
@@ -52,11 +58,27 @@ async def _handle_invite(session: AsyncSession, job: Job) -> None:
         )
 
 
+async def _handle_posting(session: AsyncSession, job: Job) -> None:
+    # One bounded pass over due publications, auto-deletions and comments. The
+    # pass always re-schedules itself a short interval ahead, so the loop is a
+    # durable periodic tick that survives restarts (D-008 style) without a
+    # second scheduler primitive — and a publication scheduled later still fires
+    # without needing a restart.
+    await PostingService(session).tick()
+    await QueueService(session).enqueue(
+        kind=POSTING_JOB_KIND,
+        payload={},
+        scheduled_at=utcnow() + timedelta(seconds=POSTING_TICK_SECONDS),
+        max_attempts=1,
+    )
+
+
 def register_handlers(scheduler: Scheduler) -> None:
     """Register every durable-queue handler on ``scheduler``."""
     scheduler.register(REACTION_JOB_KIND, _handle_reaction)
     scheduler.register(SCAN_JOB_KIND, _handle_scan)
     scheduler.register(INVITE_JOB_KIND, _handle_invite)
+    scheduler.register(POSTING_JOB_KIND, _handle_posting)
 
 
 __all__ = ["register_handlers"]

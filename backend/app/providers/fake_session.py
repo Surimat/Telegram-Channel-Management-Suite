@@ -212,6 +212,9 @@ class FakeSessionProvider:
         self.connected = False
         self.closed = True
         self.export_calls = 0
+        # Content Studio user posting (v1.2): recorded, deterministic.
+        self.user_posts: list[dict[str, object]] = []
+        self.user_deleted: list[int] = []
 
     # --- lifecycle -----------------------------------------------------------
     async def connect(self) -> None:
@@ -487,6 +490,32 @@ class FakeSessionProvider:
             items=items,
             message=f"Найдено сообщений: {len(items)}.",
         )
+
+    # --- user-account posting (v1.2) -----------------------------------------
+    async def send_channel_post(
+        self,
+        channel: str | int,
+        *,
+        text: str,
+        media_paths: list[str] | None = None,
+        buttons: list[list[dict[str, object]]] | None = None,
+    ) -> ChannelFetchResult:
+        mid = 5000 + len(self.user_posts)
+        self.user_posts.append(
+            {"channel": channel, "text": text, "media": list(media_paths or []),
+             "buttons": buttons or [], "message_id": mid}
+        )
+        return ChannelFetchResult(
+            ok=True,
+            items=[ChannelMessage(message_id=mid, text=text)],
+            message="Опубликовано.",
+        )
+
+    async def delete_channel_messages(
+        self, channel: str | int, message_ids: list[int]
+    ) -> bool:
+        self.user_deleted.extend(int(m) for m in message_ids)
+        return True
 
 
 def fake_provider_factory(scenario: FakeAuthScenario | None = None):

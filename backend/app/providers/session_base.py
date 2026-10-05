@@ -146,3 +146,25 @@ class SessionProvider(Protocol):
         only the link — callers must never bypass it (D-006).
         """
         ...
+
+    # --- user-account posting (v1.2: expanded mode only) ---------------------
+    async def send_channel_post(
+        self,
+        channel: str | int,
+        *,
+        text: str,
+        media_paths: list[str] | None = None,
+        buttons: list[list[dict[str, object]]] | None = None,
+    ) -> ChannelFetchResult:
+        """Publish a post as the user account (only where truly needed, v1.2).
+
+        Optional: providers that cannot post raise ``UnsupportedOperationError``.
+        Used only in the expanded (session) mode — bot posting is the default.
+        """
+        ...
+
+    async def delete_channel_messages(
+        self, channel: str | int, message_ids: list[int]
+    ) -> bool:
+        """Delete messages this suite published as the user account (v1.2)."""
+        ...

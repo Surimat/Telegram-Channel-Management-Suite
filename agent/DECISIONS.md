@@ -1388,3 +1388,102 @@ enough that a fake success would be worse than an honest gap.
 `*.session_meta.json`; docs/SECURITY.md documents the import scope; detection
 reports format + state (`valid`/`damaged`/`unauthorized`/`unknown`) before import.
 
+---
+
+## D-071 — 2026-10-05 — Content Studio is a source→item→publish pipeline over the existing provider seams — LOCKED
+
+**Decision:** The Content Studio (`db/models/content.py`,
+`providers/content_sources.py`, `services/content_service.py`) collects material
+from Telegram / RSS / Atom / manual sources and turns it into publications on the
+owner's own channels. It introduces **no new Telegram client**: reading a Telegram
+source goes through the existing `SessionProvider`, and publishing goes through a
+`PostingProvider` that wraps `TelegramBotProvider` (bot mode, the default) or
+`SessionProvider` (expanded mode). Neither the service nor the providers import
+aiogram or Telethon directly (D-001).
+
+**Why:** The suite already has one provider abstraction per concern; a parallel
+client would duplicate credentials handling, redaction and error translation.
+
+**Consequence:** `providers/posting_base.py` defines `PostingProvider`
+(`publish`/`delete`/`send_comment`/capabilities); `providers/posting.py` holds the
+concrete bot/user providers.
+
+---
+
+## D-072 — 2026-10-05 — Content is never published without an explicit owner action — LOCKED
+
+**Decision:** Grabbing material only creates `ContentItem`s. A publication exists
+only after the owner plans it, and a scheduled publication is sent by the durable
+posting tick — never by an implicit "auto-publish everything" default. A held
+(moderation) item is not published until the owner releases it. A lost connection
+during publish marks the publication `uncertain` rather than silently retrying.
+
+**Why:** Publishing is irreversible and public; an implicit default would let a
+grab turn into an unwanted post.
+
+**Consequence:** `services/posting_service.py` exposes plan/schedule/publish/
+retry/release as explicit operations; `tick()` only acts on `planned`/`scheduled`
+publications that are due.
+
+---
+
+## D-073 — 2026-10-05 — Content rights are owner-declared, not legally checked — LOCKED
+
+**Decision:** Usage rights are recorded from what the owner states (`own` /
+`allowed` / `licensed` / `public` / `unknown`). The suite never performs a legal
+check. When rights are unknown, publishing warns and keeps an attribution block
+(source link) rather than silently proceeding or hard-blocking.
+
+**Why:** The suite cannot determine copyright, but it can avoid pretending a
+material is safe and can preserve attribution.
+
+**Consequence:** `RightsStatus` + `RIGHTS_TITLES`; `services/content_service.py`
+`rights()` returns the warning and attribution block; the UI renders both.
+
+---
+
+## D-074 — 2026-10-05 — Protected content keeps only its link (D-006) — LOCKED
+
+**Decision:** When a Telegram source forbids forwarding/downloading
+(`noforwards`), the Content Studio stores only the post's link (and metadata),
+never a copy of the text or media, and marks the source `protected`.
+
+**Why:** Copying protected content would violate the author's setting and
+Telegram's rules; a link preserves the reference without duplicating the work.
+
+**Consequence:** `providers/content_sources.py` returns a link-only item and the
+`GrabOut.protected` flag; the UI states that only the link was kept.
+
+---
+
+## D-075 — 2026-10-05 — The posting tick is a bounded, restart-safe periodic job — LOCKED
+
+**Decision:** Due publications, auto-deletions and first comments are driven by
+one durable job kind (`content.posting`). The handler runs one bounded pass and
+re-schedules itself every `POSTING_TICK_SECONDS` (D-008 style); `main.py` seeds
+the first tick with `QueueService.ensure_periodic`. There is no separate scheduler
+primitive and no in-memory timer.
+
+**Why:** A periodic self-rescheduling durable job survives restarts and fires a
+later-scheduled publication without a restart, without adding infrastructure.
+
+**Consequence:** `scheduler/handlers.py::_handle_posting`,
+`QueueService.ensure_periodic`, `PostingService.tick()/due_count()`.
+
+---
+
+## D-076 — 2026-10-05 — The AI never picks emoji and the encoder never generates — LOCKED
+
+**Decision:** The Content Studio's rewrite routes through the existing generative
+LLM backend only. The lightweight encoder (ruBERT-tiny2) is an embedding/classifier
+backend and is never used to generate text (D-068). Reaction selection remains an
+intersection of profile ∩ AI intent ∩ channel capabilities ∩ bot compatibility; the
+AI narrows, it never picks the emoji (D-033).
+
+**Why:** An encoder cannot generate reliable prose; asking it to would produce
+broken output. Keeping the AI in a narrowing role preserves the deterministic
+rules engine as the default.
+
+**Consequence:** `services/content_service.py::rewrite_preview` uses the LLM
+backend; the encoder is used only for classification/embeddings.
+

@@ -16,6 +16,7 @@ from backend.app.providers.types import (
     InviteLinkResult,
     ManagedBotAccess,
     ManagedBotRef,
+    PostSendResult,
     ReactionCapability,
 )
 
@@ -170,4 +171,62 @@ class TelegramBotProvider(Protocol):
         Returns True on success. Callers must never pass session files here
         without an explicit, confirmed opt-in.
         """
+        ...
+
+    # --- Content Studio posting (v1.2) ---------------------------------------
+    async def send_post(
+        self,
+        chat_id: int | str,
+        *,
+        text: str,
+        entities: list[dict[str, object]] | None = None,
+        media: list[object] | None = None,
+        buttons: list[list[object]] | None = None,
+        disable_notification: bool = False,
+    ) -> PostSendResult:
+        """Publish a message or album with optional inline buttons (v1.2).
+
+        ``media`` is a list of :class:`~backend.app.providers.types.OutgoingMedia`
+        and ``buttons`` a list of rows of
+        :class:`~backend.app.providers.types.InlineButton`. Albums must respect
+        Telegram's item limit (validated before calling). Implementations must
+        never log or return tokens.
+        """
+        ...
+
+    async def send_comment(
+        self,
+        chat_id: int | str,
+        post_message_id: int,
+        text: str,
+        *,
+        buttons: list[list[object]] | None = None,
+    ) -> PostSendResult:
+        """Post a comment into the discussion group linked to ``chat_id`` (v1.2).
+
+        Returns a result with ``ok=False`` and a clear reason when no discussion
+        group is linked (a comment can never be sent as a plain channel post).
+        """
+        ...
+
+    async def edit_message(
+        self, chat_id: int | str, message_id: int, text: str
+    ) -> PostSendResult:
+        """Edit a message this suite published (v1.2)."""
+        ...
+
+    async def delete_messages(
+        self, chat_id: int | str, message_ids: list[int]
+    ) -> PostSendResult:
+        """Delete messages this suite published (v1.2). Never foreign messages."""
+        ...
+
+    async def pin_message(
+        self, chat_id: int | str, message_id: int
+    ) -> PostSendResult:
+        """Pin a message when the channel permits it (v1.2)."""
+        ...
+
+    async def get_linked_chat(self, chat_id: int | str) -> int | None:
+        """Return the linked discussion-group id, or ``None`` (v1.2)."""
         ...

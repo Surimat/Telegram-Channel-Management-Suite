@@ -9,9 +9,9 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v1.1.0`.** It adds the Account Hub importer, network
-routes, donor discovery, the lightweight encoder and the bot-only / risk UX
-(see Status below).
+**Current stable release: `v1.2.0`.** It adds **Content Studio** — collect
+material from sources, clean it, check rights and markup, then publish to your
+own channels on a schedule (see Status below).
 
 ## What it does
 
@@ -33,6 +33,11 @@ routes, donor discovery, the lightweight encoder and the bot-only / risk UX
 - **Reaction Manager** — reaction profiles, emoji weights, delays, simulation;
   the AI's communicative intent only *narrows* the allowed emoji.
 - **Rules Engine** — per-category rules with allowed/preferred/forbidden emoji.
+- **Content Studio** — collect material from Telegram / RSS / Atom / manual
+  sources, deduplicate, clean, check usage rights and Telegram markup, add inline
+  buttons, preview it like Telegram, then publish or schedule it to your own
+  channels (with optional auto-delete and first comments). Nothing is ever
+  published without your confirmation.
 - **Tiny AI** — optional local classifier (rules-only mode is fully supported);
   a lightweight local **encoder** mode works with no model download, plus an
   optional **ruBERT-tiny2** encoder with a one-click, verified install.
@@ -87,6 +92,14 @@ discovery** (candidate proposals only), a **lightweight local encoder** classifi
 mode plus the optional **ruBERT-tiny2** backend with a verified one-click install,
 and the **bot-only / risk UX** (session-free analytics, an adaptive wizard and
 intent-narrowed reactions).
+**v1.2.0 (released)** adds **Content Studio** (the v1.2 content-studio
+foundation): content sources (Telegram / RSS / Atom / manual) with deduplication,
+a deterministic cleaner with an explainable, cancellable preview, usage-rights
+tracking with an attribution block, Telegram markup validation and a
+Telegram-like preview, inline button sets, per-source moderation (blocked
+keywords + quiet hours), multi-channel planning/calendar, publishing through a
+`PostingProvider` (bot by default; a user account only in the expanded mode),
+durable auto-delete and first comments, and a bounded, restart-safe posting tick.
 See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
 ## Deployment modes

@@ -223,6 +223,42 @@ class BotUpdate:
 
 
 @dataclass(slots=True)
+class PostSendResult:
+    """Outcome of one posting operation (v1.2 Content Studio).
+
+    ``uncertain`` is set when a connection was lost after the request may have
+    reached Telegram — the caller must not silently retry (D-006 / idempotency).
+    ``message_ids`` are the resulting Telegram message ids (an album has several).
+    """
+
+    ok: bool
+    message_ids: list[int] = field(default_factory=list)
+    message: str = ""
+    how_to_fix: str = ""
+    uncertain: bool = False
+
+
+@dataclass(slots=True)
+class InlineButton:
+    """One inline button (v1.2). ``action`` is a safe, supported type."""
+
+    text: str
+    action: str = "url"  # url | callback | webapp | copy
+    value: str = ""
+
+
+@dataclass(slots=True)
+class OutgoingMedia:
+    """A media file to send (v1.2). ``path`` is a local, non-secret file."""
+
+    kind: str = "photo"  # photo | video | audio | document
+    path: str = ""
+    filename: str = ""
+    caption: str = ""
+    mime: str = ""
+
+
+@dataclass(slots=True)
 class BotChannelStatus:
     """The *verified* status of a bot inside a channel (never assumed).
 

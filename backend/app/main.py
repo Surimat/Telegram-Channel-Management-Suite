@@ -113,6 +113,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             if paused:
                 logger.info("Paused %d interrupted invite run(s) after restart", paused)
 
+    # Seed the recurring Content Studio posting tick (v1.2). The handler
+    # re-schedules itself every POSTING_TICK_SECONDS, so a publication scheduled
+    # for later still fires without a restart.
+    with contextlib.suppress(Exception):
+        from backend.app.db.session import session_scope
+        from backend.app.scheduler.handlers import POSTING_TICK_SECONDS
+        from backend.app.services.posting_service import POSTING_JOB_KIND
+        from backend.app.services.queue_service import QueueService
+
+        async with session_scope() as session:
+            await QueueService(session).ensure_periodic(
+                POSTING_JOB_KIND, interval_seconds=POSTING_TICK_SECONDS
+            )
+
     scheduler: Scheduler | None = None
     if settings.scheduler_enabled:
         scheduler = Scheduler()
