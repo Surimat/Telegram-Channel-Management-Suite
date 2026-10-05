@@ -96,3 +96,42 @@ async def test_scheduler_ignores_future_jobs() -> None:
     scheduler = Scheduler()
     scheduler.register("reaction", lambda session, job: None)  # type: ignore[arg-type,return-value]
     await scheduler._tick()  # must not raise
+
+
+async def test_ensure_periodic_is_idempotent() -> None:
+    """``ensure_periodic`` keeps exactly one pending job of a kind."""
+    async with session_scope() as session:
+        service = QueueService(session)
+        first = await service.ensure_periodic("content.posting", interval_seconds=15)
+        second = await service.ensure_periodic("content.posting", interval_seconds=15)
+        assert first.id == second.id
+
+        jobs = await service.repo.list(kind="content.posting")
+    assert len(jobs[0]) == 1
+
+
+async def test_posting_tick_reschedules_itself() -> None:
+    """The posting handler runs a bounded pass and re-enqueues the next tick."""
+    from backend.app.scheduler.handlers import POSTING_TICK_SECONDS, _handle_posting
+
+    async with session_scope() as session:
+        job = await QueueService(session).enqueue(kind="content.posting")
+        job_id = job.id
+
+    scheduler = Scheduler()
+    scheduler.register("content.posting", _handle_posting)
+    await scheduler._tick()
+
+    async with session_scope() as session:
+        done = await QueueService(session).get(job_id)
+        assert done is not None and done.status == JobStatus.DONE
+        # A fresh tick is queued for the future (status SCHEDULED).
+        pending, _total = await QueueService(session).repo.list(kind="content.posting")
+    next_ticks = [j for j in pending if j.id != job_id]
+    assert len(next_ticks) == 1
+    scheduled_at = next_ticks[0].scheduled_at
+    assert scheduled_at is not None
+    # SQLite returns naive datetimes; compare in the same frame.
+    now_naive = utcnow().replace(tzinfo=None)
+    delta = (scheduled_at.replace(tzinfo=None) - now_naive).total_seconds()
+    assert 0 < delta <= POSTING_TICK_SECONDS + 5

@@ -409,6 +409,29 @@ without reading docs:
 
 ---
 
+## 11a. Content Studio page (`ContentStudioView.vue`, `/content`, v1.2)
+
+A four-tab workspace: **Обзор**, **Источники**, **Материалы**, **Календарь**.
+
+- **Обзор** shows status counts (черновики / готовы / запланировано /
+  опубликовано сегодня / импортировано / ошибки) and which source kinds are
+  available — Telegram needs a connected account, RSS/Atom/manual do not.
+- **Источники** adds a source (manual / RSS / Atom / Telegram), runs «Собрать
+  материалы» and reports new, duplicate, filtered and moderation-held counts. A
+  protected source keeps only its link and says so.
+- **Материалы** opens an editor: show/apply/revert the deterministic cleaning,
+  check Telegram markup, render a Telegram-like preview, then pick a channel and
+  either prepare a publication or schedule it. A held item shows «Удержано» and
+  can be released. Unknown rights show a warning and an attribution block.
+- **Календарь** is a multi-channel view of upcoming publications and their
+  statuses.
+
+Plain-language help topics `content_studio`, `content_source` and
+`content_rights` explain the section in beginner terms. The page never claims a
+publishing capability it cannot verify and never publishes without a click.
+
+---
+
 ## 12. Terminology (one word per entity)
 
 Use exactly one term per entity across the UI, docs and API text:
@@ -423,6 +446,9 @@ Use exactly one term per entity across the UI, docs and API text:
 | Unit of scheduled work | **Задание** |
 | Durable job list | **Очередь** |
 | Account connection route (proxy) | **Сетевой маршрут** (прокси) |
+| Collected material for publishing | **Материал** |
+| Where material comes from | **Источник контента** |
+| Prepared item sent to a channel | **Публикация** |
 
 Do not use "База участников", "Задачи", "Объект", "Пользователь Telegram"
 etc. as synonyms for the terms above.

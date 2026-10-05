@@ -420,6 +420,30 @@ exports unless `AUDIENCE_STORE_PII` is enabled.
 
 ---
 
+## Publishing content (Content Studio, v1.2)
+
+Open the Web UI → **Content Studio** (`/content`) and:
+
+1. **Источники → Добавить источник** — a manual text, an RSS/Atom feed, or a
+   Telegram channel (a Telegram source needs a connected account; RSS/Atom/manual
+   do not).
+2. **Собрать материалы** — new material is imported, duplicates are skipped, and
+   per-source moderation (blocked keywords + quiet hours) is applied. A
+   `noforwards` source stores only its link.
+3. **Материалы → Открыть** — review the text, run **Показать очистку** and apply
+   or revert it, **Проверить разметку**, and **Предпросмотр** for a Telegram-like
+   view. Set the usage rights; unknown rights warn and add an attribution block.
+4. **Публикация** — pick a channel and either **Подготовить публикацию** (publish
+   now) or set a time (**Запланировать**). Nothing is sent without this click.
+5. **Календарь** — see upcoming publications per channel.
+
+Publishing goes through a bot by default; a user account is used only in the
+expanded mode. A scheduled publication is sent by a durable posting tick that
+survives restarts. Auto-delete and first comments (when configured) are also
+driven by that tick.
+
+---
+
 ## Configuration
 
 All configuration is available through:

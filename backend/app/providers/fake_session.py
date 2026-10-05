@@ -24,6 +24,8 @@ from backend.app.providers.errors import (
     SessionInvalidError,
 )
 from backend.app.providers.types import (
+    ChannelFetchResult,
+    ChannelMessage,
     EntityRef,
     ParticipantPage,
     PermissionReport,
@@ -144,6 +146,22 @@ class FakeDiscoveryScenario:
     recommendations_error: Exception | None = None
 
 
+@dataclass
+class FakeContentScenario:
+    """Controls the fake channel-message fetch (v1.2 content grabber).
+
+    ``messages`` is the list of messages the fake pretends a channel holds.
+    ``protected`` simulates a channel that forbids forwarding/downloading, so the
+    "only keep the link" path can be exercised without a real channel.
+    """
+
+    messages: list[dict[str, object]] = field(default_factory=list)
+    protected: bool = False
+    source_channel: str = "Fake Channel"
+    source_url: str = "https://t.me/fakechannel"
+    fetch_error: Exception | None = None
+
+
 def make_fake_users(count: int, *, start_id: int = 1) -> list[UserIdentity]:
     """Build a deterministic list of fake users for scan tests."""
     users: list[UserIdentity] = []
@@ -180,6 +198,7 @@ class FakeSessionProvider:
         invite: FakeInviteScenario | None = None,
         permission: FakePermissionScenario | None = None,
         discovery: FakeDiscoveryScenario | None = None,
+        content: FakeContentScenario | None = None,
     ) -> None:
         self._api_id = api_id
         self._api_hash = api_hash
@@ -189,9 +208,13 @@ class FakeSessionProvider:
         self.invite = invite or FakeInviteScenario()
         self.permission = permission or FakePermissionScenario()
         self.discovery = discovery or FakeDiscoveryScenario()
+        self.content = content or FakeContentScenario()
         self.connected = False
         self.closed = True
         self.export_calls = 0
+        # Content Studio user posting (v1.2): recorded, deterministic.
+        self.user_posts: list[dict[str, object]] = []
+        self.user_deleted: list[int] = []
 
     # --- lifecycle -----------------------------------------------------------
     async def connect(self) -> None:
@@ -427,6 +450,73 @@ class FakeSessionProvider:
             )
         return refs
 
+    # --- content grabber (v1.2) ----------------------------------------------
+    async def fetch_channel_messages(
+        self, channel: str | int, *, limit: int = 20, min_id: int = 0
+    ) -> ChannelFetchResult:
+        scenario = self.content
+        if scenario.fetch_error is not None:
+            raise scenario.fetch_error
+        if scenario.protected:
+            return ChannelFetchResult(
+                ok=True,
+                protected=True,
+                source_channel=scenario.source_channel,
+                source_url=scenario.source_url,
+                message="Контент нельзя автоматически получить из этого источника.",
+            )
+        items: list[ChannelMessage] = []
+        for raw in scenario.messages:
+            message_id = int(raw.get("message_id", 0) or 0)
+            if min_id and message_id <= min_id:
+                continue
+            items.append(
+                ChannelMessage(
+                    message_id=message_id,
+                    text=str(raw.get("text", "") or ""),
+                    url=str(raw.get("url", "") or ""),
+                    date=str(raw.get("date", "") or ""),
+                    entities=list(raw.get("entities", []) or []),
+                    media_urls=list(raw.get("media_urls", []) or []),
+                    protected=bool(raw.get("protected", False)),
+                )
+            )
+            if len(items) >= max(1, limit):
+                break
+        return ChannelFetchResult(
+            ok=True,
+            source_channel=scenario.source_channel,
+            source_url=scenario.source_url,
+            items=items,
+            message=f"Найдено сообщений: {len(items)}.",
+        )
+
+    # --- user-account posting (v1.2) -----------------------------------------
+    async def send_channel_post(
+        self,
+        channel: str | int,
+        *,
+        text: str,
+        media_paths: list[str] | None = None,
+        buttons: list[list[dict[str, object]]] | None = None,
+    ) -> ChannelFetchResult:
+        mid = 5000 + len(self.user_posts)
+        self.user_posts.append(
+            {"channel": channel, "text": text, "media": list(media_paths or []),
+             "buttons": buttons or [], "message_id": mid}
+        )
+        return ChannelFetchResult(
+            ok=True,
+            items=[ChannelMessage(message_id=mid, text=text)],
+            message="Опубликовано.",
+        )
+
+    async def delete_channel_messages(
+        self, channel: str | int, message_ids: list[int]
+    ) -> bool:
+        self.user_deleted.extend(int(m) for m in message_ids)
+        return True
+
 
 def fake_provider_factory(scenario: FakeAuthScenario | None = None):
     """Return a factory that always builds a fake provider with ``scenario``.
@@ -486,6 +576,7 @@ __all__ = [
     "DEFAULT_PASSWORD",
     "FakeAudienceScenario",
     "FakeAuthScenario",
+    "FakeContentScenario",
     "FakeDiscoveryScenario",
     "FakeInviteScenario",
     "FakePermissionScenario",

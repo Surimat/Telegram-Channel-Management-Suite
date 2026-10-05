@@ -43,6 +43,7 @@ from backend.app.providers.types import (
     InviteLinkResult,
     ManagedBotAccess,
     ManagedBotRef,
+    PostSendResult,
     ReactionCapability,
 )
 
@@ -352,3 +353,203 @@ class AiogramBotProvider:
             self._bot.send_document(chat_id=chat_id, document=document, caption=caption or None)
         )
         return True
+
+    # --- Content Studio posting (v1.2) ---------------------------------------
+    def _reply_markup(self, buttons: list[list[object]] | None):  # type: ignore[no-untyped-def]
+        if not buttons:
+            return None
+        from aiogram.types import (
+            InlineKeyboardButton,
+            InlineKeyboardMarkup,
+            WebAppInfo,
+        )
+
+        rows: list[list[object]] = []
+        for row in buttons:
+            out_row: list[object] = []
+            for btn in row:
+                text = str(getattr(btn, "text", "") or "")
+                action = str(getattr(btn, "action", "url") or "url")
+                value = str(getattr(btn, "value", "") or "")
+                if not text:
+                    continue
+                if action == "url":
+                    out_row.append(InlineKeyboardButton(text=text, url=value))
+                elif action == "callback":
+                    out_row.append(InlineKeyboardButton(text=text, callback_data=value[:64]))
+                elif action == "webapp":
+                    out_row.append(
+                        InlineKeyboardButton(text=text, web_app=WebAppInfo(url=value))
+                    )
+                elif action == "copy":
+                    out_row.append(
+                        InlineKeyboardButton(text=text, copy_text={"text": value})
+                    )
+            if out_row:
+                rows.append(out_row)
+        return InlineKeyboardMarkup(inline_keyboard=rows) if rows else None
+
+    async def send_post(
+        self,
+        chat_id: int | str,
+        *,
+        text: str,
+        entities: list[dict[str, object]] | None = None,
+        media: list[object] | None = None,
+        buttons: list[list[object]] | None = None,
+        disable_notification: bool = False,
+    ) -> PostSendResult:
+        from aiogram.types import FSInputFile, InputMediaPhoto, InputMediaVideo
+
+        reply_markup = self._reply_markup(buttons)
+        media_list = list(media or [])
+        try:
+            if not media_list:
+                message = await self._call(
+                    self._bot.send_message(
+                        chat_id=chat_id,
+                        text=text,
+                        reply_markup=reply_markup,
+                        disable_notification=disable_notification,
+                    )
+                )
+                return PostSendResult(
+                    ok=True, message_ids=[int(message.message_id)], message="Опубликовано."
+                )
+            if len(media_list) == 1:
+                item = media_list[0]
+                kind = str(getattr(item, "kind", "photo") or "photo")
+                path = str(getattr(item, "path", "") or "")
+                caption = str(getattr(item, "caption", "") or text)
+                if kind == "video":
+                    message = await self._call(
+                        self._bot.send_video(
+                            chat_id=chat_id,
+                            video=FSInputFile(path),
+                            caption=caption or None,
+                            reply_markup=reply_markup,
+                        )
+                    )
+                elif kind == "document":
+                    message = await self._call(
+                        self._bot.send_document(
+                            chat_id=chat_id,
+                            document=FSInputFile(path),
+                            caption=caption or None,
+                            reply_markup=reply_markup,
+                        )
+                    )
+                else:
+                    message = await self._call(
+                        self._bot.send_photo(
+                            chat_id=chat_id,
+                            photo=FSInputFile(path),
+                            caption=caption or None,
+                            reply_markup=reply_markup,
+                        )
+                    )
+                return PostSendResult(
+                    ok=True, message_ids=[int(message.message_id)], message="Опубликовано."
+                )
+            # Album (grouped media). Item count is validated before this call.
+            group: list[object] = []
+            for item in media_list:
+                path = str(getattr(item, "path", "") or "")
+                caption = str(getattr(item, "caption", "") or "")
+                kind = str(getattr(item, "kind", "photo") or "photo")
+                if kind == "video":
+                    group.append(InputMediaVideo(media=FSInputFile(path), caption=caption or None))
+                else:
+                    group.append(InputMediaPhoto(media=FSInputFile(path), caption=caption or None))
+            messages = await self._call(
+                self._bot.send_media_group(chat_id=chat_id, media=group)
+            )
+            ids = [int(m.message_id) for m in messages]
+            return PostSendResult(ok=True, message_ids=ids, message="Альбом опубликован.")
+        except TelegramProviderError as exc:
+            # A lost connection after the request may have reached Telegram.
+            uncertain = isinstance(exc, NetworkError)
+            return PostSendResult(
+                ok=False,
+                message=exc.message,
+                how_to_fix=exc.how_to_fix,
+                uncertain=uncertain,
+            )
+
+    async def send_comment(
+        self,
+        chat_id: int | str,
+        post_message_id: int,
+        text: str,
+        *,
+        buttons: list[list[object]] | None = None,
+    ) -> PostSendResult:
+        discussion = await self.get_linked_chat(chat_id)
+        if discussion is None:
+            return PostSendResult(
+                ok=False,
+                message="У канала нет связанной группы обсуждений.",
+                how_to_fix="Свяжите группу обсуждений с каналом в Telegram.",
+            )
+        try:
+            message = await self._call(
+                self._bot.send_message(
+                    chat_id=discussion,
+                    text=text,
+                    reply_to_message_id=post_message_id,
+                    reply_markup=self._reply_markup(buttons),
+                )
+            )
+            return PostSendResult(
+                ok=True, message_ids=[int(message.message_id)], message="Комментарий опубликован."
+            )
+        except TelegramProviderError as exc:
+            return PostSendResult(
+                ok=False, message=exc.message, how_to_fix=exc.how_to_fix,
+                uncertain=isinstance(exc, NetworkError),
+            )
+
+    async def edit_message(
+        self, chat_id: int | str, message_id: int, text: str
+    ) -> PostSendResult:
+        try:
+            message = await self._call(
+                self._bot.edit_message_text(
+                    chat_id=chat_id, message_id=message_id, text=text
+                )
+            )
+            return PostSendResult(
+                ok=True, message_ids=[int(message.message_id)], message="Изменено."
+            )
+        except TelegramProviderError as exc:
+            return PostSendResult(ok=False, message=exc.message, how_to_fix=exc.how_to_fix)
+
+    async def delete_messages(
+        self, chat_id: int | str, message_ids: list[int]
+    ) -> PostSendResult:
+        try:
+            await self._call(
+                self._bot.delete_messages(chat_id=chat_id, message_ids=message_ids)
+            )
+            return PostSendResult(ok=True, message_ids=list(message_ids), message="Удалено.")
+        except TelegramProviderError as exc:
+            return PostSendResult(ok=False, message=exc.message, how_to_fix=exc.how_to_fix)
+
+    async def pin_message(self, chat_id: int | str, message_id: int) -> PostSendResult:
+        try:
+            await self._call(
+                self._bot.pin_chat_message(
+                    chat_id=chat_id, message_id=message_id, disable_notification=True
+                )
+            )
+            return PostSendResult(ok=True, message_ids=[message_id], message="Закреплено.")
+        except TelegramProviderError as exc:
+            return PostSendResult(ok=False, message=exc.message, how_to_fix=exc.how_to_fix)
+
+    async def get_linked_chat(self, chat_id: int | str) -> int | None:
+        try:
+            chat = await self._call(self._bot.get_chat(chat_id=chat_id))
+        except TelegramProviderError:
+            return None
+        linked = getattr(chat, "linked_chat_id", None)
+        return int(linked) if linked else None

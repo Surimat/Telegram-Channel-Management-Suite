@@ -546,3 +546,50 @@ data, phone numbers, passwords, database contents or audience records, and the
 API refuses to return a file that fails the safety scan.
 
 ---
+
+## 16. Content Studio (v1.2.0, D-071…D-076)
+
+A content pipeline that turns material from sources into scheduled posts on the
+owner's own channels. It reuses the existing provider seams (no new Telegram
+client): Telegram reads go through `SessionProvider`, publishing goes through a
+`PostingProvider` that wraps either `TelegramBotProvider` (bot mode, the default)
+or `SessionProvider` (expanded mode).
+
+- `db/models/content.py` — `ContentSource`, `ContentItem`, `MediaAsset`,
+  `Publication`, `ButtonSet`, `CommentPlan` (+ enums: source kind/status, rights
+  status, item status, publication status). Additive migration
+  `20261005_1200_c4a1f8b2e6d9`; an existing v1.1 database upgrades in place.
+- `db/repositories/content.py` — one repository per model; dedup lookups by source
+  hash, source message id, content hash and media hash.
+- `providers/content_base.py` + `providers/content_sources.py` — the
+  `ContentSourceProvider` protocol and Telegram / RSS / Atom / manual providers.
+  Telegram respects content protection (`noforwards` → keep only the link, D-006).
+- `providers/posting_base.py` + `providers/posting.py` — the `PostingProvider`
+  protocol (`publish` / `delete` / `send_comment` / capabilities) and the bot /
+  user implementations; neither imports aiogram or Telethon directly (D-001).
+- `services/content_service.py` — sources CRUD, `grab` (dedup + moderation),
+  items, cleaner preview/apply/revert, rights, rewrite (through the existing
+  generative LLM backend only — the ruBERT encoder is never used for generation,
+  D-068), moderation (blocked keywords + quiet hours), `release_held`,
+  `publish_text`, dashboard.
+- `services/content_cleaner.py` — the deterministic, explainable, cancellable
+  cleaner.
+- `services/content_markup.py` — `validate_markup`, `validate_buttons`,
+  `render_preview` (a Telegram-like preview; never claims a channel capability it
+  cannot verify).
+- `services/posting_service.py` — planning (draft → one publication per channel),
+  scheduling, calendar, inline buttons, publish (with `uncertain` idempotency on a
+  lost connection), retry, auto-delete and first comments; `tick()` runs one
+  bounded pass and `due_count()` reports remaining work.
+- `scheduler/handlers.py` — the `content.posting` handler runs a bounded pass and
+  re-schedules itself every `POSTING_TICK_SECONDS`, so it is a durable periodic
+  tick that survives restarts (D-008 style) and fires a later-scheduled post
+  without a restart. `main.py` seeds the first tick with `QueueService.ensure_periodic`.
+- `api/v1/content.py` + `api/schemas/content.py` — the `/api/v1/content/*` router;
+  `api/deps.py::get_posting_service` / `get_content_service`.
+
+Nothing is published without an explicit owner action; unknown rights warn and
+add attribution rather than blocking silently; protected content keeps only its
+link.
+
+---

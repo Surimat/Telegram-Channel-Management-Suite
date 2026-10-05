@@ -38,6 +38,8 @@ from backend.app.providers.errors import (
     UnsupportedOperationError,
 )
 from backend.app.providers.types import (
+    ChannelFetchResult,
+    ChannelMessage,
     EntityRef,
     ParticipantPage,
     PermissionReport,
@@ -623,6 +625,156 @@ class TelethonSessionProvider:
             return report
 
         return await self._call(_run)
+
+    # --- content grabber (v1.2) ----------------------------------------------
+    async def fetch_channel_messages(
+        self, channel: str | int, *, limit: int = 20, min_id: int = 0
+    ) -> ChannelFetchResult:
+        """Read recent channel messages, respecting content protection (D-006).
+
+        A channel with ``noforwards`` set is reported as ``protected`` and only
+        its link is returned — the grabber never attempts to bypass it.
+        """
+
+        async def _run(client):  # type: ignore[no-untyped-def]
+            resolved = await client.get_entity(channel)
+            username = str(getattr(resolved, "username", "") or "")
+            title = str(getattr(resolved, "title", "") or username)
+            source_url = f"https://t.me/{username}" if username else ""
+            if bool(getattr(resolved, "noforwards", False)):
+                return ChannelFetchResult(
+                    ok=True,
+                    protected=True,
+                    source_channel=title or str(channel),
+                    source_url=source_url,
+                    message="Контент нельзя автоматически получить из этого источника.",
+                    how_to_fix=(
+                        "Источник запрещает копирование. Сохраните только ссылку "
+                        "на источник и опубликуйте материал вручную."
+                    ),
+                )
+            items: list[ChannelMessage] = []
+            kwargs: dict[str, object] = {"limit": max(1, limit)}
+            if min_id:
+                kwargs["min_id"] = int(min_id)
+            async for message in client.iter_messages(resolved, **kwargs):
+                text = str(getattr(message, "message", "") or "")
+                entities: list[dict[str, object]] = []
+                for ent in getattr(message, "entities", None) or []:
+                    entities.append(self._entity_dict(ent))
+                media_urls: list[str] = []
+                if getattr(message, "media", None) is not None:
+                    # A reference, never a download: the grabber only records it.
+                    media_urls.append(source_url or str(channel))
+                msg_id = int(getattr(message, "id", 0) or 0)
+                items.append(
+                    ChannelMessage(
+                        message_id=msg_id,
+                        text=text,
+                        url=f"{source_url}/{msg_id}" if source_url else "",
+                        date=str(getattr(message, "date", "") or ""),
+                        entities=entities,
+                        media_urls=media_urls,
+                    )
+                )
+            return ChannelFetchResult(
+                ok=True,
+                source_channel=title or str(channel),
+                source_url=source_url,
+                items=items,
+                message=f"Найдено сообщений: {len(items)}.",
+            )
+
+        return await self._call(_run)
+
+    # --- user-account posting (v1.2: expanded mode only) ---------------------
+    async def send_channel_post(
+        self,
+        channel: str | int,
+        *,
+        text: str,
+        media_paths: list[str] | None = None,
+        buttons: list[list[dict[str, object]]] | None = None,
+    ) -> ChannelFetchResult:
+        """Publish a post as the user account (only where truly needed, v1.2)."""
+
+        async def _run(client):  # type: ignore[no-untyped-def]
+            files = list(media_paths or [])
+            buttons_markup = None
+            if buttons:
+                from telethon import Button as _B
+
+                rows = []
+                for row in buttons:
+                    out_row = []
+                    for btn in row:
+                        if str(btn.get("action", "url")) == "url":
+                            out_row.append(
+                                _B.url(str(btn.get("text", "")), str(btn.get("value", "")))
+                            )
+                        else:
+                            out_row.append(
+                                _B.inline(str(btn.get("text", "")), str(btn.get("value", "")))
+                            )
+                    if out_row:
+                        rows.append(out_row)
+                buttons_markup = rows or None
+            if files:
+                messages = await client.send_file(
+                    channel, files, caption=text, buttons=buttons_markup
+                )
+            else:
+                message = await client.send_message(channel, text, buttons=buttons_markup)
+                messages = [message]
+            items = []
+            if not isinstance(messages, list):
+                messages = [messages]
+            for message in messages:
+                items.append(
+                    ChannelMessage(message_id=int(getattr(message, "id", 0) or 0), text=text)
+                )
+            return ChannelFetchResult(ok=True, items=items, message="Опубликовано.")
+
+        return await self._call(_run)
+
+    async def delete_channel_messages(
+        self, channel: str | int, message_ids: list[int]
+    ) -> bool:
+        """Delete messages this suite published as the user account (v1.2)."""
+
+        async def _run(client):  # type: ignore[no-untyped-def]
+            await client.delete_messages(channel, list(message_ids))
+            return True
+
+        return await self._call(_run)
+
+    @staticmethod
+    def _entity_dict(entity: object) -> dict[str, object]:
+        """Translate a Telethon message entity into a plain, display-safe dict."""
+        name = type(entity).__name__
+        mapping = {
+            "MessageEntityBold": "bold",
+            "MessageEntityItalic": "italic",
+            "MessageEntityUnderline": "underline",
+            "MessageEntityStrike": "strikethrough",
+            "MessageEntityCode": "code",
+            "MessageEntityPre": "pre",
+            "MessageEntityTextUrl": "text_link",
+            "MessageEntityUrl": "url",
+            "MessageEntityMention": "mention",
+            "MessageEntityMentionName": "text_mention",
+            "MessageEntitySpoiler": "spoiler",
+            "MessageEntityBlockquote": "blockquote",
+        }
+        out: dict[str, object] = {
+            "type": mapping.get(name, "unknown"),
+            "offset": int(getattr(entity, "offset", 0) or 0),
+            "length": int(getattr(entity, "length", 0) or 0),
+        }
+        url = getattr(entity, "url", None)
+        if url:
+            out["url"] = str(url)
+        return out
 
 
 __all__ = ["TelethonSessionProvider"]

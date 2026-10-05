@@ -31,6 +31,9 @@ REQUIRED_KEYS = {
     "queue",
     "update",
     "provisioning",
+    "content_studio",
+    "content_source",
+    "content_rights",
 }
 
 

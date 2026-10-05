@@ -6,7 +6,7 @@ repository root unless stated otherwise.
 ## 1. Code quality gates (must pass)
 
 ```bash
-python -m pytest                 # full suite — currently 574 passed
+python -m pytest                 # full suite — currently 611 passed
 ruff check backend tests         # must be clean
 cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 ```
@@ -65,7 +65,25 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 
 ## 6. Release verification (fill in per release)
 
-### v1.1.0 (complete on `develop`; awaiting merge + tag)
+### v1.2.0 (released 2026-10-05)
+
+| Gate | v1.2.0 | Notes |
+| --- | --- | --- |
+| Version consistency (`1.2.0` everywhere) | ✅ | app / pyproject / frontend (+ lock) |
+| Content Studio tests | ✅ | `test_content_posting.py`, `test_content_posting_api.py`; extended `test_content_service.py`, `test_content_api.py` |
+| Posting tick tests | ✅ | `test_scheduler.py`: periodic re-schedule + `ensure_periodic` idempotency |
+| Migration upgrade test | ✅ | `test_migrations.py`: v1.2 tables added in place with server defaults |
+| Help topics | ✅ | `content_studio`, `content_source`, `content_rights` required by `test_help.py` |
+| Frontend build | ✅ | `vue-tsc` + `npm run build` (Content Studio page bundled) |
+| Tests (`pytest` / `ruff`) | ✅ | 611 passed; ruff clean |
+| Git merge (`develop → main`) | ⏳ | reviewed `develop → main` PR |
+| CI green on `develop` head | ⏳ | `.github/workflows/ci.yml` |
+| Automated Release workflow + ZIP/`.sha256` | ⏳ | `v1.2.0` tag → release created by CI |
+| GitHub Release `v1.2.0` published | ⏳ | tag matches |
+| Security (artifact + git tree clean) | ✅ | no secrets/sessions/DB/models in tree; runtime dirs empty |
+| Docker (`/health` + SPA + v1.2 routes) | ⏳ | build + run + restart |
+
+### v1.1.0 (released 2026-10-05)
 
 | Gate | v1.1.0 | Notes |
 | --- | --- | --- |
@@ -73,12 +91,17 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 | New API tests | ✅ | `test_proxy_api.py`, `test_proxy_service.py`, `test_discovery_api.py`, `test_donor_discovery.py`, `test_encoder.py`, `test_encoder_service.py`, `test_session_import.py`, `test_reaction_planner.py` |
 | Session-import security tests | ✅ | StringSession never returned/logged; companion-JSON whitelist; TDATA `NOT AVAILABLE` |
 | Diagnostics tests (`test_diagnostics.py`) | ✅ | new `proxies`/`donor_candidates` rows + report sections + redaction |
-| Migration drift check | ✅ | `20261004_2047_76d92fe3e70b`; `compare_metadata` = none |
+| Migration drift check | ✅ | `20261004_2047_76d92fe3e70b` (+ `9a1c2f4b7d30`, `b3d7e1a5c9f2`); `compare_metadata` = none |
 | Frontend build | ✅ | `vue-tsc` + `npm run build` |
 | Tests (`pytest` / `ruff`) | ✅ | 574 passed; ruff clean |
-| Git merge (`develop → main`) | ⏳ | pending reviewed PR (not yet released) |
-| CI green on `develop` head | ⏳ | `.github/workflows/ci.yml` |
-| Automated Release workflow + ZIP/`.sha256` | ⏳ | after merge + tag (D-060) |
+| Git merge (`develop → main`) | ✅ | merge commit `3438305` (PR #7) |
+| CI green on `develop` head | ✅ | `.github/workflows/ci.yml` |
+| Automated Release workflow + ZIP/`.sha256` | ✅ | `v1.1.0` tag → release created by CI |
+| GitHub Release `v1.1.0` published | ✅ | tag matches |
+| ZIP attached | ✅ | Windows portable ZIP (~24.6 MB) |
+| `.sha256` attached + matches ZIP | ✅ | `sha256sum -c` |
+| Security (artifact + git tree clean) | ✅ | no secrets/sessions/DB/models in ZIP; empty runtime dirs |
+| Docker (`/health` + SPA + v1.1 routes) | ✅ | build + run + restart verified |
 
 ### v1.0.5 (released 2026-10-04)
 

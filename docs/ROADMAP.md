@@ -197,22 +197,42 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
       analytics, adaptive wizard, intent-narrowed reactions). New API + RU-first
       UI + tests; Diagnostics and the redacted report gained matching rows and
       sections. No new phases.
+- [x] **Content Studio (v1.2.0, complete on `develop`)**: a content pipeline that
+      collects material from Telegram / RSS / Atom / manual sources, deduplicates
+      it (source hash / message id / content hash / media hash), cleans it with a
+      deterministic, explainable, cancellable preview, tracks usage rights with an
+      attribution block, validates Telegram markup and renders a Telegram-like
+      preview, manages inline button sets, applies per-source moderation (blocked
+      keywords + quiet hours), plans multi-channel publications with a calendar,
+      and publishes through a `PostingProvider` (bot by default; a user account
+      only in the expanded mode) with durable auto-delete and first comments. A
+      bounded, restart-safe posting tick (`content.posting`) drives due work.
+      New API (`/api/v1/content/*`), a RU-first **Content Studio** UI page and
+      tests; no new phases.
 - [ ] Optional (remaining, non-blocking): a full automated BotFather Mini App
       flow (the one-click menu-button registration exists, D-054); richer
       analytics; additional AI backends; a reliable permissively-licensed TDATA
       converter adapter (D-070). No new phases are planned — see
-      `agent/NEXT_TASK.md` (release v1.1.0, then maintenance / optional extensions).
+      `agent/NEXT_TASK.md` (maintenance / optional extensions).
 
 ---
 
 ## Release
 
-- **v1.1.0 (2026-10-04, prepared on `develop`):** Account Hub local importer,
-  network routes (proxies), donor discovery, the lightweight encoder +
-  ruBERT-tiny2 backend, and the bot-only / risk UX (D-065…D-070). No new
-  phases. Released from `develop` via a reviewed `develop → main` PR, tagged
-  `v1.1.0`; the Windows portable ZIP + `.sha256` are attached to the GitHub
-  Release by the automated Release workflow (D-060).
+- **v1.2.0 (2026-10-05):** Content Studio — content sources (Telegram / RSS /
+  Atom / manual), deduplication, an explainable cleaner, usage-rights tracking,
+  markup validation + Telegram-like preview, inline buttons, per-source
+  moderation, multi-channel planning/calendar, and publishing through a
+  `PostingProvider` with durable auto-delete and first comments (D-071…D-076).
+  No new phases. Released from `develop` via a reviewed `develop → main` PR,
+  tagged `v1.2.0`; the Windows portable ZIP + `.sha256` are attached to the
+  GitHub Release by the automated Release workflow (D-060).
+- **v1.1.0 (2026-10-05):** Account Hub local importer, network routes (proxies),
+  donor discovery, the lightweight encoder + ruBERT-tiny2 backend, and the
+  bot-only / risk UX (D-065…D-070). No new phases. Released from `develop` via
+  reviewed PR #7 (`develop → main`, merge `3438305`), tagged `v1.1.0`; the Windows
+  portable ZIP + `.sha256` are attached to the GitHub Release by the automated
+  Release workflow (D-060).
 - **v1.0.5 (2026-10-04):** product-slice release — bot↔channel **bindings** +
   channel **reaction capabilities** (the reaction planner honours the channel's
   real emoji set), session-free invite **Кампании** with conservative risk modes

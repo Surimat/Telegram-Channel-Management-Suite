@@ -3,14 +3,14 @@
 > Persistent project memory. **A new agent must be able to continue from this
 > file + git + code alone.** Update this after every major phase.
 
-**Last updated:** 2026-10-04
-**Current phase:** **v1.x maintenance (no new phases).** **v1.0.5 is released** — PR #6 (`develop → main`, merge commit `496598f`), tag `v1.0.5`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). **v1.1.0 is complete on `develop`, awaiting release** — the multi-format **Account Hub** importer (`.session`, `.session`+JSON, StringSession, optional TDATA; D-070), optional per-account **network routes (proxies)** (D-065), **donor discovery** (candidate proposals only, D-066), a **lightweight local encoder** classifier mode (D-067) with the optional **ruBERT-tiny2** embedding backend + install flow (D-068), and the bot-only/risk UX (D-069: session-free analytics, adaptive wizard, intent-narrowed reactions). The v1.0.5 **product slice** (D-064): bot↔channel **bindings** + channel **reaction capabilities** (the reaction planner honours the channel's real emoji set), session-free invite **Кампании** + explainable **donor quality**, **backup delivery destinations** (local / Telegram / Google Drive / Яндекс.Диск), a resumable first-run **Setup Wizard**, and a conservative, off-by-default **auto-update**. `v1.0.0`–`v1.0.5` stay immutable (D-050).
-Earlier (already released): the **v1.0.4** startup-robustness patch — a damaged/unreadable database is explained instead of crashing startup or the Diagnostics page (D-062), plus plain-language Queue labels and beginner in-UI help. The **v1.0.3** work was the **Diagnostics** page, a **redacted diagnostic report** (ZIP/JSON/TXT with a server-side secret scan), and **safe maintenance actions** — none delete user data (D-061). The post-1.0 hardening: **versioned Alembic migrations** replace `create_all` at startup (D-052); a **shared Channel Registry** (D-051/D-055); **reproducible, cross-platform portable packaging** and the **Release workflow** (D-056/D-060).
-Version string is **1.1.0** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
-All gates pass: `pytest` **574 passed**, `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend and frontend gates.
-**Repository status:** `main == 496598f` (v1.0.5 release commit); `develop` carries the v1.1.0 work (not yet released); tags `v1.0.0`–`v1.0.5`; each GitHub Release carries the Windows portable ZIP + `.sha256` (built by CI, D-060).
+**Last updated:** 2026-10-05
+**Current phase:** **v1.x maintenance (no new phases).** **v1.2.0 Content Studio is complete on `develop` and awaiting release.** It adds the v1.2 **content-studio foundation** (D-071…D-076): content sources (Telegram / RSS / Atom / manual) with deduplication, a deterministic explainable cleaner, usage-rights tracking + attribution, Telegram markup validation + a Telegram-like preview, inline button sets, per-source moderation (blocked keywords + quiet hours), multi-channel planning/calendar, publishing through a `PostingProvider` (bot by default; user account only in the expanded mode), durable auto-delete and first comments, and a bounded restart-safe posting tick (`content.posting`). Nothing is published without an explicit owner action; protected content keeps only its link (D-006/D-074); the AI narrows, it never picks emoji (D-033/D-076).
+Earlier: **v1.1.0 is released** — PR #7 (`develop → main`, merge commit `3438305`), tag `v1.1.0`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It carries the multi-format **Account Hub** importer (`.session`, `.session`+JSON, StringSession, optional TDATA; D-070), optional per-account **network routes (proxies)** (D-065), **donor discovery** (candidate proposals only, D-066), a **lightweight local encoder** classifier mode (D-067) with the optional **ruBERT-tiny2** embedding backend + install flow (D-068), and the bot-only/risk UX (D-069). The v1.0.5 **product slice** (D-064): bot↔channel **bindings** + channel **reaction capabilities**, session-free invite **Кампании** + explainable **donor quality**, **backup delivery destinations**, a resumable first-run **Setup Wizard**, and a conservative, off-by-default **auto-update**. `v1.0.0`–`v1.1.0` stay immutable (D-050).
+Version string is **1.2.0** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
+All gates pass: `pytest` **611 passed**, `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend and frontend gates.
+**Repository status:** `main == develop == 3438305` (v1.1.0 release merge, PR #7); tags `v1.0.0`–`v1.1.0`; each GitHub Release carries the Windows portable ZIP + `.sha256` (built by CI, D-060). The v1.2.0 work sits on `develop` above `3438305`, awaiting the standard release flow.
 **Branch:** develop (working branch); main is released and updated only via pull request.
-**Latest work (v1.1.0 completion):** finished the vertical slice — Account Hub importer (`/sessions/import/detect`, `/sessions/import/artifact`, `/sessions/{id}/risk`), encoder install flow (`/ai/encoder/*`), ruBERT embedding backend, intent→reaction narrowing, bot-only analytics note, adaptive wizard notes, bot-kind explanations + honest binding statuses in the UI; `.gitignore` hardened for TDATA/companion JSON; docs (`API`, `UI`, `SETUP`, `SECURITY`, `ARCHITECTURE`) and agent memory updated; a cp775 mojibake corruption in `docs/API.md` fixed.
+**Latest work (v1.2.0 Content Studio):** models + additive migration, content/posting providers, cleaner + markup services, `content_service` + `posting_service`, the `content.posting` durable periodic tick, the `/api/v1/content/*` API, a RU-first **Content Studio** UI page (`/content`), help topics, tests (`test_content_posting.py`, `test_content_posting_api.py`, extended scheduler/migration/help tests), docs and agent memory. Suite **611 passed**; `ruff` clean; `vue-tsc` + `npm run build` clean.
 
 ---
 
@@ -744,14 +744,55 @@ user_sessions.proxy_id) and the posts.intent / restriction_count follow-ups.
   `test_ai_classifier.py`, `test_session_service.py`, `test_diagnostics.py`.
   Suite **574 passed**; `ruff` clean; `vue-tsc` + `npm run build` clean.
 
+## 2h. v1.2.0 — Content Studio (2026-10-05, on develop)
+
+Minor release: the **v1.2 content-studio foundation** vertical slice. No new
+phase; nothing is published without an explicit owner action and no Telegram
+limit is bypassed. Migration: `20261005_1200_c4a1f8b2e6d9` (content tables, all
+additive with server defaults).
+
+- **Models + repositories.** `db/models/content.py`: `ContentSource`,
+  `ContentItem`, `MediaAsset`, `Publication`, `ButtonSet`, `CommentPlan` (+ enums
+  `ContentSourceKind`, `ContentSourceStatus`, `RightsStatus`,
+  `ContentItemStatus`, `PublicationStatus`). `db/repositories/content.py`: one
+  repository per model with dedup lookups (source hash / source message id /
+  content hash / media hash).
+- **Content sources (D-071/D-074).** `providers/content_base.py` +
+  `providers/content_sources.py`: `ContentSourceProvider` protocol and Telegram /
+  RSS / Atom / manual providers. Telegram reads through the existing
+  `SessionProvider` (no Telethon import here); a `noforwards` source stores only
+  the link and is marked `protected`.
+- **Posting (D-071/D-072).** `providers/posting_base.py` (`PostingProvider`:
+  publish/delete/send_comment/capabilities) + `providers/posting.py`
+  (`BotPostingProvider` over `TelegramBotProvider`; `UserPostingProvider` over
+  `SessionProvider`). No direct aiogram/Telethon imports.
+- **Services.** `services/content_cleaner.py` (deterministic, explainable,
+  cancellable), `services/content_markup.py` (`validate_markup`,
+  `validate_buttons`, `render_preview`), `services/content_service.py` (sources,
+  grab, items, clean, rights + attribution, rewrite via the generative LLM only,
+  moderation: blocked keywords + quiet hours, `release_held`, dashboard),
+  `services/posting_service.py` (plan / schedule / calendar / buttons / publish
+  with `uncertain` idempotency / retry / auto-delete / first comments / tick).
+- **Scheduler (D-075).** `scheduler/handlers.py::_handle_posting` runs one
+  bounded pass and re-schedules itself every `POSTING_TICK_SECONDS` (D-008 style);
+  `main.py` seeds the first tick with `QueueService.ensure_periodic`.
+- **API + UI.** `api/v1/content.py` + `api/schemas/content.py` expose
+  `/api/v1/content/*`; `frontend/src/views/ContentStudioView.vue` (`/content`, nav
+  «Content Studio») has four RU-first tabs (Обзор / Источники / Материалы /
+  Календарь). Help topics `content_studio`, `content_source`, `content_rights`.
+- Tests: `test_content_posting.py`, `test_content_posting_api.py`; extended
+  `test_scheduler.py` (periodic tick + `ensure_periodic`), `test_migrations.py`
+  (v1.2 tables added in place), `test_help.py`. Suite **611 passed**; `ruff`
+  clean; `vue-tsc` + `npm run build` clean.
+
 ## 5. Next action
 
-**v1.1.0 is complete on `develop` and awaiting release.** `main` is at `496598f`
-(v1.0.5). The next step is the standard release flow from
-`docs/RELEASE_CHECKLIST.md`: commit the v1.1.0 work → push `develop` → green CI →
-reviewed PR `develop → main` → tag `v1.1.0` → the Release workflow attaches the
-Windows portable ZIP + `.sha256` (D-060). Do **not** push directly to `main` and
-do **not** move the `v1.0.0`–`v1.0.5` tags (D-050).
+**v1.2.0 Content Studio is complete on `develop` and awaiting release.** The next
+step is the standard release flow from `docs/RELEASE_CHECKLIST.md`: commit the
+v1.2.0 work → push `develop` → green CI → reviewed PR `develop → main` → tag
+`v1.2.0` → the Release workflow attaches the Windows portable ZIP + `.sha256`
+(D-060). Do **not** push directly to `main` and do **not** move the
+`v1.0.0`–`v1.1.0` tags (D-050).
 
 After release, `NEXT_TASK` returns to **MAINTENANCE / OPTIONAL EXTENSIONS**; the
 roadmap (PHASE 0–11) is complete and there is no required next phase. Optional

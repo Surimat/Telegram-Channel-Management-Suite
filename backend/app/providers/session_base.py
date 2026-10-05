@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from backend.app.providers.types import (
+    ChannelFetchResult,
     EntityRef,
     ParticipantPage,
     PermissionReport,
@@ -132,4 +133,38 @@ class SessionProvider(Protocol):
         installed library exposes it. An empty list means Telegram returned no
         recommendations. Limits are never bypassed.
         """
+        ...
+
+    async def fetch_channel_messages(
+        self, channel: str | int, *, limit: int = 20, min_id: int = 0
+    ) -> ChannelFetchResult:
+        """Read recent messages from a Telegram channel (content grabber, v1.2).
+
+        ``min_id`` returns only messages newer than that id, so grabbing is
+        incremental. Content protection is respected: when the channel forbids
+        forwarding/downloading the result sets ``protected=True`` and carries
+        only the link — callers must never bypass it (D-006).
+        """
+        ...
+
+    # --- user-account posting (v1.2: expanded mode only) ---------------------
+    async def send_channel_post(
+        self,
+        channel: str | int,
+        *,
+        text: str,
+        media_paths: list[str] | None = None,
+        buttons: list[list[dict[str, object]]] | None = None,
+    ) -> ChannelFetchResult:
+        """Publish a post as the user account (only where truly needed, v1.2).
+
+        Optional: providers that cannot post raise ``UnsupportedOperationError``.
+        Used only in the expanded (session) mode — bot posting is the default.
+        """
+        ...
+
+    async def delete_channel_messages(
+        self, channel: str | int, message_ids: list[int]
+    ) -> bool:
+        """Delete messages this suite published as the user account (v1.2)."""
         ...

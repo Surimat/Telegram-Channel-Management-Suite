@@ -16,6 +16,7 @@ from backend.app.providers.types import (
     InviteLinkResult,
     ManagedBotAccess,
     ManagedBotRef,
+    PostSendResult,
     ReactionCapability,
     ReactionRecord,
 )
@@ -51,6 +52,20 @@ class FakeTelegramBotProvider:
         self.reaction_capabilities: dict[str, ReactionCapability] = {}
         self.documents: list[tuple[int | str, str, int]] = []
         self.created_links: list[InviteLinkResult] = []
+        # Content Studio posting (v1.2): recorded, deterministic side effects.
+        self.posts: list[dict[str, object]] = []
+        self.comments: list[tuple[int | str, int, str]] = []
+        self.edits: list[tuple[int | str, int, str]] = []
+        self.deleted: list[int] = []
+        self.pinned: list[int] = []
+        self.linked_chats: dict[str, int] = {}
+        self.fail_posting: bool = False
+        self.fail_deletion: bool = False
+        self._next_message_id: int = 1000
+
+    def script_linked_chat(self, chat_id: int | str, discussion_id: int) -> None:
+        """Link a discussion group to ``chat_id`` (tests)."""
+        self.linked_chats[str(chat_id)] = discussion_id
 
     def queue_updates(self, updates: list[BotUpdate]) -> None:
         """Enqueue updates for the next :meth:`get_updates` call (tests)."""
@@ -270,3 +285,88 @@ class FakeTelegramBotProvider:
         self._maybe_fail()
         self.documents.append((chat_id, filename, len(content)))
         return True
+
+    # --- Content Studio posting (v1.2) ---------------------------------------
+    async def send_post(
+        self,
+        chat_id: int | str,
+        *,
+        text: str,
+        entities: list[dict[str, object]] | None = None,
+        media: list[object] | None = None,
+        buttons: list[list[object]] | None = None,
+        disable_notification: bool = False,
+    ) -> PostSendResult:
+        self._ensure_token()
+        self._maybe_fail()
+        if self.fail_posting:
+            return PostSendResult(
+                ok=False,
+                message="Тестовый сбой отправки.",
+                how_to_fix="Проверьте права бота в канале.",
+            )
+        media_list = list(media or [])
+        self.posts.append(
+            {
+                "chat_id": chat_id,
+                "text": text,
+                "entities": entities or [],
+                "media": media_list,
+                "buttons": buttons or [],
+                "album": len(media_list) > 1,
+            }
+        )
+        start = self._next_message_id
+        self._next_message_id += max(1, len(media_list))
+        ids = list(range(start, self._next_message_id))
+        return PostSendResult(ok=True, message_ids=ids, message="Опубликовано.")
+
+    async def send_comment(
+        self,
+        chat_id: int | str,
+        post_message_id: int,
+        text: str,
+        *,
+        buttons: list[list[object]] | None = None,
+    ) -> PostSendResult:
+        self._ensure_token()
+        self._maybe_fail()
+        if not self.linked_chats.get(str(chat_id)):
+            return PostSendResult(
+                ok=False,
+                message="У канала нет связанной группы обсуждений.",
+                how_to_fix="Свяжите группу обсуждений с каналом в Telegram.",
+            )
+        self.comments.append((chat_id, post_message_id, text))
+        mid = self._next_message_id
+        self._next_message_id += 1
+        return PostSendResult(ok=True, message_ids=[mid], message="Комментарий опубликован.")
+
+    async def edit_message(
+        self, chat_id: int | str, message_id: int, text: str
+    ) -> PostSendResult:
+        self._ensure_token()
+        self._maybe_fail()
+        self.edits.append((chat_id, message_id, text))
+        return PostSendResult(ok=True, message_ids=[message_id], message="Изменено.")
+
+    async def delete_messages(
+        self, chat_id: int | str, message_ids: list[int]
+    ) -> PostSendResult:
+        self._ensure_token()
+        self._maybe_fail()
+        if self.fail_deletion:
+            return PostSendResult(ok=False, message="Не удалось удалить сообщение.")
+        self.deleted.extend(message_ids)
+        return PostSendResult(ok=True, message_ids=list(message_ids), message="Удалено.")
+
+    async def pin_message(self, chat_id: int | str, message_id: int) -> PostSendResult:
+        self._ensure_token()
+        self._maybe_fail()
+        self.pinned.append(message_id)
+        return PostSendResult(ok=True, message_ids=[message_id], message="Закреплено.")
+
+    async def get_linked_chat(self, chat_id: int | str) -> int | None:
+        self._ensure_token()
+        self._maybe_fail()
+        return self.linked_chats.get(str(chat_id))

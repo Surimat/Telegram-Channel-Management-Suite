@@ -13,6 +13,7 @@ from backend.app.api.v1 import (
     bots,
     campaigns,
     channels,
+    content,
     diagnostics,
     discovery,
     events,
@@ -37,6 +38,7 @@ api_router.include_router(diagnostics.router)
 api_router.include_router(settings.router)
 api_router.include_router(bots.router)
 api_router.include_router(channels.router)
+api_router.include_router(content.router)
 api_router.include_router(bindings.router)
 api_router.include_router(bindings.capabilities_router)
 api_router.include_router(manager.router)

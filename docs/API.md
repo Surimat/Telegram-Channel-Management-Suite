@@ -687,6 +687,47 @@ A candidate becomes an audience source solely through an explicit
 
 ---
 
+## Content Studio (v1.2)
+
+Collect material from sources, prepare it, and publish it to the owner's own
+channels. Nothing is published without an explicit action; unknown rights warn
+and add attribution; protected content keeps only its link.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/content/providers` | provider availability (telegram / rss / atom / manual) |
+| GET | `/api/v1/content/sources` | sources + provider status |
+| POST | `/api/v1/content/sources` | add a source (`kind`, `reference`, optional `title`/`channel_id`/`account_id`) |
+| DELETE | `/api/v1/content/sources/{id}` | remove a source |
+| POST | `/api/v1/content/sources/{id}/grab` | fetch new material (`limit`); returns new/duplicate/blocked/held counts |
+| GET | `/api/v1/content/sources/{id}/moderation` | blocked keywords + quiet hours |
+| PUT | `/api/v1/content/sources/{id}/moderation` | update moderation |
+| GET | `/api/v1/content/items` | list items (`status`, `source_id`, `limit`, `offset`) |
+| GET | `/api/v1/content/items/{id}` | one item |
+| PATCH | `/api/v1/content/items/{id}` | edit item (title/text/note/status/rights/mode/scheduled_at) |
+| DELETE | `/api/v1/content/items/{id}` | delete an item |
+| GET | `/api/v1/content/items/{id}/clean` | cleaner preview (explainable, cancellable) |
+| POST | `/api/v1/content/items/{id}/clean` | apply cleaning (optional `cleaned` override) |
+| POST | `/api/v1/content/items/{id}/clean/revert` | revert cleaning |
+| POST | `/api/v1/content/items/{id}/rewrite` | rewrite preview (generative LLM backend only) |
+| POST | `/api/v1/content/items/{id}/rewrite/apply` | apply a rewrite |
+| GET | `/api/v1/content/items/{id}/rights` | rights status + attribution block + warning |
+| POST | `/api/v1/content/items/{id}/release` | release a moderation-held item |
+| GET | `/api/v1/content/items/{id}/validate` | Telegram markup + button validation |
+| GET | `/api/v1/content/items/{id}/preview` | Telegram-like preview |
+| GET/PUT | `/api/v1/content/items/{id}/buttons` | inline button set |
+| POST | `/api/v1/content/items/{id}/plan` | plan one publication per target channel |
+| GET | `/api/v1/content/items/{id}/publications` | publications for an item |
+| POST | `/api/v1/content/publications/{id}/schedule` | set/clear the scheduled time |
+| POST | `/api/v1/content/publications/{id}/cancel` | cancel a publication |
+| POST | `/api/v1/content/publications/{id}/publish` | publish now (idempotent; `uncertain` on a lost connection) |
+| POST | `/api/v1/content/publications/{id}/retry` | retry a failed publication |
+| GET | `/api/v1/content/calendar` | multi-channel calendar (`start`, `end`) |
+| GET | `/api/v1/content/dashboard` | status counts |
+| POST | `/api/v1/content/tick` | run one bounded posting pass (manual/diagnostic) |
+
+---
+
 ## Versioning
 
 The API is versioned (`/api/v1`). Breaking changes go to a new version path.

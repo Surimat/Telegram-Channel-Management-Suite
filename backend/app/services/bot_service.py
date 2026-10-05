@@ -68,6 +68,10 @@ class BotService:
             token, provider_name=provider_name, settings=self.settings
         )
 
+    def provider_for(self, bot: Bot) -> TelegramBotProvider:
+        """Build a provider for a stored bot (raises if it has no token)."""
+        return self._provider_for(self._token_of(bot), bot.provider_name)
+
     def _token_of(self, bot: Bot) -> str:
         if not bot.token_encrypted:
             raise BotServiceError(

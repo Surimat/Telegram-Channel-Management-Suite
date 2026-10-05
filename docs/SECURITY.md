@@ -204,6 +204,26 @@ estimated total, notes) before any job is queued.
 
 ---
 
+## 7c. Content Studio (v1.2)
+
+- **Nothing is published automatically**: grabbing material only creates items;
+  a publication exists only after an explicit owner action (D-072). A moderation-
+  held item is not published until released; a lost connection marks a
+  publication `uncertain` instead of silently retrying.
+- **Protected content is not copied**: a `noforwards` source stores only the
+  post's link and metadata, never the text or media (D-006/D-074).
+- **Rights are owner-declared, not legally checked**: unknown rights warn and add
+  an attribution block rather than silently proceeding (D-073).
+- **Media paths** stay in the local, gitignored runtime dirs; the Content Studio
+  never uploads media anywhere except the owner's chosen channel during a publish
+  the owner confirmed.
+- **Publishing uses a bot by default**; a user account is used only in the
+  expanded mode and only for actions the owner starts (least privilege, §8).
+- **No new Telegram client**: reads go through `SessionProvider`, writes through a
+  `PostingProvider` (D-001/D-071) — no parallel credential handling.
+
+---
+
 ## 8. Principle of least privilege
 
 - The manager bot only responds to whitelisted admin ids.

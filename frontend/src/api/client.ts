@@ -1365,6 +1365,226 @@ export interface DiscoveryCompare {
   best_reason: string
 }
 
+// v1.2: Content Studio (sources → items → clean → plan → publish).
+export interface ContentProviderStatus {
+  kind: string
+  title: string
+  available: boolean
+  requires_account: boolean
+  message: string
+}
+
+export interface ContentSource {
+  id: string
+  kind: string
+  kind_title: string
+  title: string
+  reference: string
+  enabled: boolean
+  channel_id: string
+  status: string
+  status_title: string
+  last_error: string
+  last_fetch: string
+  last_fetch_new: number
+  etag: string
+  last_modified: string
+  last_seen_item: string
+  blocked_keywords: string[]
+  quiet_hours_enabled: boolean
+  quiet_hours_start: number
+  quiet_hours_end: number
+  quiet_hours_tz: string
+}
+
+export interface ContentSourceList {
+  items: ContentSource[]
+  providers: ContentProviderStatus[]
+}
+
+export interface GrabResult {
+  source_id: string
+  ok: boolean
+  new_items: number
+  duplicates: number
+  protected: boolean
+  message: string
+  how_to_fix: string
+  item_ids: string[]
+  blocked: number
+  held: number
+}
+
+export interface ContentItem {
+  id: string
+  title: string
+  text: string
+  cleaned_text: string
+  entities: Record<string, unknown>[]
+  buttons: Record<string, unknown>[]
+  status: string
+  status_title: string
+  mode: string
+  source_id: string
+  source_message_id: number | null
+  source_url: string
+  source_channel: string
+  source_author: string
+  imported_at: string
+  rights_status: string
+  rights_title: string
+  attribution_enabled: boolean
+  protected: boolean
+  content_hash: string
+  language: string
+  note: string
+  scheduled_at: string
+  rights_warning: string
+  held: boolean
+  moderation_note: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ContentItemList {
+  items: ContentItem[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export interface CleanPreview {
+  original: string
+  cleaned: string
+  changed: boolean
+  changes: Record<string, unknown>[]
+  removed_lines: number
+}
+
+export interface RewriteResult {
+  ok: boolean
+  text: string
+  mode: string
+  mode_title: string
+  message: string
+  how_to_fix: string
+  used_model: string
+}
+
+export interface RightsInfo {
+  rights_status: string
+  rights_title: string
+  attribution_block: string
+  warning: string
+}
+
+export interface ContentDashboard {
+  drafts: number
+  imported: number
+  ready: number
+  scheduled: number
+  published_today: number
+  failed: number
+  status_counts: Record<string, number>
+  publication_counts: Record<string, number>
+}
+
+export interface ContentButton {
+  text: string
+  action: string
+  value: string
+}
+
+export interface ContentButtonSet {
+  item_id: string
+  rows: ContentButton[][]
+  enabled: boolean
+}
+
+export interface ContentPublication {
+  id: string
+  item_id: string
+  channel_id: string
+  channel_username: string
+  status: string
+  status_title: string
+  scheduled_at: string
+  published_at: string
+  delete_at: string
+  telegram_message_ids: number[]
+  error: string
+  attempts: number
+  mode: string
+}
+
+export interface ContentPlan {
+  publications: ContentPublication[]
+}
+
+export interface PublishResult {
+  publication_id: string
+  ok: boolean
+  status: string
+  message_ids: number[]
+  message: string
+  how_to_fix: string
+  uncertain: boolean
+}
+
+export interface CalendarEntry {
+  publication_id: string
+  item_id: string
+  title: string
+  channel_id: string
+  channel_title: string
+  status: string
+  status_title: string
+  scheduled_at: string
+  published_at: string
+  delete_at: string
+}
+
+export interface CalendarChannel {
+  channel_id: string
+  title: string
+  reference: string
+}
+
+export interface ContentCalendar {
+  start: string
+  end: string
+  channels: CalendarChannel[]
+  entries: CalendarEntry[]
+}
+
+export interface ContentValidation {
+  ok: boolean
+  issues: { kind: string; message: string; line: number }[]
+  button_problems: string[]
+  first_error: string
+  fixed_text: string
+}
+
+export interface ContentPreview {
+  text: string
+  entities: Record<string, unknown>[]
+  buttons: { text: string; action: string; url: string }[][]
+  media: { kind: string; filename: string; caption: string }[]
+  is_album: boolean
+  caption_used: boolean
+  char_count: number
+  notice: string
+}
+
+export interface ContentModeration {
+  source_id: string
+  blocked_keywords: string[]
+  quiet_hours_enabled: boolean
+  quiet_hours_start: number
+  quiet_hours_end: number
+  quiet_hours_tz: string
+}
+
 export const api = {
   health: () => request<Health>('/health'),
   healthDeep: () => request<Record<string, unknown>>('/health/deep'),
@@ -1989,4 +2209,91 @@ export const api = {
     ),
   discoveryClear: () =>
     request<{ deleted: number }>('/api/v1/discovery/candidates/clear', { method: 'POST' }),
+
+  // v1.2: Content Studio (sources → items → clean → plan → publish).
+  contentProviders: () => request<ContentProviderStatus[]>('/api/v1/content/providers'),
+  contentDashboard: () => request<ContentDashboard>('/api/v1/content/dashboard'),
+  contentSources: () => request<ContentSourceList>('/api/v1/content/sources'),
+  addContentSource: (payload: {
+    kind: string
+    reference: string
+    title?: string
+    enabled?: boolean
+    channel_id?: string
+    account_id?: string
+  }) => request<ContentSource>('/api/v1/content/sources', { method: 'POST', body: JSON.stringify(payload) }),
+  removeContentSource: (id: string) =>
+    request<null>(`/api/v1/content/sources/${id}`, { method: 'DELETE' }),
+  grabContentSource: (id: string, limit = 20) =>
+    request<GrabResult>(`/api/v1/content/sources/${id}/grab?limit=${limit}`, { method: 'POST' }),
+  contentModeration: (sourceId: string) =>
+    request<ContentModeration>(`/api/v1/content/sources/${sourceId}/moderation`),
+  updateContentModeration: (sourceId: string, payload: Partial<ContentModeration>) =>
+    request<ContentModeration>(`/api/v1/content/sources/${sourceId}/moderation`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  contentItems: (params: Record<string, string> = {}) =>
+    request<ContentItemList>('/api/v1/content/items?' + new URLSearchParams(params).toString()),
+  contentItem: (id: string) => request<ContentItem>(`/api/v1/content/items/${id}`),
+  updateContentItem: (id: string, payload: Record<string, unknown>) =>
+    request<ContentItem>(`/api/v1/content/items/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  removeContentItem: (id: string) =>
+    request<null>(`/api/v1/content/items/${id}`, { method: 'DELETE' }),
+  contentCleanPreview: (id: string) =>
+    request<CleanPreview>(`/api/v1/content/items/${id}/clean`),
+  applyContentClean: (id: string, cleaned?: string) =>
+    request<ContentItem>(`/api/v1/content/items/${id}/clean`, {
+      method: 'POST',
+      body: JSON.stringify(cleaned ? { cleaned } : {}),
+    }),
+  revertContentClean: (id: string) =>
+    request<ContentItem>(`/api/v1/content/items/${id}/clean/revert`, { method: 'POST' }),
+  contentRewrite: (id: string, mode: string) =>
+    request<RewriteResult>(`/api/v1/content/items/${id}/rewrite`, {
+      method: 'POST',
+      body: JSON.stringify({ mode }),
+    }),
+  applyContentRewrite: (id: string, mode: string) =>
+    request<ContentItem>(`/api/v1/content/items/${id}/rewrite/apply`, {
+      method: 'POST',
+      body: JSON.stringify({ mode }),
+    }),
+  contentRights: (id: string) => request<RightsInfo>(`/api/v1/content/items/${id}/rights`),
+  releaseContentItem: (id: string) =>
+    request<ContentItem>(`/api/v1/content/items/${id}/release`, { method: 'POST' }),
+  contentValidate: (id: string) =>
+    request<ContentValidation>(`/api/v1/content/items/${id}/validate`),
+  contentPreview: (id: string) => request<ContentPreview>(`/api/v1/content/items/${id}/preview`),
+  contentButtons: (id: string) => request<ContentButtonSet>(`/api/v1/content/items/${id}/buttons`),
+  saveContentButtons: (id: string, rows: ContentButton[][]) =>
+    request<ContentButtonSet>(`/api/v1/content/items/${id}/buttons`, {
+      method: 'PUT',
+      body: JSON.stringify({ rows }),
+    }),
+  planContent: (id: string, payload: { targets: { channel_id: string; scheduled_at?: string; text_override?: string }[]; mode?: string }) =>
+    request<ContentPlan>(`/api/v1/content/items/${id}/plan`, { method: 'POST', body: JSON.stringify(payload) }),
+  contentPublications: (id: string) =>
+    request<ContentPlan>(`/api/v1/content/items/${id}/publications`),
+  scheduleContentPublication: (id: string, scheduledAt: string | null) =>
+    request<ContentPublication>(`/api/v1/content/publications/${id}/schedule`, {
+      method: 'POST',
+      body: JSON.stringify({ scheduled_at: scheduledAt }),
+    }),
+  cancelContentPublication: (id: string) =>
+    request<ContentPublication>(`/api/v1/content/publications/${id}/cancel`, { method: 'POST' }),
+  publishContentPublication: (id: string) =>
+    request<PublishResult>(`/api/v1/content/publications/${id}/publish`, { method: 'POST' }),
+  retryContentPublication: (id: string) =>
+    request<PublishResult>(`/api/v1/content/publications/${id}/retry`, { method: 'POST' }),
+  contentCalendar: (start?: string, end?: string) =>
+    request<ContentCalendar>(
+      '/api/v1/content/calendar?' +
+        new URLSearchParams({ ...(start ? { start } : {}), ...(end ? { end } : {}) }).toString(),
+    ),
+  contentTick: () =>
+    request<{ published: number; deleted: number; comments: number; due: number }>(
+      '/api/v1/content/tick',
+      { method: 'POST' },
+    ),
 }

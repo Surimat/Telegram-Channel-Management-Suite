@@ -71,3 +71,33 @@ class QueueService:
     async def recover(self) -> int:
         """Re-hydrate jobs stuck in RUNNING after a crash."""
         return await self.repo.recover_stuck_running()
+
+    async def ensure_periodic(
+        self,
+        kind: str,
+        *,
+        interval_seconds: float,
+        payload: dict[str, Any] | None = None,
+        max_attempts: int = 1,
+    ) -> Job:
+        """Ensure exactly one pending/scheduled job of ``kind`` exists.
+
+        A lightweight recurring tick without a separate scheduler primitive: if
+        a due job of ``kind`` is already pending or scheduled, it is returned
+        untouched; otherwise a new one is enqueued at ``now + interval``.
+        """
+        from datetime import timedelta
+
+        from backend.app.db.base import utcnow
+        from backend.app.db.models.job import JobStatus as _Status
+
+        for status in (_Status.PENDING, _Status.SCHEDULED):
+            rows, _ = await self.repo.list(status=status, kind=kind, limit=1)
+            if rows:
+                return rows[0]
+        return await self.enqueue(
+            kind=kind,
+            payload=payload,
+            scheduled_at=utcnow() + timedelta(seconds=interval_seconds),
+            max_attempts=max_attempts,
+        )

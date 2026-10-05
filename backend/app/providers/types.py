@@ -166,6 +166,40 @@ class SessionFileInfo:
     is_readable: bool = False
 
 
+@dataclass(slots=True)
+class ChannelMessage:
+    """One message read from a Telegram channel (content grabber, v1.2).
+
+    Only non-secret, display-safe fields. ``entities`` are Telegram-style entity
+    dicts; ``media_urls`` are references (never downloaded here).
+    """
+
+    message_id: int
+    text: str = ""
+    url: str = ""
+    date: str = ""
+    entities: list[dict[str, object]] = field(default_factory=list)
+    media_urls: list[str] = field(default_factory=list)
+    protected: bool = False
+
+
+@dataclass(slots=True)
+class ChannelFetchResult:
+    """Outcome of reading a Telegram channel's messages (v1.2).
+
+    ``protected`` is True when the channel forbids forwarding/downloading; the
+    caller must then keep only the link (never bypass the protection — D-006).
+    """
+
+    ok: bool
+    source_channel: str = ""
+    source_url: str = ""
+    protected: bool = False
+    items: list[ChannelMessage] = field(default_factory=list)
+    message: str = ""
+    how_to_fix: str = ""
+
+
 # --- Manager bot runtime (post-1.0 hardening) --------------------------------
 
 
@@ -186,6 +220,42 @@ class BotUpdate:
 
 
 # --- Bot ↔ channel administration (product slice: bot-only mode) -------------
+
+
+@dataclass(slots=True)
+class PostSendResult:
+    """Outcome of one posting operation (v1.2 Content Studio).
+
+    ``uncertain`` is set when a connection was lost after the request may have
+    reached Telegram — the caller must not silently retry (D-006 / idempotency).
+    ``message_ids`` are the resulting Telegram message ids (an album has several).
+    """
+
+    ok: bool
+    message_ids: list[int] = field(default_factory=list)
+    message: str = ""
+    how_to_fix: str = ""
+    uncertain: bool = False
+
+
+@dataclass(slots=True)
+class InlineButton:
+    """One inline button (v1.2). ``action`` is a safe, supported type."""
+
+    text: str
+    action: str = "url"  # url | callback | webapp | copy
+    value: str = ""
+
+
+@dataclass(slots=True)
+class OutgoingMedia:
+    """A media file to send (v1.2). ``path`` is a local, non-secret file."""
+
+    kind: str = "photo"  # photo | video | audio | document
+    path: str = ""
+    filename: str = ""
+    caption: str = ""
+    mime: str = ""
 
 
 @dataclass(slots=True)
