@@ -415,6 +415,9 @@ def _load(raw: str) -> list[str]:
 
 def candidate_to_dict(row: DonorCandidate) -> dict[str, object]:
     """Serialise a candidate for the API (no secrets, no PII)."""
+    reach_ratio = 0.0
+    if row.subscribers > 0 and row.avg_views > 0:
+        reach_ratio = round(row.avg_views / row.subscribers, 4)
     return {
         "id": row.id,
         "query": row.query,
@@ -437,6 +440,9 @@ def candidate_to_dict(row: DonorCandidate) -> dict[str, object]:
         "summary": row.summary,
         "added": row.added,
         "added_source_id": row.added_source_id,
+        "reach_ratio": reach_ratio,
+        "reaction_ratio": round(row.activity, 4) if row.activity else 0.0,
+        "score_label": f"{round(row.fit_score)}/100",
     }
 
 

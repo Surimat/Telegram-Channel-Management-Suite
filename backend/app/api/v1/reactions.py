@@ -179,6 +179,8 @@ async def simulate(
         confidence=result.confidence,
         source=result.source,
         tone=result.tone,
+        intent=result.intent,
+        intent_narrowed=result.intent_narrowed,
         mode=result.mode,
         ai_attempted=result.ai_attempted,
         ai_used=result.ai_used,

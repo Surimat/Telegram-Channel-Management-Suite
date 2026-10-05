@@ -1323,3 +1323,68 @@ without requiring the owner to obtain a `.gguf` model.
 
 **Consequence:** `MODE_ENCODER` is added to the classifier modes and `source` can
 be `encoder`; the AI test panel exposes it. No new dependency, no new phase.
+
+---
+
+## D-068 — 2026-10-04 — The ruBERT backend is an *encoder* (embeddings only) with an honest install flow — LOCKED
+
+**Decision:** The optional lightweight Russian model (`cointegrated/rubert-tiny2`,
+MIT) is used **only as an embedding backend** for the existing prototype/KNN
+classifier — never as a JSON-generating model, because ruBERT-tiny2 is an encoder,
+not a generative LLM. The install flow (`services/encoder_service.py`,
+`/api/v1/ai/encoder/*`) downloads only the official model files, verifies each
+SHA-256, stores them under the gitignored `models/` directory and reports an
+honest status; it never claims success without a real load.
+
+**Why:** The owner must not have to understand Hugging Face / PyTorch, and a
+small encoder cannot reliably emit strict JSON the way the GGUF LLM path does.
+Keeping it as embeddings preserves the existing `EncoderClassifier` contract.
+
+**Consequence:** `EncoderBackend` protocol + `backends/rubert.py` are lazily
+loaded, CPU-only, single-inference and unload when idle (D-019/D-035); the
+dependency-free hashing encoder stays the default so the weakest PC works with no
+download. Tests use a fake backend; no network or heavy runtime is required.
+
+---
+
+## D-069 — 2026-10-04 — Bot-only analytics, adaptive wizard and intent-narrowed reactions — LOCKED
+
+**Decision:** Three product behaviours are locked together: (a) analytics is
+useful **without a user account** and states plainly that history is unavailable
+for that connection type (it never hides the analytics window); (b) the promotion
+wizard marks session-gated steps `optional` when no account is connected, with an
+optional-account note, and shows an invite-restriction risk note when one is;
+(c) the AI's communicative **intent** only *narrows* the reaction set
+(`services/reaction_intent.py`) — it never chooses an emoji, and an empty
+intersection skips the reaction with a reason.
+
+**Why:** The main scenario ("I want to promote my channel") must work with bots
+alone, and the owner must never be told a user account is safe for mass invites.
+
+**Consequence:** `AnalyticsOverviewOut.account_connected/account_note`,
+`WizardStateOut.session_optional_note/session_risk_note` and
+`intent`/`intent_narrowed` on the simulate result; the UI renders all of them.
+
+---
+
+## D-070 — 2026-10-04 — Account Hub import is local-only, owner-scoped and secret-safe — LOCKED
+
+**Decision:** The Account Hub (`services/session_import.py`) imports only local
+artifacts the owner supplies — Telethon `.session`, `.session` + companion JSON,
+StringSession and (optionally) Telegram Desktop TDATA — behind one
+`SessionImportProvider` protocol. It never searches for, downloads or
+bulk-registers third-party accounts and never bypasses verification, FloodWait,
+privacy or identity checks. A StringSession string and TDATA auth data are
+treated exactly like a `.session` file: written to the gitignored `SESSIONS_DIR`,
+never logged, returned or rendered. TDATA stays optional with an honest
+`NOT AVAILABLE` status when no reliable converter is installed, and the source
+folder is never modified or uploaded.
+
+**Why:** Importing an account the owner already controls is legitimate; acquiring
+or automating someone else's account is not, and TDATA conversion is fragile
+enough that a fake success would be worse than an honest gap.
+
+**Consequence:** `.gitignore` also excludes `tdata/`, `*.session.json` and
+`*.session_meta.json`; docs/SECURITY.md documents the import scope; detection
+reports format + state (`valid`/`damaged`/`unauthorized`/`unknown`) before import.
+

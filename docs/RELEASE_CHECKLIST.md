@@ -6,7 +6,7 @@ repository root unless stated otherwise.
 ## 1. Code quality gates (must pass)
 
 ```bash
-python -m pytest                 # full suite — currently 491 passed
+python -m pytest                 # full suite — currently 574 passed
 ruff check backend tests         # must be clean
 cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 ```
@@ -65,16 +65,17 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 
 ## 6. Release verification (fill in per release)
 
-### v1.1.0 (in progress on `develop`)
+### v1.1.0 (complete on `develop`; awaiting merge + tag)
 
 | Gate | v1.1.0 | Notes |
 | --- | --- | --- |
 | Version consistency (`1.1.0` everywhere) | ✅ | app / pyproject / frontend (+ lock) |
-| New API tests | ✅ | `test_proxy_api.py`, `test_proxy_service.py`, `test_discovery_api.py`, `test_donor_discovery.py`, `test_encoder.py`, `test_session_import.py` |
+| New API tests | ✅ | `test_proxy_api.py`, `test_proxy_service.py`, `test_discovery_api.py`, `test_donor_discovery.py`, `test_encoder.py`, `test_encoder_service.py`, `test_session_import.py`, `test_reaction_planner.py` |
+| Session-import security tests | ✅ | StringSession never returned/logged; companion-JSON whitelist; TDATA `NOT AVAILABLE` |
 | Diagnostics tests (`test_diagnostics.py`) | ✅ | new `proxies`/`donor_candidates` rows + report sections + redaction |
 | Migration drift check | ✅ | `20261004_2047_76d92fe3e70b`; `compare_metadata` = none |
 | Frontend build | ✅ | `vue-tsc` + `npm run build` |
-| Tests (`pytest` / `ruff`) | ✅ | 555 passed; ruff clean |
+| Tests (`pytest` / `ruff`) | ✅ | 574 passed; ruff clean |
 | Git merge (`develop → main`) | ⏳ | pending reviewed PR (not yet released) |
 | CI green on `develop` head | ⏳ | `.github/workflows/ci.yml` |
 | Automated Release workflow + ZIP/`.sha256` | ⏳ | after merge + tag (D-060) |

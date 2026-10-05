@@ -48,9 +48,7 @@ def factory_for(provider: FakeSessionProvider):
 
 
 def test_assess_large_healthy_channel_is_suitable() -> None:
-    a = assess_candidate(
-        DiscoveredChannel(username="big", subscribers=5000, avg_views=900)
-    )
+    a = assess_candidate(DiscoveredChannel(username="big", subscribers=5000, avg_views=900))
     assert a.fit == "suitable"
     assert a.confidence == "medium"
     assert "healthy_reach" in a.signals
@@ -106,9 +104,7 @@ async def _service_with_account(db, channels, **kwargs):
     db.add(UserSession(telegram_user_id=1, username="u", status=SessionStatus.ONLINE, api_id="1"))
     await db.flush()
     provider = FakeSessionProvider(discovery=FakeDiscoveryScenario(channels=channels))
-    return DonorDiscoveryService(
-        db, session_provider_factory=factory_for(provider), **kwargs
-    )
+    return DonorDiscoveryService(db, session_provider_factory=factory_for(provider), **kwargs)
 
 
 async def test_discover_stores_candidates_without_adding_sources() -> None:
@@ -197,3 +193,90 @@ async def test_clear_removes_candidates() -> None:
         deleted = await svc.clear()
         assert deleted == 1
         assert await svc.list_candidates() == []
+
+
+# --- v1.1: Telegram recommendations + comparison metrics ---------------------
+
+
+async def test_seed_channel_merges_recommendations_and_dedupes() -> None:
+    from backend.app.db.models.session import SessionStatus as _Status
+    from backend.app.db.models.session import UserSession as _UserSession
+
+    async with session_scope() as db:
+        db.add(_UserSession(telegram_user_id=1, username="u", status=_Status.ONLINE, api_id="1"))
+        await db.flush()
+        provider = FakeSessionProvider(
+            discovery=FakeDiscoveryScenario(
+                channels=[{"username": "news1", "subscribers": 5000, "avg_views": 900}],
+                recommendations=[
+                    {"username": "news1", "subscribers": 5000, "avg_views": 900},
+                    {"username": "rec1", "subscribers": 8000, "avg_views": 1200},
+                ],
+            )
+        )
+        svc = DonorDiscoveryService(db, session_provider_factory=factory_for(provider))
+        result = await svc.discover(
+            DiscoveryQuery(topic="news", seed_channel="@news1"), providers=["telegram"]
+        )
+        # The duplicate (news1 appears in both search and recommendations) is dropped.
+        assert result["stored"] == 2
+        assert {c.username for c in await svc.list_candidates()} == {"news1", "rec1"}
+        report = result["providers"][0]
+        assert report["ok"] is True
+        assert "рекомендац" in report["message"].lower()
+
+
+async def test_seed_channel_works_without_keywords() -> None:
+    async with session_scope() as db:
+        db.add(
+            UserSession(telegram_user_id=1, username="u", status=SessionStatus.ONLINE, api_id="1")
+        )
+        await db.flush()
+        provider = FakeSessionProvider(
+            discovery=FakeDiscoveryScenario(
+                recommendations=[{"username": "rec1", "subscribers": 8000}]
+            )
+        )
+        svc = DonorDiscoveryService(db, session_provider_factory=factory_for(provider))
+        result = await svc.discover(DiscoveryQuery(seed_channel="@news1"), providers=["telegram"])
+        assert result["stored"] == 1
+
+
+async def test_candidate_metrics_are_honest() -> None:
+    from backend.app.services.donor_discovery_service import candidate_to_dict
+
+    class _Row:
+        id = "c1"
+        query = "news"
+        provider = "telegram"
+        provider_title = "Telegram"
+        username = "news1"
+        title = "News"
+        telegram_id = 1
+        kind = "channel"
+        subscribers = 5000
+        avg_views = 1000
+        activity = 0.2
+        language = "ru"
+        fit = "suitable"
+        fit_title = "Подходит"
+        fit_score = 62.0
+        confidence = "medium"
+        signals = "[]"
+        explanations = "[]"
+        summary = "ok"
+        added = False
+        added_source_id = ""
+        partial = False
+
+    data = candidate_to_dict(_Row())
+    assert data["reach_ratio"] == 0.2
+    assert data["reaction_ratio"] == 0.2
+    assert data["score_label"] == "62/100"
+
+    # Without view data the ratio stays 0 (never invented).
+    _Row.avg_views = 0
+    _Row.activity = 0.0
+    data = candidate_to_dict(_Row())
+    assert data["reach_ratio"] == 0.0
+    assert data["reaction_ratio"] == 0.0

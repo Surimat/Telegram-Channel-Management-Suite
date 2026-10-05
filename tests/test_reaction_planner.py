@@ -147,3 +147,61 @@ def test_empty_emoji_pool_skips_participants() -> None:
         rng=random.Random(1),
     )
     assert all(p.status == "skipped" for p in plan)
+
+
+# --- v1.1 channel capability + intent narrowing ------------------------------
+
+
+def test_channel_available_restricts_pool() -> None:
+    params = _params(allowed_emoji=["👍", "❤️", "🔥"], channel_available=["❤️", "🔥"])
+    plan = ReactionPlanner().plan(
+        post_id="p", bots=BOTS, params=params, base_time=BASE, rng=random.Random(3)
+    )
+    assert all(p.emoji in {"❤️", "🔥"} for p in plan if p.status == "scheduled")
+
+
+def test_bot_compatible_restricts_pool() -> None:
+    params = _params(allowed_emoji=["👍", "❤️"], bot_compatible=["👍"])
+    plan = ReactionPlanner().plan(
+        post_id="p", bots=BOTS, params=params, base_time=BASE, rng=random.Random(3)
+    )
+    assert all(p.emoji == "👍" for p in plan if p.status == "scheduled")
+
+
+def test_intersection_of_channel_and_intent() -> None:
+    from backend.app.services.reaction_intent import allowed_reactions_for_intent
+
+    params = _params(
+        allowed_emoji=["👍", "❤️", "🔥"],
+        channel_available=["👍", "❤️"],
+        intent_allowed=allowed_reactions_for_intent("humor"),
+    )
+    plan = ReactionPlanner().plan(
+        post_id="p", bots=BOTS, params=params, base_time=BASE, rng=random.Random(3)
+    )
+    # humor permits 😂/🤣/👍/🔥; channel permits 👍/❤️ → only 👍 survives.
+    assert all(p.emoji == "👍" for p in plan if p.status == "scheduled")
+
+
+def test_intent_never_adds_emoji_outside_profile() -> None:
+    from backend.app.services.reaction_intent import allowed_reactions_for_intent
+
+    params = _params(
+        allowed_emoji=["❤️"],
+        intent_allowed=allowed_reactions_for_intent("humor"),
+    )
+    plan = ReactionPlanner().plan(
+        post_id="p", bots=BOTS, params=params, base_time=BASE, rng=random.Random(3)
+    )
+    # ❤️ is not permitted by humor; the intersection is empty and nothing is forced.
+    assert plan
+    assert all(p.status == "skipped" for p in plan)
+
+
+def test_empty_intersection_leaves_no_pool() -> None:
+    params = _params(allowed_emoji=["👍"], channel_available=["🔥"])
+    plan = ReactionPlanner().plan(
+        post_id="p", bots=BOTS, params=params, base_time=BASE, rng=random.Random(3)
+    )
+    assert plan
+    assert all(p.status == "skipped" for p in plan)

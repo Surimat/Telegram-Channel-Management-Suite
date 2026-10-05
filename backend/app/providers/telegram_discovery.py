@@ -47,33 +47,50 @@ class TelegramDiscoveryProvider:
                 ),
             )
         text = query.text()
-        if not text:
+        if not text and not query.seed_channel:
             return DiscoveryResult(
                 provider=self.name,
                 ok=False,
                 message="Укажите тему или ключевые слова.",
                 how_to_fix="Например: «новости», «криптовалюта», «спорт».",
             )
-        try:
-            refs = await self._provider.search_public(text, limit=50)
-        except TelegramProviderError as exc:
-            return DiscoveryResult(
-                provider=self.name,
-                ok=False,
-                message=exc.message,
-                how_to_fix=exc.how_to_fix,
-            )
-        candidates = [self._to_candidate(ref) for ref in refs]
+        refs: list[object] = []
+        notes: list[str] = []
+        if text:
+            try:
+                refs.extend(await self._provider.search_public(text, limit=50))
+            except TelegramProviderError as exc:
+                return DiscoveryResult(
+                    provider=self.name,
+                    ok=False,
+                    message=exc.message,
+                    how_to_fix=exc.how_to_fix,
+                )
+        if query.seed_channel:
+            try:
+                recs = await self._provider.get_channel_recommendations(
+                    query.seed_channel, limit=50
+                )
+                refs.extend(recs)
+                if recs:
+                    notes.append("Добавлены официальные рекомендации Telegram.")
+            except TelegramProviderError as exc:
+                # A failed recommendations call must not sink a successful search.
+                notes.append(f"Рекомендации недоступны: {exc.message}")
+        candidates = _dedupe([self._to_candidate(ref) for ref in refs])
         candidates = _apply_filters(candidates, query)
+        message = (
+            f"Найдено кандидатов: {len(candidates)}."
+            if candidates
+            else "Telegram не вернул подходящих публичных каналов."
+        )
+        if notes:
+            message = f"{message} {' '.join(notes)}"
         return DiscoveryResult(
             provider=self.name,
             ok=True,
             candidates=candidates,
-            message=(
-                f"Найдено кандидатов: {len(candidates)}."
-                if candidates
-                else "Telegram не вернул подходящих публичных каналов."
-            ),
+            message=message,
         )
 
     @staticmethod
@@ -88,6 +105,19 @@ class TelegramDiscoveryProvider:
             language=getattr(ref, "language", "") or "",
             provider=NAME,
         )
+
+
+def _dedupe(candidates: list[DiscoveredChannel]) -> list[DiscoveredChannel]:
+    """Drop duplicate channels by username/id, keeping the first occurrence."""
+    seen: set[str] = set()
+    result: list[DiscoveredChannel] = []
+    for c in candidates:
+        key = c.username.lower() if c.username else f"id:{c.telegram_id}"
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(c)
+    return result
 
 
 def _apply_filters(

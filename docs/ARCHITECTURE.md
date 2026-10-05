@@ -168,6 +168,23 @@ PHASE 5/6 need (`resolve_entity`, `get_participants`, `invite_to_channel`), so
 audience parsing and invites build on the same interface rather than adding new
 Telegram touch-points.
 
+### Account Hub — local session import (v1.1)
+
+`services/session_import.py` adds one `SessionImportProvider` protocol with four
+providers so the owner can bring an account they already control: Telethon
+`.session` (SQLite header), `.session` + companion JSON (whitelisted keys only),
+StringSession and Telegram Desktop TDATA. Detection (`detect_format`) reports the
+format and a state (`valid`/`damaged`/`unauthorized`/`unknown`) before import.
+Import is local-only and owner-scoped; a StringSession string and TDATA auth data
+are written to `SESSIONS_DIR` (gitignored) and never logged, returned or shown
+(D-070). TDATA is optional: with no reliable converter it reports an honest
+`NOT AVAILABLE` and the source folder is never modified or uploaded.
+
+The optional **network route (proxy)** is a plain connection route stored in
+`proxy_profiles` and bound via `user_sessions.proxy_id`; it never bypasses
+Telegram limits (D-065). `services/encoder_service.py` provides the optional
+lightweight-encoder install flow described in §7.1.
+
 Implemented (PHASE 5): `AudienceProvider` (`providers/audience_base.py`) with
 `SessionAudienceProvider` (`providers/session_audience.py`) — a thin adapter that
 delegates to the PHASE 4 `SessionProvider` (so it never imports Telethon itself)
@@ -231,9 +248,14 @@ Classification workflow:
 Post text
   → Rules Engine (keywords / phrases / optional regex, per-category priority)
       → if confidence >= category.minimum_confidence → category (fast path)
-  → else if AI enabled → Tiny GGUF classifier → strict JSON {category, tone, confidence}
+  → else if AI enabled → encoder (ruBERT-tiny2) or Tiny GGUF classifier
+      → {category, tone, intent, confidence}
   → else → "neutral" fallback
   → Reaction Profile (deterministic weighted emoji choice)
+      ∩ intent allowed (when the AI reported a non-neutral intent)
+      ∩ channel available reactions (when verified)
+      ∩ bot-compatible reactions   (when verified)
+      − forbidden reactions
 ```
 
 Rules are **data, not code**: editable from the Web UI, stored in DB.
@@ -241,14 +263,15 @@ Categories (minimum set): `donation, news, funny, sad, angry, cute, support,
 announcement, neutral`.
 
 The AI returns **strict structured JSON** and is used **only** to pick a
-category/tone/confidence. Emoji selection is **always deterministic weighted
-logic**, never the LLM. AI can be disabled entirely (`AI_ENABLED=false`).
+category/tone/intent/confidence. Emoji selection is **always deterministic
+weighted logic**, never the LLM (D-032/D-033). AI can be disabled entirely
+(`AI_ENABLED=false`).
 
 Implemented (PHASE 7) in `backend/app/ai/` — free of Telegram/FastAPI imports:
 
 - `types.py` — `Classifier` Protocol and `ClassificationResult`
-  (`category`, `tone`, `confidence`, `source`; `source` ∈
-  `rules`/`llm`/`manual`/`fallback`/`default`).
+  (`category`, `tone`, `intent`, `confidence`, `source`; `source` ∈
+  `rules`/`llm`/`encoder`/`manual`/`fallback`/`default`).
 - `classifiers.py` — `RulesClassifier` (wraps the Rules Engine),
   `LlmClassifier` (prompt → `run_bounded` → strict parse), `FakeClassifier`.
 - `schema.py` — tolerant about framing, strict about values; invalid JSON/unknown
@@ -258,8 +281,36 @@ Implemented (PHASE 7) in `backend/app/ai/` — free of Telegram/FastAPI imports:
   `RoutingOutcome` records `ai_attempted`/`ai_used`/`fallback_used`.
 - `inference.py` — one shared single-worker executor (`run_bounded`); a timeout
   raises `InferenceTimeoutError` and shut down on app exit.
-- `backends/` — registry (`build_backend`): `fake` (deterministic, offline/tests)
-  and `llama_cpp` (the only `llama_cpp` importer; lazy, lock-serialized, optional).
+- `backends/` — registry (`build_backend`): `fake` (deterministic, offline/tests),
+  `llama_cpp` (the only `llama_cpp` importer; lazy, lock-serialized, optional) and
+  `rubert` (the optional ruBERT-tiny2 encoder backend, below).
+
+### 7.1 Lightweight encoder classifier (v1.1)
+
+`backend/app/ai/encoder.py` adds a **dependency-free** encoder classifier: text →
+hashing embedding → nearest prototype (cosine) → category/tone/intent. It needs
+**no model file and no download**, so it works on the weakest Windows PC, and it
+is the default `encoder` mode (`auto` uses rules first, then this). Every failure
+degrades to the rules result.
+
+`EncoderClassifier` is swappable via an `EncoderBackend` protocol
+(`backend/app/ai/backends/encoder_base.py`). The optional `rubert` backend
+(`cointegrated/rubert-tiny2`, MIT, ~115 MB) is loaded **lazily, CPU-only, one
+inference at a time, and unloaded when idle** (D-019/D-035); it is never a hard
+dependency. Because ruBERT-tiny2 is an *encoder*, not a generative model, it is
+used for embeddings only — the prototype/KNN classification stays in
+`EncoderClassifier` (D-068). `backend/app/services/encoder_service.py` provides
+the install experience (download official files → verify SHA-256 → try a real
+load → honest status), reachable at `/api/v1/ai/encoder/*` and the «Мини-ИИ» UI.
+
+### 7.2 Intent → reaction policy (v1.1)
+
+`backend/app/services/reaction_intent.py` maps a communicative intent
+(`support`/`sympathy`/`joy`/`humor`/`anger`/`surprise`/`love`/`neutral`) to the
+emoji it permits. Intent only *narrows* the set (never chooses one); a neutral
+intent does not restrict. The planner intersects profile-allowed ∩ intent-allowed
+∩ channel-available ∩ bot-compatible − forbidden, and skips (with a reason) when
+nothing remains (D-032).
 
 Configuration is read through `AiService.effective()` so DB settings override env
 defaults (D-034). Models are user-provided `.gguf` assets in the gitignored

@@ -51,6 +51,8 @@ class Post(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     classification_source: Mapped[str] = mapped_column(String(16), default="", nullable=False)
     confidence: Mapped[float] = mapped_column(default=0.0, nullable=False)
     matched_terms: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    #: Advisory communicative intent (v1.1). Empty/neutral = no narrowing.
+    intent: Mapped[str] = mapped_column(String(16), default="", nullable=False)
 
     status: Mapped[PostStatus] = mapped_column(
         Enum(PostStatus, name="post_status"), default=PostStatus.NEW, index=True, nullable=False

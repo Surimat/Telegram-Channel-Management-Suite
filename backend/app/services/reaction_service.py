@@ -71,6 +71,7 @@ from backend.app.rules.engine import (
 )
 from backend.app.services.events_service import EventsService
 from backend.app.services.queue_service import QueueService
+from backend.app.services.reaction_intent import intent_narrows
 from backend.app.services.reaction_planner import PlanParams, ReactionPlanner
 from backend.app.services.reaction_policy import intersect_reactions
 
@@ -122,6 +123,9 @@ class SimulationResult:
     participating: int
     skipped: int
     steps: list[SimulationStep]
+    #: Advisory AI intent (v1.1). Empty/neutral = the set was not narrowed.
+    intent: str = "neutral"
+    intent_narrowed: bool = False
 
 
 def _loads(raw: str, default: object) -> object:
@@ -412,7 +416,10 @@ class ReactionService:
         *,
         channel_available: list[str] | None = None,
         bot_compatible: list[str] | None = None,
+        intent: str = "",
     ) -> PlanParams:
+        from backend.app.services.reaction_intent import allowed_reactions_for_intent
+
         return PlanParams(
             allowed_emoji=list(_loads(profile.allowed_emoji, [])),  # type: ignore[arg-type]
             emoji_weights=dict(_loads(profile.emoji_weights, {})),  # type: ignore[arg-type]
@@ -424,6 +431,7 @@ class ReactionService:
             max_bots_per_post=profile.max_bots_per_post,
             channel_available=channel_available,
             bot_compatible=bot_compatible,
+            intent_allowed=allowed_reactions_for_intent(intent),
         )
 
     async def _channel_capabilities(
@@ -669,6 +677,8 @@ class ReactionService:
         result, outcome = await self._route(text, mode=mode)
         match = await self._result_to_match(result, outcome)
         tone = str(getattr(result, "tone", "neutral"))
+        intent = str(getattr(result, "intent", "neutral") or "neutral")
+        intent_narrowed = intent_narrows(intent)
         ai_attempted = bool(getattr(outcome, "ai_attempted", False))
         ai_used = bool(getattr(outcome, "ai_used", False))
         fallback_used = bool(getattr(outcome, "fallback_used", False))
@@ -684,7 +694,7 @@ class ReactionService:
         planned = self.planner.plan(
             post_id="simulation",
             bots=pairs,
-            params=self._plan_params(profile),
+            params=self._plan_params(profile, intent=intent),
             match=match,
             base_time=base_time,
             rng=self._rng_for(seed),
@@ -711,6 +721,8 @@ class ReactionService:
             total_bots=len(pairs),
             participating=len(scheduled),
             skipped=len(skipped),
+            intent=intent,
+            intent_narrowed=intent_narrowed,
             steps=[
                 SimulationStep(
                     bot_id=p.bot_id,
@@ -777,6 +789,7 @@ class ReactionService:
             classification_source=match.source,
             confidence=match.confidence,
             matched_terms=", ".join(match.matched_terms),
+            intent=str(getattr(result, "intent", "") or ""),
             status=PostStatus.CLASSIFIED,
             posted_at=posted_at,
         )
@@ -837,7 +850,10 @@ class ReactionService:
         match = await self._result_to_match(result)
         available, compatible = await self._channel_capabilities(post.registry_channel_id)
         params = self._plan_params(
-            profile, channel_available=available, bot_compatible=compatible
+            profile,
+            channel_available=available,
+            bot_compatible=compatible,
+            intent=post.intent or "",
         )
         if params.channel_available is not None and not params.allowed_emoji:
             # The channel's real capability set excludes every profile emoji.
@@ -850,6 +866,26 @@ class ReactionService:
                 "Реакции для поста пропущены: нет подходящих реакций для этого канала.",
                 explanation="Набор реакций профиля не пересекается с доступными в канале.",
                 how_to_fix="Проверьте набор реакций канала или измените профиль.",
+                operation="plan_post",
+                status="skipped",
+            )
+            return []
+        if not params.allowed_emoji and (
+            params.intent_allowed is not None or match.allowed_reactions
+        ):
+            # The intent or the category rule left no usable emoji. Report why
+            # instead of silently doing nothing.
+            post.status = PostStatus.SKIPPED
+            await self.session.flush()
+            await self.session.commit()
+            await self.events.warning(
+                "reactions.reaction_service",
+                "Реакции для поста пропущены: нет подходящей реакции.",
+                explanation=(
+                    "После учёта намерения поста и правил категории не осталось "
+                    "ни одной реакции, разрешённой профилем."
+                ),
+                how_to_fix="Измените профиль реакций или отключите сужение по намерению.",
                 operation="plan_post",
                 status="skipped",
             )

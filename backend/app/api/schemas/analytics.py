@@ -106,6 +106,8 @@ class AnalyticsOverviewOut(BaseModel):
     days: int
     channel_id: str = ""
     generated_at: datetime
+    account_connected: bool = True
+    account_note: str = ""
     headline: AnalyticsHeadline
     content: ContentAnalyticsOut
     reactions: ReactionsAnalyticsOut

@@ -119,6 +119,10 @@ function audienceStatusCount(key: string): number {
     <div v-else-if="error" class="card error-text">{{ error }}</div>
 
     <template v-else-if="data">
+      <div v-if="data.account_note" class="card inline-note">
+        <strong>Режим без личного аккаунта</strong>
+        <p class="muted">{{ data.account_note }}</p>
+      </div>
       <div class="card">
         <h3>Кратко о главном</h3>
         <p v-for="(note, i) in data.summary" :key="i" class="summary-note">{{ note }}</p>

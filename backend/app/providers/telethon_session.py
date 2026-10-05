@@ -404,6 +404,60 @@ class TelethonSessionProvider:
 
         return await self._call(_run)
 
+    async def get_channel_recommendations(
+        self, channel: str | int, *, limit: int = 20
+    ) -> list[EntityRef]:
+        """Return channels Telegram recommends as similar to ``channel`` (v1.1).
+
+        Uses ``channels.getChannelRecommendations`` when the installed Telethon
+        exposes it; otherwise raises ``UnsupportedOperationError``. Whatever
+        Telegram returns is passed through unchanged (possibly empty). Limits are
+        never bypassed.
+        """
+        try:
+            from telethon import functions
+        except Exception:  # pragma: no cover - telethon always present here
+            raise UnsupportedOperationError(
+                "Рекомендации Telegram недоступны в этой версии.",
+                how_to_fix="Обновите библиотеку telethon.",
+            ) from None
+        request_cls = getattr(
+            getattr(functions, "channels", None), "GetChannelRecommendationsRequest", None
+        )
+        if request_cls is None:
+            raise UnsupportedOperationError(
+                "Рекомендации Telegram недоступны в этой версии.",
+                how_to_fix="Обновите библиотеку telethon.",
+            )
+
+        async def _run(client):  # type: ignore[no-untyped-def]
+            entity = await client.get_entity(channel)
+            result = await client(request_cls(channel=entity))
+            refs: list[EntityRef] = []
+            seen: set[int] = set()
+            for chat in list(getattr(result, "chats", []) or []):
+                if not (getattr(chat, "broadcast", False) or getattr(chat, "megagroup", False)):
+                    continue
+                cid = int(getattr(chat, "id", 0))
+                if not cid or cid in seen:
+                    continue
+                seen.add(cid)
+                refs.append(
+                    EntityRef(
+                        id=cid,
+                        username=str(getattr(chat, "username", "") or ""),
+                        title=str(getattr(chat, "title", "") or ""),
+                        kind="group" if getattr(chat, "megagroup", False) else "channel",
+                        participants_count=getattr(chat, "participants_count", None),
+                        subscribers=int(getattr(chat, "participants_count", 0) or 0),
+                    )
+                )
+                if len(refs) >= max(1, limit):
+                    break
+            return refs
+
+        return await self._call(_run)
+
     async def get_participants(
         self, entity: str | int, *, limit: int = 0
     ) -> list[UserIdentity]:

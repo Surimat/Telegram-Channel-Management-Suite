@@ -120,6 +120,30 @@ class AiOverviewOut(BaseModel):
     today: AiMetricsOut
 
 
+class EncoderStatusOut(BaseModel):
+    """v1.1 lightweight encoder install status (honest, never a guess)."""
+
+    runtime_available: bool
+    installed: bool
+    ready: bool
+    model_dir: str
+    size_bytes: int
+    size_human: str
+    missing: list[str] = []
+    message: str
+    how_to_fix: str
+    repo: str = ""
+    license: str = ""
+
+
+class EncoderActionResultOut(BaseModel):
+    ok: bool
+    message: str
+    how_to_fix: str = ""
+    downloaded: int = 0
+    status: EncoderStatusOut
+
+
 class AiHistoryOut(BaseModel):
     items: list[AiRecordOut]
     total: int

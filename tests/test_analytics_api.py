@@ -78,6 +78,10 @@ async def test_overview_endpoint(analytics_client: AsyncClient) -> None:
     assert body["content"]["summary"]
     assert body["reactions"]["summary"]
     assert body["audience"]["summary"]
+    # No user account is connected in this fixture: the overview stays useful
+    # but explains that historical data is unavailable to this connection type.
+    assert body["account_connected"] is False
+    assert "историческая" in body["account_note"].lower()
 
 
 async def test_content_endpoint(analytics_client: AsyncClient) -> None:

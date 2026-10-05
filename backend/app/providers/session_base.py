@@ -122,3 +122,14 @@ class SessionProvider(Protocol):
         ``UnsupportedOperationError``.
         """
         ...
+
+    async def get_channel_recommendations(
+        self, channel: str | int, *, limit: int = 20
+    ) -> list[EntityRef]:
+        """Return channels Telegram recommends as similar to ``channel`` (v1.1).
+
+        Uses the official ``channels.getChannelRecommendations`` method when the
+        installed library exposes it. An empty list means Telegram returned no
+        recommendations. Limits are never bypassed.
+        """
+        ...

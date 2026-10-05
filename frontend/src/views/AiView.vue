@@ -8,6 +8,7 @@ import {
   type AiModelCheck,
   type AiOverview,
   type AiSettingHelp,
+  type EncoderStatus,
 } from '@/api/client'
 import InfoHint from '@/components/InfoHint.vue'
 
@@ -24,6 +25,10 @@ const notice = ref('')
 
 const checkResult = ref<AiModelCheck | null>(null)
 const checking = ref(false)
+
+// v1.1 lightweight encoder (ruBERT-tiny2) install experience.
+const encoder = ref<EncoderStatus | null>(null)
+const encoderBusy = ref(false)
 
 // Settings draft holds every edit until "Сохранить".
 const draft = ref<Record<string, unknown>>({})
@@ -178,6 +183,59 @@ function useModel(path: string) {
   notice.value = `Модель «${path}» выбрана. Не забудьте сохранить настройки.`
 }
 
+// --- lightweight encoder install (v1.1) ----------------------------------
+async function loadEncoder() {
+  try {
+    encoder.value = await api.aiEncoderStatus()
+  } catch {
+    encoder.value = null
+  }
+}
+
+async function encoderInstall() {
+  encoderBusy.value = true
+  error.value = ''
+  notice.value = ''
+  try {
+    const r = await api.aiEncoderInstall()
+    encoder.value = r.status
+    notice.value = r.ok ? r.message : `${r.message} ${r.how_to_fix}`.trim()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Не удалось установить лёгкую модель.'
+  } finally {
+    encoderBusy.value = false
+  }
+}
+
+async function encoderCheck() {
+  encoderBusy.value = true
+  error.value = ''
+  notice.value = ''
+  try {
+    const r = await api.aiEncoderCheck()
+    encoder.value = r.status
+    notice.value = r.ok ? r.message : `${r.message} ${r.how_to_fix}`.trim()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Не удалось проверить лёгкую модель.'
+  } finally {
+    encoderBusy.value = false
+  }
+}
+
+async function encoderRemove() {
+  if (!confirm('Удалить скачанную лёгкую модель? Встроенный распознаватель продолжит работать.')) return
+  encoderBusy.value = true
+  error.value = ''
+  try {
+    encoder.value = await api.aiEncoderRemove()
+    notice.value = 'Лёгкая модель удалена.'
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Не удалось удалить модель.'
+  } finally {
+    encoderBusy.value = false
+  }
+}
+
 async function runTest() {
   testing.value = true
   error.value = ''
@@ -194,7 +252,10 @@ async function runTest() {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  loadEncoder()
+})
 </script>
 
 <template>
@@ -316,6 +377,45 @@ onMounted(load)
             загрузка заняла {{ checkResult.load_ms }} мс
           </p>
         </div>
+      </div>
+
+      <div class="card">
+        <h3>Лёгкая модель для русского текста (необязательно)</h3>
+        <p class="muted">
+          Небольшая модель <strong>{{ encoder?.repo || 'cointegrated/rubert-tiny2' }}</strong>
+          (лицензия {{ encoder?.license || 'MIT' }}, около 115 МБ) помогает лучше понимать
+          русский текст. Она необязательна: без неё работает встроенный лёгкий распознаватель.
+          Модель скачивается только по вашей команде и хранится в папке «models».
+        </p>
+        <p v-if="encoder">
+          Состояние:
+          <span class="badge" :class="encoder.ready ? 'ok' : encoder.installed ? 'warning' : 'badge-muted'">
+            {{ encoder.ready ? 'Готова' : encoder.installed ? 'Установлена' : 'Не установлена' }}
+          </span>
+          <span v-if="!encoder.runtime_available" class="badge warning">нет библиотеки</span>
+        </p>
+        <p v-if="encoder" class="muted">
+          {{ encoder.message }} {{ encoder.how_to_fix }}
+        </p>
+        <p v-if="encoder && encoder.installed" class="muted">
+          Занято на диске: {{ encoder.size_human }}
+        </p>
+        <div class="actions">
+          <button class="primary" :disabled="encoderBusy" @click="encoderInstall">
+            {{ encoderBusy ? 'Работаем…' : 'Установить лёгкую модель' }}
+          </button>
+          <button :disabled="encoderBusy" @click="encoderCheck">Проверить</button>
+          <button
+            class="danger"
+            :disabled="encoderBusy || !encoder?.installed"
+            @click="encoderRemove"
+          >
+            Удалить модель
+          </button>
+        </div>
+        <p class="muted">
+          Чтобы использовать её, включите «Использовать модель ruBERT-tiny2» в настройках.
+        </p>
       </div>
 
       <div class="card">

@@ -33,6 +33,7 @@ class SessionOut(BaseModel):
     status_hint: str = ""
     last_error: str = ""
     proxy_id: str = ""
+    restriction_count: int = 0
     last_checked_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
@@ -59,6 +60,7 @@ class SessionOut(BaseModel):
             status_hint=account.status_hint,  # type: ignore[attr-defined]
             last_error=account.last_error,  # type: ignore[attr-defined]
             proxy_id=getattr(account, "proxy_id", ""),  # type: ignore[attr-defined]
+            restriction_count=getattr(account, "restriction_count", 0),  # type: ignore[attr-defined]
             last_checked_at=account.last_checked_at,  # type: ignore[attr-defined]
             created_at=account.created_at,  # type: ignore[attr-defined]
             updated_at=account.updated_at,  # type: ignore[attr-defined]

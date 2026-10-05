@@ -269,14 +269,21 @@ class SessionService:
         restrictions or a block. This maps the observable state onto a band.
         """
         status = account.status
+        repeats = getattr(account, "restriction_count", 0) or 0
         if status is SessionStatus.FLOOD_WAIT:
+            message = (
+                "Telegram ограничил частоту действий для этого аккаунта. "
+                "Дождитесь окончания паузы — обходить её нельзя."
+            )
+            if repeats > 1:
+                message += (
+                    f" Ограничение повторяется (уже {repeats} раз). "
+                    "Продолжение массовых действий повышает риск блокировки."
+                )
             return {
                 "level": "flood_wait",
                 "title": "Ожидание Telegram",
-                "message": (
-                    "Telegram ограничил частоту действий для этого аккаунта. "
-                    "Дождитесь окончания паузы — обходить её нельзя."
-                ),
+                "message": message,
             }
         if status is SessionStatus.DISABLED:
             return {
@@ -291,15 +298,29 @@ class SessionService:
                 "message": "Аккаунт не авторизован; действия невозможны до входа.",
             }
         if status is SessionStatus.ERROR:
+            message = (
+                "Последняя проверка завершилась ошибкой или ограничением. "
+                "Проверьте статус и повторите позже."
+            )
+            if repeats > 0:
+                message += f" Ограничения фиксировались уже {repeats} раз."
             return {
                 "level": "restricted",
                 "title": "Ограничение или ошибка",
-                "message": (
-                    "Последняя проверка завершилась ошибкой или ограничением. "
-                    "Проверьте статус и повторите позже."
-                ),
+                "message": message,
             }
         if status is SessionStatus.ONLINE:
+            if repeats > 0:
+                return {
+                    "level": "warning",
+                    "title": "Были ограничения",
+                    "message": (
+                        f"Telegram уже ограничивал этот аккаунт ({repeats} раз). "
+                        "Активных ограничений сейчас не видно, но повторные "
+                        "массовые действия повышают риск блокировки. Безопасного "
+                        "лимита не существует."
+                    ),
+                }
             return {
                 "level": "healthy",
                 "title": "Без активных ограничений",
@@ -842,6 +863,7 @@ class SessionService:
         """Map a provider error onto the account status (never bypassing limits)."""
         if isinstance(exc, FloodWaitError):
             account.status = SessionStatus.FLOOD_WAIT
+            account.restriction_count = (account.restriction_count or 0) + 1
             wait = f" Осталось ждать ~{exc.retry_after} сек." if exc.retry_after else ""
             account.status_message = f"Telegram просит подождать.{wait}"
         elif isinstance(exc, SessionInvalidError):

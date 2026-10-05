@@ -27,6 +27,7 @@ import math
 import time
 from dataclasses import dataclass
 
+from backend.app.ai.backends.encoder_base import EncoderBackend
 from backend.app.ai.types import (
     SOURCE_AI,
     Category,
@@ -142,7 +143,13 @@ class _Scored:
 
 
 class EncoderClassifier:
-    """A dependency-free Russian encoder classifier.
+    """A Russian encoder classifier over a small labelled prototype set.
+
+    By default it uses the dependency-free hashing encoder. When an
+    :class:`~backend.app.ai.backends.encoder_base.EncoderBackend` (e.g. the
+    optional ruBERT-tiny2) is supplied and available, its embeddings replace the
+    hashing vectors for both the prototypes and the input — the classification
+    logic stays identical, only the embedding space changes.
 
     ``min_score`` is the cosine threshold below which the result is treated as
     unknown (neutral + ``error`` explaining why), so a low-confidence guess is
@@ -154,19 +161,43 @@ class EncoderClassifier:
         *,
         prototypes: tuple[Prototype, ...] | None = None,
         min_score: float = 0.18,
+        backend: EncoderBackend | None = None,
     ) -> None:
         self._prototypes = prototypes or PROTOTYPES
         self._min_score = min_score
-        self._embedded: list[tuple[Prototype, list[float]]] = [
-            (p, embed(p.text)) for p in self._prototypes
-        ]
+        self._backend = backend
+        # Prototype embeddings are built lazily so a heavy backend (ruBERT) is
+        # only loaded when a classification actually runs, never at construction.
+        self._embedded: list[tuple[Prototype, list[float]]] | None = None
+
+    def _build_embeddings(self) -> None:
+        """Embed the prototypes with the active backend (hashing by default)."""
+        if self._backend is not None and getattr(self._backend, "available", False):
+            vectors = self._backend.embed([p.text for p in self._prototypes])
+            self._embedded = list(zip(self._prototypes, vectors, strict=False))
+        else:
+            self._embedded = [(p, embed(p.text)) for p in self._prototypes]
+
+    def _ensure_embedded(self) -> list[tuple[Prototype, list[float]]]:
+        if self._embedded is None:
+            self._build_embeddings()
+        assert self._embedded is not None
+        return self._embedded
+
+    def _embed_one(self, text: str) -> list[float]:
+        if self._backend is not None and getattr(self._backend, "available", False):
+            vectors = self._backend.embed([text])
+            return vectors[0] if vectors else []
+        return embed(text)
 
     @property
     def available(self) -> bool:
-        return bool(self._embedded)
+        return bool(self._prototypes)
 
     @property
     def model(self) -> str:
+        if self._backend is not None and getattr(self._backend, "available", False):
+            return str(getattr(self._backend, "name", MODEL_NAME))
         return MODEL_NAME
 
     def classify(
@@ -179,9 +210,9 @@ class EncoderClassifier:
         if not self.available:
             return self._neutral("Прототипы не загружены.", started)
 
-        vector = embed(stripped)
+        vector = self._embed_one(stripped)
         scored = [
-            _Scored(proto, cosine(vector, emb)) for proto, emb in self._embedded
+            _Scored(proto, cosine(vector, emb)) for proto, emb in self._ensure_embedded()
         ]
         scored.sort(key=lambda s: s.score, reverse=True)
         best = scored[0]
@@ -194,7 +225,7 @@ class EncoderClassifier:
                 source=SOURCE_AI,
                 tone=Tone.NEUTRAL,
                 intent=Intent.NEUTRAL,
-                model=MODEL_NAME,
+                model=self.model,
                 processing_time_ms=elapsed,
                 error="Недостаточно уверенности — нужен ручной выбор или LLM.",
             )
@@ -211,7 +242,7 @@ class EncoderClassifier:
             tone=best.prototype.tone,
             intent=best.prototype.intent,
             suggested_emoji=best.prototype.emoji,
-            model=MODEL_NAME,
+            model=self.model,
             processing_time_ms=elapsed,
             matched_terms=matched,
         )
@@ -221,7 +252,7 @@ class EncoderClassifier:
             category=Category.NEUTRAL,
             confidence=0.0,
             source=SOURCE_AI,
-            model=MODEL_NAME,
+            model=self.model,
             processing_time_ms=int((time.perf_counter() - started) * 1000),
             error=error,
         )
@@ -230,6 +261,7 @@ class EncoderClassifier:
 __all__ = [
     "MODEL_NAME",
     "PROTOTYPES",
+    "EncoderBackend",
     "EncoderClassifier",
     "Prototype",
     "cosine",

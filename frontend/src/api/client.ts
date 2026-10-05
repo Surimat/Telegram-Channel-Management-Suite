@@ -297,6 +297,7 @@ export interface UserSession {
   last_error: string
   last_checked_at: string | null
   proxy_id: string
+  restriction_count: number
   created_at: string
   updated_at: string
 }
@@ -342,6 +343,32 @@ export interface SessionHealth {
   status: string
   message: string
   how_to_fix: string
+}
+
+// v1.1 Account Hub: multi-format local import + restriction-risk band.
+export interface SessionImportDetect {
+  format: string
+  format_title: string
+  state: string
+  state_title: string
+  available: boolean
+  message: string
+  how_to_fix: string
+  notes: string[]
+}
+
+export interface SessionImportResult {
+  account: UserSession
+  format: string
+  format_title: string
+  notes: string[]
+  message: string
+}
+
+export interface SessionRisk {
+  level: string
+  title: string
+  message: string
 }
 
 // Invite Manager (PHASE 6)
@@ -485,6 +512,29 @@ export interface AiModelCheck {
   how_to_fix: string
   size_bytes: number
   load_ms: number
+}
+
+// v1.1: optional lightweight encoder model (ruBERT-tiny2) install status.
+export interface EncoderStatus {
+  runtime_available: boolean
+  installed: boolean
+  ready: boolean
+  model_dir: string
+  size_bytes: number
+  size_human: string
+  missing: string[]
+  message: string
+  how_to_fix: string
+  repo: string
+  license: string
+}
+
+export interface EncoderActionResult {
+  ok: boolean
+  message: string
+  how_to_fix: string
+  downloaded: number
+  status: EncoderStatus
 }
 
 export interface AiClassifyResult {
@@ -782,6 +832,8 @@ export interface AnalyticsOverview {
   days: number
   channel_id: string
   generated_at: string
+  account_connected: boolean
+  account_note: string
   headline: AnalyticsHeadline
   content: ContentAnalytics
   reactions: ReactionsAnalytics
@@ -1190,6 +1242,8 @@ export interface WizardState {
   completed_steps: number
   total_steps: number
   steps: WizardStep[]
+  session_optional_note: string
+  session_risk_note: string
 }
 
 export interface WizardPreset {
@@ -1287,6 +1341,9 @@ export interface DonorCandidate {
   summary: string
   added: boolean
   added_source_id: string
+  reach_ratio: number
+  reaction_ratio: number
+  score_label: string
 }
 
 export interface DiscoveryResult {
@@ -1445,6 +1502,29 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  detectSessionImport: (payload: {
+    path?: string
+    string_session?: string
+    api_id?: string
+    api_hash?: string
+  }) =>
+    request<SessionImportDetect>('/api/v1/sessions/import/detect', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  importSessionArtifact: (payload: {
+    path?: string
+    string_session?: string
+    api_id?: string
+    api_hash?: string
+    phone?: string
+    display_name?: string
+  }) =>
+    request<SessionImportResult>('/api/v1/sessions/import/artifact', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  sessionRisk: (id: string) => request<SessionRisk>(`/api/v1/sessions/${id}/risk`),
   checkSession: (id: string) =>
     request<SessionHealth>(`/api/v1/sessions/${id}/health`, { method: 'POST' }),
   enableSession: (id: string) =>
@@ -1520,6 +1600,13 @@ export const api = {
   aiLoadModel: () => request<AiModelCheck>('/api/v1/ai/model/load', { method: 'POST' }),
   aiUnloadModel: () => request<AiStatus>('/api/v1/ai/model/unload', { method: 'POST' }),
   aiMetrics: () => request<AiMetrics>('/api/v1/ai/metrics'),
+  aiEncoderStatus: () => request<EncoderStatus>('/api/v1/ai/encoder/status'),
+  aiEncoderInstall: () =>
+    request<EncoderActionResult>('/api/v1/ai/encoder/install', { method: 'POST' }),
+  aiEncoderCheck: () =>
+    request<EncoderActionResult>('/api/v1/ai/encoder/check', { method: 'POST' }),
+  aiEncoderRemove: () =>
+    request<EncoderStatus>('/api/v1/ai/encoder/remove', { method: 'POST' }),
   aiHistory: (params: Record<string, string> = {}) =>
     request<AiHistory>('/api/v1/ai/history?' + new URLSearchParams(params).toString()),
 
@@ -1880,9 +1967,12 @@ export const api = {
   discoverySearch: (payload: {
     topic: string
     keywords?: string[]
+    language?: string
     min_subscribers?: number
     max_subscribers?: number
     active_only?: boolean
+    period_days?: number
+    seed_channel?: string
     providers?: string[]
     account_id?: string
   }) => request<DiscoveryResult>('/api/v1/discovery/search', { method: 'POST', body: JSON.stringify(payload) }),

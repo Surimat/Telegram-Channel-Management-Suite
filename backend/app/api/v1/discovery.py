@@ -65,9 +65,14 @@ async def search(
         max_subscribers=payload.max_subscribers,
         active_only=payload.active_only,
         period_days=payload.period_days,
+        seed_channel=payload.seed_channel,
     )
-    if not query.text():
-        raise ApiError(400, "Укажите тему или ключевые слова.", "Например: «новости».")
+    if not query.text() and not query.seed_channel:
+        raise ApiError(
+            400,
+            "Укажите тему или ключевые слова.",
+            "Например: «новости». Можно также выбрать свой канал для рекомендаций.",
+        )
     service = _service(session, provider_factory)
     result = await service.discover(
         query, providers=payload.providers or None, account_id=payload.account_id or None

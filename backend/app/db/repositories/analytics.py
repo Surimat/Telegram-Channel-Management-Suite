@@ -22,6 +22,7 @@ from backend.app.db.models.audience import AudienceSource, AudienceUser, SourceU
 from backend.app.db.models.invite import InviteJob, InviteStatus, InviteTask
 from backend.app.db.models.post import Post
 from backend.app.db.models.reaction import ReactionJob, ReactionJobStatus
+from backend.app.db.models.session import SessionStatus, UserSession
 
 
 def _day_key(moment: datetime) -> str:
@@ -333,3 +334,23 @@ class AnalyticsRepository:
             stmt = select(InviteTask.status, func.count()).group_by(InviteTask.status)
         counts = {self._value(st): int(n) for st, n in await self._rows(stmt)}
         return {status.value: counts.get(status.value, 0) for status in InviteStatus}
+
+    # ==================================================================
+    # Bot-only mode (no user session)
+    # ==================================================================
+    async def account_connected(self) -> bool:
+        """True when at least one user account can reach Telegram.
+
+        Without a session the suite still reports everything it observes through
+        bots (posts collected after activation, reactions, campaigns). It simply
+        cannot see historical data that predates activation.
+        """
+        stmt = (
+            select(func.count())
+            .select_from(UserSession)
+            .where(
+                UserSession.enabled.is_(True),
+                UserSession.status == SessionStatus.ONLINE,
+            )
+        )
+        return await self._scalar(stmt) > 0

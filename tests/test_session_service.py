@@ -303,3 +303,51 @@ async def test_summary_counts(tmp_path: Path) -> None:
         assert summary["total"] == 1
         assert summary["online"] == 1
         assert summary["active"] == 1
+
+
+# --- account risk UX (v1.1) --------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_risk_for_flood_wait_counts_repeats(tmp_path: Path) -> None:
+    provider = FakeSessionProvider()
+    async with session_scope() as db:
+        svc = SessionService(db, provider_factory=factory_for(provider), sessions_dir=tmp_path)
+        source = tmp_path / "s.session"
+        source.write_bytes(b"x")
+        account = await svc.import_session(api_id="1", api_hash="h", session_file=source)
+        account.restriction_count = 2
+        account.status = SessionStatus.FLOOD_WAIT
+        risk = svc.risk_for(account)
+        assert risk["level"] == "flood_wait"
+        assert "повтор" in risk["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_risk_for_online_after_repeats_warns(tmp_path: Path) -> None:
+    provider = FakeSessionProvider()
+    async with session_scope() as db:
+        svc = SessionService(db, provider_factory=factory_for(provider), sessions_dir=tmp_path)
+        source = tmp_path / "s.session"
+        source.write_bytes(b"x")
+        account = await svc.import_session(api_id="1", api_hash="h", session_file=source)
+        account.status = SessionStatus.ONLINE
+        account.restriction_count = 3
+        risk = svc.risk_for(account)
+        assert risk["level"] == "warning"
+        assert "3" in risk["message"]
+
+
+@pytest.mark.asyncio
+async def test_risk_for_healthy_never_promises_safe_limit(tmp_path: Path) -> None:
+    provider = FakeSessionProvider()
+    async with session_scope() as db:
+        svc = SessionService(db, provider_factory=factory_for(provider), sessions_dir=tmp_path)
+        source = tmp_path / "s.session"
+        source.write_bytes(b"x")
+        account = await svc.import_session(api_id="1", api_hash="h", session_file=source)
+        account.status = SessionStatus.ONLINE
+        account.restriction_count = 0
+        risk = svc.risk_for(account)
+        assert risk["level"] == "healthy"
+        assert "лимит" in risk["message"].lower()

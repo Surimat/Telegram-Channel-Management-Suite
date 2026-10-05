@@ -125,6 +125,13 @@ class Settings(BaseSettings):
     # v1.1 lightweight encoder level: a dependency-free Russian classifier that
     # needs no model download and is safe on a weak PC. On by default.
     ai_encoder_enabled: bool = True
+    # Use the optional ruBERT-tiny2 encoder backend when it is installed. Off by
+    # default: the dependency-free hashing encoder works without any download and
+    # the heavy runtime is never imported unless the owner opts in (D-035).
+    ai_encoder_model_enabled: bool = False
+    # Keep the ruBERT encoder resident between calls. Off by default so a weak
+    # PC frees the model memory while idle.
+    ai_encoder_keep_loaded: bool = False
     # Inference backend: "llama_cpp" (real, optional) or "fake" (offline/tests).
     # Empty = auto (fake when offline_mode, else llama_cpp).
     ai_backend: str = ""

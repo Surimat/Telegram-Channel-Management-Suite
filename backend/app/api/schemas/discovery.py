@@ -20,6 +20,9 @@ class DiscoverQueryIn(BaseModel):
     period_days: int = 0
     providers: list[str] = Field(default_factory=lambda: ["telegram"])
     account_id: str = ""
+    #: Optional channel already in the registry; Telegram returns similar
+    #: channels for it (official recommendations). Works even with no keywords.
+    seed_channel: str = ""
 
 
 class DiscoveryProviderStatus(BaseModel):
@@ -60,6 +63,11 @@ class DonorCandidateOut(BaseModel):
     summary: str
     added: bool
     added_source_id: str
+    #: Derived comparison metrics (0 when the underlying data is unavailable).
+    reach_ratio: float = 0.0
+    reaction_ratio: float = 0.0
+    #: Human-readable fit score (e.g. "62/100").
+    score_label: str = ""
 
 
 class DiscoveryResultOut(BaseModel):

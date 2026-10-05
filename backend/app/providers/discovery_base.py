@@ -36,6 +36,10 @@ class DiscoveryQuery:
     max_subscribers: int = 0
     active_only: bool = False
     period_days: int = 0
+    #: Optional reference of a channel already in the registry. When set, the
+    #: Telegram provider also asks for Telegram's official recommendations for
+    #: that channel (channels.getChannelRecommendations) and merges them in.
+    seed_channel: str = ""
 
     def text(self) -> str:
         parts = [self.topic, *self.keywords]

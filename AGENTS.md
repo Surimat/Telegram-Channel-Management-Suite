@@ -65,8 +65,13 @@ Release. The portable build is reproducible and runs on a Linux CI host.
 ## Security (non-negotiable)
 
 Never commit or display `.env`, bot tokens, API hashes, session files,
-passwords, DB secrets, or keys. A logging redaction filter is mandatory. See
-`docs/SECURITY.md`.
+`tdata` folders, StringSession strings, passwords, DB secrets, or keys. A logging
+redaction filter is mandatory. See `docs/SECURITY.md`.
+
+The **Account Hub** imports only local accounts the owner supplies — never search
+for, download or bulk-register third-party accounts, and never bypass Telegram
+verification, FloodWait, privacy or identity checks (D-070). A proxy is a
+connection route only, never a limit bypass (D-065).
 
 The **Diagnostics** report (`/api/v1/diagnostics/report`) is redacted and
 re-scanned before export; if the scan is not clean, no file is produced. Never

@@ -45,9 +45,13 @@ const lastResult = ref<ScanResult | null>(null)
 const discovery = ref<CandidateList | null>(null)
 const discoveryForm = ref({
   topic: '',
+  keywords: '',
+  language: '',
   min_subscribers: 0,
   max_subscribers: 0,
   active_only: false,
+  period_days: 0,
+  seed_channel: '',
 })
 const discoveryBusy = ref(false)
 const discoveryError = ref('')
@@ -71,9 +75,16 @@ async function runDiscovery() {
   try {
     const result = await api.discoverySearch({
       topic: discoveryForm.value.topic,
+      keywords: discoveryForm.value.keywords
+        .split(',')
+        .map((k) => k.trim())
+        .filter(Boolean),
+      language: discoveryForm.value.language,
       min_subscribers: Number(discoveryForm.value.min_subscribers) || 0,
       max_subscribers: Number(discoveryForm.value.max_subscribers) || 0,
       active_only: discoveryForm.value.active_only,
+      period_days: Number(discoveryForm.value.period_days) || 0,
+      seed_channel: discoveryForm.value.seed_channel,
       providers: ['telegram'],
     })
     const failed = result.providers.filter((p) => !p.ok)
@@ -135,6 +146,14 @@ async function clearCandidates() {
   } finally {
     discoveryBusy.value = false
   }
+}
+
+function reachPercent(c: DonorCandidate): string {
+  return c.reach_ratio > 0 ? `${Math.round(c.reach_ratio * 100)}%` : 'нет данных'
+}
+
+function activityLabel(c: DonorCandidate): string {
+  return c.reaction_ratio > 0 ? `${Math.round(c.reaction_ratio * 100)}%` : 'нет данных'
 }
 
 const SCAN_LABELS: Record<string, string> = {
@@ -534,6 +553,14 @@ onUnmounted(() => {
           <input v-model="discoveryForm.topic" placeholder="Например: новости, технологии" />
         </label>
         <label class="field">
+          <span>Ключевые слова (через запятую)</span>
+          <input v-model="discoveryForm.keywords" placeholder="криптовалюта, инвестиции" />
+        </label>
+        <label class="field">
+          <span>Язык</span>
+          <input v-model="discoveryForm.language" placeholder="ru" />
+        </label>
+        <label class="field">
           <span>Мин. подписчиков</span>
           <input v-model.number="discoveryForm.min_subscribers" type="number" placeholder="0" />
         </label>
@@ -542,13 +569,25 @@ onUnmounted(() => {
           <input v-model.number="discoveryForm.max_subscribers" type="number" placeholder="0" />
         </label>
         <label class="field">
+          <span>Период активности, дней</span>
+          <input v-model.number="discoveryForm.period_days" type="number" placeholder="0" />
+        </label>
+        <label class="field">
+          <span>Свой канал для рекомендаций</span>
+          <input v-model="discoveryForm.seed_channel" placeholder="@my_channel (необязательно)" />
+        </label>
+        <label class="field">
           <span>Только активные</span>
           <input v-model="discoveryForm.active_only" type="checkbox" />
         </label>
       </div>
       <div class="toolbar">
-        <button class="primary" :disabled="discoveryBusy || !discoveryForm.topic" @click="runDiscovery">
-          {{ discoveryBusy ? 'Ищем…' : 'Найти доноров' }}
+        <button
+          class="primary"
+          :disabled="discoveryBusy || (!discoveryForm.topic && !discoveryForm.seed_channel)"
+          @click="runDiscovery"
+        >
+          {{ discoveryBusy ? 'Ищем…' : 'Найти источники' }}
         </button>
         <button
           :disabled="discoveryBusy || selectedCandidates.length < 2"
@@ -562,6 +601,36 @@ onUnmounted(() => {
       <div v-if="compareResult" class="card">
         <strong>Лучший кандидат: {{ compareResult.best_title }}</strong>
         <p class="muted">{{ compareResult.best_reason }}</p>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Кандидат</th>
+              <th>Размер</th>
+              <th>Охват</th>
+              <th>Активность</th>
+              <th>Качество</th>
+              <th>Признаки накрутки</th>
+              <th>Уверенность</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="c in compareResult.items" :key="c.id">
+              <td>
+                <strong>{{ c.title || c.username }}</strong>
+                <div class="muted">@{{ c.username }}</div>
+              </td>
+              <td class="muted">{{ c.subscribers }}</td>
+              <td class="muted">{{ reachPercent(c) }}</td>
+              <td class="muted">{{ activityLabel(c) }}</td>
+              <td>
+                {{ c.fit_title }}
+                <div class="muted">{{ c.score_label }}</div>
+              </td>
+              <td class="muted">{{ c.summary || '—' }}</td>
+              <td class="muted">{{ c.confidence }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <table v-if="discovery && discovery.items.length" class="table">
@@ -604,7 +673,7 @@ onUnmounted(() => {
           </tr>
         </tbody>
       </table>
-      <p v-else class="muted">Кандидатов пока нет. Задайте тему и нажмите «Найти доноров».</p>
+      <p v-else class="muted">Кандидатов пока нет. Задайте тему и нажмите «Найти источники».</p>
     </div>
   </div>
 </template>

@@ -139,6 +139,9 @@ class FakeDiscoveryScenario:
 
     channels: list[dict[str, object]] = field(default_factory=list)
     search_error: Exception | None = None
+    #: Channels the fake returns for ``get_channel_recommendations``.
+    recommendations: list[dict[str, object]] = field(default_factory=list)
+    recommendations_error: Exception | None = None
 
 
 def make_fake_users(count: int, *, start_id: int = 1) -> list[UserIdentity]:
@@ -390,6 +393,29 @@ class FakeSessionProvider:
             refs.append(
                 EntityRef(
                     id=int(item.get("id", 900000 + i) or 900000 + i),
+                    username=username,
+                    title=str(item.get("title", "") or username),
+                    kind=str(item.get("kind", "channel") or "channel"),
+                    participants_count=int(item.get("subscribers", 0) or 0),
+                    subscribers=int(item.get("subscribers", 0) or 0),
+                    avg_views=float(item.get("avg_views", 0.0) or 0.0),
+                    language=str(item.get("language", "") or ""),
+                )
+            )
+        return refs
+
+    async def get_channel_recommendations(
+        self, channel: str | int, *, limit: int = 20
+    ) -> list[EntityRef]:
+        scenario = self.discovery
+        if scenario.recommendations_error is not None:
+            raise scenario.recommendations_error
+        refs: list[EntityRef] = []
+        for i, item in enumerate(scenario.recommendations[: max(1, limit)]):
+            username = str(item.get("username", "") or "")
+            refs.append(
+                EntityRef(
+                    id=int(item.get("id", 800000 + i) or 800000 + i),
                     username=username,
                     title=str(item.get("title", "") or username),
                     kind=str(item.get("kind", "channel") or "channel"),

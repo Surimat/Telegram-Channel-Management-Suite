@@ -189,6 +189,15 @@ async function downloadUpdate() {
         <span v-if="!wizard.has_session"> · без аккаунта Telegram доступен режим «только бот»</span>
       </p>
 
+      <div v-if="wizard.session_optional_note" class="inline-note">
+        <strong>Аккаунт Telegram необязателен</strong>
+        <p class="muted">{{ wizard.session_optional_note }}</p>
+      </div>
+      <div v-if="wizard.session_risk_note" class="inline-note risk">
+        <strong>Риск ограничений</strong>
+        <p class="muted">{{ wizard.session_risk_note }}</p>
+      </div>
+
       <div class="preset-row">
         <button
           v-for="p in presets"

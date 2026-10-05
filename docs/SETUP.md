@@ -338,6 +338,61 @@ The file is copied into `SESSIONS_DIR`; on import failure nothing is registered.
 Secrets are stored sealed (Fernet via `APP_SECRET_KEY`) and never shown. The
 account can be health-checked, disabled, re-authorized or deleted from the list.
 
+### Account Hub — importing accounts you already own (v1.1)
+
+Open the Web UI → **Аккаунты → Центр аккаунтов (импорт)**. Only use accounts and
+files **you own or are authorized to manage**; the suite never searches for or
+downloads someone else's session and never bypasses Telegram checks.
+
+The page detects the format first (**«Определяем формат…»**) and shows
+`Формат` + `Состояние` before anything is imported:
+
+| Format | How to supply it |
+|--------|------------------|
+| Telethon `.session` | path to the `.session` file |
+| `.session` + companion JSON | path to the `.session`; `<stem>.json` / `<stem>_meta.json` is read for `api_id`/`api_hash`/`phone` (secrets are stored sealed) |
+| StringSession | paste the string; it is written to `SESSIONS_DIR` and never shown again |
+| Telegram Desktop `tdata` | path to the `tdata` folder (optional converter; see below) |
+
+On success the page says **«Аккаунт подключён.»** and shows the identity. A
+permanent warning reminds you that a Telegram auth file is sensitive data.
+
+> **TDATA is optional.** A `tdata` folder is a binary, version-specific format.
+> The suite only converts it through an isolated adapter when a reliable,
+> permissively-licensed converter is installed; otherwise it reports an honest
+> **NOT AVAILABLE** state instead of a fragile best-effort conversion. The source
+> `tdata` folder is never modified, copied out, or uploaded. If the converter is
+> unavailable, use the `.session` or StringSession route instead.
+
+---
+
+## Adding an optional network route (proxy)
+
+Open the Web UI → **Аккаунты → Сетевые маршруты**. A proxy is an ordinary
+connection route for an account (SOCKS5 / HTTP / HTTPS) — it is **not** a way to
+avoid Telegram limits. The page states this explicitly.
+
+1. Add a profile (`name`, `kind`, `host`, `port`, optional `username`/`password`).
+2. Press **Проверить** for an honest `OK` / `ERROR` / `TIMEOUT` result.
+3. Bind the profile to an account. Credentials are sealed and never shown.
+
+---
+
+## Optional lightweight AI («Мини-ИИ»)
+
+The suite works on rules alone; AI is optional. Two levels:
+
+1. **Built-in encoder** — always available, needs **no download and no model
+   file** (a dependency-free hashing encoder + prototype classifier). Select
+   `encoder` mode on the AI page. Works on the weakest PC.
+2. **Lightweight Russian encoder (ruBERT-tiny2)** — optional, ~115 MB. On the AI
+   page press **«Установить лёгкую модель»**; the suite downloads the official
+   MIT-licensed files, verifies their SHA-256, stores them in the gitignored
+   `models/` folder and reports an honest status (`Не установлена` / `Установлена`
+   / `Готова`). Use **«Проверить»** to run a real load and **«Удалить модель»** to
+   free space. Nothing large is downloaded by default, and the model is never
+   bundled into the portable ZIP.
+
 ---
 
 ## Parsing an audience (PHASE 5)

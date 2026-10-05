@@ -27,10 +27,19 @@ from backend.app.api.schemas.ai import (
     AiSettingsOut,
     AiSettingsUpdate,
     AiStatusOut,
+    EncoderActionResultOut,
+    EncoderStatusOut,
 )
 from backend.app.db.session import get_session
 from backend.app.services.ai_help import human_size, setting_help
 from backend.app.services.ai_service import AI_SETTING_SPECS, AiService, AiStatus, ModelCheck
+from backend.app.services.encoder_service import (
+    MODEL_LICENSE,
+    MODEL_REPO,
+    EncoderInstallResult,
+    EncoderService,
+    EncoderStatus,
+)
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -196,6 +205,56 @@ async def ai_model_load(session: AsyncSession = Depends(get_session)) -> AiModel
 async def ai_model_unload(session: AsyncSession = Depends(get_session)) -> AiStatusOut:
     status = await _service(session).unload_model()
     return _status_out(status)
+
+
+def _encoder_status_out(status: EncoderStatus) -> EncoderStatusOut:
+    return EncoderStatusOut(
+        runtime_available=status.runtime_available,
+        installed=status.installed,
+        ready=status.ready,
+        model_dir=status.model_dir,
+        size_bytes=status.size_bytes,
+        size_human=status.size_human,
+        missing=status.missing,
+        message=status.message,
+        how_to_fix=status.how_to_fix,
+        repo=MODEL_REPO,
+        license=MODEL_LICENSE,
+    )
+
+
+def _encoder_result_out(result: EncoderInstallResult) -> EncoderActionResultOut:
+    return EncoderActionResultOut(
+        ok=result.ok,
+        message=result.message,
+        how_to_fix=result.how_to_fix,
+        downloaded=result.downloaded,
+        status=_encoder_status_out(result.status),
+    )
+
+
+@router.get("/encoder/status", response_model=EncoderStatusOut)
+async def encoder_status(session: AsyncSession = Depends(get_session)) -> EncoderStatusOut:
+    """Status of the optional lightweight (ruBERT-tiny2) encoder."""
+    return _encoder_status_out(await EncoderService(session).status())
+
+
+@router.post("/encoder/install", response_model=EncoderActionResultOut)
+async def encoder_install(session: AsyncSession = Depends(get_session)) -> EncoderActionResultOut:
+    """Download + verify the official lightweight model, then try a real load."""
+    return _encoder_result_out(await EncoderService(session).install())
+
+
+@router.post("/encoder/check", response_model=EncoderActionResultOut)
+async def encoder_check(session: AsyncSession = Depends(get_session)) -> EncoderActionResultOut:
+    """Verify the lightweight model loads (never claims success without a load)."""
+    return _encoder_result_out(await EncoderService(session).check())
+
+
+@router.post("/encoder/remove", response_model=EncoderStatusOut)
+async def encoder_remove(session: AsyncSession = Depends(get_session)) -> EncoderStatusOut:
+    """Delete the downloaded lightweight model (the built-in encoder still works)."""
+    return _encoder_status_out(await EncoderService(session).remove())
 
 
 @router.get("/metrics", response_model=AiMetricsOut)

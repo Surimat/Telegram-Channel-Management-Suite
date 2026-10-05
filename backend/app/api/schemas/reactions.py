@@ -196,6 +196,8 @@ class SimulationOut(BaseModel):
     confidence: float
     source: str
     tone: str = "neutral"
+    intent: str = "neutral"
+    intent_narrowed: bool = False
     mode: str = "auto"
     ai_attempted: bool = False
     ai_used: bool = False
