@@ -728,6 +728,55 @@ and add attribution; protected content keeps only its link.
 
 ---
 
+## Bot Factory (v1.3)
+
+Create a set of worker bots for the owner and bind them to the owner's own
+channels. The factory never registers Telegram accounts and never bypasses
+Telegram limits; a username is reported free only after a real Telegram check.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/bot-factory/templates` | name/username templates |
+| GET | `/api/v1/bot-factory/dashboard` | batch + candidate counts |
+| GET | `/api/v1/bot-factory/batches` | list batches |
+| POST | `/api/v1/bot-factory/batches` | create a batch (`prefix`, `count`, optional `topic`/`style`/`channel_id`/`manager_bot_id`) |
+| GET | `/api/v1/bot-factory/batches/{id}` | one batch with candidates |
+| DELETE | `/api/v1/bot-factory/batches/{id}` | delete a batch |
+| GET | `/api/v1/bot-factory/batches/{id}/dashboard` | per-batch dashboard |
+| POST | `/api/v1/bot-factory/batches/{id}/check` | check candidate username availability (`account_id`) |
+| POST | `/api/v1/bot-factory/batches/{id}/create` | create the batch's bots |
+| POST | `/api/v1/bot-factory/batches/{id}/candidates/{cid}/regenerate` | regenerate one candidate's name/username |
+| POST | `/api/v1/bot-factory/batches/{id}/candidates/{cid}/adopt` | adopt a bot the owner created in @BotFather |
+| POST | `/api/v1/bot-factory/batches/{id}/candidates/{cid}/bind` | bind a candidate's bot to a channel |
+| POST | `/api/v1/bot-factory/candidates/{cid}/tokens` | set the managed bot token (write-only; never returned) |
+
+---
+
+## LAN Mesh / offline control plane (v1.3)
+
+Optional: several of the owner's computers on one local network cooperate with no
+cloud control plane. Standalone (one computer) is the default. Pairing codes and
+shared secrets are write-only and never returned; a peer is never trusted
+automatically.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/mesh/status` | this computer's identity, mode, role, capabilities |
+| GET | `/api/v1/mesh/peers` | peers (`trusted` filter) |
+| POST | `/api/v1/mesh/discover` | look for peers on the LAN (broadcast + static) |
+| POST | `/api/v1/mesh/peers/manual` | add a peer by address |
+| POST | `/api/v1/mesh/pairing-code` | issue a short one-time pairing code |
+| POST | `/api/v1/mesh/pair` | trust a peer after verifying the code |
+| DELETE | `/api/v1/mesh/peers/{id}` | unpair |
+| POST | `/api/v1/mesh/peers/{id}/probe` | check a peer's liveness |
+| POST | `/api/v1/mesh/elect` | recompute the coordinator |
+| GET | `/api/v1/mesh/leases` | job leases |
+| POST | `/api/v1/mesh/leases/acquire` | lease a job to this node (capability-gated) |
+| POST | `/api/v1/mesh/leases/complete` | commit a result (stale fencing token rejected) |
+| POST | `/api/v1/mesh/leases/reclaim` | reclaim expired leases |
+
+---
+
 ## Versioning
 
 The API is versioned (`/api/v1`). Breaking changes go to a new version path.

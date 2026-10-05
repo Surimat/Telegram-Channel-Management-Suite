@@ -9,14 +9,18 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v1.2.0`.** It adds **Content Studio** — collect
-material from sources, clean it, check rights and markup, then publish to your
-own channels on a schedule (see Status below).
+**Current stable release: `v1.3.0`.** It adds the **Bot Factory** (plan and
+create a set of worker bots through the official @BotFather flow) and the
+optional **LAN Mesh / offline control plane** for several of your own computers
+on one local network (see Status below).
 
 ## What it does
 
 - **Manager Bot** — control the suite from Telegram (admin whitelist, notifications).
 - **Managed Bots** — add/health/remove Telegram bots; tokens sealed at rest.
+- **Bot Factory** — plan a set of worker bots, check usernames with Telegram,
+  create each through the official @BotFather flow and adopt it, then bind it to
+  your own channel. It never registers accounts or bypasses Telegram limits.
 - **Bot ↔ channel bindings** — connect a bot to a channel, verify its rights and
   the channel's available reactions (bot-only, no account needed).
 - **User Sessions / Account Hub** — MTProto accounts with an interactive auth
@@ -52,6 +56,9 @@ own channels on a schedule (see Status below).
   optional delivery destinations (local / Telegram / Google Drive / Яндекс.Диск).
 - **Windows Portable** — unpack, run `run.bat`, open the Web UI (zero setup).
 - **Docker / VPS** — one compose file, optional Caddy TLS overlay.
+- **LAN Mesh (optional)** — join several of your own computers on one local
+  network with no cloud control plane; Standalone (one computer) is the default.
+  It never enables Telegram-limit bypass or mass account registration.
 
 ## Documentation (project memory)
 
@@ -100,6 +107,15 @@ Telegram-like preview, inline button sets, per-source moderation (blocked
 keywords + quiet hours), multi-channel planning/calendar, publishing through a
 `PostingProvider` (bot by default; a user account only in the expanded mode),
 durable auto-delete and first comments, and a bounded, restart-safe posting tick.
+**v1.3.0 (released)** adds the **Bot Factory** (plan a set of worker bots, check
+usernames with Telegram, create each bot through the official owner-confirmed
+@BotFather flow and adopt it, then bind it through the existing binding rules;
+D-077/D-078) and the **optional LAN Mesh / offline control plane** (deterministic
+identity, bounded broadcast discovery + manual peers, one-time-code pairing,
+deterministic coordinator election, fencing leases, a `mesh.tick` maintenance job
+and a guard so only the coordinator polls Telegram; D-079…D-083). Standalone (one
+computer) stays the default; neither feature registers accounts or bypasses
+Telegram limits.
 See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
 ## Deployment modes

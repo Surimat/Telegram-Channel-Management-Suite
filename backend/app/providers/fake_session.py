@@ -27,6 +27,7 @@ from backend.app.providers.types import (
     ChannelFetchResult,
     ChannelMessage,
     EntityRef,
+    ManagedBotRef,
     ParticipantPage,
     PermissionReport,
     SendCodeResult,
@@ -162,6 +163,28 @@ class FakeContentScenario:
     fetch_error: Exception | None = None
 
 
+@dataclass
+class FakeBotFactoryScenario:
+    """Controls the fake managed-bot factory (v1.3 Bot Factory).
+
+    ``available`` lists usernames the fake reports free; any other username is
+    reported occupied. ``create_error`` fails every creation (e.g. a Telegram
+    limit); ``create_errors_by_username`` overrides that for specific usernames.
+    ``created`` records the created bots so tests can assert exactly what was
+    requested.
+    """
+
+    available: list[str] = field(default_factory=list)
+    check_error: Exception | None = None
+    create_error: Exception | None = None
+    create_errors_by_username: dict[str, Exception] = field(default_factory=dict)
+    token_error: Exception | None = None
+    #: Prefix for fake bot ids/usernames; the token value is deterministic.
+    token_prefix: str = "fake"
+    created: list[dict[str, object]] = field(default_factory=list)
+    token_requests: list[str] = field(default_factory=list)
+
+
 def make_fake_users(count: int, *, start_id: int = 1) -> list[UserIdentity]:
     """Build a deterministic list of fake users for scan tests."""
     users: list[UserIdentity] = []
@@ -199,6 +222,7 @@ class FakeSessionProvider:
         permission: FakePermissionScenario | None = None,
         discovery: FakeDiscoveryScenario | None = None,
         content: FakeContentScenario | None = None,
+        bot_factory: FakeBotFactoryScenario | None = None,
     ) -> None:
         self._api_id = api_id
         self._api_hash = api_hash
@@ -209,6 +233,7 @@ class FakeSessionProvider:
         self.permission = permission or FakePermissionScenario()
         self.discovery = discovery or FakeDiscoveryScenario()
         self.content = content or FakeContentScenario()
+        self.bot_factory = bot_factory or FakeBotFactoryScenario()
         self.connected = False
         self.closed = True
         self.export_calls = 0
@@ -516,6 +541,42 @@ class FakeSessionProvider:
     ) -> bool:
         self.user_deleted.extend(int(m) for m in message_ids)
         return True
+
+    # --- managed bot factory (v1.3) ------------------------------------------
+    async def check_username(self, username: str) -> bool:
+        scenario = self.bot_factory
+        if scenario.check_error is not None:
+            raise scenario.check_error
+        return (username or "").strip() in set(scenario.available)
+
+    async def create_managed_bot(
+        self, name: str, username: str, manager_username: str, *, via_deeplink: bool = False
+    ) -> ManagedBotRef:
+        scenario = self.bot_factory
+        if username in scenario.create_errors_by_username:
+            raise scenario.create_errors_by_username[username]
+        if scenario.create_error is not None:
+            raise scenario.create_error
+        user_id = 900000 + len(scenario.created) + 1
+        scenario.created.append(
+            {
+                "name": name,
+                "username": username,
+                "manager_username": manager_username,
+                "user_id": user_id,
+                "via_deeplink": via_deeplink,
+            }
+        )
+        return ManagedBotRef(user_id=user_id, username=username, first_name=name)
+
+    async def export_managed_bot_token(
+        self, bot_username: str, *, revoke: bool = False
+    ) -> str:
+        scenario = self.bot_factory
+        if scenario.token_error is not None:
+            raise scenario.token_error
+        scenario.token_requests.append(bot_username)
+        return f"{scenario.token_prefix}-token-{bot_username}"
 
 
 def fake_provider_factory(scenario: FakeAuthScenario | None = None):

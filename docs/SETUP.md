@@ -444,6 +444,50 @@ driven by that tick.
 
 ---
 
+## Creating a set of bots (Bot Factory, v1.3)
+
+Open the Web UI → **Фабрика ботов** (`/bot-factory`) and:
+
+1. **Новая партия** — give the batch a prefix and how many bots you need
+   (optionally a topic/style and the target channel). The page shows the planned
+   names and usernames.
+2. **Проверить** — asks Telegram whether each username is free. A username is
+   never reported free without a real check.
+3. **Создать** — for each bot, create it in the official **@BotFather** chat and
+   then **Принять** (adopt) it in the page. The factory never registers Telegram
+   accounts and never bypasses Telegram limits.
+4. **Подключить к каналу** — bind the created bot to your own channel; it follows
+   the same binding + rights rules as the **Боты** page.
+
+The managed-bot token is write-only: enter it once and it is sealed; it is never
+displayed again.
+
+---
+
+## Joining several computers (LAN Mesh, v1.3, optional)
+
+By default the suite runs on one computer (Standalone). To spread work across
+several of your own computers on one local network:
+
+1. On each computer set `MESH_ENABLED=true`, `MESH_MODE=lan_mesh`, a unique
+   `MESH_NODE_NAME`, `MESH_PRIORITY` and the shared `MESH_SHARED_SECRET`
+   (the same value on every computer), and `APP_HOST=0.0.0.0` so peers can reach
+   it. Each computer keeps its **own** SQLite database — never open one database
+   file over a network share.
+2. Open **Компьютеры** (`/mesh`) → **Найти компьютеры** (or add a peer by
+   address when broadcast is blocked).
+3. On one computer click **Показать код сопряжения** and enter that short code on
+   the other → it becomes trusted. A discovered computer is never trusted
+   automatically.
+4. The highest-priority online computer that advertises the `telegram`
+   capability becomes the coordinator and is the only one that polls Telegram;
+   tasks are leased to one computer and handed over if it goes offline.
+
+This is coordination between your own computers — it is not a way to bypass
+Telegram limits, rotate proxies aggressively or register accounts.
+
+---
+
 ## Configuration
 
 All configuration is available through:

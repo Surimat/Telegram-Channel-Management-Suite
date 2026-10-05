@@ -171,6 +171,32 @@ class Settings(BaseSettings):
     # as the bot's Web App URL in BotFather.
     miniapp_public_url: str = ""
 
+    # --- LAN Mesh / offline control plane (v1.3) ---
+    # Master switch. Off by default: a single computer runs standalone.
+    mesh_enabled: bool = False
+    # "standalone" | "lan_mesh" | "vps_worker".
+    mesh_mode: str = "standalone"
+    # Human-readable name of this computer (shown to the owner).
+    mesh_node_name: str = ""
+    # TCP port this node listens on for peer requests (0 = derive from app_port).
+    mesh_port: int = 0
+    # Deterministic election priority; higher wins, ties break on node id.
+    mesh_priority: int = 0
+    # Advertised capabilities (comma-separated CAP_* values). Empty = all.
+    mesh_capabilities: str = ""
+    # Static peers "host:port,host:port" for networks where broadcast is blocked.
+    mesh_static_peers: str = ""
+    # How long a peer may stay silent before it is treated as offline (seconds).
+    mesh_peer_timeout: int = 30
+    # Default lease duration for one mesh job (seconds).
+    mesh_lease_seconds: int = 120
+    # Shared secret used to authenticate peer requests (never logged/committed).
+    mesh_shared_secret: SecretStr = SecretStr("")
+    # Broadcast discovery on the LAN (best-effort; may be blocked by firewalls).
+    mesh_discovery_enabled: bool = True
+    # Seconds between mesh maintenance ticks (peer probe + election + leases).
+    mesh_tick_interval: int = 15
+
     # --- Logging ---
     log_level: str = "INFO"
     log_dir: str = "./logs"

@@ -1585,6 +1585,141 @@ export interface ContentModeration {
   quiet_hours_tz: string
 }
 
+// --- LAN Mesh (v1.3) ---------------------------------------------------------
+export interface MeshStatus {
+  enabled: boolean
+  mode: string
+  mode_label: string
+  role: string
+  node_id: string
+  name: string
+  capabilities: string[]
+  priority: number
+  host: string
+  port: number
+  coordinator_id: string
+  peers_total: number
+  peers_trusted: number
+  peers_online: number
+  discovery_enabled: boolean
+  note: string
+}
+
+export interface MeshPeer {
+  id: string
+  node_id: string
+  name: string
+  version: string
+  capabilities: string[]
+  priority: number
+  host: string
+  port: number
+  trusted: boolean
+  status: string
+  status_label: string
+  last_seen: string | null
+  note: string
+}
+
+export interface MeshPeerList {
+  items: MeshPeer[]
+  total: number
+}
+
+export interface MeshLease {
+  id: string
+  job_id: string
+  kind: string
+  lease_owner: string
+  lease_until: string | null
+  fencing_token: number
+  status: string
+  attempts: number
+  error: string
+}
+
+export interface MeshLeaseList {
+  items: MeshLease[]
+  total: number
+}
+
+export interface PairingCode {
+  code: string
+  expires_at: string | null
+}
+
+// --- Bot Factory (v1.3) ------------------------------------------------------
+export interface FactoryTemplate {
+  key: string
+  name_template: string
+  username_template: string
+}
+
+export interface FactoryBatch {
+  id: string
+  title: string
+  prefix: string
+  topic: string
+  style: string
+  requested_count: number
+  created_count: number
+  failed_count: number
+  status: string
+  status_label: string
+  manager_username: string
+  channel_id: string
+  limit_note: string
+}
+
+export interface FactoryCandidate {
+  id: string
+  batch_id: string
+  index: number
+  suggested_name: string
+  suggested_username: string
+  username_status: string
+  username_message: string
+  creation_status: string
+  creation_status_label: string
+  bot_id: string
+  telegram_id: number | null
+  deep_link: string
+  error: string
+}
+
+export interface FactoryBatchDetail {
+  batch: FactoryBatch
+  candidates: FactoryCandidate[]
+}
+
+export interface FactoryBatchList {
+  items: FactoryBatch[]
+  total: number
+}
+
+export interface FactoryDashboard {
+  batch_id: string
+  title: string
+  status: string
+  status_label: string
+  requested_count: number
+  created_count: number
+  failed_count: number
+  counts: Record<string, number>
+  manager_username: string
+  channel_id: string
+  limit_note: string
+}
+
+export interface FactoryBindResult {
+  candidate_id: string
+  bot_id: string
+  username: string
+  binding_id: string
+  status: string
+  status_label: string
+}
+
 export const api = {
   health: () => request<Health>('/health'),
   healthDeep: () => request<Record<string, unknown>>('/health/deep'),
@@ -1632,6 +1767,90 @@ export const api = {
     request<Bot>(`/api/v1/bots/${id}/managed/token`, { method: 'POST' }),
   replaceManagedToken: (id: string) =>
     request<Bot>(`/api/v1/bots/${id}/managed/replace-token`, { method: 'POST' }),
+
+  // Bot Factory (v1.3)
+  factoryTemplates: () => request<FactoryTemplate[]>('/api/v1/bot-factory/templates'),
+  factoryBatches: () => request<FactoryBatchList>('/api/v1/bot-factory/batches'),
+  factoryBatch: (id: string) =>
+    request<FactoryBatchDetail>(`/api/v1/bot-factory/batches/${id}`),
+  createFactoryBatch: (payload: {
+    prefix: string
+    count: number
+    title?: string
+    topic?: string
+    style?: string
+    manager_bot_id?: string
+    account_id?: string
+    channel_id?: string
+  }) =>
+    request<FactoryBatchDetail>('/api/v1/bot-factory/batches', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  deleteFactoryBatch: (id: string) =>
+    request<null>(`/api/v1/bot-factory/batches/${id}`, { method: 'DELETE' }),
+  checkFactoryBatch: (id: string, accountId = '') =>
+    request<FactoryBatchDetail>(
+      `/api/v1/bot-factory/batches/${id}/check?account_id=${encodeURIComponent(accountId)}`,
+      { method: 'POST' },
+    ),
+  regenerateFactoryCandidate: (id: string) =>
+    request<FactoryCandidate>(`/api/v1/bot-factory/candidates/${id}/regenerate`, {
+      method: 'POST',
+    }),
+  createFactoryBots: (id: string, viaDeeplink = false) =>
+    request<FactoryBatchDetail>(
+      `/api/v1/bot-factory/batches/${id}/create?via_deeplink=${viaDeeplink}`,
+      { method: 'POST' },
+    ),
+  adoptFactoryBot: (id: string, payload: { username: string; telegram_id: number; title?: string }) =>
+    request<FactoryCandidate>(`/api/v1/bot-factory/batches/${id}/adopt`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  registerFactoryTokens: (id: string) =>
+    request<{ imported: number; pending: number }>(
+      `/api/v1/bot-factory/batches/${id}/tokens`,
+      { method: 'POST' },
+    ),
+  bindFactoryBots: (id: string, payload: { channel_id: string; function?: string }) =>
+    request<FactoryBindResult[]>(`/api/v1/bot-factory/batches/${id}/bind`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  factoryDashboard: (id: string) =>
+    request<FactoryDashboard>(`/api/v1/bot-factory/batches/${id}/dashboard`),
+
+  // LAN Mesh (v1.3)
+  meshStatus: () => request<MeshStatus>('/api/v1/mesh/status'),
+  meshPeers: (trusted?: boolean) =>
+    request<MeshPeerList>(
+      '/api/v1/mesh/peers' + (trusted === undefined ? '' : `?trusted=${trusted}`),
+    ),
+  meshDiscover: () => request<MeshPeerList>('/api/v1/mesh/discover', { method: 'POST' }),
+  meshAddPeer: (payload: { host: string; port: number; name?: string }) =>
+    request<MeshPeer>('/api/v1/mesh/peers/manual', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  meshPairingCode: () =>
+    request<PairingCode>('/api/v1/mesh/pairing-code', { method: 'POST' }),
+  meshPair: (payload: {
+    code: string
+    node_id?: string
+    host?: string
+    port?: number
+    name?: string
+    capabilities?: string[]
+    priority?: number
+  }) => request<MeshPeer>('/api/v1/mesh/pair', { method: 'POST', body: JSON.stringify(payload) }),
+  meshUnpair: (id: string) =>
+    request<null>(`/api/v1/mesh/peers/${id}`, { method: 'DELETE' }),
+  meshProbe: (id: string) =>
+    request<MeshPeer>(`/api/v1/mesh/peers/${id}/probe`, { method: 'POST' }),
+  meshElect: () =>
+    request<{ coordinator_id: string }>('/api/v1/mesh/elect', { method: 'POST' }),
+  meshLeases: () => request<MeshLeaseList>('/api/v1/mesh/leases'),
 
   // Reactions (PHASE 3)
   reactionCategories: () =>

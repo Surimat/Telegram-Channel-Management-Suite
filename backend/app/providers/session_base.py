@@ -17,6 +17,7 @@ from typing import Protocol, runtime_checkable
 from backend.app.providers.types import (
     ChannelFetchResult,
     EntityRef,
+    ManagedBotRef,
     ParticipantPage,
     PermissionReport,
     SendCodeResult,
@@ -132,6 +133,37 @@ class SessionProvider(Protocol):
         Uses the official ``channels.getChannelRecommendations`` method when the
         installed library exposes it. An empty list means Telegram returned no
         recommendations. Limits are never bypassed.
+        """
+        ...
+
+    # --- Managed bot factory (v1.3, official MTProto) ------------------------
+    async def check_username(self, username: str) -> bool:
+        """Return whether ``username`` is available for a managed bot.
+
+        Uses the official ``bots.checkUsername`` method. A False result means
+        Telegram reported the username taken/invalid; providers that cannot call
+        it raise ``UnsupportedOperationError`` rather than guessing (D-001).
+        """
+        ...
+
+    async def create_managed_bot(
+        self, name: str, username: str, manager_username: str, *, via_deeplink: bool = False
+    ) -> ManagedBotRef:
+        """Create a managed bot owned by this account, controlled by ``manager_username``.
+
+        Uses the official ``bots.createBot`` method. The manager bot must have
+        the ``bot_can_manage_bots`` flag. Telegram enforces its own ownership
+        limit (``BOT_CREATE_LIMIT_EXCEEDED``), which is never bypassed (D-006).
+        """
+        ...
+
+    async def export_managed_bot_token(
+        self, bot_username: str, *, revoke: bool = False
+    ) -> str:
+        """Export a managed bot's token via the manager bot (``bots.exportBotToken``).
+
+        The returned token is a secret: providers MUST NOT log or return it
+        anywhere except to the caller, which seals it at rest.
         """
         ...
 

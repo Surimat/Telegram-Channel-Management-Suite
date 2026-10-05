@@ -25,6 +25,9 @@ from backend.app.services.reaction_service import REACTION_JOB_KIND, ReactionSer
 #: that an idle install does not spin.
 POSTING_TICK_SECONDS = 15
 
+#: Durable-queue kind for the LAN Mesh maintenance tick.
+MESH_TICK_JOB_KIND = "mesh.tick"
+
 
 async def _handle_reaction(session: AsyncSession, job: Job) -> None:
     payload = json.loads(job.payload or "{}")
@@ -73,12 +76,37 @@ async def _handle_posting(session: AsyncSession, job: Job) -> None:
     )
 
 
+async def _handle_mesh_tick(session: AsyncSession, job: Job) -> None:
+    # Maintenance pass: probe trusted peers, recompute the coordinator and release
+    # expired leases. Only runs when the mesh is enabled; otherwise it is a no-op
+    # that still re-schedules so enabling the mesh later needs no restart.
+    from backend.app.core.config import get_settings
+
+    settings = get_settings()
+    if settings.mesh_enabled and settings.mesh_mode != "standalone":
+        from backend.app.mesh.service import MeshService
+
+        service = MeshService(session, settings=settings)
+        await service.ensure_node()
+        for peer in await service.peers.list_all(trusted=True):
+            await service.probe_peer(peer.id)
+        await service.elect()
+        await service.reclaim_expired()
+    await QueueService(session).enqueue(
+        kind=MESH_TICK_JOB_KIND,
+        payload={},
+        scheduled_at=utcnow() + timedelta(seconds=max(5, settings.mesh_tick_interval)),
+        max_attempts=1,
+    )
+
+
 def register_handlers(scheduler: Scheduler) -> None:
     """Register every durable-queue handler on ``scheduler``."""
     scheduler.register(REACTION_JOB_KIND, _handle_reaction)
     scheduler.register(SCAN_JOB_KIND, _handle_scan)
     scheduler.register(INVITE_JOB_KIND, _handle_invite)
     scheduler.register(POSTING_JOB_KIND, _handle_posting)
+    scheduler.register(MESH_TICK_JOB_KIND, _handle_mesh_tick)
 
 
-__all__ = ["register_handlers"]
+__all__ = ["MESH_TICK_JOB_KIND", "register_handlers"]

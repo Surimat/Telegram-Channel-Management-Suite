@@ -432,6 +432,44 @@ publishing capability it cannot verify and never publishes without a click.
 
 ---
 
+## 11b. Bot Factory page (`BotFactoryView.vue`, `/bot-factory`, v1.3)
+
+A guided page that creates a set of worker bots for the owner's channels.
+
+- The owner names a batch (prefix + how many bots, optional topic/style/channel),
+  the page shows the planned names and usernames, and «Проверить» asks Telegram
+  whether each username is free. A username is never shown as free without a
+  real check.
+- Creation is explicit: the owner creates the bot in the official @BotFather
+  flow and the page **adopts** it. The page never registers Telegram accounts and
+  never bypasses Telegram limits.
+- A created bot can be bound to a channel from here, following the same binding
+  and capability rules as the Боты page. The managed-bot token is write-only and
+  is never displayed.
+
+---
+
+## 11c. Компьютеры / LAN Mesh page (`MeshView.vue`, `/mesh`, v1.3)
+
+An optional page for the owner's several computers on one local network. It
+states up front that the app works on one computer by default and this page is
+only needed to join several.
+
+- Shows this computer's identity, role (главный / рабочий / один компьютер) and
+  advertised capabilities.
+- «Найти компьютеры» looks for peers on the LAN; a manual address form is
+  available when broadcast is blocked.
+- «Показать код сопряжения» issues a short one-time code; the other computer
+  enters it to become trusted. A found computer is never trusted automatically.
+- Each peer shows its status (В сети / Не в сети / Занят / Неизвестно) and a
+  «Проверить» action that performs a real liveness check.
+- The lease table explains that each task runs on exactly one computer and is
+  handed to another if that computer goes offline.
+
+No pairing code or shared secret is ever shown after pairing.
+
+---
+
 ## 12. Terminology (one word per entity)
 
 Use exactly one term per entity across the UI, docs and API text:
