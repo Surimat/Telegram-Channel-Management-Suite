@@ -166,6 +166,40 @@ class SessionFileInfo:
     is_readable: bool = False
 
 
+@dataclass(slots=True)
+class ChannelMessage:
+    """One message read from a Telegram channel (content grabber, v1.2).
+
+    Only non-secret, display-safe fields. ``entities`` are Telegram-style entity
+    dicts; ``media_urls`` are references (never downloaded here).
+    """
+
+    message_id: int
+    text: str = ""
+    url: str = ""
+    date: str = ""
+    entities: list[dict[str, object]] = field(default_factory=list)
+    media_urls: list[str] = field(default_factory=list)
+    protected: bool = False
+
+
+@dataclass(slots=True)
+class ChannelFetchResult:
+    """Outcome of reading a Telegram channel's messages (v1.2).
+
+    ``protected`` is True when the channel forbids forwarding/downloading; the
+    caller must then keep only the link (never bypass the protection — D-006).
+    """
+
+    ok: bool
+    source_channel: str = ""
+    source_url: str = ""
+    protected: bool = False
+    items: list[ChannelMessage] = field(default_factory=list)
+    message: str = ""
+    how_to_fix: str = ""
+
+
 # --- Manager bot runtime (post-1.0 hardening) --------------------------------
 
 

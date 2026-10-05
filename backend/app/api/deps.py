@@ -22,6 +22,7 @@ from backend.app.services.bot_service import BotService, ProviderFactory
 from backend.app.services.campaign_service import CampaignService
 from backend.app.services.capability_service import CapabilityService
 from backend.app.services.channel_service import ChannelService
+from backend.app.services.content_service import ContentError, ContentService
 from backend.app.services.destination_service import DestinationService
 from backend.app.services.diagnostics_service import DiagnosticsService
 from backend.app.services.donor_service import DonorService
@@ -157,3 +158,29 @@ def get_update_service(
     session: AsyncSession = Depends(get_session),
 ) -> UpdateService:
     return UpdateService(session)
+
+
+async def get_content_service(
+    session: AsyncSession = Depends(get_session),
+    provider_factory: SessionProviderFactory = Depends(get_session_provider_factory),
+) -> ContentService:
+    """Content Studio service wired to the account provider factory.
+
+    The resolver builds a :class:`SessionProvider` for the account a source names
+    (or the first enabled account), keeping Telethon out of the Content Service.
+    """
+
+    async def _resolve(account_id: str = ""):  # type: ignore[no-untyped-def]
+        service = SessionService(session, provider_factory=provider_factory)
+        account = await service.get(account_id) if account_id else None
+        if account is None:
+            accounts = await service.list_accounts(enabled=True)
+            account = accounts[0] if accounts else None
+        if account is None:
+            raise ContentError(
+                "Для этого источника нужен подключённый аккаунт Telegram.",
+                how_to_fix="Добавьте аккаунт в разделе «Аккаунты».",
+            )
+        return await service.provider_for_with_proxy(account)
+
+    return ContentService(session, resolve_provider=_resolve)

@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from backend.app.providers.types import (
+    ChannelFetchResult,
     EntityRef,
     ParticipantPage,
     PermissionReport,
@@ -131,5 +132,17 @@ class SessionProvider(Protocol):
         Uses the official ``channels.getChannelRecommendations`` method when the
         installed library exposes it. An empty list means Telegram returned no
         recommendations. Limits are never bypassed.
+        """
+        ...
+
+    async def fetch_channel_messages(
+        self, channel: str | int, *, limit: int = 20, min_id: int = 0
+    ) -> ChannelFetchResult:
+        """Read recent messages from a Telegram channel (content grabber, v1.2).
+
+        ``min_id`` returns only messages newer than that id, so grabbing is
+        incremental. Content protection is respected: when the channel forbids
+        forwarding/downloading the result sets ``protected=True`` and carries
+        only the link — callers must never bypass it (D-006).
         """
         ...
