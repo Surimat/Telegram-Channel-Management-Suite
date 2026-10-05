@@ -665,4 +665,13 @@ Enabling the mesh is a configuration choice (`mesh_enabled`); it never enables
 bypassing Telegram limits, aggressive proxy rotation, or mass account
 registration.
 
+**Scope (verified 2026-10-05): the mesh is a coordination layer, not a
+distributed job mesh.** The worker primitives exist (the `WORKER` role,
+capability matching, fencing-token leases, `reclaim_expired`, election, the
+coordinator-only poller guard), but there is **no remote job-dispatch +
+worker-execution loop**: `MeshTransport` carries only the `/api/v1/mesh/ping`
+liveness probe, and leases are acquired/completed locally through
+`/api/v1/mesh/leases/*`. `MeshMode.VPS_WORKER` is a declared enum/config value
+only — there is no PostgreSQL control plane (D-002).
+
 ---

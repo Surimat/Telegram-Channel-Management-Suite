@@ -434,6 +434,17 @@ Layered architecture: **core → db/models → db/repositories → services → 
 
 ## 4. What does NOT exist yet
 
+- **Worker Mesh remote dispatch/execution — PARTIAL (verified 2026-10-05).** The
+  LAN Mesh ships the *worker primitives* (the `WORKER` role, capability
+  advertisement/matching, fencing-token leases that a worker can acquire/complete,
+  `reclaim_expired`, coordinator election, and the coordinator-only poller guard
+  in `main.py`), but there is **no remote job-dispatch + worker-execution loop**:
+  `MeshTransport` is used only for the `/api/v1/mesh/ping` liveness probe, and
+  leases are acquired/completed locally through `/api/v1/mesh/leases/*`, not pulled
+  from a coordinator and executed on a peer. **VPS Worker mode** (`MeshMode.VPS_WORKER`)
+  is a declared enum/config value only — there is no PostgreSQL control plane
+  (SQLite-now/Postgres-later, D-002). So the LAN Mesh is a real *coordination layer*
+  for the owner's own computers, not a distributed job mesh.
 - Mini App: BotFather Web App **menu-button** registration is automated
   (`POST /api/v1/miniapp/setup`, D-054); providing a public HTTPS URL remains the
   owner's deployment step. The Mini App is off by default.

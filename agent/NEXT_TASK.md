@@ -51,8 +51,24 @@ attached the Windows portable ZIP + `.sha256` (~24 MB, checksum verified). No
 manual step. (v1.0.4: PR #5, merge `3f42c3d`, tag `v1.0.4`;
 v1.0.3: PR #4, merge `f18f53a`, tag `v1.0.3`.)
 
-### 3. Maintenance / optional extensions (only if the owner asks)
+### 3. Worker Mesh verification (done — verified 2026-10-05)
 
+**Status: PARTIAL.** The LAN Mesh ships the *worker primitives* (the `WORKER`
+role, capability advertisement/matching, fencing-token leases that a worker can
+acquire/complete, `reclaim_expired`, coordinator election, and the
+coordinator-only poller guard in `main.py`), but there is **no remote
+job-dispatch + worker-execution loop** — `MeshTransport` is used only for the
+`/api/v1/mesh/ping` liveness probe, and leases are acquired/completed locally via
+`/api/v1/mesh/leases/*`. `MeshMode.VPS_WORKER` is a declared enum/config value
+only; there is no PostgreSQL control plane (D-002). So the LAN Mesh is a real
+coordination layer for the owner's own computers, **not** a distributed job mesh.
+Do not claim remote worker execution until a dispatch + execution loop exists.
+
+### 4. Maintenance / optional extensions (only if the owner asks)
+
+- A remote job-dispatch + worker-execution loop over `MeshTransport` (turning the
+  PARTIAL Worker Mesh primitives into real remote execution) — only if the owner
+  asks; record a decision first.
 - A fully automated @BotFather Mini App flow (the one-click menu-button
   registration exists, D-054).
 - Short-lived signed session tokens for the Mini App if it is ever exposed beyond
