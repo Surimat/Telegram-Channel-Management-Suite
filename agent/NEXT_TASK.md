@@ -4,31 +4,31 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-05
-**Status:** **v1.2.0 Content Studio is complete on `develop` and awaiting
-release.** It adds the v1.2 **content-studio foundation** (D-071…D-076): content
-sources (Telegram / RSS / Atom / manual), deduplication, an explainable cleaner,
-usage-rights tracking + attribution, markup validation + a Telegram-like preview,
-inline buttons, per-source moderation, multi-channel planning/calendar, and
-publishing through a `PostingProvider` (bot by default) with durable auto-delete
-and first comments. v1.1.0 remains released (PR #7 `develop → main`, merge
-`3438305`, tag `v1.1.0`; GitHub Release with the Windows portable ZIP + `.sha256`,
-built by CI — D-060). The roadmap (PHASE 0–11) is complete. Version strings read
-`1.2.0`. Suite is green at **611 passed**; `ruff` clean; `vue-tsc` + `npm run
-build` clean; CI enforces the gates (D-053).
+**Status:** **v1.2.0 Content Studio is released** (PR #8 `develop → main`, merge
+`ea6c161`, tag `v1.2.0`; GitHub Release with the Windows portable ZIP + `.sha256`,
+built by CI — D-060). It adds the v1.2 **content-studio foundation**
+(D-071…D-076): content sources (Telegram / RSS / Atom / manual), deduplication, an
+explainable cleaner, usage-rights tracking + attribution, markup validation + a
+Telegram-like preview, inline buttons, per-source moderation, multi-channel
+planning/calendar, and publishing through a `PostingProvider` (bot by default)
+with durable auto-delete and first comments. v1.1.0 remains released. The roadmap
+(PHASE 0–11) is complete. Version strings read `1.2.0`. Suite is green at **611
+passed**; `ruff` clean; `vue-tsc` + `npm run build` clean; CI enforces the gates
+(D-053).
 
 ---
 
-## Active task: release v1.2.0, then maintenance only
+## Active task: maintenance only
 
 **Do NOT add new large features and do NOT open a new PHASE.** The suite is
 feature-complete; there is no required next phase.
 
-### 1. Release v1.2.0 (next)
+### 1. Release v1.2.0 (done)
 
-Run the standard flow from `docs/RELEASE_CHECKLIST.md`: commit the v1.2.0 work →
-push `develop` → green CI → reviewed PR `develop → main` → tag `v1.2.0` → the
-Release workflow attaches the Windows portable ZIP + `.sha256` (D-060). Do **not**
-push directly to `main` and do **not** move/rewrite the `v1.0.0`–`v1.1.0` tags
+Merged via reviewed PR #8 (`develop → main`, merge `ea6c161`), tagged `v1.2.0`;
+the Release workflow created the GitHub Release and attached the Windows portable
+ZIP + `.sha256` (D-060). `develop` was synced back to the merge commit. Do **not**
+push directly to `main` and do **not** move/rewrite the `v1.0.0`–`v1.2.0` tags
 (D-050).
 
 ### 2. Release history (done)

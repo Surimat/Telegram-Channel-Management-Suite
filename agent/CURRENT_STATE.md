@@ -4,11 +4,11 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-05
-**Current phase:** **v1.x maintenance (no new phases).** **v1.2.0 Content Studio is complete on `develop` and awaiting release.** It adds the v1.2 **content-studio foundation** (D-071…D-076): content sources (Telegram / RSS / Atom / manual) with deduplication, a deterministic explainable cleaner, usage-rights tracking + attribution, Telegram markup validation + a Telegram-like preview, inline button sets, per-source moderation (blocked keywords + quiet hours), multi-channel planning/calendar, publishing through a `PostingProvider` (bot by default; user account only in the expanded mode), durable auto-delete and first comments, and a bounded restart-safe posting tick (`content.posting`). Nothing is published without an explicit owner action; protected content keeps only its link (D-006/D-074); the AI narrows, it never picks emoji (D-033/D-076).
+**Current phase:** **v1.x maintenance (no new phases).** **v1.2.0 Content Studio is released** — PR #8 (`develop → main`, merge `ea6c161`), tag `v1.2.0`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It adds the v1.2 **content-studio foundation** (D-071…D-076): content sources (Telegram / RSS / Atom / manual) with deduplication, a deterministic explainable cleaner, usage-rights tracking + attribution, Telegram markup validation + a Telegram-like preview, inline button sets, per-source moderation (blocked keywords + quiet hours), multi-channel planning/calendar, publishing through a `PostingProvider` (bot by default; user account only in the expanded mode), durable auto-delete and first comments, and a bounded restart-safe posting tick (`content.posting`). Nothing is published without an explicit owner action; protected content keeps only its link (D-006/D-074); the AI narrows, it never picks emoji (D-033/D-076).
 Earlier: **v1.1.0 is released** — PR #7 (`develop → main`, merge commit `3438305`), tag `v1.1.0`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It carries the multi-format **Account Hub** importer (`.session`, `.session`+JSON, StringSession, optional TDATA; D-070), optional per-account **network routes (proxies)** (D-065), **donor discovery** (candidate proposals only, D-066), a **lightweight local encoder** classifier mode (D-067) with the optional **ruBERT-tiny2** embedding backend + install flow (D-068), and the bot-only/risk UX (D-069). The v1.0.5 **product slice** (D-064): bot↔channel **bindings** + channel **reaction capabilities**, session-free invite **Кампании** + explainable **donor quality**, **backup delivery destinations**, a resumable first-run **Setup Wizard**, and a conservative, off-by-default **auto-update**. `v1.0.0`–`v1.1.0` stay immutable (D-050).
 Version string is **1.2.0** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
 All gates pass: `pytest` **611 passed**, `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend and frontend gates.
-**Repository status:** `main == develop == 3438305` (v1.1.0 release merge, PR #7); tags `v1.0.0`–`v1.1.0`; each GitHub Release carries the Windows portable ZIP + `.sha256` (built by CI, D-060). The v1.2.0 work sits on `develop` above `3438305`, awaiting the standard release flow.
+**Repository status:** `main == develop == ea6c161` (v1.2.0 release merge, PR #8); tags `v1.0.0`–`v1.2.0`; each GitHub Release carries the Windows portable ZIP + `.sha256` (built by CI, D-060).
 **Branch:** develop (working branch); main is released and updated only via pull request.
 **Latest work (v1.2.0 Content Studio):** models + additive migration, content/posting providers, cleaner + markup services, `content_service` + `posting_service`, the `content.posting` durable periodic tick, the `/api/v1/content/*` API, a RU-first **Content Studio** UI page (`/content`), help topics, tests (`test_content_posting.py`, `test_content_posting_api.py`, extended scheduler/migration/help tests), docs and agent memory. Suite **611 passed**; `ruff` clean; `vue-tsc` + `npm run build` clean.
 
@@ -787,19 +787,16 @@ additive with server defaults).
 
 ## 5. Next action
 
-**v1.2.0 Content Studio is complete on `develop` and awaiting release.** The next
-step is the standard release flow from `docs/RELEASE_CHECKLIST.md`: commit the
-v1.2.0 work → push `develop` → green CI → reviewed PR `develop → main` → tag
-`v1.2.0` → the Release workflow attaches the Windows portable ZIP + `.sha256`
-(D-060). Do **not** push directly to `main` and do **not** move the
-`v1.0.0`–`v1.1.0` tags (D-050).
+**v1.2.0 Content Studio is released** (PR #8 `develop → main`, merge `ea6c161`,
+tag `v1.2.0`; GitHub Release with the Windows portable ZIP + `.sha256`, built by
+CI — D-060). `develop` is synced to the merge commit. No required next phase.
 
-After release, `NEXT_TASK` returns to **MAINTENANCE / OPTIONAL EXTENSIONS**; the
-roadmap (PHASE 0–11) is complete and there is no required next phase. Optional
-future work (only if the owner asks): a fully automated @BotFather Mini App flow
-(D-054); short-lived signed Mini App tokens if it is ever exposed beyond the owner
-(D-035); a reliable, permissively-licensed TDATA converter adapter (D-070); or any
-feature the owner requests (record a decision; keep the vertical-slice workflow).
+`NEXT_TASK` returns to **MAINTENANCE / OPTIONAL EXTENSIONS**; the roadmap
+(PHASE 0–11) is complete. Optional future work (only if the owner asks): a fully
+automated @BotFather Mini App flow (D-054); short-lived signed Mini App tokens if
+it is ever exposed beyond the owner (D-035); a reliable, permissively-licensed
+TDATA converter adapter (D-070); or any feature the owner requests (record a
+decision; keep the vertical-slice workflow).
 
 ### RC verification (2026-10-03) — done against a live server in offline mode
 

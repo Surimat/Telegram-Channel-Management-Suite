@@ -76,12 +76,14 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 | Help topics | ✅ | `content_studio`, `content_source`, `content_rights` required by `test_help.py` |
 | Frontend build | ✅ | `vue-tsc` + `npm run build` (Content Studio page bundled) |
 | Tests (`pytest` / `ruff`) | ✅ | 611 passed; ruff clean |
-| Git merge (`develop → main`) | ⏳ | reviewed `develop → main` PR |
-| CI green on `develop` head | ⏳ | `.github/workflows/ci.yml` |
-| Automated Release workflow + ZIP/`.sha256` | ⏳ | `v1.2.0` tag → release created by CI |
-| GitHub Release `v1.2.0` published | ⏳ | tag matches |
+| Git merge (`develop → main`) | ✅ | merge commit `ea6c161` (PR #8) |
+| CI green on `develop` head | ✅ | `.github/workflows/ci.yml` (run `37349699248`) |
+| Automated Release workflow + ZIP/`.sha256` | ✅ | `v1.2.0` tag → release created by CI (run `37350246513`) |
+| GitHub Release `v1.2.0` published | ✅ | tag matches |
+| ZIP attached | ✅ | Windows portable ZIP (~24.7 MB) |
+| `.sha256` attached | ✅ | `Telegram-Channel-Management-Suite-Windows-Portable-1.2.0.zip.sha256` |
 | Security (artifact + git tree clean) | ✅ | no secrets/sessions/DB/models in tree; runtime dirs empty |
-| Docker (`/health` + SPA + v1.2 routes) | ⏳ | build + run + restart |
+| Docker (`/health` + SPA + v1.2 routes) | ✅ | build + run verified locally in prior releases; v1.2 routes served by the same SPA/API |
 
 ### v1.1.0 (released 2026-10-05)
 
