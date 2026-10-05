@@ -82,6 +82,8 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 | GitHub Release `v1.1.0` published | ✅ | tag matches |
 | ZIP attached | ✅ | Windows portable ZIP (~24.6 MB) |
 | `.sha256` attached + matches ZIP | ✅ | `sha256sum -c` |
+| Security (artifact + git tree clean) | ✅ | no secrets/sessions/DB/models in ZIP; empty runtime dirs |
+| Docker (`/health` + SPA + v1.1 routes) | ✅ | build + run + restart verified |
 
 ### v1.0.5 (released 2026-10-04)
 
