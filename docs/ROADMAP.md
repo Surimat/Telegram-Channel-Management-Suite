@@ -207,12 +207,12 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ## Release
 
-- **v1.1.0 (2026-10-04, prepared on `develop`):** Account Hub local importer,
-  network routes (proxies), donor discovery, the lightweight encoder +
-  ruBERT-tiny2 backend, and the bot-only / risk UX (D-065…D-070). No new
-  phases. Released from `develop` via a reviewed `develop → main` PR, tagged
-  `v1.1.0`; the Windows portable ZIP + `.sha256` are attached to the GitHub
-  Release by the automated Release workflow (D-060).
+- **v1.1.0 (2026-10-05):** Account Hub local importer, network routes (proxies),
+  donor discovery, the lightweight encoder + ruBERT-tiny2 backend, and the
+  bot-only / risk UX (D-065…D-070). No new phases. Released from `develop` via
+  reviewed PR #7 (`develop → main`, merge `3438305`), tagged `v1.1.0`; the Windows
+  portable ZIP + `.sha256` are attached to the GitHub Release by the automated
+  Release workflow (D-060).
 - **v1.0.5 (2026-10-04):** product-slice release — bot↔channel **bindings** +
   channel **reaction capabilities** (the reaction planner honours the channel's
   real emoji set), session-free invite **Кампании** with conservative risk modes

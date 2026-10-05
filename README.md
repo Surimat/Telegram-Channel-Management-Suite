@@ -9,9 +9,9 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v1.0.5`.** Next release ready on `develop`: `v1.1.0`
-(Account Hub import, network routes, donor discovery, lightweight encoder —
-see Status below).
+**Current stable release: `v1.1.0`.** It adds the Account Hub importer, network
+routes, donor discovery, the lightweight encoder and the bot-only / risk UX
+(see Status below).
 
 ## What it does
 
@@ -80,13 +80,13 @@ with a **redacted diagnostic report** for support, and a **product slice**:
 bot↔channel bindings + reaction capabilities, session-free invite **Кампании**
 with source-quality indicators, **backup delivery destinations**, a first-run
 **Setup Wizard**, and a conservative, off-by-default **auto-update**.
-**v1.1.0 (ready on `develop`)** adds the multi-format **Account Hub** local
-importer (`.session`, `.session` + JSON, StringSession, optional TDATA;
-owner-scoped and secret-safe), optional per-account **network routes (proxies)**,
-**donor discovery** (candidate proposals only), a **lightweight local encoder**
-classifier mode plus the optional **ruBERT-tiny2** backend with a verified
-one-click install, and the **bot-only / risk UX** (session-free analytics, an
-adaptive wizard and intent-narrowed reactions).
+**v1.1.0 (released)** adds the multi-format **Account Hub** local importer
+(`.session`, `.session` + JSON, StringSession, optional TDATA; owner-scoped and
+secret-safe), optional per-account **network routes (proxies)**, **donor
+discovery** (candidate proposals only), a **lightweight local encoder** classifier
+mode plus the optional **ruBERT-tiny2** backend with a verified one-click install,
+and the **bot-only / risk UX** (session-free analytics, an adaptive wizard and
+intent-narrowed reactions).
 See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
 ## Deployment modes

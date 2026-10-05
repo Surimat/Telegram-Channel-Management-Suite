@@ -3,37 +3,29 @@
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
-**Updated:** 2026-10-04
-**Status:** **v1.1.0 READY TO RELEASE** (on `develop`). The roadmap (PHASE 0–11)
-is complete. **v1.0.5 is released** (merge `496598f` on `main`; PR #6; tag
-`v1.0.5`; GitHub Release with the Windows portable ZIP + `.sha256`, built by CI —
-D-060). **v1.1.0** completes the requested vertical slice: the multi-format
-**Account Hub** importer, optional per-account **network routes (proxies)**,
-**donor discovery**, a **lightweight local encoder** (+ optional **ruBERT-tiny2**
-embeddings) and the **bot-only / risk UX**. Version strings already read `1.1.0`.
-Suite is green at **574 passed**; `ruff` clean; `vue-tsc` + `npm run build` clean;
-CI enforces the gates (D-053).
+**Updated:** 2026-10-05
+**Status:** **v1.1.0 is released** (PR #7 `develop → main`, merge `3438305`, tag
+`v1.1.0`; GitHub Release with the Windows portable ZIP + `.sha256`, built by CI —
+D-060). The roadmap (PHASE 0–11) is complete. v1.1.0 completed the requested
+vertical slice: the multi-format **Account Hub** importer, optional per-account
+**network routes (proxies)**, **donor discovery**, a **lightweight local encoder**
+(+ optional **ruBERT-tiny2** embeddings) and the **bot-only / risk UX**. Version
+strings read `1.1.0`. Suite is green at **574 passed**; `ruff` clean; `vue-tsc` +
+`npm run build` clean; CI enforces the gates (D-053).
 
 ---
 
-## Active task: release v1.1.0, then maintenance only
+## Active task: maintenance only
 
-**Do NOT add new large features and do NOT open a new PHASE.**
+**Do NOT add new large features and do NOT open a new PHASE.** The suite is
+feature-complete; there is no required next phase.
 
-### 1. Release v1.1.0 (next action)
+### 1. Release v1.1.0 (done)
 
-Follow `docs/RELEASE_CHECKLIST.md`:
-
-1. Commit the v1.1.0 work on `develop` (docs + agent memory + tests + `.gitignore`
-   + the cp775 mojibake fix in `docs/API.md`) and push `develop`.
-2. Wait for green CI (`ruff` + `pytest`; `npm ci` + `npm run build`).
-3. Open a reviewed **`develop → main`** PR, merge it (never a direct push to
-   `main`).
-4. Tag the merged `main` commit **`v1.1.0`** and push the tag; the **Release**
-   workflow builds the Windows portable ZIP via `scripts/build_portable.sh` and
-   attaches it (+ `.sha256`) to the GitHub Release (D-060).
-
-Do **not** move/rewrite the `v1.0.0`–`v1.0.5` tags (D-050).
+Merged via reviewed PR #7 (`develop → main`, merge `3438305`), tagged `v1.1.0`;
+the Release workflow created the GitHub Release and attached the Windows portable
+ZIP + `.sha256` (D-060). `develop` was fast-forwarded to `3438305`. Do **not**
+move/rewrite the `v1.0.0`–`v1.1.0` tags (D-050).
 
 ### 2. Release history (done)
 

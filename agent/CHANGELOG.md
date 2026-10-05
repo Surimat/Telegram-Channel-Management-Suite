@@ -5,12 +5,14 @@ Dates are ISO-8601.
 
 ---
 
-## [1.1.0] — 2026-10-04
+## [1.1.0] — 2026-10-05 — released
 
 Maintenance/minor release: optional per-account **network routes**, **donor
 discovery**, a **lightweight local encoder**, the multi-format **Account Hub**
 importer and the bot-only/risk UX. No new phase; every addition is opt-in and
-never bypasses Telegram limits.
+never bypasses Telegram limits. Released from `develop` via reviewed PR #7
+(`develop → main`, merge `3438305`), tag `v1.1.0`; the Release workflow attached
+the Windows portable ZIP + `.sha256` (D-060).
 
 ### Added — Account Hub (local session import)
 - `services/session_import.py`: one `SessionImportProvider` protocol covering

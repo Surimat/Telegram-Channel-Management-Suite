@@ -65,7 +65,7 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 
 ## 6. Release verification (fill in per release)
 
-### v1.1.0 (complete on `develop`; awaiting merge + tag)
+### v1.1.0 (released 2026-10-05)
 
 | Gate | v1.1.0 | Notes |
 | --- | --- | --- |
@@ -73,12 +73,15 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 | New API tests | ✅ | `test_proxy_api.py`, `test_proxy_service.py`, `test_discovery_api.py`, `test_donor_discovery.py`, `test_encoder.py`, `test_encoder_service.py`, `test_session_import.py`, `test_reaction_planner.py` |
 | Session-import security tests | ✅ | StringSession never returned/logged; companion-JSON whitelist; TDATA `NOT AVAILABLE` |
 | Diagnostics tests (`test_diagnostics.py`) | ✅ | new `proxies`/`donor_candidates` rows + report sections + redaction |
-| Migration drift check | ✅ | `20261004_2047_76d92fe3e70b`; `compare_metadata` = none |
+| Migration drift check | ✅ | `20261004_2047_76d92fe3e70b` (+ `9a1c2f4b7d30`, `b3d7e1a5c9f2`); `compare_metadata` = none |
 | Frontend build | ✅ | `vue-tsc` + `npm run build` |
 | Tests (`pytest` / `ruff`) | ✅ | 574 passed; ruff clean |
-| Git merge (`develop → main`) | ⏳ | pending reviewed PR (not yet released) |
-| CI green on `develop` head | ⏳ | `.github/workflows/ci.yml` |
-| Automated Release workflow + ZIP/`.sha256` | ⏳ | after merge + tag (D-060) |
+| Git merge (`develop → main`) | ✅ | merge commit `3438305` (PR #7) |
+| CI green on `develop` head | ✅ | `.github/workflows/ci.yml` |
+| Automated Release workflow + ZIP/`.sha256` | ✅ | `v1.1.0` tag → release created by CI |
+| GitHub Release `v1.1.0` published | ✅ | tag matches |
+| ZIP attached | ✅ | Windows portable ZIP (~24.6 MB) |
+| `.sha256` attached + matches ZIP | ✅ | `sha256sum -c` |
 
 ### v1.0.5 (released 2026-10-04)
 
