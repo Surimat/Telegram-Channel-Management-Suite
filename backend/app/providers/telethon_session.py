@@ -24,6 +24,9 @@ from backend.app.providers.errors import (
     ApiCredentialsInvalidError,
     AuthCodeExpiredError,
     AuthCodeInvalidError,
+    BotCreateLimitError,
+    BotManagerPermissionError,
+    BotUsernameError,
     ChatAdminRequiredError,
     EntityNotFoundError,
     FloodWaitError,
@@ -41,6 +44,7 @@ from backend.app.providers.types import (
     ChannelFetchResult,
     ChannelMessage,
     EntityRef,
+    ManagedBotRef,
     ParticipantPage,
     PermissionReport,
     SendCodeResult,
@@ -192,6 +196,20 @@ class TelethonSessionProvider:
             return AlreadyParticipantError(technical=type(exc).__name__)
         if isinstance(exc, (AuthKeyUnregisteredError, SessionRevokedError)):
             return SessionInvalidError(technical=type(exc).__name__)
+        # Managed-bot creation errors are newer than the installed Telethon's
+        # dedicated classes, so match the RPC error code string (never bypassed).
+        code = str(getattr(exc, "message", "") or "")
+        if "BOT_CREATE_LIMIT_EXCEEDED" in code:
+            return BotCreateLimitError(technical=code)
+        if "MANAGER_PERMISSION_MISSING" in code or "MANAGER_INVALID" in code:
+            return BotManagerPermissionError(technical=code)
+        if (
+            "USERNAME_OCCUPIED" in code
+            or "USERNAME_INVALID" in code
+            or "USERNAME_SUFFIX_MISSING" in code
+            or "NAME_INVALID" in code
+        ):
+            return BotUsernameError(technical=code)
         if isinstance(exc, (ConnectionError, TimeoutError, OSError)):
             return NetworkError(
                 "Не удалось связаться с Telegram.",
@@ -457,6 +475,104 @@ class TelethonSessionProvider:
                 if len(refs) >= max(1, limit):
                     break
             return refs
+
+        return await self._call(_run)
+
+    # --- Managed bot factory (v1.3, official MTProto) ------------------------
+    async def check_username(self, username: str) -> bool:
+        """Check username availability via the official ``bots.checkUsername``."""
+        username = (username or "").strip()
+        if not username:
+            return False
+        try:
+            from telethon import functions
+        except Exception:  # pragma: no cover - telethon always present here
+            raise UnsupportedOperationError(
+                "Проверка имён недоступна в этой версии.",
+                how_to_fix="Обновите библиотеку telethon.",
+            ) from None
+        request_cls = getattr(getattr(functions, "bots", None), "CheckUsernameRequest", None)
+        if request_cls is None:
+            raise UnsupportedOperationError(
+                "Проверка имён недоступна в этой версии Telethon.",
+                how_to_fix="Обновите библиотеку telethon.",
+            )
+
+        async def _run(client):  # type: ignore[no-untyped-def]
+            try:
+                result = await client(request_cls(username=username))
+            except Exception as exc:  # taken/invalid usernames raise specific errors
+                from telethon.errors import (
+                    UsernameInvalidError as _UInvalid,
+                )
+                from telethon.errors import (
+                    UsernameOccupiedError as _UOccupied,
+                )
+
+                if isinstance(exc, (_UOccupied, _UInvalid)):
+                    return False
+                raise
+            # boolTrue → available; boolFalse → not.
+            return bool(getattr(result, "value", False))
+
+        return await self._call(_run)
+
+    async def create_managed_bot(
+        self, name: str, username: str, manager_username: str, *, via_deeplink: bool = False
+    ) -> ManagedBotRef:
+        """Create a managed bot via the official ``bots.createBot`` method."""
+        try:
+            from telethon import functions
+        except Exception:  # pragma: no cover - telethon always present here
+            raise UnsupportedOperationError(
+                "Создание управляемых ботов недоступно в этой версии.",
+                how_to_fix="Обновите библиотеку telethon.",
+            ) from None
+        request_cls = getattr(getattr(functions, "bots", None), "CreateBotRequest", None)
+        if request_cls is None:
+            raise UnsupportedOperationError(
+                "Создание управляемых ботов недоступно в этой версии Telethon.",
+                how_to_fix="Обновите библиотеку telethon.",
+            )
+
+        async def _run(client):  # type: ignore[no-untyped-def]
+            manager = await client.get_entity(manager_username)
+            kwargs: dict[str, object] = {}
+            if via_deeplink:
+                kwargs["via_deeplink"] = True
+            user = await client(
+                request_cls(name=name, username=username, manager_id=manager, **kwargs)
+            )
+            return ManagedBotRef(
+                user_id=int(getattr(user, "id", 0)),
+                username=str(getattr(user, "username", "") or username),
+                first_name=str(getattr(user, "first_name", "") or name),
+            )
+
+        return await self._call(_run)
+
+    async def export_managed_bot_token(
+        self, bot_username: str, *, revoke: bool = False
+    ) -> str:
+        """Export a managed bot's token via the official ``bots.exportBotToken``."""
+        try:
+            from telethon import functions
+        except Exception:  # pragma: no cover - telethon always present here
+            raise UnsupportedOperationError(
+                "Получение токена недоступно в этой версии.",
+                how_to_fix="Обновите библиотеку telethon.",
+            ) from None
+        request_cls = getattr(getattr(functions, "bots", None), "ExportBotTokenRequest", None)
+        if request_cls is None:
+            raise UnsupportedOperationError(
+                "Получение токена недоступно в этой версии Telethon.",
+                how_to_fix="Обновите библиотеку telethon.",
+            )
+
+        async def _run(client):  # type: ignore[no-untyped-def]
+            entity = await client.get_entity(bot_username)
+            result = await client(request_cls(bot=entity, revoke=revoke))
+            return str(getattr(result, "token", "") or "")
 
         return await self._call(_run)
 

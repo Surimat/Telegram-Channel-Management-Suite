@@ -4,34 +4,43 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-05
-**Status:** **v1.2.0 Content Studio is complete on `develop` and awaiting
-release.** It adds the v1.2 **content-studio foundation** (D-071…D-076): content
-sources (Telegram / RSS / Atom / manual), deduplication, an explainable cleaner,
-usage-rights tracking + attribution, markup validation + a Telegram-like preview,
-inline buttons, per-source moderation, multi-channel planning/calendar, and
-publishing through a `PostingProvider` (bot by default) with durable auto-delete
-and first comments. v1.1.0 remains released (PR #7 `develop → main`, merge
-`3438305`, tag `v1.1.0`; GitHub Release with the Windows portable ZIP + `.sha256`,
-built by CI — D-060). The roadmap (PHASE 0–11) is complete. Version strings read
-`1.2.0`. Suite is green at **611 passed**; `ruff` clean; `vue-tsc` + `npm run
-build` clean; CI enforces the gates (D-053).
+**Status:** **v1.3.0 Bot Factory + LAN Mesh is complete on `develop` (unreleased).**
+It adds the **Bot Factory** (D-077/D-078): plan a set of worker bots, check
+usernames with Telegram, create each bot through the official owner-confirmed
+@BotFather flow and adopt it, then bind it through the existing binding rules; and
+the **optional LAN Mesh / offline control plane** (D-079…D-082): deterministic
+identity, bounded broadcast discovery + manual peers, one-time-code pairing,
+deterministic coordinator election, fencing leases, a `mesh.tick` maintenance job
+and a guard so only the coordinator polls Telegram. Standalone (one computer)
+stays the default. Pre-release hardening (D-083): pairing never persists/returns
+anything derived from a secret, and `/api/v1/mesh/ping` authenticates the shared
+secret. v1.2.0 (Content Studio) remains released. The roadmap (PHASE 0–11) is
+complete. Version strings read `1.3.0`. Suite is green at **664 passed**; `ruff`
+clean; `vue-tsc` + `npm run build` clean; CI enforces the gates (D-053).
 
 ---
 
-## Active task: release v1.2.0, then maintenance only
+## Active task: release v1.3.0
 
-**Do NOT add new large features and do NOT open a new PHASE.** The suite is
-feature-complete; there is no required next phase.
+The v1.3.0 work is complete and green on `develop`. The remaining work is the
+release itself (maintenance only — **do NOT add new large features and do NOT open
+a new PHASE**).
 
-### 1. Release v1.2.0 (next)
+### 1. Release v1.3.0 (next)
 
-Run the standard flow from `docs/RELEASE_CHECKLIST.md`: commit the v1.2.0 work →
-push `develop` → green CI → reviewed PR `develop → main` → tag `v1.2.0` → the
-Release workflow attaches the Windows portable ZIP + `.sha256` (D-060). Do **not**
-push directly to `main` and do **not** move/rewrite the `v1.0.0`–`v1.1.0` tags
-(D-050).
+Commit the v1.3.0 work on `develop`, push (fast-forward; **never** force-push),
+open a reviewed PR `develop → main`, merge, tag `v1.3.0` on the merged `main`
+commit; the Release workflow creates the GitHub Release and attaches the Windows
+portable ZIP + `.sha256` (D-060). Sync `main` back into `develop`. Do **not** push
+directly to `main` and do **not** move/rewrite the `v1.0.0`–`v1.2.0` tags (D-050).
 
-### 2. Release history (done)
+### 2. Release v1.2.0 (done)
+
+Merged via reviewed PR #8 (`develop → main`, merge `ea6c161`), tagged `v1.2.0`;
+the Release workflow created the GitHub Release and attached the Windows portable
+ZIP + `.sha256` (D-060). `develop` was synced back to the merge commit.
+
+### 3. Release history (done)
 
 v1.1.0 merged via reviewed PR #7 (`develop → main`, merge `3438305`), tagged
 `v1.1.0`. v1.0.5 published from `develop` via reviewed PR #6 (`develop → main`,
@@ -54,6 +63,12 @@ v1.0.3: PR #4, merge `f18f53a`, tag `v1.0.3`.)
 ### What exists (do not rebuild)
 
 - PHASE 0–11 complete; `agent/CURRENT_STATE.md` lists what is done (§2, §2a–§2h).
+- **v1.3.0 Bot Factory + LAN Mesh (D-077…D-083):** `/api/v1/bot-factory/*`
+  (templates, dashboard, batches, check, create, adopt, tokens, bind) +
+  `/api/v1/mesh/*` (status, discover, peers, pairing-code, pair, unpair, probe,
+  elect, leases) and two RU-first UI pages (`/bot-factory`, `/mesh`). Models
+  `BotBatch`/`BotCandidate`/`MeshNode`/`MeshPeer`/`PairingCode`/`MeshLease`;
+  migration `20261005_1600_d5b2e9c3f7a1`; the `mesh.tick` durable maintenance job.
 - **v1.2.0 Content Studio (D-071…D-076):** `/api/v1/content/*` (sources, grab,
   items, clean, rewrite, rights, buttons, plan, schedule, publish, retry,
   calendar, dashboard, tick) + the `/content` RU-first UI page. Models
@@ -93,7 +108,7 @@ v1.0.3: PR #4, merge `f18f53a`, tag `v1.0.3`.)
 ### Verification checklist for any change
 
 ```bash
-python -m pytest                 # must stay green (currently 574 passed)
+python -m pytest                 # must stay green (currently 664 passed)
 ruff check backend tests         # must stay clean
 cd frontend && npx vue-tsc --noEmit && npm run build   # outputs to backend/app/static
 ```

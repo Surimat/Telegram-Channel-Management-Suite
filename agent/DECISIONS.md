@@ -1487,3 +1487,113 @@ rules engine as the default.
 **Consequence:** `services/content_service.py::rewrite_preview` uses the LLM
 backend; the encoder is used only for classification/embeddings.
 
+
+---
+
+## D-077 — 2026-10-05 — Bot Factory creates bots through the official owner-confirmed flow — LOCKED
+
+**Decision:** The Bot Factory plans a *set* of worker bots (names + usernames),
+checks username availability through Telegram, and creates each bot through the
+official @BotFather flow that the owner confirms; it then **adopts** the created
+bot. It never registers Telegram accounts, never automates phone verification and
+never bypasses Telegram limits. The managed-bot token is write-only and never
+returned.
+
+**Why:** Mass account registration and verification bypass violate Telegram's
+rules and are explicitly out of scope; adopting an owner-created bot keeps the
+action legitimate and auditable.
+
+**Consequence:** `services/bot_factory.py` (`check_availability`, `create`,
+`adopt`), `providers/fake_session.py::FakeBotFactoryScenario` for tests, the
+`/api/v1/bot-factory/*` router and the `/bot-factory` UI page.
+
+---
+
+## D-078 — 2026-10-05 — Bot Factory reuses BotService/BindingService and keeps the manager bot unique — LOCKED
+
+**Decision:** A factory-created bot is registered through the existing
+`BotService` and bound through the existing `BindingService`; there is exactly one
+manager bot (adding a second is a 409). No parallel bot/binding path exists.
+
+**Why:** A single path guarantees the binding + capability rules (D-030) apply
+identically to factory bots and manual bots.
+
+**Consequence:** `get_bot_factory_service` composes `BotService` + `BindingService`;
+`db/models/bot_factory.py::BotCandidate` stores the resulting `Bot` row id.
+
+---
+
+## D-079 — 2026-10-05 — LAN Mesh never shares a live SQLite file and never trusts a peer automatically — LOCKED
+
+**Decision:** Each computer keeps its own SQLite database; a live database file is
+never opened over a network share (no multi-writer SQLite). A discovered peer is a
+*candidate* only; it becomes trusted after the owner verifies a short one-time
+pairing code. The pairing credential is stored only as a salted hash and the raw
+code/secret are never stored or returned.
+
+**Why:** Multi-writer SQLite over a network share corrupts data; implicit trust of
+LAN devices is a security hole.
+
+**Consequence:** `db/models/mesh.py`, `mesh/discovery.py`, `mesh/pairing.py`, the
+`/api/v1/mesh/*` router.
+
+---
+
+## D-080 — 2026-10-05 — Mesh leases use fencing tokens; a stale owner cannot commit — LOCKED
+
+**Decision:** A job is leased to exactly one worker with a monotonically
+increasing `fencing_token`. After a failover the old owner's token no longer
+matches, so its commit is rejected and it can never overwrite a newer result.
+Expired leases are reclaimed by the `mesh.tick` handler.
+
+**Why:** Without fencing, a slow old worker could clobber the result of the worker
+that took over after failover.
+
+**Consequence:** `mesh/lease.py::can_commit`, `MeshService.acquire_lease` /
+`complete_lease` / `reclaim_expired`.
+
+---
+
+## D-081 — 2026-10-05 — Only the elected coordinator owns Telegram pollers in a mesh — LOCKED
+
+**Decision:** When the mesh is enabled and this node is not the elected
+coordinator, the manager-bot runtime (Telegram polling) does **not** start. The
+coordinator election prefers the highest priority node that advertises the
+`telegram` capability, ties broken by node id, excluding offline nodes.
+
+**Why:** Two computers polling the same bot token would double-process updates.
+
+**Consequence:** `main.py` lifespan guard via `MeshService.owns_telegram_pollers`;
+`mesh/election.py`.
+
+---
+
+## D-082 — 2026-10-05 — The mesh is optional, off by default, and never a limit bypass — LOCKED
+
+**Decision:** Standalone (one computer, everything local) is the default;
+`mesh_enabled` is off by default and `mesh_mode` defaults to `standalone`. The mesh
+is a coordination layer for the owner's own computers and never enables bypassing
+Telegram limits, aggressive proxy rotation, or mass account registration.
+
+**Why:** Most installs are a single weak Windows PC; the mesh must add no cost or
+complexity unless the owner opts in.
+
+**Consequence:** `core/config.py` mesh settings; `MeshView.vue` states the
+standalone default; `mesh.tick` is a cheap no-op while disabled.
+
+---
+
+## D-083 — 2026-10-05 — Mesh secrets are never persisted and mesh ping is authenticated — LOCKED
+
+**Decision:** The mesh stores only a salted hash of a pairing code; nothing
+derived from a secret is written to a user-visible field. The `/api/v1/mesh/ping`
+liveness endpoint verifies the `X-Mesh-Secret` header against the configured
+shared secret (timing-safe) and rejects a request when a secret is configured but
+missing or wrong.
+
+**Why:** A sealed-but-truncated secret in the peer `note` was returned by the API
+and provided no authentication value; an unauthenticated ping is an open probe for
+any host on the same network.
+
+**Consequence:** `mesh/service.py` (pair), `api/v1/mesh.py` (ping),
+`tests/test_mesh_api.py` (note-leak and ping-auth tests).

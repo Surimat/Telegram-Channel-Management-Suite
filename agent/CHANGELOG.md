@@ -5,6 +5,67 @@ Dates are ISO-8601.
 
 ---
 
+## [1.3.0] — 2026-10-05 — unreleased
+
+Minor release: the **Bot Factory** and the **LAN Mesh / offline control plane**
+(D-077…D-082). Create a set of worker bots for the owner's own channels through
+the official owner-confirmed @BotFather flow, and optionally join several of the
+owner's computers on one local network with no cloud control plane. Neither
+feature registers Telegram accounts or bypasses Telegram limits; Standalone (one
+computer) stays the default.
+
+### Added — Bot Factory
+- `db/models/bot_factory.py`: `BotBatch` (a named creation run) and
+  `BotCandidate` (one planned bot). Additive migration
+  `20261005_1600_d5b2e9c3f7a1` — an existing v1.2 database upgrades in place.
+- `db/repositories/bot_factory.py`: batch + candidate repositories.
+- `services/bot_factory.py`: `BotFactoryService` — templates, deterministic
+  `generate_name` / `generate_username` / `sanitize_prefix` / `validate_username`,
+  `check_availability` (a real Telegram check per candidate username), native
+  creation, adopt, bind, write-only tokens and dashboards.
+- `api/v1/bot_factory.py` + `api/schemas/bot_factory.py`: the
+  `/api/v1/bot-factory/*` router; `api/deps.py::get_bot_factory_service` composes
+  the existing `BotService` + `BindingService` (one manager bot; D-078).
+- `providers/fake_session.py::FakeBotFactoryScenario`: deterministic, offline
+  test double (D-001).
+- `frontend/src/views/BotFactoryView.vue` (`/bot-factory`) + nav link.
+
+### Added — LAN Mesh / offline control plane
+- `db/models/mesh.py`: `MeshNode`, `MeshPeer` (credential stored as a salted
+  hash), `PairingCode`, `MeshLease` (monotonic `fencing_token`).
+- `db/repositories/mesh.py`: node / peer / pairing-code / lease repositories.
+- `mesh/`: `identity`, `discovery`, `pairing`, `election`, `lease`, `capability`,
+  `transport` (`MeshTransport` protocol + `HttpMeshTransport` + in-memory
+  `RecordingTransport`) and `service` (`MeshService`).
+- `api/v1/mesh.py` + `api/schemas/mesh.py`: the `/api/v1/mesh/*` router;
+  `api/deps.py::get_mesh_service`.
+- `scheduler/handlers.py`: the `mesh.tick` handler (probe peers, re-elect,
+  reclaim expired leases) — a cheap no-op while the mesh is disabled.
+- `main.py`: when the mesh is enabled and this node is not the coordinator, the
+  manager-bot runtime does not start (no double-polling; D-081).
+- `frontend/src/views/MeshView.vue` (`/mesh`) + nav link; `core/config.py` mesh
+  settings (`mesh_enabled` off by default, `mesh_mode=standalone`).
+
+### Security
+- Mesh pairing never persists or returns anything derived from a secret: the peer
+  `note` is now a plain status string and the shared secret is never stored
+  (D-083).
+- `/api/v1/mesh/ping` now authenticates the `X-Mesh-Secret` header (timing-safe)
+  and rejects an unauthenticated request when a secret is configured (D-083).
+
+### Changed
+- Version strings bumped to `1.3.0` (`backend/app/__init__.py`, `pyproject.toml`,
+  `frontend/package.json`).
+- Help topics `bot_factory` and `lan_mesh` added; `BotFactoryView` / `MeshView`
+  now use them.
+
+### Tests
+- `tests/test_bot_factory.py` (service), `tests/test_bot_factory_api.py` (API),
+  `tests/test_mesh.py` (algorithms + service), `tests/test_mesh_api.py` (API).
+  All offline against the deterministic fakes (D-001).
+
+---
+
 ## [1.2.0] — 2026-10-05 — released
 
 Minor release: the **Content Studio** vertical slice (v1.2 content-studio

@@ -224,6 +224,42 @@ estimated total, notes) before any job is queued.
 
 ---
 
+## 7d. Bot Factory (v1.3, D-077/D-078)
+
+- **No account registration**: the factory never registers Telegram accounts,
+  never automates phone verification and never bypasses Telegram limits. A bot is
+  created by the owner in the official @BotFather flow and then adopted.
+- **No unchecked claims**: a candidate username is reported free only after a real
+  Telegram availability check.
+- **Token handling**: a managed-bot token is write-only and sealed at rest with
+  the existing `seal_secret` path (D-078); it is never returned by the API or
+  written to logs.
+- **Single path**: created bots go through the existing `BotService` /
+  `BindingService`, so binding + capability rules (D-030) apply identically.
+
+---
+
+## 7e. LAN Mesh (v1.3, D-079…D-082)
+
+- **No shared database**: each computer keeps its own SQLite file; a live
+  database is never opened over a network share (avoids multi-writer corruption).
+- **No implicit trust**: a discovered peer is a candidate; it becomes trusted only
+  after the owner verifies a short one-time pairing code. The pairing credential
+  is stored only as a salted hash; the raw code and the shared secret are never
+  stored or returned.
+- **Mesh endpoints are for the owner's own LAN**: they coordinate the owner's own
+  computers. Peer requests are authenticated with the shared secret; the UI binds
+  to `127.0.0.1` by default, so exposing the API beyond the LAN is a deliberate
+  `APP_HOST` choice (§10/§12). Nothing derived from a secret is ever written to a
+  user-visible field, and `/api/v1/mesh/ping` verifies the `X-Mesh-Secret` header
+  (timing-safe) — an unpaired host cannot use it as an open probe (D-083).
+- **Fencing**: a stale lease owner cannot commit a result after a failover
+  (D-080); only the elected coordinator polls Telegram (D-081).
+- **Never a limit bypass**: the mesh never enables Telegram-limit bypass,
+  aggressive proxy rotation or mass account registration (D-082).
+
+---
+
 ## 8. Principle of least privilege
 
 - The manager bot only responds to whitelisted admin ids.

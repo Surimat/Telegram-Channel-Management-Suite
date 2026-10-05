@@ -12,12 +12,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.session import get_session
 from backend.app.manager.service import ManagerBotService
+from backend.app.mesh.service import MeshService
 from backend.app.miniapp.service import MiniAppService
 from backend.app.providers.registry import build_bot_provider, build_session_provider
 from backend.app.services.analytics_service import AnalyticsService
 from backend.app.services.audience_service import AudienceService
 from backend.app.services.backup_service import BackupService
 from backend.app.services.binding_service import BindingService
+from backend.app.services.bot_factory import BotFactoryService
 from backend.app.services.bot_service import BotService, ProviderFactory
 from backend.app.services.campaign_service import CampaignService
 from backend.app.services.capability_service import CapabilityService
@@ -50,6 +52,31 @@ def get_bot_service(
     provider_factory: ProviderFactory = Depends(get_provider_factory),
 ) -> BotService:
     return BotService(session, provider_factory=provider_factory)
+
+
+def get_bot_factory_service(
+    session: AsyncSession = Depends(get_session),
+    provider_factory: ProviderFactory = Depends(get_provider_factory),
+    session_provider_factory: SessionProviderFactory = Depends(get_session_provider_factory),
+) -> BotFactoryService:
+    """Bot Factory wired to bot + user-session provider factories.
+
+    The internal Bot/Binding services reuse the overridable factories so tests
+    run the whole creation flow against the deterministic fakes (D-001).
+    """
+    return BotFactoryService(
+        session,
+        session_provider_factory=session_provider_factory,
+        bot_service=BotService(session, provider_factory=provider_factory),
+        binding_service=BindingService(session, provider_factory=provider_factory),
+    )
+
+
+def get_mesh_service(
+    session: AsyncSession = Depends(get_session),
+) -> MeshService:
+    """LAN Mesh service. Tests may override to inject an in-memory transport."""
+    return MeshService(session)
 
 
 def get_reaction_service(

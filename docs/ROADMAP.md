@@ -209,6 +209,18 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
       bounded, restart-safe posting tick (`content.posting`) drives due work.
       New API (`/api/v1/content/*`), a RU-first **Content Studio** UI page and
       tests; no new phases.
+- [x] **Bot Factory + LAN Mesh (v1.3.0, complete on `develop`)**: a guided,
+      local **Bot Factory** that plans a set of worker bots, checks usernames with
+      Telegram, creates each bot through the official owner-confirmed @BotFather
+      flow and adopts it, then binds it through the existing binding rules
+      (D-077/D-078); and an **optional LAN Mesh / offline control plane** that
+      joins several of the owner's computers on one local network with no cloud
+      control plane — deterministic identity, bounded broadcast discovery + manual
+      peers, one-time-code pairing, deterministic coordinator election, fencing
+      leases, a `mesh.tick` maintenance job, and a guard so only the coordinator
+      polls Telegram (D-079…D-082). Standalone (one computer) stays the default.
+      New API (`/api/v1/bot-factory/*`, `/api/v1/mesh/*`), two RU-first UI pages
+      and tests; no new phases.
 - [ ] Optional (remaining, non-blocking): a full automated BotFather Mini App
       flow (the one-click menu-button registration exists, D-054); richer
       analytics; additional AI backends; a reliable permissively-licensed TDATA
@@ -219,6 +231,15 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ## Release
 
+- **v1.3.0 (2026-10-05):** Bot Factory + LAN Mesh / offline control plane
+  (D-077…D-082). Create a set of worker bots for the owner's own channels through
+  the official owner-confirmed @BotFather flow, and optionally join several of the
+  owner's computers on one local network with no cloud control plane. Standalone
+  (one computer) stays the default; neither feature registers Telegram accounts or
+  bypasses Telegram limits. No new phases. To be released from `develop` via a
+  reviewed `develop → main` PR, tagged `v1.3.0`; the Windows portable ZIP +
+  `.sha256` are attached to the GitHub Release by the automated Release workflow
+  (D-060).
 - **v1.2.0 (2026-10-05):** Content Studio — content sources (Telegram / RSS /
   Atom / manual), deduplication, an explainable cleaner, usage-rights tracking,
   markup validation + Telegram-like preview, inline buttons, per-source

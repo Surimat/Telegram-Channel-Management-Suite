@@ -127,6 +127,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 POSTING_JOB_KIND, interval_seconds=POSTING_TICK_SECONDS
             )
 
+    # Seed the LAN Mesh maintenance tick. It is a cheap no-op while the mesh is
+    # disabled, so the recurring job always exists and enabling the mesh needs no
+    # restart. It re-schedules itself like the posting tick.
+    with contextlib.suppress(Exception):
+        from backend.app.db.session import session_scope
+        from backend.app.scheduler.handlers import MESH_TICK_JOB_KIND
+        from backend.app.services.queue_service import QueueService
+
+        async with session_scope() as session:
+            await QueueService(session).ensure_periodic(
+                MESH_TICK_JOB_KIND, interval_seconds=max(5, settings.mesh_tick_interval)
+            )
+
     scheduler: Scheduler | None = None
     if settings.scheduler_enabled:
         scheduler = Scheduler()
@@ -135,9 +148,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await scheduler.start()
 
     # Manager-bot runtime: short-poll command loop + notification forwarding.
-    # Optional and offline-tolerant; it never blocks the scheduler.
+    # Optional and offline-tolerant; it never blocks the scheduler. In a LAN mesh
+    # only the elected coordinator owns the Telegram pollers, so two computers on
+    # the same bot token never poll (and double-process updates) at the same time.
     manager_runtime = None
-    if settings.manager_runtime_enabled:
+    pollers_owned = True
+    if settings.mesh_enabled and settings.mesh_mode != "standalone":
+        with contextlib.suppress(Exception):
+            from backend.app.db.session import session_scope
+            from backend.app.mesh.service import MeshService
+
+            async with session_scope() as session:
+                pollers_owned = await MeshService(session).owns_telegram_pollers()
+    if settings.manager_runtime_enabled and pollers_owned:
         from backend.app.manager.runtime import ManagerBotRuntime
 
         manager_runtime = ManagerBotRuntime(

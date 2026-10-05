@@ -10,6 +10,7 @@ from backend.app.api.v1 import (
     audience,
     backup,
     bindings,
+    bot_factory,
     bots,
     campaigns,
     channels,
@@ -20,6 +21,7 @@ from backend.app.api.v1 import (
     help,
     invites,
     manager,
+    mesh,
     miniapp,
     permissions,
     product,
@@ -37,6 +39,7 @@ api_router.include_router(help.router)
 api_router.include_router(diagnostics.router)
 api_router.include_router(settings.router)
 api_router.include_router(bots.router)
+api_router.include_router(bot_factory.router)
 api_router.include_router(channels.router)
 api_router.include_router(content.router)
 api_router.include_router(bindings.router)
@@ -54,6 +57,7 @@ api_router.include_router(permissions.router)
 api_router.include_router(ai.router)
 api_router.include_router(analytics.router)
 api_router.include_router(miniapp.router)
+api_router.include_router(mesh.router)
 api_router.include_router(backup.router)
 api_router.include_router(product.router)
 api_router.include_router(events.router)

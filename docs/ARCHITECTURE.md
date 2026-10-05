@@ -593,3 +593,76 @@ add attribution rather than blocking silently; protected content keeps only its
 link.
 
 ---
+
+## 17. Bot Factory (v1.3.0, D-077…D-078)
+
+A guided, local factory that creates a *set* of worker bots for the owner and
+wires them to the owner's own channels. It never registers Telegram accounts and
+never bypasses Telegram limits: it asks Telegram to create a bot (which the owner
+confirms in the official @BotFather flow) and then adopts the created bot.
+
+- `db/models/bot_factory.py` — `BotBatch` (a named creation run: prefix, topic,
+  style, target channel, manager bot, status) and `BotCandidate` (one planned bot:
+  suggested name/username, creation status, the resulting `Bot` row, binding).
+- `db/repositories/bot_factory.py` — batch + candidate repositories.
+- `services/bot_factory.py` — `BotFactoryService`: templates, deterministic
+  name/username generation (`generate_name` / `generate_username` /
+  `sanitize_prefix` / `validate_username`), `check_availability` (asks Telegram
+  for each candidate username — it never claims a username is free without a
+  check), native creation, adopt, bind, tokens and a dashboard.
+- `api/v1/bot_factory.py` + `api/schemas/bot_factory.py` — the
+  `/api/v1/bot-factory/*` router; `api/deps.py::get_bot_factory_service`.
+- `providers/fake_session.py` — the deterministic `FakeBotFactoryScenario` used
+  by tests (D-001): no network, no credentials.
+
+The manager bot is unique (adding a second manager bot is a 409) and the factory
+reuses the existing `BotService` / `BindingService`, so a created bot follows the
+same binding + capability rules as a manually added one.
+
+---
+
+## 18. LAN Mesh / offline control plane (v1.3.0, D-079…D-083)
+
+An **optional** mode for the owner's several computers on one local network,
+with **no cloud control plane**. The default is Standalone: one computer runs
+everything locally. The mesh never shares a live SQLite file (no multi-writer
+SQLite over a network share); each computer keeps its own database and the mesh
+coordinates work through explicit messages.
+
+- `db/models/mesh.py` — `MeshNode` (this computer's identity, one row),
+  `MeshPeer` (a *trusted* peer; the pairing credential is stored only as a salted
+  hash), `PairingCode` (a short one-time code), `MeshLease` (a job lease with a
+  monotonically increasing `fencing_token`).
+- `mesh/identity.py` — deterministic node id from a local seed; advertised
+  capabilities; mode parsing.
+- `mesh/discovery.py` — a bounded UDP broadcast probe plus static peer addresses
+  (for networks that block broadcast); a found peer is never trusted
+  automatically.
+- `mesh/pairing.py` — pairing-code generation, salted hashing, verification and
+  a symmetric shared secret derived from the code. The raw code/secret are never
+  stored or returned.
+- `mesh/election.py` — deterministic coordinator election (highest priority that
+  has the `telegram` capability, ties broken by node id; offline nodes excluded).
+- `mesh/lease.py` — lease grant/commit helpers; a stale `fencing_token` (after a
+  failover) is rejected so an old worker can never overwrite a newer result.
+- `mesh/capability.py` — capability parsing/serialisation and matching.
+- `mesh/transport.py` — the `MeshTransport` protocol; `HttpMeshTransport` (JSON
+  over HTTP with a shared-secret header, stdlib only) and `RecordingTransport`
+  (in-memory, for tests).
+- `mesh/service.py` — `MeshService`: identity, discovery, pairing, election,
+  leases and peer heartbeat, wired to an injectable transport so tests run fully
+  offline.
+- `api/v1/mesh.py` + `api/schemas/mesh.py` — the `/api/v1/mesh/*` router;
+  `api/deps.py::get_mesh_service`.
+- `scheduler/handlers.py` — the `mesh.tick` handler probes trusted peers,
+  re-elects the coordinator and reclaims expired leases; it re-schedules itself
+  and is a cheap no-op while the mesh is disabled.
+- `main.py` — when the mesh is enabled and this node is not the coordinator, the
+  manager-bot runtime is **not** started, so two computers on the same bot token
+  never poll Telegram at the same time.
+
+Enabling the mesh is a configuration choice (`mesh_enabled`); it never enables
+bypassing Telegram limits, aggressive proxy rotation, or mass account
+registration.
+
+---

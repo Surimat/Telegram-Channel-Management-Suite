@@ -60,6 +60,56 @@ class UnsupportedOperationError(TelegramProviderError):
     """The requested managed-bot operation is not available for this bot."""
 
 
+class BotCreateLimitError(TelegramProviderError):
+    """The account already owns the maximum number of bots Telegram allows.
+
+    Telegram enforces this per account; the suite never bypasses it (D-006).
+    """
+
+    def __init__(self, message: str = "", **kwargs: object) -> None:
+        kwargs.setdefault(
+            "how_to_fix",
+            "Удалите ненужных ботов или оформите Telegram Premium. "
+            "Обходить этот лимит нельзя.",
+        )
+        super().__init__(
+            message
+            or "Достигнут лимит принадлежащих вам ботов в Telegram.",
+            **kwargs,  # type: ignore[arg-type]
+        )
+
+
+class BotManagerPermissionError(TelegramProviderError):
+    """The manager bot is not allowed to manage bots.
+
+    The manager bot must have the ``bot_can_manage_bots`` flag (enabled in
+    @BotFather → Bot Settings → Bot Management Mode).
+    """
+
+    def __init__(self, message: str = "", **kwargs: object) -> None:
+        kwargs.setdefault(
+            "how_to_fix",
+            "Включите для управляющего бота режим управления ботами в @BotFather.",
+        )
+        super().__init__(
+            message or "Управляющий бот не может управлять другими ботами.",
+            **kwargs,  # type: ignore[arg-type]
+        )
+
+
+class BotUsernameError(TelegramProviderError):
+    """The requested bot username is taken or invalid."""
+
+    def __init__(self, message: str = "", **kwargs: object) -> None:
+        kwargs.setdefault(
+            "how_to_fix", "Выберите другое имя пользователя и проверьте его снова."
+        )
+        super().__init__(
+            message or "Это имя пользователя занято или недопустимо.",
+            **kwargs,  # type: ignore[arg-type]
+        )
+
+
 # --- MTProto user-account errors (PHASE 4) -----------------------------------
 
 

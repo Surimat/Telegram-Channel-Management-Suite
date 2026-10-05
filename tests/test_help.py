@@ -34,6 +34,8 @@ REQUIRED_KEYS = {
     "content_studio",
     "content_source",
     "content_rights",
+    "bot_factory",
+    "lan_mesh",
 }
 
 
