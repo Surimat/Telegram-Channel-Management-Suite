@@ -9,7 +9,9 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v1.0.5`.**
+**Current stable release: `v1.0.5`.** Next release ready on `develop`: `v1.1.0`
+(Account Hub import, network routes, donor discovery, lightweight encoder —
+see Status below).
 
 ## What it does
 
@@ -17,15 +19,25 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 - **Managed Bots** — add/health/remove Telegram bots; tokens sealed at rest.
 - **Bot ↔ channel bindings** — connect a bot to a channel, verify its rights and
   the channel's available reactions (bot-only, no account needed).
-- **User Sessions** — MTProto accounts with an interactive auth wizard.
+- **User Sessions / Account Hub** — MTProto accounts with an interactive auth
+  wizard, plus local import of `.session`, `.session` + JSON, StringSession and
+  optional TDATA (owner-scoped; auth files are never logged or shown).
+- **Network routes (proxies)** — optional per-account connection routes; a route
+  never bypasses Telegram limits.
 - **Audience** — parse members of channels/groups, search, tag, export.
+- **Donor discovery** — search donor channels by topic; results are candidates
+  that become sources only on an explicit click.
 - **Invite Manager** — build, dry-run, approve and run invite campaigns.
 - **Кампании** — invite-link promotion with the manager bot only (no account) and
   explainable source-quality indicators.
-- **Reaction Manager** — reaction profiles, emoji weights, delays, simulation.
+- **Reaction Manager** — reaction profiles, emoji weights, delays, simulation;
+  the AI's communicative intent only *narrows* the allowed emoji.
 - **Rules Engine** — per-category rules with allowed/preferred/forbidden emoji.
-- **Tiny AI** — optional local classifier (rules-only mode is fully supported).
-- **Analytics** — per-channel content, reactions, audience and takeaways.
+- **Tiny AI** — optional local classifier (rules-only mode is fully supported);
+  a lightweight local **encoder** mode works with no model download, plus an
+  optional **ruBERT-tiny2** encoder with a one-click, verified install.
+- **Analytics** — per-channel content, reactions, audience and takeaways; works
+  without a user account (and says so honestly).
 - **Channel Registry** — one shared channel identity for every module.
 - **Mini App** — the same SPA opens inside Telegram (one-click setup helper).
 - **Diagnostics** — per-component status in plain language + a redacted report.
@@ -68,6 +80,13 @@ with a **redacted diagnostic report** for support, and a **product slice**:
 bot↔channel bindings + reaction capabilities, session-free invite **Кампании**
 with source-quality indicators, **backup delivery destinations**, a first-run
 **Setup Wizard**, and a conservative, off-by-default **auto-update**.
+**v1.1.0 (ready on `develop`)** adds the multi-format **Account Hub** local
+importer (`.session`, `.session` + JSON, StringSession, optional TDATA;
+owner-scoped and secret-safe), optional per-account **network routes (proxies)**,
+**donor discovery** (candidate proposals only), a **lightweight local encoder**
+classifier mode plus the optional **ruBERT-tiny2** backend with a verified
+one-click install, and the **bot-only / risk UX** (session-free analytics, an
+adaptive wizard and intent-narrowed reactions).
 See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
 ## Deployment modes

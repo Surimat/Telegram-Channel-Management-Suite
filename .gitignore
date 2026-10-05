@@ -20,6 +20,12 @@ sessions/*
 *.session-journal
 *.session.backup
 
+# --- Telegram Desktop TDATA + session companion metadata (v1.1 Account Hub) ---
+tdata/
+*/tdata/
+*.session.json
+*.session_meta.json
+
 # --- Runtime mutable data ---
 data/*
 !data/.gitkeep

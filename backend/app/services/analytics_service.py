@@ -228,10 +228,13 @@ class AnalyticsService:
         content = await self.content(days=days, channel_id=channel_id)
         reactions = await self.reactions(days=days, channel_id=channel_id)
         audience = await self.audience(days=days, channel_id=channel_id)
+        account_connected = await self.repo.account_connected()
         return {
             "days": days,
             "channel_id": channel_id or "",
             "generated_at": datetime.now(UTC),
+            "account_connected": account_connected,
+            "account_note": self._account_note(account_connected),
             "headline": {
                 "posts_total": content["posts_total"],
                 "posts_window": content["posts_window"],
@@ -247,6 +250,17 @@ class AnalyticsService:
             "audience": audience,
             "summary": self._overview_summary(content, reactions, audience),
         }
+
+    @staticmethod
+    def _account_note(account_connected: bool) -> str:
+        """Explain what the numbers cover for the current connection type."""
+        if account_connected:
+            return ""
+        return (
+            "Аналитика работает без личного аккаунта: учтены посты, реакции и "
+            "кампании после подключения ботов. Историческая информация недоступна "
+            "этому типу подключения."
+        )
 
     @staticmethod
     def _overview_summary(

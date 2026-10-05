@@ -94,7 +94,15 @@ def make_fake_session_factory(scenario=None, permission=None):
     if permission is not None:
         shared.permission = permission
 
-    def _factory(*, api_id="", api_hash="", session_path=None, provider_name="auto", settings=None):
+    def _factory(
+        *,
+        api_id="",
+        api_hash="",
+        session_path=None,
+        provider_name="auto",
+        settings=None,
+        proxy=None,
+    ):
         shared._api_id = api_id
         shared._api_hash = api_hash
         shared._session_path = session_path
@@ -116,7 +124,15 @@ def make_fake_audience_service_factory(audience=None, scenario=None):
         audience=audience or FakeAudienceScenario(),
     )
 
-    def _factory(*, api_id="", api_hash="", session_path=None, provider_name="auto", settings=None):
+    def _factory(
+        *,
+        api_id="",
+        api_hash="",
+        session_path=None,
+        provider_name="auto",
+        settings=None,
+        proxy=None,
+    ):
         shared._api_id = api_id
         shared._api_hash = api_hash
         shared._session_path = session_path
@@ -190,7 +206,15 @@ def make_fake_invite_session_factory(invite=None, audience=None, scenario=None):
         invite=invite or FakeInviteScenario(),
     )
 
-    def _factory(*, api_id="", api_hash="", session_path=None, provider_name="auto", settings=None):
+    def _factory(
+        *,
+        api_id="",
+        api_hash="",
+        session_path=None,
+        provider_name="auto",
+        settings=None,
+        proxy=None,
+    ):
         return shared
 
     return _factory

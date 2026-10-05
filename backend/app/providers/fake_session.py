@@ -128,6 +128,22 @@ class FakePermissionScenario:
     participants_error: Exception | None = None
 
 
+@dataclass
+class FakeDiscoveryScenario:
+    """Controls the fake public search (v1.1 donor discovery).
+
+    ``channels`` is the list of channels the fake pretends Telegram returned for
+    any query. ``search_error`` simulates an error (e.g. FloodWait). When
+    ``channels`` is empty the search honestly returns nothing.
+    """
+
+    channels: list[dict[str, object]] = field(default_factory=list)
+    search_error: Exception | None = None
+    #: Channels the fake returns for ``get_channel_recommendations``.
+    recommendations: list[dict[str, object]] = field(default_factory=list)
+    recommendations_error: Exception | None = None
+
+
 def make_fake_users(count: int, *, start_id: int = 1) -> list[UserIdentity]:
     """Build a deterministic list of fake users for scan tests."""
     users: list[UserIdentity] = []
@@ -163,6 +179,7 @@ class FakeSessionProvider:
         audience: FakeAudienceScenario | None = None,
         invite: FakeInviteScenario | None = None,
         permission: FakePermissionScenario | None = None,
+        discovery: FakeDiscoveryScenario | None = None,
     ) -> None:
         self._api_id = api_id
         self._api_hash = api_hash
@@ -171,6 +188,7 @@ class FakeSessionProvider:
         self.audience = audience or FakeAudienceScenario()
         self.invite = invite or FakeInviteScenario()
         self.permission = permission or FakePermissionScenario()
+        self.discovery = discovery or FakeDiscoveryScenario()
         self.connected = False
         self.closed = True
         self.export_calls = 0
@@ -240,6 +258,16 @@ class FakeSessionProvider:
                 path = path.with_suffix(".session")
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(b"FAKE-SESSION-PLACEHOLDER")
+
+    async def import_string_session(self, value: str, target_path: Path) -> None:
+        """Persist a placeholder session file for a StringSession (offline mode)."""
+        if not value:
+            raise SessionInvalidError(technical="FakeSessionProvider:empty_string_session")
+        target = target_path
+        if target.suffix != ".session":
+            target = target.with_suffix(".session")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"FAKE-STRING-SESSION-PLACEHOLDER")
 
     # --- extension points (subset; full behaviour lands in PHASE 5/6) --------
     async def resolve_entity(self, username_or_id: str | int) -> EntityRef:
@@ -352,6 +380,53 @@ class FakeSessionProvider:
             report.how_to_fix = "Используйте публичный источник или аккаунт с доступом."
         return report
 
+    # --- public search (v1.1 donor discovery) --------------------------------
+    async def search_public(self, query: str, *, limit: int = 20) -> list[EntityRef]:
+        scenario = self.discovery
+        if scenario.search_error is not None:
+            raise scenario.search_error
+        if not (query or "").strip():
+            return []
+        refs: list[EntityRef] = []
+        for i, item in enumerate(scenario.channels[: max(1, limit)]):
+            username = str(item.get("username", "") or "")
+            refs.append(
+                EntityRef(
+                    id=int(item.get("id", 900000 + i) or 900000 + i),
+                    username=username,
+                    title=str(item.get("title", "") or username),
+                    kind=str(item.get("kind", "channel") or "channel"),
+                    participants_count=int(item.get("subscribers", 0) or 0),
+                    subscribers=int(item.get("subscribers", 0) or 0),
+                    avg_views=float(item.get("avg_views", 0.0) or 0.0),
+                    language=str(item.get("language", "") or ""),
+                )
+            )
+        return refs
+
+    async def get_channel_recommendations(
+        self, channel: str | int, *, limit: int = 20
+    ) -> list[EntityRef]:
+        scenario = self.discovery
+        if scenario.recommendations_error is not None:
+            raise scenario.recommendations_error
+        refs: list[EntityRef] = []
+        for i, item in enumerate(scenario.recommendations[: max(1, limit)]):
+            username = str(item.get("username", "") or "")
+            refs.append(
+                EntityRef(
+                    id=int(item.get("id", 800000 + i) or 800000 + i),
+                    username=username,
+                    title=str(item.get("title", "") or username),
+                    kind=str(item.get("kind", "channel") or "channel"),
+                    participants_count=int(item.get("subscribers", 0) or 0),
+                    subscribers=int(item.get("subscribers", 0) or 0),
+                    avg_views=float(item.get("avg_views", 0.0) or 0.0),
+                    language=str(item.get("language", "") or ""),
+                )
+            )
+        return refs
+
 
 def fake_provider_factory(scenario: FakeAuthScenario | None = None):
     """Return a factory that always builds a fake provider with ``scenario``.
@@ -361,7 +436,15 @@ def fake_provider_factory(scenario: FakeAuthScenario | None = None):
     """
     shared = FakeSessionProvider(scenario=scenario)
 
-    def _factory(*, api_id="", api_hash="", session_path=None, provider_name="auto", settings=None):
+    def _factory(
+        *,
+        api_id="",
+        api_hash="",
+        session_path=None,
+        provider_name="auto",
+        settings=None,
+        proxy=None,
+    ):
         shared._api_id = api_id
         shared._api_hash = api_hash
         shared._session_path = session_path
@@ -381,7 +464,15 @@ def fake_audience_factory(
     """
     shared = FakeSessionProvider(scenario=scenario, audience=audience)
 
-    def _factory(*, api_id="", api_hash="", session_path=None, provider_name="auto", settings=None):
+    def _factory(
+        *,
+        api_id="",
+        api_hash="",
+        session_path=None,
+        provider_name="auto",
+        settings=None,
+        proxy=None,
+    ):
         shared._api_id = api_id
         shared._api_hash = api_hash
         shared._session_path = session_path
@@ -395,6 +486,7 @@ __all__ = [
     "DEFAULT_PASSWORD",
     "FakeAudienceScenario",
     "FakeAuthScenario",
+    "FakeDiscoveryScenario",
     "FakeInviteScenario",
     "FakePermissionScenario",
     "FakeSessionProvider",

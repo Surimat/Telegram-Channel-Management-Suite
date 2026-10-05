@@ -45,6 +45,9 @@ class PlanParams:
     # profile set is used unchanged); a list = the emoji Telegram confirmed.
     channel_available: list[str] | None = None
     bot_compatible: list[str] | None = None
+    # AI intent (v1.1): ``None`` = no narrowing; a list = the emoji the reported
+    # communicative intent permits. Advisory only — never picks an emoji itself.
+    intent_allowed: list[str] | None = None
 
 
 @dataclass(slots=True)
@@ -173,6 +176,12 @@ class ReactionPlanner:
         if params.bot_compatible is not None:
             compatible = set(params.bot_compatible)
             pool = [e for e in pool if e in compatible]
+        if params.intent_allowed is not None:
+            # The AI's intent narrows the set; it never adds emoji the profile or
+            # channel did not already allow (D-032).
+            permitted = set(params.intent_allowed)
+            narrowed = [e for e in pool if e in permitted]
+            pool = narrowed
         if match and match.allowed_reactions:
             # Prefer the intersection when the rule restricts the profile.
             restricted = [e for e in pool if e in match.allowed_reactions]

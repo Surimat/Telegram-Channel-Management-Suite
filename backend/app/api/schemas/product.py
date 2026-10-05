@@ -70,6 +70,8 @@ class WizardStateOut(BaseModel):
     completed_steps: int
     total_steps: int
     steps: list[WizardStepOut] = Field(default_factory=list)
+    session_optional_note: str = ""
+    session_risk_note: str = ""
 
 
 class PresetOut(BaseModel):

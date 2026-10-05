@@ -5,6 +5,87 @@ Dates are ISO-8601.
 
 ---
 
+## [1.1.0] — 2026-10-04
+
+Maintenance/minor release: optional per-account **network routes**, **donor
+discovery**, a **lightweight local encoder**, the multi-format **Account Hub**
+importer and the bot-only/risk UX. No new phase; every addition is opt-in and
+never bypasses Telegram limits.
+
+### Added — Account Hub (local session import)
+- `services/session_import.py`: one `SessionImportProvider` protocol covering
+  Telethon `.session`, `.session` + companion JSON (whitelisted keys only),
+  StringSession and (optional) Telegram Desktop TDATA. Local-only and
+  owner-scoped; no search, download or bulk registration; never bypasses
+  verification/FloodWait/privacy (D-070).
+- `api/v1/sessions.py`: `POST /sessions/import/detect`,
+  `POST /sessions/import/artifact`, `GET /sessions/{id}/risk`; schemas in
+  `api/schemas/sessions.py`. `SessionsView.vue` gained the "Центр аккаунтов
+  (импорт)" panel, format/state display, the sensitive-file warning and the
+  "Риск ограничений" column.
+- `.gitignore` also excludes `tdata/`, `*.session.json`, `*.session_meta.json`.
+
+### Added — network routes (proxies)
+- `db/models/proxy.py` (`ProxyProfile`, `ProxyKind`, `ProxyStatus`),
+  `db/repositories/proxies.py`, `services/proxy_service.py`
+  (`ProxyView`/`ProxyCheck` with `to_dict()`), `api/v1/proxies.py` +
+  `api/schemas/proxies.py`: `/api/v1/proxies*` CRUD, honest reachability check
+  and account binding. Passwords are sealed at rest and never returned; every
+  response states that a route is not a limit bypass (D-065).
+- `user_sessions.proxy_id`; `SessionsView.vue` gained a "Маршрут" column and a
+  "Сетевые маршруты (прокси)" management card.
+
+### Added — donor discovery
+- `db/models/donor_candidate.py` (`DonorCandidate`),
+  `db/repositories/proxies.py::DonorCandidateRepository`,
+  `providers/discovery_base.py` + `providers/telegram_discovery.py`,
+  `services/donor_discovery_service.py`, `api/v1/discovery.py` +
+  `api/schemas/discovery.py`: search stores candidates only; adding a source is
+  always an explicit click (D-066). `SourcesView.vue` gained an "Автопоиск
+  доноров" panel with comparison.
+
+### Added — lightweight local encoder
+- `ai/encoder.py`; `MODE_ENCODER` in `ai/types.py`; the `auto` routing uses the
+  encoder before the LLM; `source` can be `encoder`. No model file, no download
+  (D-067). `AiView.vue` exposes the mode; `docs/API.md` documents it.
+- `ai/backends/encoder_base.py` (`EncoderBackend` protocol) and
+  `ai/backends/rubert.py` (optional `cointegrated/rubert-tiny2` embeddings;
+  lazy, CPU-only, unload-when-idle, D-068). `services/encoder_service.py` +
+  `/api/v1/ai/encoder/{status,install,check,remove}` provide the honest install
+  experience (official files only, SHA-256 verified, gitignored `models/`).
+
+### Added — reactions, analytics and wizard (bot-only UX)
+- `services/reaction_intent.py`: intent → permitted emoji (narrowing only, never
+  a choice); the planner intersects profile ∩ intent ∩ channel ∩ bot-compatible
+  and skips with a reason (D-069).
+- Analytics works without a user account and reports the missing-history note
+  (`account_connected`/`account_note`); `AnalyticsView.vue` shows the "Режим без
+  личного аккаунта" note.
+- Promotion wizard is adaptive: `session_optional_note` without an account and
+  `session_risk_note` with one; the invite-restriction warning is shown in the
+  account card and the wizard (D-069).
+
+### Changed
+- Diagnostics: new `proxies` and `donor_candidates` subsystem rows; the redacted
+  report gained `proxies` (host/kind/status only — never the password) and
+  `donor_candidates` sections.
+- `docs/API.md`, `docs/UI.md`, `docs/SETUP.md`, `docs/SECURITY.md`,
+  `docs/ARCHITECTURE.md`, `docs/ROADMAP.md`, `README.md`, `agent/*` updated to
+  the factual v1.1.0 state. Version strings read `1.1.0` everywhere.
+- Migration `20261004_2047_76d92fe3e70b_v1_1_account_hub_proxies_and_donor_`
+  adds `proxy_profiles`, `donor_candidates` and `user_sessions.proxy_id`.
+- Fixed a mojibake (cp775) corruption in `docs/API.md`.
+
+### Tests
+- New: `test_proxy_api.py`, `test_proxy_service.py`, `test_discovery_api.py`,
+  `test_donor_discovery.py`, `test_encoder.py`, `test_encoder_service.py`,
+  `test_session_import.py`, `test_reaction_planner.py`; extended
+  `test_ai_api.py`, `test_ai_classifier.py`, `test_session_service.py` and
+  `test_diagnostics.py` (including a proxy/candidate redaction test).
+- Suite: **574 passed**; `ruff` clean; `vue-tsc` + `npm run build` clean.
+
+---
+
 ## [1.0.5] — 2026-10-04
 
 Product-slice release: the suite becomes useful **without a user (MTProto)

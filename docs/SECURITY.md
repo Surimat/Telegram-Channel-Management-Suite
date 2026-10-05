@@ -13,6 +13,8 @@ The following must **never** appear in git history:
 - bot tokens;
 - `TELEGRAM_API_HASH` / `TELEGRAM_API_ID` (treat as secret);
 - MTProto `.session` files and their journals;
+- **Telegram Desktop `tdata` folders** (they contain the account auth key);
+- **Telethon StringSession strings** (`1BVtsOK…` — an auth key in text form);
 - passwords, 2FA passwords;
 - database secrets / private keys;
 - any `*.pem`, `*.key`, `credentials.json`.
@@ -70,6 +72,33 @@ Implementation (PHASE 4, D-025):
   `has_session`, `has_api_hash` and `session_file_exists` booleans.
 - If `APP_SECRET_KEY` is lost/changed, sealed values become unreadable; the UI
   shows a friendly "add the account again" message (never a stack trace).
+
+### Account Hub import security (v1.1)
+
+The multi-format importer (`backend/app/services/session_import.py`) only reads
+**local artifacts the owner supplies**; it never searches for, downloads or
+bulk-registers third-party accounts, and never bypasses Telegram verification,
+FloodWait, privacy or identity checks.
+
+- A **StringSession string** is treated exactly like a `.session` file: it is
+  written to `SESSIONS_DIR` (gitignored), and the raw string is **never logged,
+  returned by the API, or rendered in the UI** after submission.
+- A **`.session` + companion JSON** is read with a whitelist
+  (`api_id`/`app_id`/`api_hash`/`app_hash`/`phone`/`dc_id`). Secret keys
+  (`session_string`, `auth_key`, `password`, `api_hash`) are used only to seed the
+  account and are stored sealed, never persisted as raw JSON.
+- A **`tdata` folder** is read in place and **never modified, copied out or
+  uploaded**; the resulting session is stored internally.
+- `.gitignore` excludes `sessions/`, `*.session*`, `tdata/`, `models/`,
+  `backups/`, `exports/`, `data/` and `.env*`.
+
+### Network routes (proxies) security (v1.1, D-065)
+
+A proxy is an ordinary connection route, **not** a Telegram-limit bypass. Profile
+credentials (`username`/`password`) are sealed with the same Fernet key as session
+secrets and are never returned; the API exposes only whether a password is set.
+Bound-account proxy credentials never appear in logs, exports, backups or the
+diagnostics report.
 
 ---
 

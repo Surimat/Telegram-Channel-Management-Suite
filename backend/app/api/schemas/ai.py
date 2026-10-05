@@ -73,13 +73,15 @@ class AiMetricsOut(BaseModel):
 
 class AiClassifyIn(BaseModel):
     text: str = Field(description="Текст поста для анализа.")
-    mode: str = Field(default="auto", description="auto | rules | ai")
+    mode: str = Field(default="auto", description="auto | rules | encoder | ai")
 
 
 class AiClassifyOut(BaseModel):
     category: str
     category_title: str
     tone: str
+    intent: str = ""
+    suggested_emoji: str = ""
     confidence: float
     source: str
     source_title: str
@@ -88,6 +90,8 @@ class AiClassifyOut(BaseModel):
     mode: str
     ai_attempted: bool
     ai_used: bool
+    encoder_attempted: bool = False
+    encoder_used: bool = False
     fallback_used: bool
     ai_error: str
 
@@ -114,6 +118,30 @@ class AiOverviewOut(BaseModel):
     status: AiStatusOut
     metrics: AiMetricsOut
     today: AiMetricsOut
+
+
+class EncoderStatusOut(BaseModel):
+    """v1.1 lightweight encoder install status (honest, never a guess)."""
+
+    runtime_available: bool
+    installed: bool
+    ready: bool
+    model_dir: str
+    size_bytes: int
+    size_human: str
+    missing: list[str] = []
+    message: str
+    how_to_fix: str
+    repo: str = ""
+    license: str = ""
+
+
+class EncoderActionResultOut(BaseModel):
+    ok: bool
+    message: str
+    how_to_fix: str = ""
+    downloaded: int = 0
+    status: EncoderStatusOut
 
 
 class AiHistoryOut(BaseModel):

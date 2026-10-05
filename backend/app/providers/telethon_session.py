@@ -35,6 +35,7 @@ from backend.app.providers.errors import (
     PrivacyRestrictedError,
     SessionInvalidError,
     TelegramProviderError,
+    UnsupportedOperationError,
 )
 from backend.app.providers.types import (
     EntityRef,
@@ -74,12 +75,15 @@ class TelethonSessionProvider:
         session_path: Path | None = None,
         provider_name: str = "auto",
         settings: Settings | None = None,
+        proxy: dict[str, object] | None = None,
     ) -> None:
         self._settings = settings or get_settings()
         self._api_id_raw = str(api_id or "").strip()
         self._api_hash = api_hash or ""
         self._session_path = session_path
         self._provider_name = provider_name
+        #: Telethon proxy dict (never contains a secret we log). ``None`` = direct.
+        self._proxy = proxy
         self._client: TelegramClient | None = None
         self._connected = False
 
@@ -94,7 +98,10 @@ class TelethonSessionProvider:
         from telethon import TelegramClient
 
         return TelegramClient(
-            _normalize_path(self._session_path), int(self._api_id_raw), self._api_hash
+            _normalize_path(self._session_path),
+            int(self._api_id_raw),
+            self._api_hash,
+            proxy=self._proxy,
         )
 
     async def connect(self) -> None:
@@ -281,6 +288,41 @@ class TelethonSessionProvider:
 
         await self._call(_run)
 
+    async def import_string_session(self, value: str, target_path: Path) -> None:
+        """Convert a Telethon StringSession into a local SQLite session file.
+
+        The raw string is used only in memory; it is never logged or returned.
+        Telethon's ``StringSession`` shares the same auth key, so copying it into
+        a ``SQLiteSession`` at ``target_path`` yields a normal file session the
+        rest of the app already understands.
+        """
+        if not value:
+            raise SessionInvalidError(
+                "Пустая строка сессии.",
+                how_to_fix="Скопируйте строку StringSession целиком.",
+                technical="TelethonSessionProvider:empty_string_session",
+            )
+        from telethon.sessions import SQLiteSession, StringSession
+
+        parsed = StringSession(value)
+        target = target_path
+        if target.suffix == ".session":
+            target = target.with_suffix("")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        destination = SQLiteSession(str(target))
+        try:
+            destination.set_dc(
+                parsed.dc_id,
+                parsed.server_address,
+                parsed.port,
+            )
+            destination.auth_key = parsed.auth_key
+            save = getattr(destination, "save", None)
+            if callable(save):
+                save()
+        finally:
+            destination.close()
+
     # --- extension points for PHASE 5 / PHASE 6 ------------------------------
     async def resolve_entity(self, username_or_id: str | int) -> EntityRef:
         async def _run(client):  # type: ignore[no-untyped-def]
@@ -309,6 +351,110 @@ class TelethonSessionProvider:
                 is_admin=is_admin,
                 participants_hidden=hidden,
             )
+
+        return await self._call(_run)
+
+    async def search_public(self, query: str, *, limit: int = 20) -> list[EntityRef]:
+        """Search public channels/groups via Telegram's official search.
+
+        Uses ``messages.searchGlobal`` when the installed Telethon exposes it.
+        Only public broadcast/megagroup results are returned; whatever Telegram
+        returns is passed through unchanged (possibly empty). Limits are never
+        bypassed: a FloodWait/other error is translated to a provider error.
+        """
+        query = (query or "").strip()
+        if not query:
+            return []
+        try:
+            from telethon import functions
+        except Exception:  # pragma: no cover - telethon always present here
+            raise UnsupportedOperationError(
+                "Поиск Telegram недоступен в этой версии.",
+                how_to_fix="Обновите библиотеку telethon.",
+            ) from None
+        request_cls = getattr(getattr(functions, "messages", None), "SearchGlobalRequest", None)
+        if request_cls is None:
+            raise UnsupportedOperationError(
+                "Поиск Telegram недоступен в этой версии.",
+                how_to_fix="Обновите библиотеку telethon.",
+            )
+
+        async def _run(client):  # type: ignore[no-untyped-def]
+            result = await client(request_cls(q=query, limit=max(1, limit)))
+            refs: list[EntityRef] = []
+            seen: set[int] = set()
+            for chat in list(getattr(result, "chats", []) or []):
+                if not (getattr(chat, "broadcast", False) or getattr(chat, "megagroup", False)):
+                    continue
+                cid = int(getattr(chat, "id", 0))
+                if not cid or cid in seen:
+                    continue
+                seen.add(cid)
+                refs.append(
+                    EntityRef(
+                        id=cid,
+                        username=str(getattr(chat, "username", "") or ""),
+                        title=str(getattr(chat, "title", "") or ""),
+                        kind="group" if getattr(chat, "megagroup", False) else "channel",
+                        participants_count=getattr(chat, "participants_count", None),
+                        subscribers=int(getattr(chat, "participants_count", 0) or 0),
+                    )
+                )
+            return refs
+
+        return await self._call(_run)
+
+    async def get_channel_recommendations(
+        self, channel: str | int, *, limit: int = 20
+    ) -> list[EntityRef]:
+        """Return channels Telegram recommends as similar to ``channel`` (v1.1).
+
+        Uses ``channels.getChannelRecommendations`` when the installed Telethon
+        exposes it; otherwise raises ``UnsupportedOperationError``. Whatever
+        Telegram returns is passed through unchanged (possibly empty). Limits are
+        never bypassed.
+        """
+        try:
+            from telethon import functions
+        except Exception:  # pragma: no cover - telethon always present here
+            raise UnsupportedOperationError(
+                "Рекомендации Telegram недоступны в этой версии.",
+                how_to_fix="Обновите библиотеку telethon.",
+            ) from None
+        request_cls = getattr(
+            getattr(functions, "channels", None), "GetChannelRecommendationsRequest", None
+        )
+        if request_cls is None:
+            raise UnsupportedOperationError(
+                "Рекомендации Telegram недоступны в этой версии.",
+                how_to_fix="Обновите библиотеку telethon.",
+            )
+
+        async def _run(client):  # type: ignore[no-untyped-def]
+            entity = await client.get_entity(channel)
+            result = await client(request_cls(channel=entity))
+            refs: list[EntityRef] = []
+            seen: set[int] = set()
+            for chat in list(getattr(result, "chats", []) or []):
+                if not (getattr(chat, "broadcast", False) or getattr(chat, "megagroup", False)):
+                    continue
+                cid = int(getattr(chat, "id", 0))
+                if not cid or cid in seen:
+                    continue
+                seen.add(cid)
+                refs.append(
+                    EntityRef(
+                        id=cid,
+                        username=str(getattr(chat, "username", "") or ""),
+                        title=str(getattr(chat, "title", "") or ""),
+                        kind="group" if getattr(chat, "megagroup", False) else "channel",
+                        participants_count=getattr(chat, "participants_count", None),
+                        subscribers=int(getattr(chat, "participants_count", 0) or 0),
+                    )
+                )
+                if len(refs) >= max(1, limit):
+                    break
+            return refs
 
         return await self._call(_run)
 

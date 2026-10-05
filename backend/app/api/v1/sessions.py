@@ -19,10 +19,19 @@ from backend.app.api.schemas.sessions import (
     AuthStartIn,
     AuthStartOut,
     AuthStepOut,
+    ImportDetectOut,
     SessionHealthOut,
+    SessionImportArtifactIn,
     SessionImportIn,
+    SessionImportResultOut,
     SessionOut,
+    SessionRiskOut,
     SessionSummary,
+)
+from backend.app.services.session_import import (
+    FORMAT_TITLES,
+    STATE_TITLES,
+    SessionImportRequest,
 )
 from backend.app.services.session_service import SessionService, SessionServiceError
 
@@ -157,6 +166,68 @@ async def import_session(
     except SessionServiceError as exc:
         _raise(exc)
     return _out(service, account)
+
+
+@router.post("/import/detect", response_model=ImportDetectOut)
+async def detect_import(
+    payload: SessionImportArtifactIn, service: SessionService = Depends(get_session_service)
+) -> ImportDetectOut:
+    """Detect an import artifact's format/state without importing it."""
+    request = SessionImportRequest(
+        path=Path(payload.path) if payload.path else None,
+        string_session=payload.string_session,
+        api_id=payload.api_id,
+        api_hash=payload.api_hash,
+        phone=payload.phone,
+        display_name=payload.display_name,
+    )
+    result = await service.detect_import(request)
+    return ImportDetectOut(
+        format=result.format,
+        format_title=FORMAT_TITLES.get(result.format, result.format),
+        state=result.state,
+        state_title=STATE_TITLES.get(result.state, result.state),
+        available=result.available,
+        message=result.message,
+        how_to_fix=result.how_to_fix,
+        notes=result.notes,
+    )
+
+
+@router.post("/import/artifact", response_model=SessionImportResultOut, status_code=201)
+async def import_artifact(
+    payload: SessionImportArtifactIn, service: SessionService = Depends(get_session_service)
+) -> SessionImportResultOut:
+    """Import a local .session / +JSON / StringSession / TDATA artifact."""
+    request = SessionImportRequest(
+        path=Path(payload.path) if payload.path else None,
+        string_session=payload.string_session,
+        api_id=payload.api_id,
+        api_hash=payload.api_hash,
+        phone=payload.phone,
+        display_name=payload.display_name,
+    )
+    try:
+        account, result = await service.import_artifact(request)
+    except SessionServiceError as exc:
+        _raise(exc)
+    return SessionImportResultOut(
+        account=_out(service, account),
+        format=result.format,
+        format_title=FORMAT_TITLES.get(result.format, result.format),
+        notes=result.notes,
+        message=result.message,
+    )
+
+
+@router.get("/{account_id}/risk", response_model=SessionRiskOut)
+async def account_risk(
+    account_id: str, service: SessionService = Depends(get_session_service)
+) -> SessionRiskOut:
+    account = await service.get(account_id)
+    if account is None:
+        raise ApiError(404, "Аккаунт не найден.", "Обновите список аккаунтов.")
+    return SessionRiskOut(**service.risk_for(account))
 
 
 @router.post("/{account_id}/health", response_model=SessionHealthOut)

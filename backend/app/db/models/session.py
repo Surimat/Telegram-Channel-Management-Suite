@@ -66,9 +66,16 @@ class UserSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     last_error: Mapped[str] = mapped_column(Text, default="", nullable=False)
     status_message: Mapped[str] = mapped_column(Text, default="", nullable=False)
     status_hint: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    # How many times Telegram has limited this account (FloodWait/restriction).
+    # Used only to warn about repeated limits; never to promise a safe count.
+    restriction_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # Free-form, non-secret metadata added later (e.g. score/tags summary).
     meta: Mapped[str] = mapped_column(Text, default="", nullable=False)
+
+    # Optional network route (ProxyProfile.id). Empty = connect directly. A proxy
+    # is a normal connection route, never a limit-bypass mechanism (D-066).
+    proxy_id: Mapped[str] = mapped_column(String(32), default="", index=True, nullable=False)
 
     @property
     def has_session(self) -> bool:

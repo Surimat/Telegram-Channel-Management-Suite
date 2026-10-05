@@ -75,6 +75,34 @@ async def test_ai_classify_rules_fast_path(client: AsyncClient) -> None:
     assert body["ai_used"] is False
 
 
+async def test_ai_classify_encoder_mode(client: AsyncClient) -> None:
+    """The lightweight encoder works with AI disabled (no model, weak-PC path)."""
+    resp = await client.post(
+        f"{AI_BASE}/classify",
+        json={"text": "это очень смешно, ахаха", "mode": "encoder"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["category"] == "funny"
+    assert body["encoder_attempted"] is True
+    assert body["encoder_used"] is True
+    assert body["ai_used"] is False
+    assert body["intent"]
+
+
+async def test_ai_classify_encoder_mode_never_requires_a_model(client: AsyncClient) -> None:
+    # Even with AI explicitly off, encoder mode returns a real answer or a clean
+    # fallback — it never raises and never demands a model download.
+    resp = await client.post(
+        f"{AI_BASE}/classify",
+        json={"text": "совершенно непонятный текст без категории", "mode": "encoder"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["encoder_attempted"] is True
+    assert body["fallback_used"] is True
+
+
 async def test_ai_classify_uses_fake_when_rules_unsure(client: AsyncClient) -> None:
     await _enable_fake_ai()
     # No rule keywords, but the fake backend's data-block keyword match applies.

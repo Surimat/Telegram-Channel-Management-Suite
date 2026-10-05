@@ -184,15 +184,35 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
       sealed); a resumable first-run **Setup Wizard**; and a conservative,
       off-by-default **auto-update** that only checks and stages a SHA-256-verified
       file. New API + RU-first UI + tests; no new phases.
+- [x] **Maintenance additions (v1.1.0, complete on `develop`)**: the multi-format
+      **Account Hub** importer (`.session`, `.session` + companion JSON,
+      StringSession and optional TDATA; local-only, owner-scoped, secret-safe,
+      D-070); optional per-account **network routes (proxies)** — CRUD, honest
+      reachability check and account binding, explicitly never a limit bypass
+      (D-065); **donor discovery** — search donor channels by topic with candidate
+      proposals that become audience sources only on an explicit click (D-066);
+      a **lightweight local encoder** classifier mode that needs no model download
+      (D-067) plus the optional **ruBERT-tiny2** embedding backend and its honest
+      install flow (D-068); and the **bot-only / risk UX** (D-069: session-free
+      analytics, adaptive wizard, intent-narrowed reactions). New API + RU-first
+      UI + tests; Diagnostics and the redacted report gained matching rows and
+      sections. No new phases.
 - [ ] Optional (remaining, non-blocking): a full automated BotFather Mini App
       flow (the one-click menu-button registration exists, D-054); richer
-      analytics; additional AI backends. No new phases are planned — see
-      `agent/NEXT_TASK.md` (MAINTENANCE / OPTIONAL EXTENSIONS).
+      analytics; additional AI backends; a reliable permissively-licensed TDATA
+      converter adapter (D-070). No new phases are planned — see
+      `agent/NEXT_TASK.md` (release v1.1.0, then maintenance / optional extensions).
 
 ---
 
 ## Release
 
+- **v1.1.0 (2026-10-04, prepared on `develop`):** Account Hub local importer,
+  network routes (proxies), donor discovery, the lightweight encoder +
+  ruBERT-tiny2 backend, and the bot-only / risk UX (D-065…D-070). No new
+  phases. Released from `develop` via a reviewed `develop → main` PR, tagged
+  `v1.1.0`; the Windows portable ZIP + `.sha256` are attached to the GitHub
+  Release by the automated Release workflow (D-060).
 - **v1.0.5 (2026-10-04):** product-slice release — bot↔channel **bindings** +
   channel **reaction capabilities** (the reaction planner honours the channel's
   real emoji set), session-free invite **Кампании** with conservative risk modes
@@ -201,8 +221,8 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
   resumable first-run **Setup Wizard**, and a conservative, off-by-default
   **auto-update** (checks + stages a SHA-256-verified file, never auto-installs).
   New API + RU-first UI + tests; Diagnostics gained the new subsystem rows and
-  redacted-report sections. No new phases. Published from `develop` via a
-  reviewed `develop → main` PR, tagged `v1.0.5`; the Windows portable ZIP +
+  redacted-report sections. No new phases. Published from `develop` via
+  reviewed PR #6 (`develop → main`, merge `496598f`), tagged `v1.0.5`; the Windows portable ZIP +
   `.sha256` are attached to the GitHub Release by the automated Release workflow
   (D-060).
 - **v1.0.4 (2026-10-04):** startup-robustness patch — a corrupt/unreadable

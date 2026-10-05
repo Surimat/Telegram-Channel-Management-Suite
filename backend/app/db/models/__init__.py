@@ -61,6 +61,18 @@ from backend.app.db.models.donor import (
     QUALITY_UNKNOWN,
     DonorMetrics,
 )
+from backend.app.db.models.donor_candidate import (
+    FIT_CHECK,
+    FIT_DOUBTFUL,
+    FIT_SUITABLE,
+    FIT_TITLES,
+    FIT_UNKNOWN,
+    SOURCE_MANUAL,
+    SOURCE_TELEGRAM,
+    SOURCE_TITLES,
+    SOURCE_WEB,
+    DonorCandidate,
+)
 from backend.app.db.models.event import Event, EventLevel
 from backend.app.db.models.invite import (
     TERMINAL_INVITE_STATUSES,
@@ -80,6 +92,13 @@ from backend.app.db.models.onboarding import (
 )
 from backend.app.db.models.permission import PermissionCheck
 from backend.app.db.models.post import Post, PostStatus
+from backend.app.db.models.proxy import (
+    KIND_TITLES,
+    STATUS_TITLES,
+    ProxyKind,
+    ProxyProfile,
+    ProxyStatus,
+)
 from backend.app.db.models.reaction import (
     DelayPresetDB,
     ReactionJob,
@@ -112,10 +131,16 @@ __all__ = [
     "CONFIDENCE_LOW",
     "CONFIDENCE_MEDIUM",
     "DESTINATION_TITLES",
+    "FIT_CHECK",
+    "FIT_DOUBTFUL",
+    "FIT_SUITABLE",
+    "FIT_TITLES",
+    "FIT_UNKNOWN",
     "FUNCTION_EDITING",
     "FUNCTION_POSTING",
     "FUNCTION_REACTIONS",
     "FUNCTION_TITLES",
+    "KIND_TITLES",
     "PRESET_ADVANCED",
     "PRESET_BASIC",
     "PRESET_BOT_ONLY",
@@ -130,6 +155,11 @@ __all__ = [
     "QUALITY_SUSPECT",
     "QUALITY_TITLES",
     "QUALITY_UNKNOWN",
+    "SOURCE_MANUAL",
+    "SOURCE_TELEGRAM",
+    "SOURCE_TITLES",
+    "SOURCE_WEB",
+    "STATUS_TITLES",
     "TERMINAL_INVITE_STATUSES",
     "UPDATE_APPLYING",
     "UPDATE_AVAILABLE",
@@ -160,6 +190,7 @@ __all__ = [
     "DelayPresetDB",
     "DestinationKind",
     "DestinationStatus",
+    "DonorCandidate",
     "DonorMetrics",
     "Event",
     "EventLevel",
@@ -179,6 +210,9 @@ __all__ = [
     "Post",
     "PostStatus",
     "PromotionProgress",
+    "ProxyKind",
+    "ProxyProfile",
+    "ProxyStatus",
     "ReactionJob",
     "ReactionJobStatus",
     "ReactionProfile",

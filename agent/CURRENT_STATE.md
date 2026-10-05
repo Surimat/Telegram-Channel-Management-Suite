@@ -4,13 +4,13 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-04
-**Current phase:** **v1.x maintenance (no new phases).** **v1.0.5 is released** — `develop` prepared it (`main` will fast-forward via a reviewed PR; tag `v1.0.5`; the Release workflow attaches the Windows portable ZIP + `.sha256` — D-060). The v1.0.5 **product slice** (D-064): bot↔channel **bindings** + channel **reaction capabilities** (the reaction planner honours the channel's real emoji set), session-free invite **Кампании** + explainable **donor quality**, **backup delivery destinations** (local / Telegram / Google Drive / Яндекс.Диск), a resumable first-run **Setup Wizard**, and a conservative, off-by-default **auto-update**. Diagnostics gained the new subsystem rows and redacted-report sections. `v1.0.0`–`v1.0.4` stay immutable (D-050).
+**Current phase:** **v1.x maintenance (no new phases).** **v1.0.5 is released** — PR #6 (`develop → main`, merge commit `496598f`), tag `v1.0.5`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). **v1.1.0 is complete on `develop`, awaiting release** — the multi-format **Account Hub** importer (`.session`, `.session`+JSON, StringSession, optional TDATA; D-070), optional per-account **network routes (proxies)** (D-065), **donor discovery** (candidate proposals only, D-066), a **lightweight local encoder** classifier mode (D-067) with the optional **ruBERT-tiny2** embedding backend + install flow (D-068), and the bot-only/risk UX (D-069: session-free analytics, adaptive wizard, intent-narrowed reactions). The v1.0.5 **product slice** (D-064): bot↔channel **bindings** + channel **reaction capabilities** (the reaction planner honours the channel's real emoji set), session-free invite **Кампании** + explainable **donor quality**, **backup delivery destinations** (local / Telegram / Google Drive / Яндекс.Диск), a resumable first-run **Setup Wizard**, and a conservative, off-by-default **auto-update**. `v1.0.0`–`v1.0.5` stay immutable (D-050).
 Earlier (already released): the **v1.0.4** startup-robustness patch — a damaged/unreadable database is explained instead of crashing startup or the Diagnostics page (D-062), plus plain-language Queue labels and beginner in-UI help. The **v1.0.3** work was the **Diagnostics** page, a **redacted diagnostic report** (ZIP/JSON/TXT with a server-side secret scan), and **safe maintenance actions** — none delete user data (D-061). The post-1.0 hardening: **versioned Alembic migrations** replace `create_all` at startup (D-052); a **shared Channel Registry** (D-051/D-055); **reproducible, cross-platform portable packaging** and the **Release workflow** (D-056/D-060).
-Version string is **1.0.5** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
-All gates pass: `pytest` **491 passed**, `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend and frontend gates.
-**Repository status:** `main == 3f42c3d` (v1.0.4); `develop` adds the v1.0.5 product slice + docs; tags `v1.0.0`–`v1.0.4` (v1.0.5 tag pending the release PR); each GitHub Release carries the Windows portable ZIP + `.sha256` (built by CI, D-060).
+Version string is **1.1.0** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
+All gates pass: `pytest` **574 passed**, `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend and frontend gates.
+**Repository status:** `main == 496598f` (v1.0.5 release commit); `develop` carries the v1.1.0 work (not yet released); tags `v1.0.0`–`v1.0.5`; each GitHub Release carries the Windows portable ZIP + `.sha256` (built by CI, D-060).
 **Branch:** develop (working branch); main is released and updated only via pull request.
-**Latest work (v1.0.5 product slice + docs pass):** shipped the D-064 product slice (new API + RU-first UI + tests + one Alembic migration `7cb72d22d35b`), extended Diagnostics with the new rows/report sections, fixed backup delivery so the archive bytes reach every destination, and completed a factual docs/memory pass (`docs/API.md` new sections, `docs/UI.md` campaigns/destinations/wizard/update, `README.md`, `docs/ROADMAP.md`, `docs/RELEASE_CHECKLIST.md`, agent memory). `updates/` is now git-ignored and created by the portable build.
+**Latest work (v1.1.0 completion):** finished the vertical slice — Account Hub importer (`/sessions/import/detect`, `/sessions/import/artifact`, `/sessions/{id}/risk`), encoder install flow (`/ai/encoder/*`), ruBERT embedding backend, intent→reaction narrowing, bot-only analytics note, adaptive wizard notes, bot-kind explanations + honest binding statuses in the UI; `.gitignore` hardened for TDATA/companion JSON; docs (`API`, `UI`, `SETUP`, `SECURITY`, `ARCHITECTURE`) and agent memory updated; a cp775 mojibake corruption in `docs/API.md` fixed.
 
 ---
 
@@ -693,25 +693,72 @@ Alembic migration (`7cb72d22d35b`, autogenerate-drift clean) adds every new tabl
   `tests/test_product_api.py`, extended `tests/test_diagnostics.py`. Suite
   **491 passed**; `ruff` clean; `vue-tsc` + `npm run build` clean.
 
+## 2g. v1.1.0 — Account Hub, discovery, encoder, bot-only UX (2026-10-04, on develop)
+
+Maintenance/minor release completing the requested vertical slice. No new phase;
+every addition is opt-in and never bypasses Telegram limits. Migrations:
+`20261004_2047_76d92fe3e70b` (proxy_profiles, donor_candidates,
+user_sessions.proxy_id) and the posts.intent / restriction_count follow-ups.
+
+- **Account Hub — local session import (D-070).** `services/session_import.py`
+  defines one `SessionImportProvider` protocol with four providers: Telethon
+  `.session` (SQLite header), `.session` + companion JSON (whitelisted keys
+  `api_id`/`app_id`/`api_hash`/`app_hash`/`phone`/`dc_id`; secret keys never
+  read), StringSession (written to `SESSIONS_DIR`, never echoed/logged) and
+  Telegram Desktop TDATA (optional; honest `NOT AVAILABLE` without a reliable
+  converter; source folder never modified/uploaded). API:
+  `POST /sessions/import/detect`, `POST /sessions/import/artifact`,
+  `GET /sessions/{id}/risk`. `SessionsView.vue` shows the "Центр аккаунтов
+  (импорт)" panel, format/state, the sensitive-file warning and the "Риск
+  ограничений" column.
+- **Network routes (proxies, D-065).** `proxy_profiles` + `user_sessions.proxy_id`,
+  `/api/v1/proxies*`; password sealed, honest `ok`/`error`/`timeout` check,
+  explicit non-bypass notice everywhere.
+- **Donor discovery (D-066).** `donor_candidates` +
+  `providers/discovery_base.py` / `telegram_discovery.py` +
+  `services/donor_discovery_service.py` + `/api/v1/discovery*` (search /
+  candidates / compare / add / clear). Candidates are proposals only; a source is
+  added solely by an explicit click. `SourcesView.vue` gained the "Автопоиск
+  доноров" panel with comparison.
+- **Lightweight encoder (D-067) + ruBERT backend (D-068).** `ai/encoder.py`
+  (dependency-free hashing encoder + prototype classifier; `MODE_ENCODER`), the
+  `EncoderBackend` protocol, and the optional `cointegrated/rubert-tiny2`
+  embedding backend (lazy, CPU-only, unload-when-idle). `services/encoder_service.py`
+  + `/api/v1/ai/encoder/{status,install,check,remove}` download only the official
+  files, verify SHA-256, store in the gitignored `models/` and report an honest
+  status; `AiView.vue` shows the "Мини-ИИ" install card.
+- **Bot-only UX (D-069).** Analytics without an account (`account_connected` /
+  `account_note`, "Режим без личного аккаунта"); adaptive wizard
+  (`session_optional_note` / `session_risk_note`); intent → reaction narrowing
+  (`services/reaction_intent.py`; the planner intersects profile ∩ intent ∩
+  channel ∩ bot-compatible and skips with a reason).
+- **Bots UX.** `BotsView.vue` explains the three bot kinds (what/why/can/cannot/
+  add-to-channel) and shows an honest binding status (`Готов`/`Нужны права`/
+  `Не подключён`/`Ошибка`/`Недоступен`) with "Подключить к каналу" + "Проверить".
+- **Security.** `.gitignore` also excludes `tdata/`, `*.session.json`,
+  `*.session_meta.json`; docs/SECURITY.md documents the import scope and proxy
+  credential sealing; a cp775 mojibake corruption in `docs/API.md` was fixed.
+- Tests: `test_session_import.py`, `test_proxy_api.py`, `test_proxy_service.py`,
+  `test_discovery_api.py`, `test_donor_discovery.py`, `test_encoder.py`,
+  `test_encoder_service.py`, `test_reaction_planner.py`; extended `test_ai_api.py`,
+  `test_ai_classifier.py`, `test_session_service.py`, `test_diagnostics.py`.
+  Suite **574 passed**; `ruff` clean; `vue-tsc` + `npm run build` clean.
+
 ## 5. Next action
 
-**v1.0.5 is released** (prepared on `develop`, released via a reviewed PR; tag
-`v1.0.5`); the Release workflow creates the GitHub Release and attaches the
-Windows portable ZIP + `.sha256` (D-060). CI is green.
+**v1.1.0 is complete on `develop` and awaiting release.** `main` is at `496598f`
+(v1.0.5). The next step is the standard release flow from
+`docs/RELEASE_CHECKLIST.md`: commit the v1.1.0 work → push `develop` → green CI →
+reviewed PR `develop → main` → tag `v1.1.0` → the Release workflow attaches the
+Windows portable ZIP + `.sha256` (D-060). Do **not** push directly to `main` and
+do **not** move the `v1.0.0`–`v1.0.5` tags (D-050).
 
-**NEXT_TASK = MAINTENANCE / OPTIONAL EXTENSIONS.** The roadmap (PHASE 0–11) is
-complete and shipped; there is **no required next phase**. Optional future work
-(pick only if the owner asks; do **not** open a new phase unprompted):
-
-1. A fully automated @BotFather Mini App flow (the one-click menu-button
-   registration already exists, D-054).
-2. Replace the per-request Mini App `initData` check with short-lived signed
-   session tokens if the panel is ever exposed beyond the owner (D-035).
-3. Any new feature requested by the owner — record a decision, keep the
-   vertical-slice workflow (backend + DB + UI + tests + docs + memory + commit).
-
-Before any future release: follow `docs/RELEASE_CHECKLIST.md`. Do **not** move
-the `v1.0.0`–`v1.0.5` tags (D-050).
+After release, `NEXT_TASK` returns to **MAINTENANCE / OPTIONAL EXTENSIONS**; the
+roadmap (PHASE 0–11) is complete and there is no required next phase. Optional
+future work (only if the owner asks): a fully automated @BotFather Mini App flow
+(D-054); short-lived signed Mini App tokens if it is ever exposed beyond the owner
+(D-035); a reliable, permissively-licensed TDATA converter adapter (D-070); or any
+feature the owner requests (record a decision; keep the vertical-slice workflow).
 
 ### RC verification (2026-10-03) — done against a live server in offline mode
 

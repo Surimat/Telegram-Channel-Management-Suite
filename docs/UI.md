@@ -147,8 +147,8 @@ Wording rule — instead of `BOT_TOKEN missing`, write:
 | `/bots` | `BotsView` | 2 |
 | `/channels` | `ChannelsView` | hardening |
 | `/reactions` | `ReactionsView` | 3 |
-| `/sessions` | `SessionsView` | 4 |
-| `/sources` | `SourcesView` | 5 |
+| `/sessions` | `SessionsView` (Account Hub + accounts + network routes / proxies) | 4 |
+| `/sources` | `SourcesView` (sources + donor discovery) | 5 |
 | `/audience` | `AudienceView` | 5 |
 | `/invites` | `InvitesView` | 6 |
 | `/campaigns` | `CampaignsView` (invite-link campaigns + donor quality) | polish |
@@ -198,6 +198,43 @@ PHASE 5 API (no backend change).
 
 Both pages are reachable from the desktop sidebar and the Mini App bottom nav.
 
+### Account Hub & bots (`SessionsView.vue`, `BotsView.vue`, v1.1)
+
+**Боты (`/bots`)** explains the three bot kinds in plain language — what each is,
+why it exists, what it can do, what it cannot do, and whether it must be added to
+a channel:
+
+- **Управляющий бот** — the suite's control bot (commands, status); it lives in
+  your personal chat and is **not** added to a channel.
+- **Управляемый бот** — a bot the suite creates and drives for automatic actions
+  such as reactions. It only works once it is connected to the channel and its
+  rights are verified.
+- **Обычный бот** — a bot you added yourself and use for reactions; it also needs
+  to be added to the channel with the reaction right.
+
+The bot table has a **Канал** column with an honest status (`Готов` / `Нужны
+права` / `Не подключён` / `Ошибка` / `Недоступен`), a channel picker, a
+**«Подключить к каналу»** button and a **«Проверить»** button. A status is only
+`Готов` after a real Telegram check; nothing is claimed without one.
+
+**Центр аккаунтов (`/sessions`)** is the multi-format local importer:
+
+- **«Центр аккаунтов (импорт)»** — detect and import a local artifact by path
+  (`.session`, `.session` + companion JSON, or a `tdata` folder) or a
+  StringSession string. After choosing a source the page shows
+  **«Определяем формат…»** then the detected `Формат`, `Состояние`
+  (`валиден`/`повреждён`/`неавторизован`/`не удалось определить`) and, on
+  success, **«Аккаунт подключён.»**.
+- A permanent warning: *«Файл авторизации Telegram — чувствительные данные.
+  Никому его не передавайте.»* A StringSession string is masked, sent once and
+  never shown again.
+- Each account row has a **«Риск ограничений»** column with a colour band
+  (`Healthy`/`Warning`/`FloodWait`/`Restricted`/`Auth required`/`Disabled`) and
+  the note that using a user account for mass invites may lead to restrictions —
+  no safe invite count is ever promised.
+- **Сетевые маршруты (прокси)** are attached to an account as a plain connection
+  route; the page states explicitly *«Прокси не отменяет ограничения Telegram.»*
+
 ### AI page (`AiView.vue`, PHASE 7)
 
 The AI page follows the "Название / Зачем нужно / Что произойдёт / Безопасное
@@ -209,12 +246,20 @@ the AI is optional and that the system works on rules alone when it is off. Tabs
 - **Модель** — list `.gguf` files found, check / load / unload.
 - **Настройки** — all AI settings with per-field help (what/why/large effect/safe
   default) sourced from the backend, never hardcoded in the frontend.
-- **Проверка** — type a post text, choose mode (`auto`/`rules`/`ai`), see the
-  routed result: category, tone, confidence, and which source won.
+- **Проверка** — type a post text, choose mode (`auto`/`rules`/`encoder`/`ai`),
+  see the routed result: category, tone, intent, confidence, and which source won.
 - **Диагностика** — recent AI records and aggregate metrics.
 
 The UI never shows stack traces or model internals; AI problems appear as
 friendly messages with a suggested fix.
+
+**Мини-ИИ (lightweight encoder, v1.1)** — a card on the AI page turns the
+optional ruBERT-tiny2 install into one honest action. It shows the state
+(`Не установлена` / `Установлена` / `Готова` / `нет библиотеки`), the size on
+disk, and three buttons: **«Установить лёгкую модель»**, **«Проверить»**,
+**«Удалить модель»**. The model is downloaded only on the owner's click, from the
+official repository, verified by SHA-256, stored in the gitignored `models/`
+folder, and never bundled. Install never claims success without a real load.
 
 ### Analytics page (`AnalyticsView.vue`, PHASE 8)
 
@@ -237,6 +282,13 @@ The Dashboard embeds a compact "Что показывают цифры" block (t
 two sparklines) linking to the full page. No charting dependency is added, so the
 portable runtime stays light (D-037). The UI shows only friendly numbers and
 messages — never stack traces.
+
+**Bot-only mode (v1.1)** — the page works without any user account. When no
+account is connected a **«Режим без личного аккаунта»** note explains that the
+figures cover posts, reactions and campaigns collected after the bots were
+connected, and that *«Историческая информация недоступна этому типу
+подключения.»* The analytics window is not hidden — only the unavailable history
+is called out honestly.
 
 ### Telegram Mini App mode (PHASE 9)
 
@@ -313,8 +365,10 @@ Four owner-facing additions, all RU-first and consistent with §1–§4:
 The first place a non-technical owner should look when something is off:
 
 - A table lists every subsystem (application, database, Telegram API, manager
-  bot, managed bots, accounts, channels, audience, reactions, invites, AI,
-  scheduler/queue, storage, portable runtime) with a colour status badge
+  bot, managed bots, accounts, network routes/proxies, channels, bot↔channel
+  bindings, channel reaction capabilities, audience, donors, donor candidates,
+  reactions, invites, campaigns, AI, scheduler/queue, storage, backup
+  destinations, update, portable runtime) with a colour status badge
   (`Готово` / `Внимание` / `Ошибка` / `Не настроено`) and two plain-language
   columns: **«Что это значит»** and **«Что делать»**.
 - **«Создать отчёт диагностики»** downloads a **redacted** report (ZIP/JSON/TXT)
@@ -368,6 +422,7 @@ Use exactly one term per entity across the UI, docs and API text:
 | Reaction configuration set | **Профиль реакции** |
 | Unit of scheduled work | **Задание** |
 | Durable job list | **Очередь** |
+| Account connection route (proxy) | **Сетевой маршрут** (прокси) |
 
 Do not use "База участников", "Задачи", "Объект", "Пользователь Telegram"
 etc. as synonyms for the terms above.

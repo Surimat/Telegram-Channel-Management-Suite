@@ -4,7 +4,10 @@ import {
   api,
   type AudienceDashboard,
   type AudienceSource,
+  type CandidateList,
   type Channel,
+  type DiscoveryCompare,
+  type DonorCandidate,
   type ScanPreview,
   type ScanResult,
   type UserSession,
@@ -36,6 +39,122 @@ const previewFor = ref<AudienceSource | null>(null)
 const preview = ref<ScanPreview | null>(null)
 const previewBusy = ref(false)
 const lastResult = ref<ScanResult | null>(null)
+
+// Donor discovery (v1.1). Candidates are proposals; adding one to sources is
+// always an explicit click.
+const discovery = ref<CandidateList | null>(null)
+const discoveryForm = ref({
+  topic: '',
+  keywords: '',
+  language: '',
+  min_subscribers: 0,
+  max_subscribers: 0,
+  active_only: false,
+  period_days: 0,
+  seed_channel: '',
+})
+const discoveryBusy = ref(false)
+const discoveryError = ref('')
+const selectedCandidates = ref<string[]>([])
+const compareResult = ref<DiscoveryCompare | null>(null)
+
+async function loadDiscovery() {
+  try {
+    discovery.value = await api.discoveryCandidates()
+  } catch {
+    discovery.value = null
+  }
+}
+
+async function runDiscovery() {
+  discoveryBusy.value = true
+  discoveryError.value = ''
+  notice.value = ''
+  compareResult.value = null
+  selectedCandidates.value = []
+  try {
+    const result = await api.discoverySearch({
+      topic: discoveryForm.value.topic,
+      keywords: discoveryForm.value.keywords
+        .split(',')
+        .map((k) => k.trim())
+        .filter(Boolean),
+      language: discoveryForm.value.language,
+      min_subscribers: Number(discoveryForm.value.min_subscribers) || 0,
+      max_subscribers: Number(discoveryForm.value.max_subscribers) || 0,
+      active_only: discoveryForm.value.active_only,
+      period_days: Number(discoveryForm.value.period_days) || 0,
+      seed_channel: discoveryForm.value.seed_channel,
+      providers: ['telegram'],
+    })
+    const failed = result.providers.filter((p) => !p.ok)
+    notice.value = failed.length
+      ? `Найдено кандидатов: ${result.stored}. ${failed[0].message}`
+      : `Найдено кандидатов: ${result.stored}. Добавляйте в источники только вручную.`
+    await loadDiscovery()
+  } catch (e) {
+    discoveryError.value = friendlyError(e)
+  } finally {
+    discoveryBusy.value = false
+  }
+}
+
+async function addCandidate(candidate: DonorCandidate) {
+  discoveryBusy.value = true
+  discoveryError.value = ''
+  try {
+    await api.discoveryAdd(candidate.id)
+    notice.value = `«${candidate.title || candidate.username}» добавлен в источники аудитории.`
+    await loadDiscovery()
+    await load(true)
+  } catch (e) {
+    discoveryError.value = friendlyError(e)
+  } finally {
+    discoveryBusy.value = false
+  }
+}
+
+function toggleCandidate(id: string) {
+  const i = selectedCandidates.value.indexOf(id)
+  if (i >= 0) selectedCandidates.value.splice(i, 1)
+  else selectedCandidates.value.push(id)
+}
+
+async function compareSelected() {
+  if (selectedCandidates.value.length < 2) return
+  discoveryBusy.value = true
+  discoveryError.value = ''
+  try {
+    compareResult.value = await api.discoveryCompare(selectedCandidates.value)
+  } catch (e) {
+    discoveryError.value = friendlyError(e)
+  } finally {
+    discoveryBusy.value = false
+  }
+}
+
+async function clearCandidates() {
+  if (!confirm('Очистить список найденных кандидатов? Уже добавленные источники останутся.')) return
+  discoveryBusy.value = true
+  try {
+    await api.discoveryClear()
+    compareResult.value = null
+    selectedCandidates.value = []
+    await loadDiscovery()
+  } catch (e) {
+    discoveryError.value = friendlyError(e)
+  } finally {
+    discoveryBusy.value = false
+  }
+}
+
+function reachPercent(c: DonorCandidate): string {
+  return c.reach_ratio > 0 ? `${Math.round(c.reach_ratio * 100)}%` : 'нет данных'
+}
+
+function activityLabel(c: DonorCandidate): string {
+  return c.reaction_ratio > 0 ? `${Math.round(c.reaction_ratio * 100)}%` : 'нет данных'
+}
 
 const SCAN_LABELS: Record<string, string> = {
   idle: 'Не сканировался',
@@ -205,6 +324,7 @@ const cancel = (s: AudienceSource) => withSource(s.id, () => api.cancelScan(s.id
 let timer: number | undefined
 onMounted(async () => {
   await load()
+  loadDiscovery()
   timer = window.setInterval(() => {
     if (anyScanning.value) load(true)
   }, 4000)
@@ -409,5 +529,151 @@ onUnmounted(() => {
         </tr>
       </tbody>
     </table>
+
+    <!-- Donor discovery (v1.1): proposals only, never automatic -->
+    <div class="card" style="margin-top: 20px">
+      <h3>Автопоиск доноров</h3>
+      <p class="muted">
+        Поиск каналов-доноров по теме. Найденные каналы — только <strong>кандидаты</strong>;
+        в источники аудитории они попадают лишь после явного нажатия. Сбор метрик не обходит
+        ограничения Telegram: если данные скрыты, это честно отмечено.
+      </p>
+      <div v-if="discoveryError" class="error-text">{{ discoveryError }}</div>
+
+      <div v-if="discovery && !discovery.providers.some((p) => p.available)" class="muted">
+        Поставщики поиска недоступны:
+        <ul>
+          <li v-for="p in discovery.providers" :key="p.name">{{ p.title }} — {{ p.message }}</li>
+        </ul>
+      </div>
+
+      <div class="grid">
+        <label class="field">
+          <span>Тема или ключевые слова</span>
+          <input v-model="discoveryForm.topic" placeholder="Например: новости, технологии" />
+        </label>
+        <label class="field">
+          <span>Ключевые слова (через запятую)</span>
+          <input v-model="discoveryForm.keywords" placeholder="криптовалюта, инвестиции" />
+        </label>
+        <label class="field">
+          <span>Язык</span>
+          <input v-model="discoveryForm.language" placeholder="ru" />
+        </label>
+        <label class="field">
+          <span>Мин. подписчиков</span>
+          <input v-model.number="discoveryForm.min_subscribers" type="number" placeholder="0" />
+        </label>
+        <label class="field">
+          <span>Макс. подписчиков</span>
+          <input v-model.number="discoveryForm.max_subscribers" type="number" placeholder="0" />
+        </label>
+        <label class="field">
+          <span>Период активности, дней</span>
+          <input v-model.number="discoveryForm.period_days" type="number" placeholder="0" />
+        </label>
+        <label class="field">
+          <span>Свой канал для рекомендаций</span>
+          <input v-model="discoveryForm.seed_channel" placeholder="@my_channel (необязательно)" />
+        </label>
+        <label class="field">
+          <span>Только активные</span>
+          <input v-model="discoveryForm.active_only" type="checkbox" />
+        </label>
+      </div>
+      <div class="toolbar">
+        <button
+          class="primary"
+          :disabled="discoveryBusy || (!discoveryForm.topic && !discoveryForm.seed_channel)"
+          @click="runDiscovery"
+        >
+          {{ discoveryBusy ? 'Ищем…' : 'Найти источники' }}
+        </button>
+        <button
+          :disabled="discoveryBusy || selectedCandidates.length < 2"
+          @click="compareSelected"
+        >
+          Сравнить выбранные ({{ selectedCandidates.length }})
+        </button>
+        <button :disabled="discoveryBusy" @click="clearCandidates">Очистить список</button>
+      </div>
+
+      <div v-if="compareResult" class="card">
+        <strong>Лучший кандидат: {{ compareResult.best_title }}</strong>
+        <p class="muted">{{ compareResult.best_reason }}</p>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Кандидат</th>
+              <th>Размер</th>
+              <th>Охват</th>
+              <th>Активность</th>
+              <th>Качество</th>
+              <th>Признаки накрутки</th>
+              <th>Уверенность</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="c in compareResult.items" :key="c.id">
+              <td>
+                <strong>{{ c.title || c.username }}</strong>
+                <div class="muted">@{{ c.username }}</div>
+              </td>
+              <td class="muted">{{ c.subscribers }}</td>
+              <td class="muted">{{ reachPercent(c) }}</td>
+              <td class="muted">{{ activityLabel(c) }}</td>
+              <td>
+                {{ c.fit_title }}
+                <div class="muted">{{ c.score_label }}</div>
+              </td>
+              <td class="muted">{{ c.summary || '—' }}</td>
+              <td class="muted">{{ c.confidence }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <table v-if="discovery && discovery.items.length" class="table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Канал</th>
+            <th>Подписчики</th>
+            <th>Совпадение</th>
+            <th>Данные</th>
+            <th>Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="c in discovery.items" :key="c.id">
+            <td>
+              <input
+                type="checkbox"
+                :checked="selectedCandidates.includes(c.id)"
+                @change="toggleCandidate(c.id)"
+              />
+            </td>
+            <td>
+              <strong>{{ c.title || c.username }}</strong>
+              <div class="muted">@{{ c.username }}</div>
+              <div v-if="c.summary" class="muted">{{ c.summary }}</div>
+            </td>
+            <td class="muted">{{ c.subscribers }}</td>
+            <td>
+              {{ c.fit_title }}
+              <div class="muted">{{ Math.round(c.fit_score * 100) }}%</div>
+            </td>
+            <td class="muted">{{ c.confidence }}</td>
+            <td>
+              <button v-if="!c.added" :disabled="discoveryBusy" @click="addCandidate(c)">
+                Добавить в источники
+              </button>
+              <span v-else class="badge ok">уже источник</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-else class="muted">Кандидатов пока нет. Задайте тему и нажмите «Найти источники».</p>
+    </div>
   </div>
 </template>

@@ -97,6 +97,9 @@ async def test_wizard_session_steps_become_optional_without_session(client: Asyn
     for step in state["steps"]:
         if step["requires_session"]:
             assert step["status"] == "optional"
+    # Without an account the wizard explains why it is optional and what still works.
+    assert "необязательно" in state["session_optional_note"].lower()
+    assert state["session_risk_note"] == ""
 
 
 async def test_wizard_preset_switch(client: AsyncClient) -> None:

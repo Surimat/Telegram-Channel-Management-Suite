@@ -4,6 +4,9 @@ import {
   api,
   type Channel,
   type PermissionResult,
+  type ProxyProfile,
+  type SessionImportDetect,
+  type SessionRisk,
   type SessionSummary,
   type UserSession,
 } from '@/api/client'
@@ -12,6 +15,7 @@ import InfoHint from '@/components/InfoHint.vue'
 const accounts = ref<UserSession[]>([])
 const channels = ref<Channel[]>([])
 const summary = ref<SessionSummary | null>(null)
+const risks = ref<Record<string, SessionRisk>>({})
 const loading = ref(true)
 const busyId = ref('')
 const error = ref('')
@@ -33,6 +37,115 @@ const passwordInput = ref('')
 // Import state
 const showImport = ref(false)
 const importForm = ref({ api_id: '', api_hash: '', phone: '', session_file_path: '' })
+
+// Account Hub: multi-format local import (v1.1). The string session is a secret:
+// it is sent once and never shown again.
+const showImportHub = ref(false)
+const hubTab = ref<'file' | 'string'>('file')
+const hubForm = ref({ path: '', string_session: '', api_id: '', api_hash: '', phone: '' })
+const hubDetect = ref<SessionImportDetect | null>(null)
+const hubBusy = ref(false)
+
+const RISK_CLASS: Record<string, string> = {
+  healthy: 'status-ok',
+  warning: 'status-warning',
+  flood_wait: 'status-warning',
+  restricted: 'status-error',
+  auth_required: 'status-warning',
+  disabled: 'status-unknown',
+  unknown: 'status-unknown',
+}
+
+// Network routes / proxies (v1.1). A proxy is a normal connection route; it
+// never lifts Telegram limits.
+const proxies = ref<ProxyProfile[]>([])
+const proxyNotice = ref('')
+const proxyBusy = ref(false)
+const proxyError = ref('')
+const proxyForm = ref({ name: '', kind: 'socks5', host: '', port: 1080, username: '', password: '' })
+
+const PROXY_STATUS_CLASS: Record<string, string> = {
+  ok: 'status-ok',
+  error: 'status-error',
+  timeout: 'status-warning',
+  unknown: 'status-unknown',
+}
+
+async function loadProxies() {
+  try {
+    const data = await api.proxies()
+    proxies.value = data.items
+    proxyNotice.value = data.notice
+  } catch {
+    proxies.value = []
+  }
+}
+
+async function addProxy() {
+  proxyBusy.value = true
+  proxyError.value = ''
+  try {
+    await api.addProxy({
+      name: proxyForm.value.name,
+      kind: proxyForm.value.kind,
+      host: proxyForm.value.host,
+      port: Number(proxyForm.value.port) || 0,
+      username: proxyForm.value.username,
+      password: proxyForm.value.password,
+    })
+    proxyForm.value = { name: '', kind: 'socks5', host: '', port: 1080, username: '', password: '' }
+    await loadProxies()
+  } catch (e) {
+    proxyError.value = friendlyError(e)
+  } finally {
+    proxyBusy.value = false
+  }
+}
+
+async function checkProxy(p: ProxyProfile) {
+  proxyBusy.value = true
+  proxyError.value = ''
+  try {
+    const result = await api.checkProxy(p.id)
+    notice.value = result.message
+    await loadProxies()
+  } catch (e) {
+    proxyError.value = friendlyError(e)
+  } finally {
+    proxyBusy.value = false
+  }
+}
+
+async function removeProxy(p: ProxyProfile) {
+  if (!confirm(`Удалить прокси «${p.name}»? Аккаунты переключатся на прямое подключение.`)) return
+  proxyBusy.value = true
+  proxyError.value = ''
+  try {
+    await api.removeProxy(p.id)
+    await loadProxies()
+    await load()
+  } catch (e) {
+    proxyError.value = friendlyError(e)
+  } finally {
+    proxyBusy.value = false
+  }
+}
+
+async function assignProxy(a: UserSession, profileId: string) {
+  proxyBusy.value = true
+  proxyError.value = ''
+  try {
+    await api.bindProxy(a.id, profileId)
+    await load()
+  } catch (e) {
+    proxyError.value = friendlyError(e)
+  } finally {
+    proxyBusy.value = false
+  }
+}
+
+const proxyName = (id: string) =>
+  proxies.value.find((p) => p.id === id)?.name || '—'
 
 // Permission probe (post-1.0 hardening)
 const permAccountId = ref('')
@@ -120,6 +233,59 @@ async function load() {
     error.value = friendlyError(e)
   } finally {
     loading.value = false
+  }
+  // Risk bands are best-effort: a failure must not hide the account list.
+  const next: Record<string, SessionRisk> = {}
+  await Promise.all(
+    accounts.value.map(async (a) => {
+      try {
+        next[a.id] = await api.sessionRisk(a.id)
+      } catch {
+        /* ignore single-account risk failure */
+      }
+    }),
+  )
+  risks.value = next
+}
+
+async function hubDetectFormat() {
+  hubBusy.value = true
+  error.value = ''
+  hubDetect.value = null
+  try {
+    hubDetect.value = await api.detectSessionImport({
+      path: hubForm.value.path,
+      string_session: hubTab.value === 'string' ? hubForm.value.string_session : '',
+      api_id: hubForm.value.api_id,
+      api_hash: hubForm.value.api_hash,
+    })
+  } catch (e) {
+    error.value = friendlyError(e)
+  } finally {
+    hubBusy.value = false
+  }
+}
+
+async function hubImport() {
+  hubBusy.value = true
+  error.value = ''
+  try {
+    const res = await api.importSessionArtifact({
+      path: hubTab.value === 'file' ? hubForm.value.path : '',
+      string_session: hubTab.value === 'string' ? hubForm.value.string_session : '',
+      api_id: hubForm.value.api_id,
+      api_hash: hubForm.value.api_hash,
+      phone: hubForm.value.phone,
+    })
+    hubForm.value = { path: '', string_session: '', api_id: '', api_hash: '', phone: '' }
+    hubDetect.value = null
+    showImportHub.value = false
+    notice.value = `${res.message || 'Аккаунт подключён.'} Формат: ${res.format_title}.`
+    await load()
+  } catch (e) {
+    error.value = friendlyError(e)
+  } finally {
+    hubBusy.value = false
   }
 }
 
@@ -251,6 +417,7 @@ const remove = (a: UserSession) => {
 onMounted(() => {
   load()
   loadPermissionHistory()
+  loadProxies()
 })
 </script>
 
@@ -282,12 +449,106 @@ onMounted(() => {
 
     <div class="toolbar">
       <button class="primary" @click="openWizard">
-        {{ showWizard || showImport ? 'Отмена' : '+ Добавить аккаунт' }}
+        {{ showWizard || showImport || showImportHub ? 'Отмена' : '+ Добавить аккаунт' }}
       </button>
-      <button @click="showImport = !showImport; showWizard = false">
+      <button @click="showImportHub = !showImportHub; showImport = false; showWizard = false">
+        Центр аккаунтов (импорт)
+      </button>
+      <button @click="showImport = !showImport; showWizard = false; showImportHub = false">
         Импортировать .session
       </button>
       <button @click="load">Обновить</button>
+    </div>
+
+    <!-- Account Hub: multi-format local import (v1.1) -->
+    <div v-if="showImportHub" class="card">
+      <h3>Центр аккаунтов — импорт</h3>
+      <p class="muted">
+        Импортируйте только свои аккаунты и файлы, которыми вы владеете или имеете право
+        управлять. Мы не ищем и не скачиваем чужие сессии и не обходим проверки Telegram.
+      </p>
+      <div class="actions" style="margin-bottom: 0.75rem">
+        <button :class="{ primary: hubTab === 'file' }" @click="hubTab = 'file'; hubDetect = null">
+          Файл или папка
+        </button>
+        <button :class="{ primary: hubTab === 'string' }" @click="hubTab = 'string'; hubDetect = null">
+          StringSession
+        </button>
+      </div>
+
+      <template v-if="hubTab === 'file'">
+        <label class="field">
+          <span>Путь к файлу .session, .json или папке TDATA</span>
+          <input
+            v-model="hubForm.path"
+            placeholder="C:\\path\\to\\account.session или C:\\path\\to\\tdata"
+            autocomplete="off"
+          />
+        </label>
+      </template>
+      <template v-else>
+        <label class="field">
+          <span>Строка StringSession</span>
+          <input
+            v-model="hubForm.string_session"
+            type="password"
+            placeholder="1AbCd..."
+            autocomplete="off"
+          />
+        </label>
+      </template>
+
+      <label class="field">
+        <span>API ID (если известен)</span>
+        <input v-model="hubForm.api_id" placeholder="1234567" autocomplete="off" />
+      </label>
+      <label class="field">
+        <span>API Hash (если известен)</span>
+        <input v-model="hubForm.api_hash" type="password" autocomplete="off" />
+      </label>
+      <label class="field">
+        <span>Номер телефона (необязательно)</span>
+        <input v-model="hubForm.phone" placeholder="+79991234567" autocomplete="off" />
+      </label>
+
+      <div class="actions">
+        <button
+          :disabled="hubBusy || (hubTab === 'file' ? !hubForm.path : !hubForm.string_session)"
+          @click="hubDetectFormat"
+        >
+          {{ hubBusy ? 'Определяем формат…' : 'Определить формат' }}
+        </button>
+        <button
+          class="primary"
+          :disabled="hubBusy || (hubTab === 'file' ? !hubForm.path : !hubForm.string_session)"
+          @click="hubImport"
+        >
+          {{ hubBusy ? 'Импортируем…' : 'Импортировать' }}
+        </button>
+      </div>
+
+      <div v-if="hubDetect" class="inline-note">
+        <p>
+          Формат: <strong>{{ hubDetect.format_title }}</strong>
+          <span v-if="hubDetect.format !== 'unknown'"> · {{ hubDetect.format }}</span>
+        </p>
+        <p>
+          Состояние:
+          <span class="badge" :class="hubDetect.state === 'valid' ? 'ok' : 'warning'">
+            {{ hubDetect.state_title }}
+          </span>
+          <span v-if="!hubDetect.available" class="badge warning">недоступно</span>
+        </p>
+        <p :class="hubDetect.state === 'valid' ? 'ok-text' : 'muted'">{{ hubDetect.message }}</p>
+        <p v-if="hubDetect.how_to_fix" class="muted">{{ hubDetect.how_to_fix }}</p>
+        <ul v-if="hubDetect.notes.length" class="muted">
+          <li v-for="n in hubDetect.notes" :key="n">{{ n }}</li>
+        </ul>
+      </div>
+
+      <p class="inline-note">
+        Файл авторизации Telegram — чувствительные данные. Никому его не передавайте.
+      </p>
     </div>
 
     <!-- Wizard -->
@@ -405,7 +666,9 @@ onMounted(() => {
           <th>Аккаунт</th>
           <th>Телефон</th>
           <th>Состояние</th>
+          <th>Риск ограничений</th>
           <th>Проверка</th>
+          <th>Маршрут</th>
           <th>Действия</th>
         </tr>
       </thead>
@@ -427,8 +690,27 @@ onMounted(() => {
             <div v-if="a.status_message" class="muted">{{ a.status_message }}</div>
             <div v-if="a.status_hint" class="muted">{{ a.status_hint }}</div>
           </td>
+          <td>
+            <template v-if="risks[a.id]">
+              <span class="status-dot" :class="RISK_CLASS[risks[a.id].level] || 'status-unknown'"></span>
+              <strong>{{ risks[a.id].title }}</strong>
+              <div class="muted">{{ risks[a.id].message }}</div>
+            </template>
+            <span v-else class="muted">—</span>
+          </td>
           <td class="muted">
             {{ a.last_checked_at ? new Date(a.last_checked_at).toLocaleString() : '—' }}
+          </td>
+          <td>
+            <select
+              :value="a.proxy_id || ''"
+              :disabled="proxyBusy"
+              @change="assignProxy(a, ($event.target as HTMLSelectElement).value)"
+            >
+              <option value="">Прямое подключение</option>
+              <option v-for="p in proxies" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
+            <div v-if="a.proxy_id" class="muted">{{ proxyName(a.proxy_id) }}</div>
           </td>
           <td>
             <div class="actions">
@@ -443,6 +725,86 @@ onMounted(() => {
         </tr>
       </tbody>
     </table>
+
+    <!-- Network routes (proxies) -->
+    <div class="card" style="margin-top: 20px">
+      <h3>Сетевые маршруты (прокси)</h3>
+      <p class="muted">
+        Прокси — это обычный маршрут подключения для аккаунта. Он
+        <strong>не отменяет</strong> ограничения Telegram (FloodWait, приватность,
+        права администратора) и не помогает их обходить.
+      </p>
+      <div v-if="proxyError" class="error-text">{{ proxyError }}</div>
+      <table v-if="proxies.length">
+        <thead>
+          <tr>
+            <th>Название</th>
+            <th>Тип</th>
+            <th>Адрес</th>
+            <th>Состояние</th>
+            <th>Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="p in proxies" :key="p.id">
+            <td><strong>{{ p.name }}</strong></td>
+            <td class="muted">{{ p.kind_title }}</td>
+            <td class="muted">{{ p.host }}:{{ p.port }}</td>
+            <td>
+              <span class="status-dot" :class="PROXY_STATUS_CLASS[p.status] || 'status-unknown'"></span>
+              {{ p.status_title }}
+              <div v-if="p.status_message" class="muted">{{ p.status_message }}</div>
+            </td>
+            <td>
+              <div class="actions">
+                <button :disabled="proxyBusy" @click="checkProxy(p)">Проверить</button>
+                <button class="danger" :disabled="proxyBusy" @click="removeProxy(p)">Удалить</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-else class="muted">Прокси не настроены — все аккаунты подключаются напрямую.</p>
+
+      <h4 style="margin-top: 16px">Добавить прокси</h4>
+      <div class="grid">
+        <label class="field">
+          <span>Название</span>
+          <input v-model="proxyForm.name" placeholder="Например: домашний" />
+        </label>
+        <label class="field">
+          <span>Тип</span>
+          <select v-model="proxyForm.kind">
+            <option value="socks5">SOCKS5</option>
+            <option value="http">HTTP</option>
+            <option value="https">HTTPS</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Адрес</span>
+          <input v-model="proxyForm.host" placeholder="127.0.0.1" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>Порт</span>
+          <input v-model.number="proxyForm.port" type="number" placeholder="1080" />
+        </label>
+        <label class="field">
+          <span>Логин (необязательно)</span>
+          <input v-model="proxyForm.username" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>Пароль (необязательно)</span>
+          <input v-model="proxyForm.password" type="password" autocomplete="off" />
+        </label>
+      </div>
+      <button
+        class="primary"
+        :disabled="proxyBusy || !proxyForm.host || !proxyForm.port"
+        @click="addProxy"
+      >
+        {{ proxyBusy ? 'Сохраняем…' : 'Добавить прокси' }}
+      </button>
+    </div>
 
     <!-- Permission probe (post-1.0 hardening) -->
     <div class="card" style="margin-top: 20px">

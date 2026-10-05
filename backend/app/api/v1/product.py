@@ -225,6 +225,8 @@ def _wizard_out(state) -> WizardStateOut:  # type: ignore[no-untyped-def]
         current_step=state.current_step,
         completed_steps=state.completed_steps,
         total_steps=state.total_steps,
+        session_optional_note=state.session_optional_note,
+        session_risk_note=state.session_risk_note,
         steps=[
             {
                 "key": s.key,

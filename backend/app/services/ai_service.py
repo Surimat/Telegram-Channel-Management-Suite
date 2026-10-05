@@ -28,6 +28,7 @@ from backend.app.ai.router import RoutingClassifier, RoutingOutcome
 from backend.app.ai.types import (
     MODE_AI,
     MODE_AUTO,
+    MODE_ENCODER,
     SOURCE_AI,
     ClassificationContext,
     Classifier,
@@ -58,6 +59,14 @@ AI_SETTING_SPECS: dict[str, tuple[str, str, str]] = {
     "ai_rules_threshold": ("Порог уверенности правил", "float", "ai_rules_threshold"),
     "ai_confidence_threshold": ("Порог уверенности ИИ", "float", "ai_confidence_threshold"),
     "ai_history_limit": ("Сколько последних записей хранить", "int", "ai_history_limit"),
+    # v1.1: lightweight encoder level (no model download, weak-PC friendly).
+    "ai_encoder_enabled": ("Лёгкий распознаватель (без модели)", "bool", "ai_encoder_enabled"),
+    "ai_encoder_model_enabled": (
+        "Использовать модель ruBERT-tiny2",
+        "bool",
+        "ai_encoder_model_enabled",
+    ),
+    "ai_encoder_keep_loaded": ("Держать лёгкую модель в памяти", "bool", "ai_encoder_keep_loaded"),
 }
 
 
@@ -198,17 +207,48 @@ class AiService:
 
     async def router(self, mode: str = MODE_AUTO) -> RoutingClassifier:
         """Build a rules-first router for the requested mode."""
+        from backend.app.ai.encoder import EncoderClassifier
+
         specs = await ReactionService(self.session, settings=self.settings)._rule_specs()
         rules = RulesClassifier(specs)
         ai = await self.classifier(force=(mode == MODE_AI))
         effective = await self.effective()
+        encoder: Classifier | None = None
+        if mode in (MODE_AUTO, MODE_ENCODER) and bool(effective["ai_encoder_enabled"]):
+            encoder = EncoderClassifier(backend=self._encoder_backend(effective))
         return RoutingClassifier(
             rules=rules,
             ai=ai,
+            encoder=encoder,
             rules_threshold=float(effective["ai_rules_threshold"]),
             ai_threshold=float(effective["ai_confidence_threshold"]),
             mode=mode,
         )
+
+    def _encoder_backend(self, effective: dict[str, object]) -> object | None:
+        """Return the optional ruBERT backend when installed and enabled.
+
+        The heavy runtime is only reached when the owner explicitly enabled the
+        model; otherwise the dependency-free hashing encoder is used. A missing
+        model simply means ``None`` (the encoder falls back to hashing).
+        """
+        if not bool(effective.get("ai_encoder_model_enabled")):
+            return None
+        from backend.app.ai.backends.rubert import RuBertEncoderBackend
+        from backend.app.services.encoder_service import EncoderService
+
+        service = EncoderService(self.session, settings=self.settings)
+        if not (service.model_dir / "config.json").is_file():
+            return None
+        backend = RuBertEncoderBackend(str(service.model_dir))
+        return backend if backend.available else None
+
+    async def encoder_available(self) -> bool:
+        """True when the lightweight encoder level is enabled."""
+        try:
+            return bool((await self.effective())["ai_encoder_enabled"])
+        except Exception:  # pragma: no cover - settings always readable here
+            return bool(self.settings.ai_encoder_enabled)
 
     # ======================================================================
     # Classification

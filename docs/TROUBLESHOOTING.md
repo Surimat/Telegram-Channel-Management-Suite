@@ -38,6 +38,8 @@ confirmation).
 | **AI model missing** | AI enabled but no valid `.gguf` path | Optional. **Диагностика** → Мини-ИИ shows `Не настроено`/`Внимание`; set the model in **AI** or leave AI off |
 | **Database migration required** | The app version is newer than the database schema | **Диагностика** → База данных shows the pending state; restart the app — migrations run automatically at startup |
 | **Backup restore** | Wrong `APP_SECRET_KEY`, or the running process still holds the old DB | Restore the original key or re-enter the token; restart the app after restoring. See the table below |
+| **Network route (proxy) fails** | Wrong host/port/credentials, or the proxy is down | **Аккаунты → Сетевые маршруты**, press **«Проверить»**; fix or remove the route. A route never bypasses Telegram limits |
+| **Donor discovery finds nothing** | No account connected, topic too narrow, or hidden data | Connect an account; broaden keywords; candidates must be added explicitly. See below |
 
 ---
 
@@ -190,7 +192,65 @@ filtering such users out before running the invite job.
 - AI is **optional**. If `AI_ENABLED=false`, only the Rules Engine runs (this is
   normal and often sufficient).
 - If enabled, verify `AI_MODEL_PATH` points to a valid `.gguf` file.
+- The **`encoder`** mode needs **no model file** and always works — select it on
+  the **AI** page if no `.gguf` model is installed.
 - Check the **AI** page for status and test a classification.
+
+---
+
+### «Мини-ИИ» (лёгкий encoder) не устанавливается
+
+**What it means:** the optional lightweight Russian model (ruBERT-tiny2) could not
+be downloaded, verified or loaded. The suite keeps working on rules and the
+built-in encoder — this is never fatal.
+
+**How to fix:**
+1. Open **AI → Мини-ИИ** and read the status (`Не установлена` / `Установлена` /
+   `Готова` / `нет библиотеки`).
+2. Press **«Проверить»**. If it reports a missing library, the optional runtime
+   (`torch`/`transformers`) is not installed; use the built-in encoder or install
+   the runtime as documented in `docs/SETUP.md`.
+3. Press **«Установить лёгкую модель»** again if the download was interrupted — a
+   file that fails its SHA-256 check is rejected and nothing is kept.
+4. Press **«Удалить модель»** to free space; the app still classifies with rules
+   and the dependency-free encoder.
+
+---
+
+### Импорт аккаунта (Account Hub): формат не определён
+
+**What it means:** the file/folder you chose is not a recognised Telegram auth
+artifact. The importer only reads local files you own; it never searches for or
+downloads accounts.
+
+**How to fix:**
+1. Open **Аккаунты → Центр аккаунтов (импорт)** and choose the right path:
+   a Telethon `.session` file, a `.session` plus its companion `.json`, a
+   StringSession string, or a Telegram Desktop `tdata` folder.
+2. Read the detected `Формат` and `Состояние` (`валиден` / `повреждён` /
+   `неавторизован` / `не удалось определить`).
+3. **TDATA:** if it reports `NOT AVAILABLE`, no reliable converter is installed —
+   use the `.session` or StringSession route instead. TDATA is optional and the
+   source folder is never modified or uploaded.
+4. A Telegram auth file is **sensitive**: never share it. The suite never shows a
+   StringSession string or session contents after import.
+
+---
+
+### Риск ограничений / приглашения с личного аккаунта
+
+**What it means:** using a personal Telegram account for mass invites can lead to
+restrictions or a block. Telegram provides **no** universal safe limit, so the
+suite never promises one.
+
+**How to fix:**
+1. Prefer the **bot-only** path: bot↔channel bindings, reactions and invite-link
+   **Кампании** work without any user account.
+2. If you do connect an account, read the **«Риск ограничений»** band in the
+   account card (`Healthy` / `Warning` / `FloodWait` / `Restricted` /
+   `Auth required` / `Disabled`) and keep volumes conservative.
+3. On a FloodWait, wait the stated time — never rotate proxies or accounts to
+   bypass it (a proxy is a connection route only, D-065).
 
 ---
 
@@ -247,6 +307,32 @@ No user account is required for this — the bot alone is enough.
 - Telegram / Google Drive / Яндекс.Диск are optional; a bad token shows a
   plain-language error. Disable or remove the destination, or re-enter its token.
 - The **local** destination is the primary store and cannot be removed.
+
+---
+
+### Network route (proxy) does not work
+
+**What it means:** a proxy is an optional connection route for an account. It does
+**not** lift Telegram limits and is not a way around FloodWait/privacy/admin
+restrictions.
+
+**How to fix:**
+1. Open **Аккаунты → Сетевые маршруты (прокси)** and press **«Проверить»** on the
+   profile. The status is honest: `Доступен` / `Ошибка подключения` / `Нет ответа`.
+2. Check host, port and (if the proxy requires it) login/password. Credentials are
+   stored sealed and are never shown again.
+3. Assign the route to an account with the **Маршрут** column on the accounts table.
+4. If the proxy is down, set the account back to **Прямое подключение** — a missing
+   route never blocks the account permanently.
+
+### Donor discovery finds nothing
+
+- Donor search needs a working **account** (the Telegram provider runs through it);
+  if no account is connected, the provider list explains that it is unavailable.
+- The topic may be too narrow; try broader keywords or clear the subscriber range.
+- A found channel is only a **candidate** — press **«Добавить в источники»** to use
+  it. Hidden subscriber/activity data stays zero and is marked as partial; nothing
+  is invented and no limits are bypassed.
 
 ---
 

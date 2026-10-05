@@ -32,6 +32,8 @@ class SessionOut(BaseModel):
     status_message: str = ""
     status_hint: str = ""
     last_error: str = ""
+    proxy_id: str = ""
+    restriction_count: int = 0
     last_checked_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
@@ -57,6 +59,8 @@ class SessionOut(BaseModel):
             status_message=account.status_message,  # type: ignore[attr-defined]
             status_hint=account.status_hint,  # type: ignore[attr-defined]
             last_error=account.last_error,  # type: ignore[attr-defined]
+            proxy_id=getattr(account, "proxy_id", ""),  # type: ignore[attr-defined]
+            restriction_count=getattr(account, "restriction_count", 0),  # type: ignore[attr-defined]
             last_checked_at=account.last_checked_at,  # type: ignore[attr-defined]
             created_at=account.created_at,  # type: ignore[attr-defined]
             updated_at=account.updated_at,  # type: ignore[attr-defined]
@@ -123,6 +127,47 @@ class SessionImportIn(BaseModel):
         description="Путь к существующему .session файлу на этом компьютере."
     )
     display_name: str = ""
+
+
+class SessionImportArtifactIn(BaseModel):
+    """Multi-format local import (v1.1 Account Hub).
+
+    Exactly one of ``path`` / ``string_session`` must be provided. A
+    ``string_session`` is a secret: it is accepted, persisted and never echoed
+    back.
+    """
+
+    path: str = Field(default="", description="Путь к .session, папке tdata или файлу.")
+    string_session: str = Field(default="", description="Строка StringSession (секрет).")
+    api_id: str = ""
+    api_hash: str = ""
+    phone: str = ""
+    display_name: str = ""
+
+
+class ImportDetectOut(BaseModel):
+    format: str
+    format_title: str
+    state: str
+    state_title: str
+    available: bool
+    message: str
+    how_to_fix: str = ""
+    notes: list[str] = Field(default_factory=list)
+
+
+class SessionRiskOut(BaseModel):
+    level: str
+    title: str
+    message: str
+
+
+class SessionImportResultOut(BaseModel):
+    account: SessionOut
+    format: str
+    format_title: str
+    notes: list[str] = Field(default_factory=list)
+    message: str = ""
 
 
 class SessionHealthOut(BaseModel):

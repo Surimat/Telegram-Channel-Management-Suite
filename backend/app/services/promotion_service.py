@@ -147,6 +147,11 @@ class WizardState:
     completed_steps: int
     total_steps: int
     steps: list[WizardStep] = field(default_factory=list)
+    #: Shown when no account is connected: what still works and why the account
+    #: is optional (product requirement: adaptive onboarding).
+    session_optional_note: str = ""
+    #: Shown when an account is connected: the invite-restriction risk warning.
+    session_risk_note: str = ""
 
 
 class PromotionService:
@@ -232,6 +237,23 @@ class PromotionService:
             completed_steps=done,
             total_steps=total,
             steps=steps,
+            session_optional_note=(
+                ""
+                if has_session
+                else (
+                    "Подключить личный Telegram-аккаунт — необязательно. Это откроет "
+                    "расширенный доступ к аудитории. Без него доступны: подключение "
+                    "ботов, реакции, кампании ссылок, аналитика с момента подключения, "
+                    "резервные копии и диагностика."
+                )
+            ),
+            session_risk_note=(
+                "Использование пользовательского Telegram-аккаунта для массовых "
+                "приглашений может привести к ограничениям или блокировке. Telegram "
+                "не предоставляет универсального безопасного лимита."
+                if has_session
+                else ""
+            ),
         )
 
     async def _steps(self, required: list[str], *, has_session: bool) -> list[WizardStep]:

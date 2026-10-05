@@ -121,6 +121,9 @@ phone number or the session file contents.
 | POST | `/api/v1/sessions/{id}/code` | submit login code (may advance to 2FA) |
 | POST | `/api/v1/sessions/{id}/password` | submit 2FA password |
 | POST | `/api/v1/sessions/import` | import an existing `.session` file by path |
+| POST | `/api/v1/sessions/import/detect` | detect a local artifact's format + state (`path` or `string_session`) |
+| POST | `/api/v1/sessions/import/artifact` | import `.session` / `.session`+JSON / StringSession / TDATA |
+| GET | `/api/v1/sessions/{id}/risk` | account restriction-risk band (`level`/`title`/`message`) |
 | POST | `/api/v1/sessions/{id}/health` | health check (updates status) |
 | POST | `/api/v1/sessions/{id}/enable` | enable the account |
 | POST | `/api/v1/sessions/{id}/disable` | disable the account |
@@ -129,6 +132,40 @@ phone number or the session file contents.
 
 Wizard steps: `idle` → `code` → `password` (optional 2FA) → `done`. An interrupted
 flow is reset to `auth_required` on startup (`SessionService.recover()`).
+
+### Account Hub — local session import (v1.1)
+
+The Account Hub accepts the common formats a user already owns, behind one
+`SessionImportProvider` protocol (`backend/app/services/session_import.py`). It
+only ever reads **local files the user owns**; it never searches for, downloads,
+or bulk-registers third-party accounts and never bypasses Telegram verification,
+FloodWait, privacy or identity checks (D-006).
+
+| Format | Detection |
+|--------|-----------|
+| Telethon `.session` | a SQLite file (`SQLite format 3` header) |
+| `.session` + companion JSON | `.session` plus `<stem>.json` / `<stem>_meta.json` |
+| StringSession | a Telethon `StringSession` string |
+| TDATA | a Telegram Desktop `tdata` directory (optional converter) |
+
+`POST /sessions/import/detect` returns `format`, `format_title`, `state`
+(`valid`/`damaged`/`unauthorized`/`unknown`), `available`, `message` and
+`how_to_fix` before anything is imported. The companion JSON is read with a
+whitelist (`api_id`/`app_id`/`api_hash`/`app_hash`/`phone`/`dc_id`); secret keys
+(`session_string`, `auth_key`, `password`, …) are never read. A StringSession
+string is accepted, written to the protected sessions directory and **never
+returned, logged or displayed** again. TDATA conversion is optional: with no
+reliable converter installed the importer reports an honest `NOT AVAILABLE`
+state instead of pretending (the source `tdata` folder is never modified or
+uploaded).
+
+### Account restriction risk (v1.1)
+
+`GET /sessions/{id}/risk` returns `level` (`healthy`/`warning`/`flood_wait`/
+`restricted`/`auth_required`/`disabled`), a human `title` and an explanatory
+`message`. Repeated limits raise the band. The UI shows this in the account card
+and **never promises a safe invite count** — Telegram provides no universal safe
+limit.
 
 ---
 
@@ -254,10 +291,29 @@ The LLM never picks emoji; emoji selection stays deterministic (D-021/D-033).
 | GET | `/api/v1/ai/metrics` | aggregate classification counters/latency |
 | GET | `/api/v1/ai/history` | recent AI diagnostics records (`?limit=&offset=`) |
 
-`mode` is `auto` (rules-first, default), `rules` (rules only) or `ai` (AI only,
-falls back to rules). `source` is `rules` / `llm` / `manual` / `fallback`.
+`mode` is `auto` (rules-first, default), `rules` (rules only), `encoder` (the
+lightweight local encoder only — no model download, weak-PC friendly) or `ai`
+(AI only, falls back to rules). `source` is `rules` / `llm` / `encoder` /
+`manual` / `fallback`.
 Model files are user-provided runtime assets: never committed, never downloaded
-automatically.
+automatically. The lightweight encoder needs no model file at all.
+
+#### Optional lightweight encoder model (v1.1)
+
+The built-in encoder needs no download. The optional **ruBERT-tiny2** encoder
+backend (embeddings only, never a generative JSON model — D-068) is installed
+from the UI or API; only official files are fetched and each is verified by
+SHA-256 before it is kept in the gitignored `models/` directory.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/ai/encoder/status` | `runtime_available`, `installed`, `ready`, `model_dir`, `size_bytes`/`size_human` |
+| POST | `/api/v1/ai/encoder/install` | download + verify the official model files |
+| POST | `/api/v1/ai/encoder/check` | run a real load test (honest pass/fail) |
+| POST | `/api/v1/ai/encoder/remove` | delete the downloaded model (built-in encoder still works) |
+
+The status is honest: a missing runtime (`torch`/`transformers`) is reported as
+such, and a failed checksum is rejected without keeping the file.
 
 ---
 
@@ -591,6 +647,43 @@ default; when enabled it only checks and downloads. `state` is one of `idle`,
 | POST | `/api/v1/update/enabled` | enable/disable checking (`enabled`) |
 | POST | `/api/v1/update/check` | check for a newer release |
 | POST | `/api/v1/update/download` | download + verify the release archive |
+
+---
+
+## Proxy profiles / network routes (v1.1)
+
+Owner-facing CRUD for connection routes. A proxy is a normal connection route
+for a user account — it **never** lifts Telegram limits (FloodWait, privacy,
+admin rights) and must not be used to bypass them. The password is accepted on
+input, sealed at rest and never returned (`has_password` only). The list response
+always carries the explicit non-bypass notice.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/proxies` | list profiles + non-bypass notice |
+| POST | `/api/v1/proxies` | add a profile (`name`, `kind`, `host`, `port`, optional `username`/`password`) |
+| PUT | `/api/v1/proxies/{id}` | update a profile (empty `password` clears it) |
+| DELETE | `/api/v1/proxies/{id}` | delete a profile; bound accounts return to a direct connection |
+| POST | `/api/v1/proxies/{id}/check` | honest reachability check (`ok`/`error`/`timeout` + how-to-fix) |
+| POST | `/api/v1/proxies/bind` | bind an account (`account_id`, `profile_id`; empty = direct) |
+
+---
+
+## Donor discovery (v1.1)
+
+Search for donor channels by topic. Results are **candidates** — proposals only.
+A candidate becomes an audience source solely through an explicit
+`POST /candidates/{id}/add`. Metrics that Telegram hid stay at zero and the
+`partial`/`confidence` fields say so; nothing bypasses Telegram limits.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/discovery/providers` | provider availability (telegram / web / manual) |
+| POST | `/api/v1/discovery/search` | run a search (`topic`, optional filters) |
+| GET | `/api/v1/discovery/candidates` | stored candidates + provider status |
+| POST | `/api/v1/discovery/compare` | compare 2–10 candidates, name the best |
+| POST | `/api/v1/discovery/candidates/{id}/add` | explicitly add a candidate to sources |
+| POST | `/api/v1/discovery/candidates/clear` | clear stored candidates (sources are kept) |
 
 ---
 
