@@ -9,26 +9,27 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v1.5.4`.** It closes the **last three Consistency
-Auditor gaps** and raises the meta-audit kill rate to **100% (25/25 seeded
-defects) with 0 false positives**. Three new static detectors make dead code
-impossible to hide: an **unused DB field** (a column no module reads or writes),
-a **backend service without a caller** (a class no module references), and a
-**frontend control without behaviour** (an `@click` handler with no function).
-The **runtime mutation engine** still computes the kill rate from real
-executions, never from a declared list, and `KNOWN_GAP_IDS` is now empty. It adds
-no account registration and no Telegram-limit bypass. The v1.5.3 detectors remain:
-a **write-only setting** and a **channel-aware module that bypasses the Channel
-Registry**. It keeps the **Capability Graph** (one
-machine-readable description of what the product can do and what each capability
-requires, so every screen agrees on what is ready), a
-**localized message catalog** (RU/EN, single-sourced in `core/i18n.py`) and the
-**Consistency Auditor** ("Проверка целостности": cross-module drift detection
-between DB, migrations, API, frontend, scheduler, providers, i18n and help
-catalog). See Status below.
+**Current stable release: `v1.6.0`.** It adds an **Owner Auth + Config Sync**
+vertical slice: a **local owner profile** (password or PIN) that protects the
+panel with a one-way PBKDF2 verifier and a signed session token, and an
+**encrypted configuration bundle** that moves your settings to a new computer
+without ever copying the SQLite database, Telegram sessions or TDATA. Sync uses
+**Google Drive (app-data scope, least privilege)** or a local folder, and it
+refuses to overwrite on a conflict instead of a blind last-write-wins. Owner Auth
+is **local-first**: while no owner profile exists, the panel stays open exactly as
+before. It adds no account registration and no Telegram-limit bypass. It keeps the
+**Consistency Auditor** (now also auditing config-sync providers and the bundle's
+secret denylist, D-106), the **Capability Graph**, and the **localized message
+catalog** (RU/EN, single-sourced in `core/i18n.py`). See Status below.
 
 ## What it does
 
+- **Owner Auth** — one local owner profile (password or PIN) protects the panel
+  with a one-way PBKDF2 verifier and a signed session token. It is local-first:
+  while no profile exists the panel stays open, exactly as before.
+- **Config Sync** — move your settings to a new computer as a versioned encrypted
+  bundle (AES-256-GCM) via a local folder or Google Drive (app-data scope). Never
+  the database, sessions or TDATA; a conflict is reported, not overwritten.
 - **Manager Bot** — control the suite from Telegram (admin whitelist, notifications).
 - **Managed Bots** — add/health/remove Telegram bots; tokens sealed at rest.
 - **Bot Factory** — plan a set of worker bots, check usernames with Telegram,
@@ -148,7 +149,15 @@ the language preference selectable in Settings) and the **Consistency Auditor**
 (cross-module drift detection surfaced in Diagnostics, with a failed check
 reported as an error instead of being silently skipped). It adds no account
 registration and no Telegram-limit bypass.
-**v1.5.4 (this release)** closes the **last three Consistency Auditor gaps** with
+**v1.6.0 (this release)** adds **Owner Auth + Config Sync**: a local owner
+profile (password/PIN) that protects the panel, and an **encrypted settings
+bundle** that carries your configuration to a new computer via Google Drive
+(app-data scope) or a local folder — never the database, sessions or TDATA. It is
+local-first (open until an owner profile enables protection) and reports sync
+conflicts instead of overwriting. Three new Consistency Auditor checks guard the
+sync providers and the bundle's secret denylist. It adds no account registration
+and no Telegram-limit bypass.
+**v1.5.4** closed the **last three Consistency Auditor gaps** with
 static detectors — an **unused DB field** (N), a **backend service without a
 caller** (O) and a **frontend control without behaviour** (P) — proven by the
 **runtime mutation engine**, which computes the kill rate from real executions:

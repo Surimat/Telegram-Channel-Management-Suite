@@ -106,6 +106,8 @@ _CHECK_TITLES = {
     "campaigns": "Кампании приглашений",
     "donors": "Качество источников",
     "ai": "Мини-ИИ",
+    "owner_auth": "Владелец",
+    "config_sync": "Синхронизация конфигурации",
     "scheduler": "Планировщик и очередь",
     "backup_destinations": "Места хранения копий",
     "update": "Обновления",
@@ -165,6 +167,8 @@ class DiagnosticsService:
                 "manager_bot", lambda: self.system.manager_bot_db_check(self.session)
             ),
             await self._guarded("managed_bots", self._managed_bots_item),
+            await self._guarded("owner_auth", self._owner_auth_item),
+            await self._guarded("config_sync", self._config_sync_item),
             await self._guarded("sessions", self._sessions_item),
             await self._guarded("proxies", self._proxies_item),
             await self._guarded("channels", self._channels_item),
@@ -293,6 +297,72 @@ class DiagnosticsService:
             STATUS_OK,
             f"Управляемых ботов готово: {count}.",
             "",
+        )
+
+    async def _owner_auth_item(self):  # type: ignore[no-untyped-def]
+        from backend.app.services.owner_auth_service import OwnerAuthService
+        from backend.app.services.system_service import Check
+
+        status = await OwnerAuthService(self.session).status()
+        if not status.exists:
+            return Check(
+                "owner_auth",
+                "Владелец",
+                STATUS_NOT_CONFIGURED,
+                "Профиль владельца не создан — приложение открыто без входа.",
+                "Создайте профиль владельца в разделе «Владелец», чтобы защитить настройки.",
+            )
+        if not status.enabled:
+            return Check(
+                "owner_auth",
+                "Владелец",
+                STATUS_WARNING,
+                "Профиль владельца есть, но защита выключена.",
+                "Включите защиту в разделе «Владелец», если компьютером пользуются другие.",
+            )
+        if status.locked:
+            return Check(
+                "owner_auth",
+                "Владелец",
+                STATUS_WARNING,
+                "Вход временно заблокирован после нескольких неудачных попыток.",
+                "Подождите или перезапустите приложение.",
+            )
+        return Check(
+            "owner_auth",
+            "Владелец",
+            STATUS_OK,
+            "Профиль владельца создан, защита включена.",
+            "",
+        )
+
+    async def _config_sync_item(self):  # type: ignore[no-untyped-def]
+        from backend.app.services.config_sync_service import ConfigSyncService
+        from backend.app.services.system_service import Check
+
+        status = await ConfigSyncService(self.session).status()
+        if status.state == "available":
+            return Check(
+                "config_sync",
+                "Синхронизация конфигурации",
+                STATUS_OK,
+                f"Провайдер: {status.provider_label}. Ревизия: {status.cloud_revision}.",
+                "",
+            )
+        if status.state == "error":
+            return Check(
+                "config_sync",
+                "Синхронизация конфигурации",
+                STATUS_ERROR,
+                status.message or "Провайдер синхронизации требует повторного входа.",
+                "Переподключите Google Drive в разделе «Владелец» → «Синхронизация».",
+            )
+        return Check(
+            "config_sync",
+            "Синхронизация конфигурации",
+            STATUS_NOT_CONFIGURED,
+            "Синхронизация не настроена — это необязательно.",
+            "Подключите Google Drive или локальную папку в разделе «Владелец».",
         )
 
     async def _sessions_item(self):  # type: ignore[no-untyped-def]
@@ -819,6 +889,8 @@ class DiagnosticsService:
                 "channels": await self._safe(self._channels_payload, []),
             },
             "queue": await self._safe(self._queue_payload, {"unavailable": True}),
+            "owner": await self._safe(self._owner_payload, {"unavailable": True}),
+            "config_sync": await self._safe(self._config_sync_payload, {"unavailable": True}),
             "bindings": await self._safe(self._bindings_payload, []),
             "capabilities": await self._safe(self._capabilities_payload, []),
             "proxies": await self._safe(self._proxies_payload, []),
@@ -946,6 +1018,38 @@ class DiagnosticsService:
             }
             for channel in channels
         ]
+
+    async def _owner_payload(self) -> dict[str, object]:
+        """Non-secret owner status for the report (never a password/verifier)."""
+        from backend.app.services.owner_auth_service import OwnerAuthService
+
+        status = await OwnerAuthService(self.session).status()
+        return {
+            "exists": status.exists,
+            "enabled": status.enabled,
+            "locked": status.locked,
+            "method": status.method,
+            "last_login_at": status.last_login_at,
+        }
+
+    async def _config_sync_payload(self) -> dict[str, object]:
+        """Non-secret config-sync status (never a token or plaintext config)."""
+        from backend.app.services.config_sync_service import ConfigSyncService
+
+        status = await ConfigSyncService(self.session).status()
+        return {
+            "state": status.state,
+            "provider": status.provider,
+            "connected": status.connected,
+            "enabled": status.enabled,
+            "local_revision": status.local_revision,
+            "cloud_revision": status.cloud_revision,
+            "device_id": status.device_id,
+            "cloud_device": status.cloud_device,
+            "last_sync_at": status.last_sync_at,
+            "last_status": status.last_status,
+            "needs_reconnect": status.needs_reconnect,
+        }
 
     async def _bindings_payload(self) -> list[dict[str, object]]:
         bindings = await BindingRepository(self.session).list_all()

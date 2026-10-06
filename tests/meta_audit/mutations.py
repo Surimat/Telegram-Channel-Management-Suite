@@ -50,7 +50,11 @@ async def _seed_setting(session, key: str, value: str = "1") -> None:
 # Static mutations (file / registry defects in the isolated copy)
 # ---------------------------------------------------------------------------
 def _apply_false_capability(box: MutationSandbox) -> None:
-    _set_implemented("config_sync", True)
+    # ``media_conversion`` is a registered capability that is deliberately not
+    # implemented and has no service anchor. Flipping it to implemented must be
+    # caught by the "no anchor" check (config_sync is now implemented, so it can
+    # no longer serve as the false-capability probe).
+    _set_implemented("media_conversion", True)
 
 
 def _apply_stray_string_mask(box: MutationSandbox) -> None:
@@ -64,7 +68,7 @@ def _apply_stray_string_mask(box: MutationSandbox) -> None:
 
 
 def _apply_capability_dependency(box: MutationSandbox) -> None:
-    _set_requires("donor_discovery", ("config_sync",))
+    _set_requires("donor_discovery", ("media_conversion",))
 
 
 def _apply_missing_i18n(box: MutationSandbox) -> None:
@@ -146,7 +150,7 @@ STATIC_MUTATIONS: list[Mutation] = [
     Mutation(
         id="F_false_capability",
         name="false_capability",
-        expected_finding_id="capabilities.no_anchor.config_sync",
+        expected_finding_id="capabilities.no_anchor.media_conversion",
         expected_severity="error",
         severity="critical",
         apply=_apply_false_capability,
@@ -162,7 +166,7 @@ STATIC_MUTATIONS: list[Mutation] = [
     Mutation(
         id="G_capability_dependency",
         name="capability_dependency_on_unimplemented",
-        expected_finding_id="capabilities.dep_unimplemented.donor_discovery.config_sync",
+        expected_finding_id="capabilities.dep_unimplemented.donor_discovery.media_conversion",
         expected_severity="error",
         severity="high",
         apply=_apply_capability_dependency,
@@ -404,7 +408,7 @@ NEGATIVE_CONTROLS: list[Mutation] = [
     Mutation(
         id="NC3_clean_capability",
         name="clean_tree_no_false_capability_finding",
-        expected_finding_id="capabilities.no_anchor.config_sync",
+        expected_finding_id="capabilities.no_anchor.media_conversion",
         expected_severity="error",
         severity="low",
         apply=lambda b: None,

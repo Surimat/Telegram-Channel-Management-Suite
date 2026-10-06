@@ -67,7 +67,21 @@ CAPABILITY_SERVICE_ANCHORS: dict[str, tuple[str, str]] = {
         "services/donor_discovery_service.py",
         "class DonorDiscoveryService",
     ),
+    "config_sync": ("services/config_sync_service.py", "class ConfigSyncService"),
 }
+
+#: Config-sync providers that must exist: a real module and a fake transport for
+#: tests. A missing provider (or a factory that imports a deleted module) is
+#: drift — the capability would advertise sync with nothing behind it (D-106).
+CONFIG_SYNC_PROVIDER_MODULES: tuple[str, ...] = (
+    "config_sync_base.py",
+    "config_sync_local.py",
+    "config_sync_gdrive.py",
+)
+
+#: Setting keys the config-sync feature reads/writes through services. Listed so
+#: the write-only-setting check (M) does not flag them.
+CONFIG_SYNC_SETTING_KEYS: tuple[str, ...] = ()
 
 #: Backup destination kinds -> module that must define a provider. A kind listed
 #: in the enum without a matching provider (export-only, no delivery) is drift.
@@ -175,6 +189,9 @@ def run_static_checks() -> list[Finding]:
         check_scheduler_job_handlers,
         check_provider_registry,
         check_backup_destination_registry,
+        check_config_sync_providers,
+        check_config_sync_bundle_safety,
+        check_config_sync_owner_anchor,
         check_notification_routing,
         check_capability_registry,
         check_capability_implementation,
@@ -618,6 +635,113 @@ def check_backup_destination_registry() -> list[Finding]:
                     subsystem="backup",
                 )
             )
+    return findings
+
+
+# ---------------------------------------------------------------------------
+# 5b-2. Config-sync providers (v1.6, D-106)
+# ---------------------------------------------------------------------------
+def check_config_sync_providers() -> list[Finding]:
+    """Every config-sync provider module must exist and be reachable by the factory.
+
+    The factory in ``providers/registry.py`` imports provider modules lazily. If a
+    provider file is deleted but the factory still names it, sync would advertise
+    a provider that crashes on use — the capability-drift this check catches.
+    """
+    findings: list[Finding] = []
+    providers = BACKEND / "providers"
+    for module in CONFIG_SYNC_PROVIDER_MODULES:
+        if not (providers / module).is_file():
+            findings.append(
+                Finding(
+                    id=f"sync.provider_missing.{module}",
+                    category="integration",
+                    severity=SEVERITY_ERROR,
+                    confidence="high",
+                    title="Провайдер синхронизации отсутствует",
+                    detail=f"Ожидался модуль providers/{module}, файла нет.",
+                    why="Синхронизация конфигурации не сможет работать.",
+                    how_to_fix="Добавьте модуль провайдера или уберите его из реестра.",
+                    subsystem="sync",
+                )
+            )
+    return findings
+
+
+def check_config_sync_bundle_safety() -> list[Finding]:
+    """The bundle codec must keep its secret denylist and safety scan.
+
+    A bundle that stopped excluding secret-looking keys, or lost the pre-export
+    scan, could sync credentials between computers (D-106). The check is a static
+    anchor: the markers must be present in the module.
+    """
+    findings: list[Finding] = []
+    path = BACKEND / "services" / "config_bundle.py"
+    if not path.is_file():
+        findings.append(
+            Finding(
+                id="sync.bundle_module_missing",
+                category="integration",
+                severity=SEVERITY_ERROR,
+                confidence="high",
+                title="Модуль конфигурационного пакета отсутствует",
+                detail="Не найден services/config_bundle.py.",
+                why="Синхронизация не сможет безопасно формировать пакет настроек.",
+                how_to_fix="Восстановите модуль config_bundle.py.",
+                subsystem="sync",
+            )
+        )
+        return findings
+    text = path.read_text(encoding="utf-8")
+    anchors = (
+        "FORBIDDEN_KEY_MARKERS",
+        "def scan_for_secrets",
+        "def serialize",
+        "def deserialize",
+    )
+    for needle in anchors:
+        if needle not in text:
+            findings.append(
+                Finding(
+                    id=f"sync.bundle_anchor.{needle.split()[-1]}",
+                    category="security",
+                    severity=SEVERITY_ERROR,
+                    confidence="high",
+                    title="Пакет конфигурации потерял защитный элемент",
+                    detail=f"В config_bundle.py не найден «{needle}».",
+                    why="Секреты могут попасть в синхронизируемый пакет.",
+                    how_to_fix="Восстановите защитный элемент пакета конфигурации.",
+                    subsystem="sync",
+                )
+            )
+    return findings
+
+
+def check_config_sync_owner_anchor() -> list[Finding]:
+    """Config sync must depend on a real owner secret (never a stored password).
+
+    If the service stopped deriving a key from the owner secret, sync would have
+    to store a password or use a constant key — both are security regressions.
+    """
+    findings: list[Finding] = []
+    path = BACKEND / "services" / "config_sync_service.py"
+    if not path.is_file():
+        return findings
+    text = path.read_text(encoding="utf-8")
+    if "derive_bundle_key" not in text:
+        findings.append(
+            Finding(
+                id="sync.no_owner_key",
+                category="security",
+                severity=SEVERITY_ERROR,
+                confidence="high",
+                title="Синхронизация не привязана к паролю владельца",
+                detail="config_sync_service.py не использует derive_bundle_key.",
+                why="Пакет настроек может шифроваться предсказуемым ключом.",
+                how_to_fix="Выводите ключ из секрета владельца через derive_bundle_key.",
+                subsystem="sync",
+            )
+        )
     return findings
 
 

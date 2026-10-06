@@ -139,10 +139,15 @@ async def test_unimplemented_capabilities_are_never_available(client: AsyncClien
     """A registry entry without a real feature must not report `available`."""
     resp = await client.get("/api/v1/capability-graph")
     items = {i["key"]: i for i in resp.json()}
-    for key in ("config_sync", "media_conversion"):
+    # ``media_conversion`` has no implementation and no service anchor, so it must
+    # never report available. ``config_sync`` is now implemented (v1.6) but still
+    # must not be reported available until its requirements are satisfied.
+    for key in ("media_conversion",):
         assert items[key]["state"] == "not_implemented", key
         assert items[key]["implemented"] is False, key
         assert items[key]["state"] != "available", key
+    assert items["config_sync"]["implemented"] is True, "config_sync"
+    assert items["config_sync"]["state"] != "available", "config_sync"
 
 
 async def test_capability_graph_language_follows_ui_preference(client: AsyncClient) -> None:
@@ -150,7 +155,9 @@ async def test_capability_graph_language_follows_ui_preference(client: AsyncClie
     await client.put("/api/v1/help/prefs", json={"language": "en"})
     items = {i["key"]: i for i in (await client.get("/api/v1/capability-graph")).json()}
     assert items["donor_discovery"]["title"] == "Donor discovery"
-    assert items["config_sync"]["state_label"] == "Not implemented"
+    # config_sync is implemented but unconfigured on a fresh install.
+    assert items["config_sync"]["state_label"] == "Unavailable"
+    assert items["media_conversion"]["state_label"] == "Not implemented"
 
     # An explicit query parameter still wins over the preference.
     items = {

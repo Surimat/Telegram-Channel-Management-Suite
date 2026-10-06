@@ -3,28 +3,25 @@
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
-**Updated:** 2026-10-06
-**Status:** **v1.5.4 is COMMITTED on `develop` (pending release); the meta-audit is
-a *runtime mutation engine* (D-102) and ALL original gaps M, N, O, P and Q are
-CLOSED (D-103).** The kill rate is **computed from real executions**:
-`tests/meta_audit/` builds an isolated copy of the source tree (or a fresh temp DB
-for runtime checks), injects one seeded defect, runs the **real** auditor,
-semantically matches the finding it actually produced, and records ``detected`` /
-``missed``. The report `agent/META_AUDIT_RESULT.json` carries
-`result_source: "computed from runtime mutation executions"` and the arithmetic
-(`detected + missed == total`, `kill_rate == detected/total*100`) is asserted in
-`pytest` and CI. Removing a detector flips its mutation to `missed` and lowers the
-kill rate automatically; adding a mutation changes `total` automatically. There are
-**25** mutations and **8 negative controls** (a clean/correct tree must not produce
-a mutation finding → 0 false positives). Current computed result: **25 total,
-25 detected, 0 missed, kill rate 100.0%, 0 false positives, 0 critical misses,
-0 high misses** (`status: clean`). `KNOWN_GAP_IDS` is **empty**. Five static
-detectors closed the gaps: `check_write_only_settings` (M),
-`check_channel_registry_usage` (Q), `check_unused_model_columns` (N),
-`check_orphan_service_classes` (O) and `check_frontend_unwired_controls` (P).
-**The remaining action is the v1.5.4 release** (`develop → main` PR, tag, ZIP).
-Version strings read **1.5.4**; `ruff` clean; frontend `vue-tsc` + `npm run build`
-clean.
+**Updated:** 2026-10-07
+**Status:** **v1.6.0 (Owner Auth + Config Sync) is being released.** A local owner
+profile (password/PIN, PBKDF2 verifier, signed session token) protects the panel,
+and a versioned **encrypted configuration bundle** moves settings to a new computer
+via a local folder or Google Drive (app-data scope) — never the DB, sessions or
+TDATA (D-105/D-106). Additive only; no account registration and no Telegram-limit
+bypass. Owner Auth is **local-first**: while no profile exists, the panel stays open
+exactly as before. Config Sync detects conflicts instead of overwriting.
+
+The meta-audit remains a *runtime mutation engine* (D-102) and still detects
+**every** seeded defect: **25 total, 25 detected, 0 missed, 100.0%, 0 false
+positives, 0 critical/high misses** (`status: clean`); `KNOWN_GAP_IDS` is empty.
+Version strings read **1.6.0**; `ruff` clean; frontend `vue-tsc` + `npm run build`
+clean; the full suite is green (822 passed).
+
+Previous release: **v1.5.4** (auditor gaps N/O/P closed, D-104) via a reviewed
+`develop → main` PR #15 (merge `b219341`), tag `v1.5.4`; the Release workflow (run
+`37522394131`) attached the Windows portable ZIP (24 807 288 bytes, sha256
+`ff01f787…dc67a`) + `.sha256`.
 Previous: **v1.5.1 forensic-audit fixes are released** — reviewed `develop → main`
 PR #12 (merge `f41ebc8`), tag `v1.5.1`; the Release workflow (run `37453582161`)
 attached the Windows portable ZIP + `.sha256` (D-060). It fixes five confirmed
@@ -37,16 +34,36 @@ complete.
 
 ---
 
-## Active task: release v1.5.4 (all auditor gaps closed)
+## Active task: release v1.6.0 (Owner Auth + Config Sync)
 
-The v1.5.4 change is committed on `develop` and all gates pass. The remaining
-action is the **release**: open a reviewed `develop → main` PR, merge, tag
-`v1.5.4`, and let the Release workflow attach the Windows portable ZIP +
-`.sha256` (D-060). `KNOWN_GAP_IDS` is empty; the meta-audit engine reaches **100%**
-(25/25, 0 false positives).
+v1.6.0 is implemented, tested and documented (D-105/D-106). The remaining step is
+the release: commit on `develop`, push, open/merge the `develop → main` PR, tag
+`v1.6.0` and let the Release workflow attach the Windows portable ZIP.
 
-Do **not** add new large features, do **not** open a new PHASE, and do **not**
-create a release without the owner's ask.
+1. **Optional follow-up (next cycle):** only if the owner asks — e.g. a remote
+   job-dispatch + worker-execution loop over `MeshTransport`, a reliable
+   permissively-licensed TDATA converter, or a dependency-free Windows toast
+   backend. Record a decision first.
+
+Do **not** add new large features and do **not** open a new PHASE.
+
+### Owner Auth + Config Sync (v1.6) — implemented, do not rebuild
+
+- **Owner Auth:** `core/owner_security.py` (PBKDF2 verifier + bundle key),
+  `services/owner_auth_service.py`, `db/models/owner.py`,
+  `db/repositories/owners.py`, `api/owner_guard.py` (default-on middleware),
+  `api/schemas/owner.py`, `api/v1/owner.py`; `/owner` UI page + `owner_auth` help
+  topic.
+- **Config Sync:** `services/config_bundle.py` (AES-256-GCM bundle + secret
+  denylist), `services/config_sync_service.py`, `providers/config_sync_base.py` +
+  `config_sync_local.py` + `config_sync_gdrive.py`, `db/models/config_sync.py`;
+  `/api/v1/owner/sync/*`; `config_sync` help topic, capability and wizard step.
+- **Migration:** `20261007_1000_f8b2d3e5a7c9` (`owner_identities`,
+  `config_sync_state`).
+- **Consistency Auditor:** section `5b-2` guards the config-sync providers and the
+  bundle's secret anchors.
+- **Tests:** `tests/test_owner_auth.py`, `tests/test_config_sync.py`,
+  `tests/test_owner_api.py`.
 
 ### Meta-audit engine (D-102) — implemented, do not rebuild
 

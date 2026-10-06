@@ -1,7 +1,7 @@
 {
-  "version": "1.5.4",
-  "baseline_sha": "5ca0a0d551a38cd9901c84caed724aad746116b2",
-  "generated_at": "2026-10-06T19:33:41.307302+00:00",
+  "version": "1.6.0",
+  "baseline_sha": "d7b51137a9437265867834b8e81081121b792d2d",
+  "generated_at": "2026-10-06T23:02:24.844624+00:00",
   "result_source": "computed from runtime mutation executions",
   "total": 25,
   "detected": 25,
@@ -586,7 +586,7 @@
       "name": "false_capability",
       "detected": true,
       "expected": {
-        "finding_id": "capabilities.no_anchor.config_sync",
+        "finding_id": "capabilities.no_anchor.media_conversion",
         "severity": "error"
       },
       "actual_findings": [
@@ -596,7 +596,7 @@
           "category": "orphan"
         },
         {
-          "id": "capabilities.no_anchor.config_sync",
+          "id": "capabilities.no_anchor.media_conversion",
           "severity": "error",
           "category": "capabilities"
         },
@@ -794,7 +794,7 @@
       "name": "capability_dependency_on_unimplemented",
       "detected": true,
       "expected": {
-        "finding_id": "capabilities.dep_unimplemented.donor_discovery.config_sync",
+        "finding_id": "capabilities.dep_unimplemented.donor_discovery.media_conversion",
         "severity": "error"
       },
       "actual_findings": [
@@ -804,12 +804,12 @@
           "category": "orphan"
         },
         {
-          "id": "capabilities.unknown_req.donor_discovery.config_sync",
+          "id": "capabilities.unknown_req.donor_discovery.media_conversion",
           "severity": "error",
           "category": "capabilities"
         },
         {
-          "id": "capabilities.dep_unimplemented.donor_discovery.config_sync",
+          "id": "capabilities.dep_unimplemented.donor_discovery.media_conversion",
           "severity": "error",
           "category": "capabilities"
         },

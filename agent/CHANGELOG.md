@@ -5,6 +5,55 @@ Dates are ISO-8601.
 
 ---
 
+## [1.6.0] — 2026-10-07
+
+**Owner Auth + Config Sync vertical slice.** A local owner profile protects the
+panel, and an encrypted, versioned configuration bundle moves the owner's settings
+to a new computer — never the database, sessions or TDATA. Additive only; no
+account registration and no Telegram-limit bypass.
+
+### Added
+- **Owner Auth (D-105).** A single local identity (password or PIN) that protects
+  the Web UI/API. A slow **PBKDF2-HMAC-SHA256 verifier** (200k iterations) is
+  stored; the password is never. A successful login issues an **HMAC-signed opaque
+  session token** (`X-Owner-Token`). `OwnerGuardMiddleware` is default-on for every
+  `/api/` path outside a small allowlist, so a new router cannot be added unguarded.
+  It is **local-first**: while no profile exists (or protection is off) the API is
+  open exactly as before. Wrong attempts are rate-limited (5 → 15-minute lock).
+  New `/api/v1/owner/*` endpoints, the `/owner` RU-first UI page, an `owner_auth`
+  help topic, a capability requirement and a Diagnostics check.
+- **Config Sync (D-106).** A **versioned, encrypted configuration bundle**
+  (canonical JSON → AES-256-GCM, schema version authenticated as associated data).
+  Providers store ciphertext only: a **local folder** (default) or the owner's
+  **Google Drive app-data scope** (least privilege; no bundled OAuth secret). A
+  **denylist + `scan_for_secrets`** excludes anything that looks secret before an
+  export; sync **detects conflicts** and never overwrites silently; restore is
+  preview-first. `/api/v1/owner/sync/*`, a `config_sync` help topic, capability and
+  Promotion Wizard step.
+- **Consistency Auditor section `5b-2` (config-sync providers).** Fails CI if a
+  provider kind has no module, the registry is incomplete, or the bundle's secret
+  anchors (`FORBIDDEN_KEY_MARKERS`, `scan_for_secrets`, `serialize`, `deserialize`)
+  disappear.
+- Migration `20261007_1000_f8b2d3e5a7c9` (`owner_identities`, `config_sync_state`),
+  models `OwnerIdentity` / `ConfigSyncState`, repositories `OwnerRepository` /
+  `ConfigSyncRepository`, services `owner_auth_service` / `config_sync_service` /
+  `config_bundle`, providers `config_sync_base` / `config_sync_local` /
+  `config_sync_gdrive`.
+- Tests: `tests/test_owner_auth.py`, `tests/test_config_sync.py`,
+  `tests/test_owner_api.py`.
+- Decisions D-105, D-106.
+
+### Changed
+- The `config_sync` capability is now **implemented** (`requires` owner auth +
+  Google Drive, `minimal` owner auth) instead of `not_implemented`.
+- Diagnostics gained `owner_auth` and `config_sync` checks and non-secret payloads;
+  the Setup Wizard gained `owner_auth_check` / `config_sync_check`.
+- `frontend/package-lock.json` version synced to `1.6.0`.
+- `ruff` clean; full suite green; `vue-tsc` + `npm run build` clean; meta-audit
+  **25/25, 100%, 0 false positives**.
+
+---
+
 ## [1.5.4] — 2026-10-06
 
 **The last three Consistency Auditor gaps N, O and P are closed (D-104).** No new

@@ -56,6 +56,12 @@ from backend.app.db.models.capability import (
     ChannelCapabilities,
 )
 from backend.app.db.models.channel import Channel, ChannelKind, ChannelStatus
+from backend.app.db.models.config_sync import (
+    PROVIDER_TITLES,
+    STATE_TITLES,
+    ConfigSyncState,
+    SyncProviderKind,
+)
 from backend.app.db.models.content import (
     ButtonSet,
     CommentPlan,
@@ -152,6 +158,11 @@ from backend.app.db.models.onboarding import (
     PRESET_PROFESSIONAL,
     PromotionProgress,
 )
+from backend.app.db.models.owner import (
+    METHOD_TITLES,
+    OwnerAuthMethod,
+    OwnerIdentity,
+)
 from backend.app.db.models.permission import PermissionCheck
 from backend.app.db.models.post import Post, PostStatus
 from backend.app.db.models.proxy import (
@@ -209,6 +220,7 @@ __all__ = [
     "FUNCTION_REACTIONS",
     "FUNCTION_TITLES",
     "KIND_TITLES",
+    "METHOD_TITLES",
     "MODE_AUTO",
     "MODE_MANUAL",
     "MODE_SEMI_AUTO",
@@ -227,6 +239,7 @@ __all__ = [
     "PROBABILITY_LOW",
     "PROBABILITY_MEDIUM",
     "PROBABILITY_TITLES",
+    "PROVIDER_TITLES",
     "QUALITY_AVERAGE",
     "QUALITY_GOOD",
     "QUALITY_SUSPECT",
@@ -239,6 +252,7 @@ __all__ = [
     "SOURCE_TELEGRAM",
     "SOURCE_TITLES",
     "SOURCE_WEB",
+    "STATE_TITLES",
     "STATUS_TITLES",
     "TERMINAL_CANDIDATE_STATUSES",
     "TERMINAL_INVITE_STATUSES",
@@ -276,6 +290,7 @@ __all__ = [
     "ChannelStatus",
     "CommentPlan",
     "Completeness",
+    "ConfigSyncState",
     "ContentItem",
     "ContentItemStatus",
     "ContentSource",
@@ -318,6 +333,8 @@ __all__ = [
     "NotificationPriority",
     "NotificationRecord",
     "NotificationStatus",
+    "OwnerAuthMethod",
+    "OwnerIdentity",
     "PairingCode",
     "PeerStatus",
     "PermissionCheck",
@@ -340,6 +357,7 @@ __all__ = [
     "Setting",
     "SourceType",
     "SourceUserLink",
+    "SyncProviderKind",
     "UpdateState",
     "UserSession",
 ]

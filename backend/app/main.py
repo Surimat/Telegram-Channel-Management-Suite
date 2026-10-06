@@ -231,6 +231,12 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Owner guard is added first so CORS stays outermost (preflight responses
+    # still receive CORS headers). While no owner profile exists, or protection
+    # is off, the guard is a pass-through (local-first, D-105).
+    from backend.app.api.owner_guard import OwnerGuardMiddleware
+
+    app.add_middleware(OwnerGuardMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,

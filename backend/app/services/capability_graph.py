@@ -37,6 +37,8 @@ REQ_PERMISSION = "permission"
 REQ_POSTING_CAPABILITY = "posting_capability"
 REQ_ENCODER_MODEL = "encoder_model"
 REQ_FFMPEG = "ffmpeg"
+REQ_OWNER_AUTH = "owner_auth"
+REQ_GOOGLE_DRIVE = "google_drive"
 
 ALL_REQUIREMENTS = (
     REQ_CHANNEL,
@@ -46,6 +48,8 @@ ALL_REQUIREMENTS = (
     REQ_POSTING_CAPABILITY,
     REQ_ENCODER_MODEL,
     REQ_FFMPEG,
+    REQ_OWNER_AUTH,
+    REQ_GOOGLE_DRIVE,
 )
 
 # --- Capability states ------------------------------------------------------
@@ -159,10 +163,16 @@ CAPABILITIES: tuple[Capability, ...] = (
         key="config_sync",
         title_ru="Синхронизация конфигурации",
         title_en="Configuration sync",
-        requires=(),
-        implemented=False,
-        note_ru="Синхронизация конфигурации в этой версии не реализована.",
-        note_en="Configuration sync is not implemented in this version.",
+        requires=(REQ_OWNER_AUTH, REQ_GOOGLE_DRIVE),
+        minimal=(REQ_OWNER_AUTH,),
+        note_ru=(
+            "Переносит настройки на новый компьютер через зашифрованный файл. "
+            "Файлы сессий и база данных не синхронизируются."
+        ),
+        note_en=(
+            "Moves settings to a new computer via an encrypted bundle. Session "
+            "files and the database are never synced."
+        ),
     ),
 )
 
@@ -346,6 +356,21 @@ async def context_from_db(
         except Exception:  # pragma: no cover - defensive
             pass
 
+    try:
+        from backend.app.services.owner_auth_service import OwnerAuthService
+
+        context[REQ_OWNER_AUTH] = await OwnerAuthService(session).exists()
+    except Exception:  # pragma: no cover - defensive
+        pass
+
+    try:
+        from backend.app.services.config_sync_service import ConfigSyncService
+
+        sync_status = await ConfigSyncService(session).status()
+        context[REQ_GOOGLE_DRIVE] = bool(sync_status.connected)
+    except Exception:  # pragma: no cover - defensive
+        pass
+
     return context
 
 
@@ -357,6 +382,8 @@ __all__ = [
     "REQ_CHANNEL",
     "REQ_ENCODER_MODEL",
     "REQ_FFMPEG",
+    "REQ_GOOGLE_DRIVE",
+    "REQ_OWNER_AUTH",
     "REQ_PERMISSION",
     "REQ_POSTING_CAPABILITY",
     "REQ_USER_SESSION",

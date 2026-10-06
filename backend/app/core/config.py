@@ -159,6 +159,20 @@ class Settings(BaseSettings):
     # How many recent AI inference records to keep for diagnostics (0 = none).
     ai_history_limit: int = 200
 
+    # --- Owner Auth + Config Sync (v1.6) ---
+    # Require an owner login before the API answers (set by the owner profile;
+    # this env flag only forces protection on for managed installs).
+    owner_auth_required: bool = False
+    # Google OAuth client for config sync. Registered once by the owner; there is
+    # no bundled secret. The app-data scope is used (least privilege). Empty =
+    # Google Drive sync is not offered until the owner fills these in.
+    google_oauth_client_id: str = ""
+    google_oauth_client_secret: SecretStr = SecretStr("")
+    # Loopback redirect used by the installed-app OAuth flow.
+    google_oauth_redirect_uri: str = (
+        "http://127.0.0.1:8000/api/v1/owner/sync/google/callback"
+    )
+
     # --- Telegram Mini App (PHASE 9) ---
     # Master switch. Off by default: the local Web UI is the primary interface.
     miniapp_enabled: bool = False

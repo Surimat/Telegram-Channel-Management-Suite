@@ -2124,3 +2124,73 @@ control is directly visible to the user.
 25 detected, 0 missed, 100.0%, 0 false positives, 0 critical/high misses). The
 version becomes **1.5.4**.
 
+
+---
+
+## D-105 — 2026-10-07 — Owner Auth is a local, offline identity that protects the panel — LOCKED
+
+**Decision.** The Suite gains a **single local owner identity** (v1.6): a password
+or PIN that protects the Web UI / API on this computer. It is **not** linked to any
+Telegram account or session and works fully offline. Two independent values are
+derived from what the owner types and kept separate:
+
+* a **verifier** — a slow PBKDF2-HMAC-SHA256 hash (200k iterations) stored in the
+  DB, used only to check a password at login; it can never be turned back into the
+  password;
+* a **config-bundle key** — derived from the password plus a non-secret per-owner
+  `sync_salt`, **never stored**, recomputed in memory at unlock and used to
+  encrypt/decrypt the config-sync bundle.
+
+A successful login issues an HMAC-signed opaque **session token** (never a
+password, never reversible to one), sent by the SPA as the `X-Owner-Token` header.
+`OwnerGuardMiddleware` is a **middleware**, not a per-route dependency, so a new
+router cannot be added unguarded: protection is default-on for every `/api/` path
+outside a small allowlist (health, docs, owner status/setup/login, system status).
+It is **local-first**: while no owner profile exists — or protection is explicitly
+off — the API stays open exactly as before. Repeated wrong attempts are rate-limited
+(5 → 15-minute lock).
+
+**Why.** The owner runs this on a personal Windows PC; a local profile protects the
+configuration without inventing accounts, cloud identity or Telegram coupling, and
+without adding a dependency (stdlib only).
+
+**Consequence:** `core/owner_security.py`, `db/models/owner.py`,
+`db/repositories/owners.py`, `services/owner_auth_service.py`, `api/owner_guard.py`,
+`api/schemas/owner.py`, `api/v1/owner.py`, migration
+`20261007_1000_f8b2d3e5a7c9`; the `/owner` RU-first UI page and an `owner_auth`
+help topic. Nothing here searches for, downloads or registers third-party accounts.
+
+---
+
+## D-106 — 2026-10-07 — Config Sync moves an encrypted, versioned configuration bundle — LOCKED
+
+**Decision.** "Config Sync" carries the Suite's configuration to a new computer as
+a small **versioned, encrypted document** — never the live SQLite database, never
+session files or TDATA. The document is canonical JSON, encrypted with
+AES-256-GCM using the key from D-105; the schema version is authenticated as
+associated data so a downgrade/version swap is detected as tampering. A provider
+stores only the ciphertext:
+
+* **`local`** — a folder on disk (default, always available);
+* **`google_drive`** — the owner's Drive **app-data scope** (least privilege),
+  optional and independent of the owner password; the app ships no OAuth secret,
+  the owner registers their own client id.
+
+A **denylist + safety scan** (`FORBIDDEN_KEY_MARKERS`, `scan_for_secrets`) excludes
+anything that looks secret (password, token, api_hash, session, tdata, auth_key,
+verifier, …) before an export is written; the scan runs again before export. Sync
+detects a **conflict** (local vs cloud revision) and refuses to overwrite silently;
+restore is preview-first. The Consistency Auditor gained a config-sync provider
+section (`5b-2`) that fails CI if a provider kind has no module or the bundle's
+secret anchors disappear.
+
+**Why.** Moving settings between the owner's own computers is genuinely useful, but
+only if secrets, sessions and the database never travel. Encryption with a
+password-derived key means even the provider (or Google) sees ciphertext.
+
+**Consequence:** `services/config_bundle.py`, `services/config_sync_service.py`,
+`providers/config_sync_base.py` + `config_sync_local.py` + `config_sync_gdrive.py`,
+`db/models/config_sync.py`, `db/repositories/owners.py` (ConfigSyncRepository),
+migration `20261007_1000_f8b2d3e5a7c9`; `/api/v1/owner/sync/*`; a `config_sync`
+help topic, a capability (`config_sync`) and a Promotion Wizard step. No Telegram
+session, TDATA or secret is ever included.
