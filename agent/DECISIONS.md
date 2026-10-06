@@ -2074,3 +2074,53 @@ rights, no shared settings). Both are detectable without a database or network.
 `agent/META_AUDIT_RESULT.json` (regenerated: 25 total, 22 detected, 3 missed,
 88.0%, 0 false positives, 0 critical/high misses). The remaining gaps (N, O, P) stay
 executed and honestly recorded.
+
+---
+
+## D-104 — 2026-10-06 — The last three auditor gaps (N, O, P) are closed statically — LOCKED
+
+**Decision.** The three remaining Consistency Auditor coverage gaps that the
+runtime mutation engine recorded as misses are closed with **pure, deterministic
+static checks** in `backend/app/services/consistency_checks.py`, registered in
+`run_static_checks()` (so `pytest` and CI fail on regression). `KNOWN_GAP_IDS` is
+now **empty** and the kill rate reaches **100% (25/25, 0 false positives)**:
+
+- **N — `check_unused_model_columns`.** Derives ORM columns from `mapped_column`
+  declarations and flags any column whose name never appears as an attribute,
+  keyword argument or string literal anywhere outside the model files (so
+  serialisers, `getattr`/`setattr` and JSON keys count as a use). Finding
+  `db.unused_column.<module>.<Class>.<name>`, severity `info`, confidence
+  `medium`. Intentionally-kept extension points can be listed in
+  `INTENTIONAL_UNUSED_COLUMNS`.
+- **O — `check_orphan_service_classes`.** Flags a public service class that no
+  module references (a plain `import` does not count — the class must be
+  instantiated, passed or have a method called). Finding
+  `dead.service.<module>.<Class>`, severity `info`. Exempt list:
+  `INTENTIONAL_ORPHAN_CLASSES`.
+- **P — `check_frontend_unwired_controls`.** Flags a Vue `@click`/`@change`/
+  `@submit`/`@input` handler that names a function the component never defines (a
+  typo) or a function with an empty body. Inline assignments/expressions are out
+  of scope; a handler with any body is trusted. Finding
+  `frontend.control_unwired.<name>`, severity `warning` (a user-visible dead
+  control).
+
+All three are proven by execution: their mutations `N_unused_db_field`,
+`O_service_without_caller` and `P_control_without_behavior` are now **detected**
+by the runtime engine. Three new negative controls prove precision:
+`NC6_used_db_column` (a column that is added *and* read), `NC7_referenced_service`
+(a class that is added *and* instantiated) and `NC8_wired_frontend_control` (a
+control *and* its defined handler) are **not** flagged. Detector removal flips each
+mutation back to a miss (parametrised test over M/N/O/P/Q).
+
+**Why:** Dead schema, dead services and dead UI controls are exactly the kind of
+silent drift the auditor exists to catch. N and O are `info` (orphan signals — a
+column/class may be a documented extension point); P is `warning` because a dead
+control is directly visible to the user.
+
+**Consequence:** `consistency_checks.py` (+3 checks, +2 allow-list constants),
+`tests/meta_audit/mutations.py` (N/O/P detected, NC6/NC7/NC8 controls,
+`KNOWN_GAP_IDS` = ∅), `tests/test_architecture_consistency.py`,
+`tests/test_meta_audit.py`, `agent/META_AUDIT_RESULT.json` (regenerated: 25 total,
+25 detected, 0 missed, 100.0%, 0 false positives, 0 critical/high misses). The
+version becomes **1.5.4**.
+

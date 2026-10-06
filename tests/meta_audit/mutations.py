@@ -5,11 +5,11 @@ auditor *should* produce. There is deliberately **no** ``detected`` field — th
 engine measures detection at runtime.
 
 The core mutations mirror the original "проверка проверяющего" suite. Gaps M
-(write-only setting) and Q (channel-aware module drift) are now closed and are
-therefore expected to be **detected**; the remaining intentional gaps (N, O, P)
-are still run for real and classified by execution. ``U_help_reference`` is an
-extra mutation used to prove the total is computed dynamically (no hardcoded
-count).
+(write-only setting), N (unused DB field), O (backend service without caller),
+P (frontend control without behaviour) and Q (channel-aware module drift) are now
+closed and are therefore expected to be **detected**; ``KNOWN_GAP_IDS`` is empty.
+``U_help_reference`` is an extra mutation used to prove the total is computed
+dynamically (no hardcoded count).
 
 Severities are the *impact if the defect is missed*, used for ``critical_misses``
 and ``high_misses``.
@@ -227,19 +227,25 @@ STATIC_MUTATIONS: list[Mutation] = [
     Mutation(
         id="N_unused_db_field",
         name="unused_db_field",
-        expected_finding_id="db.model_without_migration",
-        expected_severity="error",
+        expected_finding_id="db.unused_column.setting.Setting.ghost_unused",
+        expected_severity="info",
         severity="medium",
-        note="GAP: a new column is only caught if the migration check inspects columns.",
+        note=(
+            "A column added to an existing model that no application code reads "
+            "or writes. Detected by static ORM-column usage analysis (D-103/N)."
+        ),
         apply=_apply_unused_db_field,
     ),
     Mutation(
         id="O_service_without_caller",
         name="backend_service_without_caller",
-        expected_finding_id="dead.service.zz_dead_service",
-        expected_severity="warning",
+        expected_finding_id="dead.service.zz_dead_service.DeadService",
+        expected_severity="info",
         severity="medium",
-        note="GAP: the auditor has no static dead-service/caller analysis.",
+        note=(
+            "A public service class no module references. Detected by static "
+            "class-usage analysis (D-103/O)."
+        ),
         apply=lambda b: b.write(
             "backend/app/services/zz_dead_service.py",
             "class DeadService:\n    def run(self) -> None:\n        return None\n",
@@ -251,7 +257,10 @@ STATIC_MUTATIONS: list[Mutation] = [
         expected_finding_id="frontend.control_unwired.runGhostAction",
         expected_severity="warning",
         severity="medium",
-        note="GAP: no UI-control ↔ endpoint wiring check.",
+        note=(
+            "A template event handler with no defined function. Detected by "
+            "static Vue control-wiring analysis (D-103/P)."
+        ),
         apply=lambda b: b.append(
             "frontend/src/views/DashboardView.vue",
             '\n<template><button @click="runGhostAction">Запустить</button></template>\n',
@@ -364,11 +373,10 @@ MUTATIONS: list[Mutation] = STATIC_MUTATIONS + RUNTIME_MUTATIONS
 
 #: Mutations the auditor is *known* not to catch yet (documented gaps, D-100).
 #: They are still executed and classified at runtime — this set only tells the
-#: per-defect test not to demand detection. If a gap is later closed, the kill
-#: rate rises automatically without touching this set.
-KNOWN_GAP_IDS: frozenset[str] = frozenset(
-    {"N_unused_db_field", "O_service_without_caller", "P_control_without_behavior"}
-)
+#: per-defect test not to demand detection. All original gaps (M, N, O, P, Q) are
+#: now closed, so this set is empty; it stays as the honest escape hatch for a
+#: future gap.
+KNOWN_GAP_IDS: frozenset[str] = frozenset()
 
 
 # ---------------------------------------------------------------------------
@@ -438,6 +446,76 @@ NEGATIVE_CONTROLS: list[Mutation] = [
             "        self.channels = ChannelRepository(session)\n\n"
             "    async def handle(self, channel_id: str) -> None:\n"
             "        await self.channels.get(channel_id)\n",
+        ),
+    ),
+    Mutation(
+        id="NC6_used_db_column",
+        name="referenced_column_is_not_flagged_unused",
+        expected_finding_id="db.unused_column.setting.Setting.zz_live_column",
+        expected_severity="info",
+        severity="low",
+        note=(
+            "A model column that some module reads must not be flagged (N "
+            "precision): the mutation adds the column *and* a reader."
+        ),
+        apply=lambda b: (
+            b.patch(
+                "backend/app/db/models/setting.py",
+                "    value_type: Mapped[str] = mapped_column",
+                '    zz_live_column: Mapped[str] = mapped_column(String(8), default="")\n'
+                "    value_type: Mapped[str] = mapped_column",
+            ),
+            b.append(
+                "backend/app/services/settings_service.py",
+                "\n\ndef _zz_read_live(setting) -> str:\n"
+                "    return setting.zz_live_column\n",
+            ),
+        ),
+    ),
+    Mutation(
+        id="NC7_referenced_service",
+        name="referenced_service_class_is_not_flagged",
+        expected_finding_id="dead.service.zz_live_service.LiveService",
+        expected_severity="info",
+        severity="low",
+        note=(
+            "A service class that another module instantiates must not be flagged "
+            "(O precision): the mutation adds the class *and* a caller."
+        ),
+        apply=lambda b: (
+            b.write(
+                "backend/app/services/zz_live_service.py",
+                "class LiveService:\n    def run(self) -> None:\n        return None\n",
+            ),
+            b.write(
+                "backend/app/services/zz_live_consumer.py",
+                "from backend.app.services.zz_live_service import LiveService\n\n\n"
+                "def _zz_call() -> None:\n    LiveService().run()\n",
+            ),
+        ),
+    ),
+    Mutation(
+        id="NC8_wired_frontend_control",
+        name="defined_handler_is_not_flagged_unwired",
+        expected_finding_id="frontend.control_unwired.zzWiredAction",
+        expected_severity="warning",
+        severity="low",
+        note=(
+            "A control whose handler is defined with a non-empty body must not be "
+            "flagged (P precision): the mutation adds both the control and its "
+            "handler."
+        ),
+        apply=lambda b: (
+            b.patch(
+                "frontend/src/views/DashboardView.vue",
+                '<script setup lang="ts">',
+                '<script setup lang="ts">\n'
+                "const zzWiredAction = () => { window.alert('ok') }",
+            ),
+            b.append(
+                "frontend/src/views/DashboardView.vue",
+                '\n<template><button @click="zzWiredAction">Ок</button></template>\n',
+            ),
         ),
     ),
 ]

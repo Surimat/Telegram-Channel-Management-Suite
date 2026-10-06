@@ -1,16 +1,16 @@
 {
-  "version": "1.5.3",
-  "baseline_sha": "259a106caf87275987fe3084d33a8a30c0303d57",
-  "generated_at": "2026-10-06T16:50:10.004000+00:00",
+  "version": "1.5.4",
+  "baseline_sha": "5ca0a0d551a38cd9901c84caed724aad746116b2",
+  "generated_at": "2026-10-06T19:33:41.307302+00:00",
   "result_source": "computed from runtime mutation executions",
   "total": 25,
-  "detected": 22,
-  "missed": 3,
-  "kill_rate": 88.0,
+  "detected": 25,
+  "missed": 0,
+  "kill_rate": 100.0,
   "false_positives": 0,
   "critical_misses": 0,
   "high_misses": 0,
-  "status": "gaps_found",
+  "status": "clean",
   "mutations": [
     {
       "id": "A_frontend_route",
@@ -33,6 +33,71 @@
         },
         {
           "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         }
@@ -64,6 +129,71 @@
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
         }
       ],
       "severity": "high",
@@ -93,6 +223,71 @@
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
         }
       ],
       "severity": "high",
@@ -120,6 +315,71 @@
         },
         {
           "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         }
@@ -156,6 +416,71 @@
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
         }
       ],
       "severity": "high",
@@ -185,6 +510,71 @@
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
         }
       ],
       "severity": "high",
@@ -212,6 +602,71 @@
         },
         {
           "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         }
@@ -248,6 +703,86 @@
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.post.Post.posted_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.post.Post.processed_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.reaction_planner.ReactionPlanner",
+          "severity": "info",
+          "category": "orphan"
         }
       ],
       "severity": "critical",
@@ -282,6 +817,71 @@
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
         }
       ],
       "severity": "high",
@@ -311,6 +911,71 @@
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
         }
       ],
       "severity": "medium",
@@ -338,6 +1003,71 @@
         },
         {
           "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         }
@@ -374,6 +1104,71 @@
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
         }
       ],
       "severity": "medium",
@@ -401,6 +1196,71 @@
         },
         {
           "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         }
@@ -432,6 +1292,71 @@
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
         }
       ],
       "severity": "critical",
@@ -441,10 +1366,10 @@
     {
       "id": "N_unused_db_field",
       "name": "unused_db_field",
-      "detected": false,
+      "detected": true,
       "expected": {
-        "finding_id": "db.model_without_migration",
-        "severity": "error"
+        "finding_id": "db.unused_column.setting.Setting.ghost_unused",
+        "severity": "info"
       },
       "actual_findings": [
         {
@@ -456,19 +1381,89 @@
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.setting.Setting.ghost_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
         }
       ],
       "severity": "medium",
-      "note": "GAP: a new column is only caught if the migration check inspects columns.",
+      "note": "A column added to an existing model that no application code reads or writes. Detected by static ORM-column usage analysis (D-103/N).",
       "error": null
     },
     {
       "id": "O_service_without_caller",
       "name": "backend_service_without_caller",
-      "detected": false,
+      "detected": true,
       "expected": {
-        "finding_id": "dead.service.zz_dead_service",
-        "severity": "warning"
+        "finding_id": "dead.service.zz_dead_service.DeadService",
+        "severity": "info"
       },
       "actual_findings": [
         {
@@ -480,16 +1475,86 @@
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.zz_dead_service.DeadService",
+          "severity": "info",
+          "category": "orphan"
         }
       ],
       "severity": "medium",
-      "note": "GAP: the auditor has no static dead-service/caller analysis.",
+      "note": "A public service class no module references. Detected by static class-usage analysis (D-103/O).",
       "error": null
     },
     {
       "id": "P_control_without_behavior",
       "name": "frontend_control_without_behavior",
-      "detected": false,
+      "detected": true,
       "expected": {
         "finding_id": "frontend.control_unwired.runGhostAction",
         "severity": "warning"
@@ -509,10 +1574,80 @@
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "frontend.control_unwired.runGhostAction",
+          "severity": "warning",
+          "category": "frontend"
         }
       ],
       "severity": "medium",
-      "note": "GAP: no UI-control ↔ endpoint wiring check.",
+      "note": "A template event handler with no defined function. Detected by static Vue control-wiring analysis (D-103/P).",
       "error": null
     },
     {
@@ -538,6 +1673,76 @@
           "id": "channel-aware.module.zz_channel_consumer",
           "severity": "warning",
           "category": "channels"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.zz_channel_consumer.ChannelConsumer",
+          "severity": "info",
+          "category": "orphan"
         }
       ],
       "severity": "high",
@@ -567,6 +1772,76 @@
           "id": "settings.write_only.zz_write_only_setting",
           "severity": "warning",
           "category": "settings"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.zz_write_only.GhostWriter",
+          "severity": "info",
+          "category": "orphan"
         }
       ],
       "severity": "high",
@@ -594,6 +1869,71 @@
         },
         {
           "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         }
@@ -625,6 +1965,71 @@
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
         }
       ],
       "severity": "high",
@@ -654,6 +2059,71 @@
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
         }
       ],
       "severity": "high",
@@ -681,6 +2151,71 @@
         },
         {
           "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         }
@@ -717,6 +2252,71 @@
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
         }
       ],
       "severity": "medium",
@@ -734,6 +2334,71 @@
       "actual_findings": [
         {
           "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         },
@@ -768,6 +2433,71 @@
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
         }
       ]
     },
@@ -778,6 +2508,71 @@
       "findings": [
         {
           "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         },
@@ -802,6 +2597,71 @@
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
         }
       ]
     },
@@ -819,6 +2679,76 @@
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.zz_round_trip.RoundTrip",
+          "severity": "info",
+          "category": "orphan"
         }
       ]
     },
@@ -834,6 +2764,322 @@
         },
         {
           "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.zz_channel_ok.ChannelConsumer",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ]
+    },
+    {
+      "id": "NC6_used_db_column",
+      "name": "referenced_column_is_not_flagged_unused",
+      "passed": true,
+      "findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ]
+    },
+    {
+      "id": "NC7_referenced_service",
+      "name": "referenced_service_class_is_not_flagged",
+      "passed": true,
+      "findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ]
+    },
+    {
+      "id": "NC8_wired_frontend_control",
+      "name": "defined_handler_is_not_flagged_unwired",
+      "passed": true,
+      "findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         }

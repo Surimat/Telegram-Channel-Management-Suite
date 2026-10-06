@@ -5,6 +5,51 @@ Dates are ISO-8601.
 
 ---
 
+## [1.5.4] — 2026-10-06
+
+**The last three Consistency Auditor gaps N, O and P are closed (D-104).** No new
+product features; a patch release. The auditor now detects **every** seeded defect:
+the runtime mutation engine reaches **100% (25/25) with 0 false positives**, and
+`KNOWN_GAP_IDS` is empty.
+
+### Added
+- **`check_unused_model_columns` (gap N).** Static check: an ORM column derived from
+  `mapped_column` whose name never appears as an attribute, keyword argument or
+  string literal outside the model files is flagged
+  `db.unused_column.<module>.<Class>.<name>` (`info`, confidence `medium`). Reports
+  12 genuinely dead columns on the real tree; extension points can be allow-listed
+  in `INTENTIONAL_UNUSED_COLUMNS`.
+- **`check_orphan_service_classes` (gap O).** Static check: a public service class
+  that no module references (a plain `import` does not count) is flagged
+  `dead.service.<module>.<Class>` (`info`). Exempt list:
+  `INTENTIONAL_ORPHAN_CLASSES`.
+- **`check_frontend_unwired_controls` (gap P).** Static check: a Vue
+  `@click`/`@change`/`@submit`/`@input` handler that names a function the component
+  never defines, or a function with an empty body, is flagged
+  `frontend.control_unwired.<name>` (`warning`). Inline expressions are out of
+  scope. Clean on the real tree.
+- Three negative controls — `NC6_used_db_column`, `NC7_referenced_service` and
+  `NC8_wired_frontend_control` — prove precision (an added-and-read column, an
+  added-and-instantiated class, and a control with its defined handler are not
+  flagged).
+- Decision D-104.
+
+### Changed
+- `N_unused_db_field`, `O_service_without_caller` and `P_control_without_behavior`
+  moved out of `KNOWN_GAP_IDS` and are now **detected** at runtime;
+  `KNOWN_GAP_IDS` is empty.
+- Detector-removal dynamism is now proven for all five gaps by a single
+  parametrised test (`test_removing_a_gap_detector_turns_it_into_a_miss`, M/N/O/P/Q).
+- `agent/META_AUDIT_RESULT.json` regenerated: **25 total, 25 detected, 0 missed,
+  kill rate 100.0%, 0 false positives, 0 critical misses, 0 high misses**
+  (`status: clean`).
+- Full suite: **800 passed, 0 xfailed**; `ruff` clean; `vue-tsc` + `npm run build`
+  clean.
+- Version strings bumped to **1.5.4** across `backend/app/__init__.py`,
+  `pyproject.toml`, `frontend/package.json` + lock.
+
+---
+
 ## [1.5.3] — 2026-10-06
 
 **Consistency Auditor gaps M and Q closed (D-103).** No new product features; a

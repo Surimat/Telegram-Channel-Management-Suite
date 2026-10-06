@@ -846,10 +846,10 @@ itself honestly instead of each surface re-deriving the same state.
   `audit.source_unavailable.<name>` info) and the runtime checks.
   `agent/META_AUDIT_RESULT.json` is a **generated** artifact
   (`result_source: "computed from runtime mutation executions"`), uploaded by the
-  CI job `meta-audit`. Current run: **25 total, 22 detected, 3 missed, kill rate
-  88.0%, 0 false positives, 0 critical misses, 0 high misses**; the 3 remaining
-  gaps (N, O, P) are recorded in `KNOWN_GAP_IDS` and still executed, never
-  hardcoded as misses (D-099/D-100/D-102/D-103).
+  CI job `meta-audit`. Current run: **25 total, 25 detected, 0 missed, kill rate
+  100.0%, 0 false positives, 0 critical misses, 0 high misses** (`status: clean`);
+  `KNOWN_GAP_IDS` is empty - every recorded gap has been closed
+  (D-099/D-100/D-102/D-103/D-104).
 - **Write-only-setting check (`check_write_only_settings`, D-103)** — a static AST
   check that flags a setting written via `SettingsService.set(<literal>)` with no
   literal reader (`.get_typed`/`.get_raw` or a declared `*_SETTING_SPECS` map);
@@ -860,6 +860,18 @@ itself honestly instead of each surface re-deriving the same state.
   canonical channel identity (no `Channel*` import). Closes gap Q and complements
   the runtime `_check_channel_aware` (DB rows) with module-code coverage
   (D-051/D-055).
+- **Unused-model-column check (`check_unused_model_columns`, D-104)** — a static
+  check that derives ORM columns from `mapped_column` and flags any column whose
+  name never appears as an attribute, keyword argument or string literal outside
+  the model files (`db.unused_column.<module>.<Class>.<name>`, `info`). Extension
+  points are allow-listed in `INTENTIONAL_UNUSED_COLUMNS`. Closes gap N.
+- **Orphan-service-class check (`check_orphan_service_classes`, D-104)** — a static
+  check that flags a public service class no module references (a plain `import`
+  does not count) as `dead.service.<module>.<Class>` (`info`). Closes gap O.
+- **Frontend-control check (`check_frontend_unwired_controls`, D-104)** — a static
+  check that flags a Vue `@click`/`@change`/`@submit`/`@input` handler naming a
+  function the component never defines, or a function with an empty body
+  (`frontend.control_unwired.<name>`, `warning`). Closes gap P.
 - `api/v1/consistency.py` + `api/schemas/consistency.py` — `GET
   /api/v1/consistency`; the Diagnostics page renders it as the **"Проверка
   целостности"** panel, showing errors and warnings and hiding low-confidence info

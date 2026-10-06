@@ -4,7 +4,7 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-06
-**Current phase:** **v1.x maintenance (no new phases).** **v1.5.3 (patch) closes the Consistency Auditor gaps M and Q (D-103); the meta-audit is a *runtime mutation engine* (D-102).** The kill rate is **computed from real executions**: `tests/meta_audit/engine.py` builds an isolated copy of `backend/app`, `frontend/src`, `migrations/versions`, `docs` in a temp dir (or a fresh temp DB for runtime checks), injects one seeded defect, runs the **real** auditor, semantically matches the finding it actually produced (exact id or a family prefix; an unrelated finding is never a detection), and records ``detected`` / ``missed``. `agent/META_AUDIT_RESULT.json` is a **generated** artifact: it carries `result_source: "computed from runtime mutation executions"`, `generated_at`, `baseline_sha`, per-mutation `{id, detected, expected, actual_findings, severity}`, and derived totals. Arithmetic (`detected + missed == total`, `kill_rate == detected/total*100`, `critical_misses`/`high_misses` from the records) is asserted by `SuiteResult.verify()` in `pytest` and CI — no hardcoded `25`/`22`/`88.0` in logic. There are **25** mutations and **5 negative controls** (a clean/correct tree must not produce a mutation finding). Removing a detector flips its mutation to `missed` and lowers the kill rate automatically (proven for F, M and Q); adding a mutation changes `total` automatically (proven by `test_new_mutation_changes_total_without_code_edits`). Current computed result: **25 total, 22 detected, 3 missed, kill rate 88.0%, 0 false positives, 0 critical misses, 0 high misses** (`status: gaps_found`). Two new static detectors closed the remaining HIGH gaps: `check_write_only_settings` (M — a setting written via `SettingsService.set` with no literal reader) and `check_channel_registry_usage` (Q — a channel-aware service module that never uses a canonical channel identity; D-051/D-055). The 3 remaining gaps (N unused DB field, O service without caller, P control without behavior) are recorded in `KNOWN_GAP_IDS` and still **executed** — never hardcoded as misses. CI job `meta-audit` runs the engine, the tests, and a working-tree leak assertion; it does **not** compare against a hardcoded percentage.
+**Current phase:** **v1.x maintenance (no new phases).** **v1.5.4 (patch) closes the last three Consistency Auditor gaps N, O and P (D-103); the meta-audit is a *runtime mutation engine* (D-102) and now reaches 100%.** The kill rate is **computed from real executions**: `tests/meta_audit/engine.py` builds an isolated copy of `backend/app`, `frontend/src`, `migrations/versions`, `docs` in a temp dir (or a fresh temp DB for runtime checks), injects one seeded defect, runs the **real** auditor, semantically matches the finding it actually produced (exact id or a family prefix; an unrelated finding is never a detection), and records ``detected`` / ``missed``. `agent/META_AUDIT_RESULT.json` is a **generated** artifact: it carries `result_source: "computed from runtime mutation executions"`, `generated_at`, `baseline_sha`, per-mutation `{id, detected, expected, actual_findings, severity}`, and derived totals. Arithmetic (`detected + missed == total`, `kill_rate == detected/total*100`, `critical_misses`/`high_misses` from the records) is asserted by `SuiteResult.verify()` in `pytest` and CI — no hardcoded `25`/`25`/`100.0` in logic. There are **25** mutations and **8 negative controls** (a clean/correct tree must not produce a mutation finding). Removing a detector flips its mutation to `missed` and lowers the kill rate automatically (proven for F, M, N, O, P and Q); adding a mutation changes `total` automatically (proven by `test_new_mutation_changes_total_without_code_edits`). Current computed result: **25 total, 25 detected, 0 missed, kill rate 100.0%, 0 false positives, 0 critical misses, 0 high misses** (`status: clean`). Five static detectors closed the gaps: `check_write_only_settings` (M), `check_channel_registry_usage` (Q), `check_unused_model_columns` (N — an ORM column no module reads/writes, info), `check_orphan_service_classes` (O — a public service class no module references, info) and `check_frontend_unwired_controls` (P — an `@click`/`@change`/`@submit` handler that is undefined or has an empty body, warning). `KNOWN_GAP_IDS` is now **empty**. CI job `meta-audit` runs the engine, the tests, and a working-tree leak assertion; it does **not** compare against a hardcoded percentage.
 **v1.5.3 released** via a reviewed `develop → main` PR #14 (merge `c072c8d`), tag `v1.5.3`; the Release workflow (run `37504360411`) created the GitHub Release and attached the Windows portable ZIP (24 803 303 bytes, sha256 `f74369aa…5192`) + `.sha256`. It is a patch over v1.5.2: it closes the two HIGH auditor gaps (M, Q) with static detectors and makes the runtime orphan-setting allow-list honest.
 **Factual git state:** `main` HEAD = `c072c8d` (= `origin/main`, tag `v1.5.3`); `develop` = `c072c8d` (re-synced from `main` after the release merge, so the branches are equal at the tag). Version strings read **1.5.3** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock. Docker smoke re-verified on the released tree: `/health` → `1.5.3`, SPA `200`, `/api/v1/consistency` → `pass` (0 error, 0 warning, 6 info), image artifact scan clean (runtime dirs empty; no `.session`/DB/model). Release ZIP scan: 3090 entries, runtime dirs (`sessions/`, `data/`, `backups/`, `logs/`, `exports/`, `models/`, `updates/`) empty, no `.session`/TDATA/DB/model.
 Previous: **v1.5.1 forensic-audit fixes are released** — reviewed `develop → main` PR #12 (merge `f41ebc8`), tag `v1.5.1`; the Release workflow (run `37453582161`) created the GitHub Release and attached the Windows portable ZIP (24 796 203 bytes, sha256 `b46f9333…68dee`) + `.sha256` (D-060). It fixes five confirmed discrepancies found by an independent audit of v1.5.0 (D-095…D-098): a capability with no implementation can never report `available` (`config_sync`/`media_conversion` → `not_implemented`, guarded by a CI check); a consistency check that raises is an `error` finding, never silently skipped; the stored `language` preference is actually consumed (capability graph + a Settings RU/EN selector); source-comparison checks report `audit.source_unavailable` as `info` when the runtime image has no frontend/docs source (so Docker `/api/v1/consistency` is `pass`); and `README.md` version drift. Version strings read **1.5.1**. Suite **731 passed**; `ruff` clean; `vue-tsc` + `npm run build` clean; Docker smoke clean; artifact/secret scan clean.
@@ -13,43 +13,53 @@ Previous: **v1.4.0 Notification Center + Tray Agent + Editorial Workspace is rel
 Earlier: **v1.3.0 Bot Factory + LAN Mesh is released** — PR #9 (`develop → main`, merge `7788125`), tag `v1.3.0`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It adds the **Bot Factory** (D-077/D-078): plan a set of worker bots, check usernames with Telegram, create each bot through the official owner-confirmed @BotFather flow and adopt it, then bind it through the existing binding rules; and the **optional LAN Mesh / offline control plane** (D-079…D-082): deterministic identity, bounded broadcast discovery + manual peers, one-time-code pairing, deterministic coordinator election, fencing leases, a `mesh.tick` maintenance job and a guard so only the coordinator polls Telegram. Standalone (one computer) stays the default. New API (`/api/v1/bot-factory/*`, `/api/v1/mesh/*`), two RU-first UI pages (`/bot-factory`, `/mesh`) and offline tests. Pre-release hardening (D-083): pairing never persists/returns anything derived from a secret, and `/api/v1/mesh/ping` authenticates the shared secret; help topics `bot_factory` / `lan_mesh` added.
 Earlier: **v1.2.0 Content Studio is released** — PR #8 (`develop → main`, merge `ea6c161`), tag `v1.2.0`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It adds the v1.2 **content-studio foundation** (D-071…D-076): content sources (Telegram / RSS / Atom / manual) with deduplication, a deterministic explainable cleaner, usage-rights tracking + attribution, Telegram markup validation + a Telegram-like preview, inline button sets, per-source moderation (blocked keywords + quiet hours), multi-channel planning/calendar, publishing through a `PostingProvider` (bot by default; user account only in the expanded mode), durable auto-delete and first comments, and a bounded restart-safe posting tick (`content.posting`). Nothing is published without an explicit owner action; protected content keeps only its link (D-006/D-074); the AI narrows, it never picks emoji (D-033/D-076).
 Earlier: **v1.1.0 is released** — PR #7 (`develop → main`, merge commit `3438305`), tag `v1.1.0`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It carries the multi-format **Account Hub** importer (`.session`, `.session`+JSON, StringSession, optional TDATA; D-070), optional per-account **network routes (proxies)** (D-065), **donor discovery** (candidate proposals only, D-066), a **lightweight local encoder** classifier mode (D-067) with the optional **ruBERT-tiny2** embedding backend + install flow (D-068), and the bot-only/risk UX (D-069). The v1.0.5 **product slice** (D-064): bot↔channel **bindings** + channel **reaction capabilities**, session-free invite **Кампании** + explainable **donor quality**, **backup delivery destinations**, a resumable first-run **Setup Wizard**, and a conservative, off-by-default **auto-update**. `v1.0.0`–`v1.1.0` stay immutable (D-050).
-Version string is **1.5.3** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
-All gates pass: `pytest` **787 passed** (0 xfailed — the declarative gap xfails were removed), `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend, frontend and `meta-audit` (runtime mutation engine) gates.
+Version string is **1.5.4** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
+All gates pass: `pytest` **800 passed** (0 xfailed), `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend, frontend and `meta-audit` (runtime mutation engine) gates.
 
-### Consistency Auditor gaps M and Q closed (2026-10-06, D-103)
+### Consistency Auditor gaps M, N, O, P and Q all closed (2026-10-06, D-103)
 
-**Question:** the runtime mutation engine still missed the two **high**-impact
-gaps — a saved setting nothing reads (M) and channel-aware code that bypasses the
-Channel Registry (Q). Both are now closed by **static** detectors in
-`services/consistency_checks.py`:
+**Question:** the runtime mutation engine still missed the auditor gaps. All are
+now closed by **static** detectors in `services/consistency_checks.py`:
 
 - **M — `check_write_only_settings`.** Parses the backend AST and builds the set of
   setting keys **written** (`SettingsService(...)`/alias/`self.settings`/`self.repo`
   → `.set(<literal>)`) and **read** (`.get_typed`/`.get_raw`/declared
   `*_SETTING_SPECS`). Any literal write with no reader is a finding
   `settings.write_only.<key>`. Conservative: env-backed (`OPENHANDS_*`/`TCMS_*`)
-  keys are skipped, and aliased service locals are resolved. On the real tree it is
-  **clean** (no false positives).
+  keys are skipped, and aliased service locals are resolved.
 - **Q — `check_channel_registry_usage`.** Flags a service module that is
   channel-aware (a class/function named `*channel*`, or a function taking
   `channel_id`/`registry_channel_id`) but never uses a canonical channel identity
   (no `Channel*` import, no canonical param). Finding
   `channel-aware.module.<module>`. Exempt list avoids self-flagging.
-  On the real tree it is **clean**.
+- **N — `check_unused_model_columns`.** Derives ORM columns from `mapped_column`
+  and flags any column whose name never appears as an attribute, keyword argument
+  or string literal outside the model files (so serialisers, `getattr`/`setattr`
+  and JSON keys count as use). Finding `db.unused_column.<module>.<Class>.<name>`,
+  severity `info`, confidence `medium`. On the real tree it reports 12 genuinely
+  dead columns (e.g. `JoinRequest.link_id`, `MediaAsset.width`, `DonorMetrics.
+  posts_per_week`) — the honest orphan signal.
+- **O — `check_orphan_service_classes`.** Flags a public service class no module
+  references (a plain `import` does not count). Finding
+  `dead.service.<module>.<Class>`, severity `info`. On the real tree it reports
+  `notification_destinations.RecordingDestination` (a test-support helper).
+- **P — `check_frontend_unwired_controls`.** Flags a Vue `@click`/`@change`/
+  `@submit` handler that names a function the component never defines, or a
+  function with an empty body. Inline assignments/expressions are out of scope.
+  Finding `frontend.control_unwired.<name>`, severity `warning` (a user-visible
+  dead control). On the real tree it is **clean**.
 
 The static detectors run in `run_static_checks()` (so `pytest` and CI fail on
-regression) and their mutations are now **detected at runtime** by the engine:
-`M_write_only_setting` and `Q_channel_aware_module` were moved from
-`KNOWN_GAP_IDS` to ordinary (expected-detected) mutations. Two new **negative
-controls** prove precision: `NC4_setting_with_reader` (written *and* read → not
-flagged) and `NC5_channel_aware_with_registry` (uses `ChannelRepository` → not
-flagged). The runtime `_known_setting_keys()` allow-list was also made honest: it
-no longer lists keys that no module consumes (`sync_enabled`, `owner_*`), so the
-runtime orphan check agrees with the static one.
+regression) and their mutations are now **detected at runtime** by the engine.
+Three new **negative controls** prove precision: `NC6_used_db_column` (added *and*
+read → not flagged), `NC7_referenced_service` (added *and* instantiated → not
+flagged) and `NC8_wired_frontend_control` (control *and* handler → not flagged);
+plus the v1.5.3 `NC4_setting_with_reader` / `NC5_channel_aware_with_registry`. The
+runtime `_known_setting_keys()` allow-list is honest.
 
-**Result:** **25 total, 22 detected, 3 missed, kill rate 88.0%, 0 false positives,
-0 critical misses, 0 high misses.** Remaining gaps are N, O, P only (all below
-high). See D-103 in `agent/DECISIONS.md`.
+**Result:** **25 total, 25 detected, 0 missed, kill rate 100.0%, 0 false positives,
+0 critical misses, 0 high misses** (`status: clean`). `KNOWN_GAP_IDS` is empty.
+See D-103 in `agent/DECISIONS.md`.
 
 ### Runtime mutation engine for the Consistency Auditor (2026-10-06, D-102)
 
@@ -69,14 +79,14 @@ actually produced against the expected finding id/severity. The copy is discarde
 **Dynamism guarantees (all tested):**
 - *Detector removal* — disabling a detector makes its mutation `missed` and lowers
   the kill rate (`test_removing_a_detector_turns_its_mutation_into_a_miss`, plus
-  `test_removing_the_write_only_detector_turns_m_into_a_miss` and
-  `test_removing_the_channel_registry_detector_turns_q_into_a_miss`).
+  `test_removing_a_gap_detector_turns_it_into_a_miss` parametrised over M, N, O, P
+  and Q).
 - *New mutation* — adding a mutation changes `total` with no code edits
   (`test_new_mutation_changes_total_without_code_edits`).
 
-**Negative controls:** 5 clean/correct-tree controls must produce **0 false
-positives** (asserted). Current run: **25 total, 22 detected, 3 missed, kill rate
-88.0%, 0 false positives, 0 critical misses, 0 high misses.**
+**Negative controls:** 8 clean/correct-tree controls must produce **0 false
+positives** (asserted). Current run: **25 total, 25 detected, 0 missed, kill rate
+100.0%, 0 false positives, 0 critical misses, 0 high misses.**
 
 **Closed earlier (D-099/D-100):** false capability / stray-string mask (strong
 `CAPABILITY_SERVICE_ANCHORS`), provider-registry pointing at a missing module,
@@ -88,9 +98,8 @@ dependencies enforced in `capability_graph.evaluate()`.
 `ContentItem.channel_id` (no such column) and swallowed the resulting error — the
 check had never detected anything. Now uses `ContentSource.channel_id`.
 
-**Remaining gaps (honest, still executed):** N unused DB field, O service without
-caller, P control without behavior. Recorded in `KNOWN_GAP_IDS` — not hardcoded as
-misses; closing a gap removes its id and raises the kill rate automatically.
+**Remaining gaps (honest, still executed):** none. `KNOWN_GAP_IDS` is now empty;
+N, O and P were closed in v1.5.4 (D-103) and are detected at runtime.
 
 ### Forensic audit of v1.5.0 (2026-10-06, D-095…D-098)
 
@@ -124,9 +133,9 @@ Evidence: `pytest` **731 passed** (was 726; +5 audit tests), `ruff` clean,
 `config_sync`/`media_conversion` as `not_implemented`, the EN preference returns
 EN capability labels end-to-end, and the Docker `/api/v1/consistency` report is
 `pass` (5 info, 0 error).
-**Repository status:** `main` = the released tag `v1.5.3`; `develop` was ahead of the previous release (`v1.5.2`) by the runtime-engine commit and the D-103 M/Q gap-closure commit, then re-synced from `main` after the release merge. Tags `v1.0.0`–`v1.5.3`; each GitHub Release carries the Windows portable ZIP + `.sha256` (built by CI, D-060). Latest release: v1.5.3.
+**Repository status:** `main` = the released tag `v1.5.3`; `develop` is ahead of `main` by the v1.5.4 gap-closure commit (D-103), pending release. Tags `v1.0.0`–`v1.5.3`; each GitHub Release carries the Windows portable ZIP + `.sha256` (built by CI, D-060). Latest release: v1.5.3.
 **Branch:** develop (working branch); main is released and updated only via pull request.
-**Latest work (D-103 + D-102):** `backend/app/services/consistency_checks.py` gained two static detectors — `check_write_only_settings` (gap M) and `check_channel_registry_usage` (gap Q); `backend/app/services/consistency.py` `_known_setting_keys()` made honest; `tests/meta_audit/engine.py` (sandbox, `run_mutation`, `run_suite`, `SuiteResult` derived totals, `write_report`, `regression_against`, CLI), `tests/meta_audit/mutations.py` (25 mutations + 5 negative controls, `KNOWN_GAP_IDS` = {N, O, P}), `tests/test_consistency_mutations.py` (per-mutation runtime classification + detector-removal + new-mutation + isolation proofs), `tests/test_meta_audit.py` (silent-failure guard, runtime drift, generated-report provenance/arithmetic, closed-gap M/Q regression), `.github/workflows/ci.yml` (`meta-audit` job runs the engine + tests + leak assertion), regenerated `agent/META_AUDIT_RESULT.json` (25 total, 22 detected, 3 missed, 88.0%, 0 critical/high). The declarative `_DETECTABLE`/`_MISSED` lists and the `strict=True` xfail gap tests were removed.
+**Latest work (D-103 + D-102):** `backend/app/services/consistency_checks.py` gained five static detectors — `check_write_only_settings` (gap M), `check_channel_registry_usage` (gap Q), `check_unused_model_columns` (gap N), `check_orphan_service_classes` (gap O) and `check_frontend_unwired_controls` (gap P); `backend/app/services/consistency.py` `_known_setting_keys()` made honest; `tests/meta_audit/engine.py` (sandbox, `run_mutation`, `run_suite`, `SuiteResult` derived totals, `write_report`, `regression_against`, CLI), `tests/meta_audit/mutations.py` (25 mutations + 8 negative controls, `KNOWN_GAP_IDS` = ∅), `tests/test_consistency_mutations.py` (per-mutation runtime classification + detector-removal + new-mutation + isolation proofs), `tests/test_meta_audit.py` (silent-failure guard, runtime drift, generated-report provenance/arithmetic, closed-gap M/N/O/P/Q regression), `.github/workflows/ci.yml` (`meta-audit` job runs the engine + tests + leak assertion), regenerated `agent/META_AUDIT_RESULT.json` (25 total, 25 detected, 0 missed, 100.0%, 0 critical/high). The declarative `_DETECTABLE`/`_MISSED` lists and the `strict=True` xfail gap tests were removed.
 **Previous work (v1.5.1 forensic-audit fixes — released):** `services/capability_graph.py` (`implemented` flag + `STATE_NOT_IMPLEMENTED`), `services/consistency_checks.py` (`check_capability_implementation` + `_SOURCE_CHECKS` runtime-image guard + no-silent-failure runner), `services/consistency.py` (no-silent-failure runtime auditor), `api/v1/capability_graph.py` (language from the saved UI preference), `core/i18n.py` (`cap.state.not_implemented`), `services/ui_prefs.py` (`language` preference consumed), `frontend/src/stores/help.ts` + `SettingsView.vue` (RU/EN selector), `DashboardView.vue` (renders the `not_implemented` note). Released via a reviewed `develop → main` PR #12 (merge `f41ebc8`), tag `v1.5.1`; Release workflow (run `37453582161`) attached the Windows portable ZIP (24 796 203 bytes, sha256 `b46f9333…68dee`) + `.sha256`. Docker smoke: `/health` → `1.5.1`, SPA `200`, `/api/v1/capability-graph` → `not_implemented` for `config_sync`/`media_conversion`, `/api/v1/consistency` → `pass`; artifact scan clean (no sessions/TDATA/DB/model).
 
 ---

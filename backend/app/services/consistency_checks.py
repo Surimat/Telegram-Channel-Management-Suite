@@ -49,6 +49,7 @@ _SOURCE_CHECKS: dict[str, tuple[str, ...]] = {
     "check_orphan_help_ids": ("FRONTEND",),
     "check_hardcoded_ui_strings": ("FRONTEND",),
     "check_documented_endpoints": ("DOCS",),
+    "check_frontend_unwired_controls": ("FRONTEND",),
 }
 
 #: Capability key -> (service module, class anchor). A capability may only be
@@ -129,6 +130,31 @@ CANONICAL_CHANNEL_MARKERS = (
 
 _CANONICAL_CHANNEL_PARAMS = frozenset({"channel_id", "registry_channel_id"})
 
+#: ORM columns that are intentionally not referenced by application code (e.g.
+#: documented extension points). Listed explicitly so the unused-column check (N)
+#: stays honest instead of being silently disabled.
+INTENTIONAL_UNUSED_COLUMNS: frozenset[tuple[str, str, str]] = frozenset()
+
+#: Service classes that are intentionally not wired into production call sites
+#: (test-support helpers, documented extension points). Listed explicitly so the
+#: orphan-service check (O) is honest.
+INTENTIONAL_ORPHAN_CLASSES: frozenset[str] = frozenset()
+
+#: Base classes that mark a service class as *not* a callable service (interfaces,
+#: value objects, exceptions, enums) and are therefore out of scope for O.
+_SERVICE_CLASS_EXCLUDE_BASES = (
+    "Protocol",
+    "ABC",
+    "Exception",
+    "Error",
+    "BaseModel",
+    "Enum",
+    "StrEnum",
+    "IntEnum",
+    "NamedTuple",
+    "TypedDict",
+)
+
 
 def run_static_checks() -> list[Finding]:
     """Run every static check and return the raw findings.
@@ -160,6 +186,9 @@ def run_static_checks() -> list[Finding]:
         check_orphan_help_ids,
         check_write_only_settings,
         check_channel_registry_usage,
+        check_unused_model_columns,
+        check_orphan_service_classes,
+        check_frontend_unwired_controls,
     ):
         missing = [
             globals()[name]
@@ -1111,6 +1140,337 @@ def check_channel_registry_usage() -> list[Finding]:
 
 
 # ---------------------------------------------------------------------------
+# 12. Unused ORM column (N) — a DB field no application code reads or writes
+# ---------------------------------------------------------------------------
+def _model_columns() -> dict[str, dict[str, list[str]]]:
+    """Return ``module -> {class name: [column names]}`` for ORM ``mapped_column``.
+
+    A column is an ``AnnAssign`` whose value is a ``mapped_column(...)`` call.
+    ``__tablename__`` / enum members are not columns and are ignored.
+    """
+    columns: dict[str, dict[str, list[str]]] = {}
+    models = BACKEND / "db" / "models"
+    if not models.is_dir():
+        return columns
+    for path in sorted(models.glob("*.py")):
+        tree = _parse(path)
+        if tree is None:
+            continue
+        found: dict[str, list[str]] = {}
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            names: list[str] = []
+            for stmt in node.body:
+                if not isinstance(stmt, ast.AnnAssign) or not isinstance(
+                    stmt.value, ast.Call
+                ):
+                    continue
+                func = stmt.value.func
+                call = func.attr if isinstance(func, ast.Attribute) else getattr(
+                    func, "id", ""
+                )
+                if call == "mapped_column" and isinstance(stmt.target, ast.Name):
+                    names.append(stmt.target.id)
+            if names:
+                found[node.name] = names
+        if found:
+            columns[path.name] = found
+    return columns
+
+
+def _application_references() -> tuple[set[str], set[str], set[str]]:
+    """Collect ``(attributes, keywords, string literals)`` used outside models.
+
+    The model definition files themselves are skipped so a column's own
+    declaration is not mistaken for a use. Attribute access (``row.meta``),
+    keyword arguments (``meta=``) and string literals (a JSON key ``"meta"`` or a
+    dynamic ``getattr``) all count as a reference — anything narrower would
+    produce false positives.
+    """
+    attrs: set[str] = set()
+    keywords: set[str] = set()
+    strings: set[str] = set()
+    for path in BACKEND.rglob("*.py"):
+        if "__pycache__" in path.parts:
+            continue
+        if path.parent.name == "models":
+            continue
+        tree = _parse(path)
+        if tree is None:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute):
+                attrs.add(node.attr)
+            elif isinstance(node, ast.keyword) and node.arg:
+                keywords.add(node.arg)
+            elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+                strings.add(node.value)
+    return attrs, keywords, strings
+
+
+def check_unused_model_columns() -> list[Finding]:
+    """Flag ORM columns no application code ever references (D-100 gap N).
+
+    A column that exists in the model and the migration but is never read or
+    written is dead schema: the UI cannot show it and behaviour never changes
+    because of it. The check is conservative and structural:
+
+    * it derives columns from the ORM (``mapped_column``), not from a name search;
+    * a column is "used" when its name appears as an attribute, a keyword argument
+      or a string literal anywhere outside the model files (covering serialisers,
+      ``getattr``/``setattr`` and JSON keys);
+    * intentionally-kept extension points are listed in
+      :data:`INTENTIONAL_UNUSED_COLUMNS` (currently empty).
+
+    Severity is ``info`` because a column may be a documented future extension
+    point; confidence is ``medium`` because dynamic access via a computed name
+    cannot be seen statically.
+    """
+    findings: list[Finding] = []
+    columns = _model_columns()
+    if not columns:
+        return findings
+    attrs, keywords, strings = _application_references()
+    for module, classes in sorted(columns.items()):
+        stem = module[:-3]
+        for cls, names in sorted(classes.items()):
+            for name in names:
+                if name in attrs or name in keywords or name in strings:
+                    continue
+                if (stem, cls, name) in INTENTIONAL_UNUSED_COLUMNS:
+                    continue
+                findings.append(
+                    Finding(
+                        id=f"db.unused_column.{stem}.{cls}.{name}",
+                        category="orphan",
+                        severity=SEVERITY_INFO,
+                        confidence="medium",
+                        title="Поле модели не используется приложением",
+                        detail=(
+                            f"{module}: поле «{name}» класса {cls} объявлено в модели, "
+                            "но ни один модуль не читает и не пишет его."
+                        ),
+                        why="Мёртвое поле схемы: миграция и БД его хранят, но поведение "
+                        "приложения от него не зависит.",
+                        how_to_fix="Используйте поле или удалите его аддитивной миграцией.",
+                        subsystem="database",
+                    )
+                )
+    return findings
+
+
+# ---------------------------------------------------------------------------
+# 13. Backend service without caller (O) — dead functionality
+# ---------------------------------------------------------------------------
+def _service_classes() -> dict[str, dict[str, list[str]]]:
+    """Return ``module -> {class name: method names}`` for public service classes."""
+    classes: dict[str, dict[str, list[str]]] = {}
+    services = BACKEND / "services"
+    if not services.is_dir():
+        return classes
+    for path in sorted(services.glob("*.py")):
+        if path.name == "__init__.py" or path.name.startswith("_"):
+            continue
+        tree = _parse(path)
+        if tree is None:
+            continue
+        found: dict[str, list[str]] = {}
+        for node in tree.body:
+            if not isinstance(node, ast.ClassDef) or node.name.startswith("_"):
+                continue
+            bases = [ast.unparse(b) for b in node.bases]
+            if any(
+                any(excluded in base for excluded in _SERVICE_CLASS_EXCLUDE_BASES)
+                for base in bases
+            ):
+                continue
+            if any("dataclass" in ast.unparse(d) for d in node.decorator_list):
+                continue
+            found[node.name] = [
+                s.name
+                for s in node.body
+                if isinstance(s, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and not s.name.startswith("__")
+            ]
+        if found:
+            classes[path.name] = found
+    return classes
+
+
+def _class_references() -> tuple[set[str], set[str]]:
+    """Names/attributes referenced in the backend, outside import statements.
+
+    A bare ``import`` of a class is deliberately **not** a use: importing a name
+    does not call it. Only an actual reference (instantiation, attribute, a
+    passed name) counts. References *within the defining module* count too, so a
+    class wired by its own factory is not mistaken for dead code.
+    """
+    names: set[str] = set()
+    attrs: set[str] = set()
+    for path in BACKEND.rglob("*.py"):
+        if "__pycache__" in path.parts:
+            continue
+        tree = _parse(path)
+        if tree is None:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                continue
+            if isinstance(node, ast.Name):
+                names.add(node.id)
+            elif isinstance(node, ast.Attribute):
+                attrs.add(node.attr)
+    return names, attrs
+
+
+def check_orphan_service_classes() -> list[Finding]:
+    """Flag public service classes nothing references (D-100 gap O).
+
+    A service class that is never referenced anywhere in the backend is dead
+    functionality: it exists, it may even be tested, but no production path can
+    reach it. A plain ``import`` does not count — the class must be actually
+    referenced (instantiated, passed, or its methods called). Classes that are
+    documented extension points are listed in :data:`INTENTIONAL_ORPHAN_CLASSES`.
+
+    Severity is ``info``: dead code does not break behaviour, it is an orphan
+    signal for the owner. (A user-visible dead control is a ``warning``, see P.)
+    """
+    findings: list[Finding] = []
+    classes = _service_classes()
+    names, attrs = _class_references()
+    for module, defined in sorted(classes.items()):
+        stem = module[:-3]
+        for cls, methods in sorted(defined.items()):
+            if cls in names or cls in attrs:
+                continue
+            if cls in INTENTIONAL_ORPHAN_CLASSES:
+                continue
+            findings.append(
+                Finding(
+                    id=f"dead.service.{stem}.{cls}",
+                    category="orphan",
+                    severity=SEVERITY_INFO,
+                    confidence="medium",
+                    title="Сервис без вызывающего кода",
+                    detail=(
+                        f"{module}: класс «{cls}» не используется ни одним модулем "
+                        f"(методы: {', '.join(methods) or '—'})."
+                    ),
+                    why="Мёртвая функциональность: код есть, но ни один сценарий его "
+                    "не вызывает.",
+                    how_to_fix="Подключите сервис к реальному сценарию или удалите его.",
+                    subsystem="services",
+                )
+            )
+    return findings
+
+
+# ---------------------------------------------------------------------------
+# 14. Frontend control without behaviour (P) — a control that does nothing
+# ---------------------------------------------------------------------------
+def _frontend_script(text: str) -> str:
+    return "\n".join(
+        match.group(1)
+        for match in re.finditer(r"<script[^>]*>(.*?)</script>", text, re.DOTALL)
+    )
+
+
+def _vue_defined_names(script: str) -> set[str]:
+    """Names a component's ``<script>`` defines or imports (template references)."""
+    names: set[str] = set()
+    names.update(re.findall(r"\bfunction\s+([A-Za-z_$][\w$]*)", script))
+    names.update(re.findall(r"\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=", script))
+    for group in re.findall(r"\b(?:const|let|var)\s*\{\s*([^}]+?)\s*\}\s*=", script):
+        for part in group.split(","):
+            part = part.strip().split(":")[-1].strip()
+            if re.fullmatch(r"[A-Za-z_$][\w$]*", part):
+                names.add(part)
+    for group in re.findall(r"import\s*\{([^}]+)\}", script):
+        for part in group.split(","):
+            part = part.strip().split(" as ")[-1].strip()
+            if re.fullmatch(r"[A-Za-z_$][\w$]*", part):
+                names.add(part)
+    return names
+
+
+def _vue_function_bodies(script: str) -> dict[str, str]:
+    """Body text of each function / arrow function defined in the script."""
+    bodies: dict[str, str] = {}
+    patterns = (
+        r"\bfunction\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{",
+        r"\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?"
+        r"(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>\s*\{",
+    )
+    for pattern in patterns:
+        for match in re.finditer(pattern, script):
+            name = match.group(1)
+            start = script.find("{", match.end() - 1)
+            depth = 0
+            for i in range(start, len(script)):
+                if script[i] == "{":
+                    depth += 1
+                elif script[i] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        bodies[name] = script[start + 1 : i]
+                        break
+    return bodies
+
+
+def check_frontend_unwired_controls() -> list[Finding]:
+    """Flag ``@click``/``@change``/``@submit`` handlers that do nothing (gap P).
+
+    A template event handler that names a function the component never defines
+    (a typo) or a function with an empty body is a control with no behaviour:
+    the user clicks and nothing happens. Handlers written as an inline assignment
+    (``@click="x = !x"``) or an expression are out of scope, and a handler whose
+    body is non-empty is trusted even if it only mutates a reactive ref.
+    """
+    findings: list[Finding] = []
+    if not FRONTEND.is_dir():
+        return findings
+    for path in sorted(FRONTEND.rglob("*.vue")):
+        text = path.read_text(encoding="utf-8")
+        script = _frontend_script(text)
+        if not script.strip():
+            continue
+        rel = path.relative_to(FRONTEND)
+        defined = _vue_defined_names(script)
+        bodies = _vue_function_bodies(script)
+        for match in re.finditer(
+            r'@(?:click|change|submit|input)(?:\.[a-z]+)?\s*=\s*"([^"]+)"', text
+        ):
+            expr = match.group(1).strip()
+            simple = re.fullmatch(r"([A-Za-z_$][\w$]*)\s*(\(.*\))?", expr)
+            if simple is None:
+                continue  # assignment/compound expression, not a handler reference
+            name = simple.group(1)
+            if name in defined:
+                if name in bodies and bodies[name].strip() == "":
+                    findings.append(
+                        _unwired_finding(rel, name, "пустое тело обработчика")
+                    )
+                continue
+            findings.append(_unwired_finding(rel, name, "обработчик не определён"))
+    return findings
+
+
+def _unwired_finding(rel: Path, name: str, reason: str) -> Finding:
+    return Finding(
+        id=f"frontend.control_unwired.{name}",
+        category="frontend",
+        severity=SEVERITY_WARNING,
+        confidence="medium",
+        title="Элемент управления без обработчика",
+        detail=f"{rel}: обработчик «{name}» — {reason}.",
+        why="Пользователь нажимает кнопку/переключатель, но действие не выполняется.",
+        how_to_fix="Определите обработчик или подключите его к реальному действию.",
+        subsystem="frontend",
+    )
+
+
+# ---------------------------------------------------------------------------
 # AST helpers (kept for future, more precise checks)
 # ---------------------------------------------------------------------------
 def _parse(path: Path) -> ast.Module | None:
@@ -1131,15 +1491,18 @@ __all__ = [
     "check_channel_registry_usage",
     "check_documented_endpoints",
     "check_frontend_route_view",
+    "check_frontend_unwired_controls",
     "check_hardcoded_ui_strings",
     "check_help_catalog_usage",
     "check_i18n_completeness",
     "check_model_migration",
     "check_notification_routing",
     "check_orphan_help_ids",
+    "check_orphan_service_classes",
     "check_provider_registry",
     "check_router_registration",
     "check_scheduler_job_handlers",
+    "check_unused_model_columns",
     "check_write_only_settings",
     "run_static_checks",
 ]
