@@ -9,13 +9,21 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v1.5.0`.** It adds the **Capability Graph** (one
+**Current stable release: `v1.5.2`.** It proves the **Consistency Auditor**
+("Проверка целостности") actually detects the breakages it is meant to catch: a
+meta-audit harness injects seeded defects into an isolated copy of the source tree
+and asserts each is reported, closing four detection gaps (false capability,
+stray-string mask, provider-registry drift, i18n) and adding router-registration,
+backup-destination and notification-routing checks. It also fixes a real silent
+failure in the runtime channel-aware check. Measured kill rate **75%** (18/24), 0
+critical misses; the 6 remaining gaps are recorded honestly in
+`agent/META_AUDIT_RESULT.json`. It keeps the **Capability Graph** (one
 machine-readable description of what the product can do and what each capability
-requires, so every screen agrees on what is ready), a **localized message
-catalog** (RU/EN, single-sourced in `core/i18n.py`) and the **Consistency
-Auditor** ("Проверка целостности": cross-module drift detection between DB,
-migrations, API, frontend, scheduler, providers, i18n and help catalog). See
-Status below.
+requires, so every screen agrees on what is ready), a
+**localized message catalog** (RU/EN, single-sourced in `core/i18n.py`) and the
+**Consistency Auditor** ("Проверка целостности": cross-module drift detection
+between DB, migrations, API, frontend, scheduler, providers, i18n and help
+catalog). See Status below.
 
 ## What it does
 
@@ -138,6 +146,14 @@ the language preference selectable in Settings) and the **Consistency Auditor**
 (cross-module drift detection surfaced in Diagnostics, with a failed check
 reported as an error instead of being silently skipped). It adds no account
 registration and no Telegram-limit bypass.
+**v1.5.2 (this release)** proves the **Consistency Auditor** actually detects the
+breakages it is meant to catch ("Проверка проверяющего"): a meta-audit harness
+seeds defects into an isolated copy of the source tree and asserts each is
+reported, closing four detection gaps and adding router/backup/notification
+checks; it also fixes a real silent failure in the runtime channel-aware check.
+The measured kill rate is **75%** (18/24 seeded defects, 0 critical misses) and
+the remaining gaps are recorded in `agent/META_AUDIT_RESULT.json`. It adds no
+account registration and no Telegram-limit bypass.
 See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
 ## Deployment modes

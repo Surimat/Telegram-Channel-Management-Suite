@@ -1,0 +1,62 @@
+{
+  "version": "1.5.2",
+  "baseline_sha": "2d5fad70266c7bc05c4d383546a46634cdde241a",
+  "seeded_defects": 24,
+  "detected": 18,
+  "missed": 6,
+  "kill_rate": 75.0,
+  "critical_misses": 0,
+  "high_misses": 2,
+  "false_green": false,
+  "status": "gaps_found",
+  "detectable": {
+    "A_frontend_route": "error",
+    "B_api_consumer": "error",
+    "C_orphan_endpoint": "error",
+    "D_scheduler_handler": "error",
+    "E1_provider_missing": "error",
+    "E2_registry_missing_module": "error",
+    "F_false_capability": "error",
+    "F2_stray_string_mask": "error",
+    "G_capability_dependency": "error",
+    "H_i18n_missing": "error",
+    "I_hardcoded_ui_string": "warning",
+    "J_help_reference": "error",
+    "K_model_migration": "error",
+    "K2_column_migration": "error",
+    "R1_backup_destination_no_provider": "error",
+    "R2_backup_provider_missing": "error",
+    "S_notification_routing": "error",
+    "T_doc_endpoint_claim": "warning"
+  },
+  "missed_defects": {
+    "L_orphan_setting_static": {
+      "severity": "medium",
+      "reason": "runtime-only heuristic; no static consumer graph"
+    },
+    "M_write_only_setting": {
+      "severity": "high",
+      "reason": "no check that a persisted setting changes behaviour; sync_*/owner_* keys are allow-listed but read nowhere"
+    },
+    "N_unused_db_field": {
+      "severity": "medium",
+      "reason": "no per-column usage analysis"
+    },
+    "O_service_without_caller": {
+      "severity": "medium",
+      "reason": "no dead-code/caller analysis"
+    },
+    "P_control_without_behavior": {
+      "severity": "medium",
+      "reason": "no UI-control ↔ endpoint wiring check"
+    },
+    "Q_channel_aware_module": {
+      "severity": "high",
+      "reason": "runtime covers rows, not module code"
+    }
+  },
+  "out_of_scope": {
+    "auth_bypass": "no owner-auth feature in this cycle",
+    "secret_leak": "covered by secret scan, not the consistency auditor"
+  }
+}

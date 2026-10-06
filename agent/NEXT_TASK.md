@@ -4,33 +4,71 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-06
-**Status:** **v1.5.1 forensic-audit fixes are released.**
-An independent audit verified the claimed v1.5.0 state against the code and fixed
-five confirmed discrepancies (D-095…D-098): (1) `config_sync`/`media_conversion`
-falsely reported `available` — now `not_implemented` (`implemented=False`) with a
-CI check (`check_capability_implementation`); (2) consistency checks that raised
-were silently swallowed — now an `error` finding `audit.check_failed.<name>`;
-(3) the stored `language` preference was write-only — `GET /api/v1/capability-graph`
-now honours it and Settings has a real RU/EN selector; (4) the runtime Docker image
-reported `overall: fail` because it ships no frontend/docs source — source checks
-now report `audit.source_unavailable.<name>` as **info**; (5) `README.md` version
-drift. Released via reviewed `develop → main` PR #12 (merge `f41ebc8`), tag
-`v1.5.1`; the Release workflow (run `37453582161`) attached the Windows portable
-ZIP + `.sha256`. Suite **731 passed**; `ruff` clean; `vue-tsc` + `npm run build`
-clean; Docker `/api/v1/consistency` = `pass`; artifact/secret scan clean.
-Previous: **v1.5.0 Capability graph + i18n + Consistency Auditor is released**
-(PR #11, merge `ad24bc6`, tag `v1.5.0`). The roadmap (PHASE 0–11) is complete.
+**Status:** **v1.5.2 meta-audit ("Проверка проверяющего") is implemented and green on
+`develop`; ready to release.**
+The Consistency Auditor is now *proven* to detect the breakages it is meant to
+catch, not merely assumed reliable (D-099/D-100). A meta-audit harness
+(`tests/test_consistency_mutations.py`, `tests/test_meta_audit.py`) copies the
+source tree to a temp dir, injects one synthetic defect per test, asserts the
+matching finding appears, and discards the copy — nothing is written to the working
+tree. It closed four detection gaps (false capability / stray-string mask,
+provider-registry drift, i18n, hardcoded UI placeholder strings) and added
+`check_router_registration`, `check_backup_destination_registry`,
+`check_notification_routing`; `capability_graph.evaluate()` now enforces
+capability-key dependencies. It also found and fixed a **real** silent failure:
+runtime `_check_channel_aware()` queried the non-existent `ContentItem.channel_id`,
+always raised, and was swallowed — now `ContentSource.channel_id`
+(`channel-aware.content_source`). Measured kill rate **75%** (18/24 seeded defects,
+**0 critical**, 2 high); the 6 remaining gaps are recorded in
+`agent/META_AUDIT_RESULT.json` and pinned by `strict=True` xfail tests. New CI job
+`meta-audit` uploads the result. Version strings read **1.5.2**; suite **762 passed,
+4 xfailed**; `ruff` clean; `vue-tsc` + `npm run build` clean; static consistency
+suite `pass` (0 error, 0 warning, 2 info).
+Previous: **v1.5.1 forensic-audit fixes are released** — reviewed `develop → main`
+PR #12 (merge `f41ebc8`), tag `v1.5.1`; the Release workflow (run `37453582161`)
+attached the Windows portable ZIP + `.sha256` (D-060). It fixes five confirmed
+discrepancies (D-095…D-098): false `available` capabilities; a consistency check
+that raised being silently swallowed; a write-only `language` preference;
+source-unavailable checks reported as info in the runtime image; and `README.md`
+version drift. Previous: **v1.5.0 Capability graph + i18n + Consistency Auditor is
+released** (PR #11, merge `ad24bc6`, tag `v1.5.0`). The roadmap (PHASE 0–11) is
+complete.
 
 ---
 
-## Active task: none — v1.5.1 released (maintenance / optional extensions)
+## Active task: release v1.5.2 (meta-audit) — then promote auditor gaps
 
-There is **no required next task**. The v1.5.1 release is complete: the code is
-green on `develop`, merged to `main` via a reviewed PR, tagged `v1.5.1`, and
-published as a GitHub Release with the Windows portable ZIP + `.sha256`. Do **not**
-add new large features and do **not** open a new PHASE unless the owner asks.
+1. **Release v1.5.2** on `develop → main` via a reviewed PR, tag `v1.5.2`, let the
+   Release workflow attach the Windows portable ZIP + `.sha256`. Do **not** push to
+   `main` directly; do **not** move existing tags (D-050).
+2. **Optional follow-up (next cycle):** promote the recorded auditor gaps to real
+   checks, starting with **M — write-only setting (high)**: allow-listed
+   `sync_*`/`owner_*` setting keys are read nowhere. Each promotion should flip the
+   corresponding `strict=True` xfail in `tests/test_consistency_mutations.py` into
+   a passing detection test.
 
-### Forensic audit findings (D-095…D-098) — fixed, do not re-fix
+### Meta-audit findings (D-099/D-100) — implemented, do not rebuild
+
+- **Kill rate 75%** (18/24). Detected: frontend route, api consumer, orphan
+  endpoint, scheduler handler, provider pair, registry-missing module, false
+  capability, stray-string mask, capability dependency, i18n, hardcoded UI string,
+  help reference, model/migration (×2), backup destination/provider, notification
+  routing, doc endpoint.
+- **Missed (recorded):** L orphan setting (static), M write-only setting (high),
+  N unused DB field, O service without caller, P control without behavior,
+  Q channel-aware module code (high).
+- **Real defect fixed:** `_check_channel_aware` column mismatch (see Status).
+
+### Verification for this change
+
+```bash
+python -m pytest                 # 761 passed, 4 xfailed
+ruff check backend tests         # clean
+cd frontend && npx vue-tsc --noEmit && npm run build   # clean
+python -m pytest tests/test_consistency_mutations.py tests/test_meta_audit.py -q  # meta-audit
+```
+
+### What v1.5.1 adds (do not rebuild)
 
 1. **False capability** — `config_sync` returned `available` on an empty install
    with no implementation; `media_conversion` was listed with no ffmpeg tooling.

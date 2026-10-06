@@ -6,7 +6,7 @@ repository root unless stated otherwise.
 ## 1. Code quality gates (must pass)
 
 ```bash
-python -m pytest                 # full suite — currently 702 passed
+python -m pytest                 # full suite — currently 761 passed, 4 xfailed
 ruff check backend tests         # must be clean
 cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 ```
@@ -64,6 +64,23 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
       `.sha256` to it — no manual step (D-060).
 
 ## 6. Release verification (fill in per release)
+
+### v1.5.2 (audit-the-auditor meta-audit, 2026-10-06)
+
+| Gate | v1.5.2 | Notes |
+| --- | --- | --- |
+| Version consistency (`1.5.2` everywhere) | ✅ | app / pyproject / frontend / lock (guarded by `test_repo_version_is_consistent`) |
+| Meta-audit harness | ✅ | `tests/test_consistency_mutations.py` (seeded defects, isolated copy) + `tests/test_meta_audit.py`; kill rate 75% (18/24), 0 critical |
+| Silent-failure guard | ✅ | raising check → `audit.check_failed.<name>` error; missing source → `audit.source_unavailable.<name>` info |
+| New static checks | ✅ | router registration, backup-destination provider, notification routing, hardcoded UI strings |
+| Capability anchors + dependency | ✅ | strong `CAPABILITY_SERVICE_ANCHORS`; `evaluate()` blocks an unimplemented dependency |
+| Real defect fixed | ✅ | `_check_channel_aware` column mismatch (`ContentSource.channel_id`) |
+| README release line | ✅ | updated to `v1.5.2` (guarded by `test_readme_states_the_current_release`) |
+| Tests (`pytest` / `ruff`) | ✅ | 761 passed, 4 xfailed; ruff clean |
+| Frontend build | ✅ | `vue-tsc` + `npm run build` clean |
+| CI job `meta-audit` | ✅ | runs the harness + uploads `agent/META_AUDIT_RESULT.json` |
+| Git merge (`develop → main`) | ⏳ | reviewed PR (do not push to `main` directly) |
+| Automated Release workflow + ZIP/`.sha256` | ⏳ | on tag `v1.5.2` (D-060) |
 
 ### v1.5.1 (forensic-audit fixes, 2026-10-06)
 

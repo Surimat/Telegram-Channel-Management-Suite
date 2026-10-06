@@ -32,6 +32,7 @@ cat docs/ROADMAP.md             # phases 0–11
 python -m venv .venv && source .venv/bin/activate
 pip install -r backend/requirements-dev.txt
 python -m pytest                # must stay green
+python -m pytest tests/test_consistency_mutations.py tests/test_meta_audit.py  # meta-audit (proves the auditor)
 python -m backend.app.main      # http://127.0.0.1:8000
 ruff check backend tests        # must stay clean
 

@@ -812,16 +812,34 @@ itself honestly instead of each surface re-deriving the same state.
 - `services/consistency_checks.py` — **static** checks, run in CI and by the
   runtime auditor: every ORM table has a migration; every frontend `api.*` call
   maps to a real route; every scheduler job kind has a handler; every frontend
-  route points at a real view; providers come in real + fake pairs; the capability
-  registry is well-formed and every `implemented=True` capability has a matching
-  code signal; i18n keys are complete; UI help topics exist; documented API
+  route points at a real view; providers come in real + fake pairs and every
+  provider module imported by `registry.py` exists; the capability registry is
+  well-formed and every `implemented=True` capability has a **strong anchor** (a
+  real service class in `CAPABILITY_SERVICE_ANCHORS` — a stray string named after
+  the capability does not count); a capability may not require an unimplemented
+  capability; every `api/v1` module with an `APIRouter` is included in `router.py`;
+  every backup-destination kind has a provider module; every notification category
+  has a `DEFAULT_ROUTING` entry; i18n keys are complete; user-visible Vue text that
+  bypasses the catalog is a **warning**; UI help topics exist; documented API
   prefixes are known. Hard drift is an **error**; heuristic noise (unused routers,
-  orphan help topics) is **info** only. A check that raises is reported as an
-  `error` (`audit.check_failed.<name>`) — never silently skipped (D-096).
+  orphan help topics, hardcoded UI strings) is **info**/**warning** only. A check
+  that raises is reported as an `error` (`audit.check_failed.<name>`) — never
+  silently skipped (D-096).
 - `services/consistency.py` — the runtime `ConsistencyAuditor` (DB-backed checks:
   settings, accounts, channels, bindings, queue, jobs) that folds static + runtime
   findings into one report grouped into `configuration`, `integration`,
   `security`, `documentation`, `ux`.
+- **Meta-audit ("Проверка проверяющего")** — the auditor is not assumed reliable.
+  `tests/test_consistency_mutations.py` copies the source tree to a temp dir,
+  injects one synthetic defect per test, asserts the matching finding appears, and
+  discards the copy (nothing is written to the working tree).
+  `tests/test_meta_audit.py` covers the silent-failure guard (a raising check
+  becomes `audit.check_failed.<name>`, a missing source tree becomes
+  `audit.source_unavailable.<name>` info), the runtime checks, and writes the
+  kill-rate summary `agent/META_AUDIT_RESULT.json` (uploaded by CI job
+  `meta-audit`). Measured kill rate **75%** (18/24 seeded defects, 0 critical);
+  the 6 remaining gaps are recorded honestly and pinned by `strict=True` xfail
+  tests (D-099/D-100).
 - `api/v1/consistency.py` + `api/schemas/consistency.py` — `GET
   /api/v1/consistency`; the Diagnostics page renders it as the **"Проверка
   целостности"** panel, showing errors and warnings and hiding low-confidence info

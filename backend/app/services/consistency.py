@@ -92,30 +92,31 @@ class ConsistencyAuditor:
         """Warn when a channel-aware module has rows with no channel reference."""
         from sqlalchemy import func, select
 
-        from backend.app.db.models.content import ContentItem
+        from backend.app.db.models.content import ContentSource
 
         findings: list[Finding] = []
-        try:
-            stmt = (
-                select(func.count())
-                .select_from(ContentItem)
-                .where(ContentItem.channel_id == "")
-            )
-            count = int((await self.session.execute(stmt)).scalar_one())
-        except Exception:
-            return findings
+        # `ContentSource.channel_id` is the registry link (D-051). This used to
+        # target `ContentItem`, which has no such column — the resulting error was
+        # swallowed and the check silently reported nothing (found by the
+        # meta-audit, D-100).
+        stmt = (
+            select(func.count())
+            .select_from(ContentSource)
+            .where(ContentSource.channel_id == "")
+        )
+        count = int((await self.session.execute(stmt)).scalar_one())
         if count:
             findings.append(
                 Finding(
-                    id="channel-aware.content_item",
+                    id="channel-aware.content_source",
                     category="channels",
                     severity=SEVERITY_WARNING,
                     confidence="medium",
-                    title="ContentItem: записи без привязки к каналу",
-                    detail=f"Найдено записей без channel_id: {count}.",
+                    title="ContentSource: записи без привязки к каналу",
+                    detail=f"Найдено источников без channel_id: {count}.",
                     why="Модуль, учитывающий каналы, не сможет применить настройки "
-                    "к записи без канала.",
-                    how_to_fix="Привяжите запись к каналу в разделе «Content Studio».",
+                    "к источнику без канала.",
+                    how_to_fix="Привяжите источник к каналу в разделе «Content Studio».",
                     subsystem="content",
                 )
             )

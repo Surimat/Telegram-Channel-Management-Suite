@@ -242,9 +242,18 @@ def evaluate(
     satisfied = [r for r in capability.requires if context.get(r)]
     missing = [r for r in capability.requires if not context.get(r)]
 
+    # A requirement that names another capability is only satisfied when that
+    # capability is actually implemented; otherwise the dependent capability must
+    # not report available/partial (D-099).
+    unimplemented = {c.key for c in CAPABILITIES if not c.implemented}
+    missing.extend(r for r in satisfied if r in unimplemented)
+    satisfied = [r for r in satisfied if r not in unimplemented]
+
     if not capability.requires or not missing:
         state = STATE_AVAILABLE
-    elif capability.minimal and all(context.get(r) for r in capability.minimal):
+    elif capability.minimal and all(
+        context.get(r) and r not in unimplemented for r in capability.minimal
+    ):
         state = STATE_PARTIAL
     elif satisfied:
         state = STATE_NEEDS_SETUP
