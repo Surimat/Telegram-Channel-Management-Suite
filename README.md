@@ -9,18 +9,16 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v1.5.2`.** It proves the **Consistency Auditor**
+**Current stable release: `v1.5.3`.** It proves the **Consistency Auditor**
 ("Проверка целостности") actually detects the breakages it is meant to catch: a
-meta-audit harness injects seeded defects into an isolated copy of the source tree
-and asserts each is reported, closing four detection gaps (false capability,
-stray-string mask, provider-registry drift, i18n) and adding router-registration,
-backup-destination and notification-routing checks. It also fixes a real silent
-failure in the runtime channel-aware check. On `develop` the meta-audit is a
-**runtime mutation engine**: the kill rate is **computed from real executions**
-(25 seeded defects + 5 negative controls), currently **88% (22/25), 0 critical or
-high misses, 0 false positives**; the 3 remaining gaps are recorded honestly in
-`agent/META_AUDIT_RESULT.json`. Two more detectors closed the previously-missed
-write-only-setting (M) and channel-registry-drift (Q) gaps. It keeps the **Capability Graph** (one
+**runtime mutation engine** injects seeded defects into an isolated copy of the
+source tree, runs the real auditor, and computes the kill rate from real
+executions (not a declared list). It closes the two remaining high-impact gaps
+with static detectors — a **write-only setting** (saved but never read) and a
+**channel-aware module that bypasses the Channel Registry** — and keeps two
+negative controls so a correct tree is never flagged. The kill rate is **88%
+(22/25 seeded defects), 0 critical or high misses, 0 false positives**; the 3
+remaining gaps are recorded honestly in `agent/META_AUDIT_RESULT.json`. It keeps the **Capability Graph** (one
 machine-readable description of what the product can do and what each capability
 requires, so every screen agrees on what is ready), a
 **localized message catalog** (RU/EN, single-sourced in `core/i18n.py`) and the
@@ -149,16 +147,18 @@ the language preference selectable in Settings) and the **Consistency Auditor**
 (cross-module drift detection surfaced in Diagnostics, with a failed check
 reported as an error instead of being silently skipped). It adds no account
 registration and no Telegram-limit bypass.
-**v1.5.2 (this release)** proves the **Consistency Auditor** actually detects the
-breakages it is meant to catch ("Проверка проверяющего"): a meta-audit harness
-seeds defects into an isolated copy of the source tree and asserts each is
-reported, closing four detection gaps and adding router/backup/notification
-checks; it also fixes a real silent failure in the runtime channel-aware check.
-On `develop` the harness was replaced by a **runtime mutation engine** that
-computes the kill rate from real executions — currently **80% (20/25 seeded
-defects), 0 critical misses, 0 false positives** — and the remaining gaps are
-recorded in `agent/META_AUDIT_RESULT.json`. It adds no account registration and no
-Telegram-limit bypass.
+**v1.5.3 (this release)** closes the last two high-impact **Consistency Auditor**
+gaps with static detectors — a setting that is **saved but never read** (M) and a
+**channel-aware module that bypasses the Channel Registry** (Q) — proven by the
+**runtime mutation engine**, which computes the kill rate from real executions:
+**88% (22/25 seeded defects), 0 critical or high misses, 0 false positives**. The
+remaining gaps are recorded in `agent/META_AUDIT_RESULT.json`. It adds no account
+registration and no Telegram-limit bypass.
+**v1.5.2** proved the **Consistency Auditor** actually detects the breakages it is
+meant to catch ("Проверка проверяющего"): a meta-audit harness seeds defects into
+an isolated copy of the source tree and asserts each is reported, closing four
+detection gaps and adding router/backup/notification checks; it also fixed a real
+silent failure in the runtime channel-aware check.
 See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
 ## Deployment modes

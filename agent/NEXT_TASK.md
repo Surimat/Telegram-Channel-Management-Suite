@@ -4,7 +4,7 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-06
-**Status:** **v1.5.2 is RELEASED; the meta-audit is a *runtime mutation engine*
+**Status:** **v1.5.3 is RELEASED; the meta-audit is a *runtime mutation engine*
 (D-102) and gaps M and Q are CLOSED (D-103).** The kill rate is **computed from
 real executions**: `tests/meta_audit/` builds an isolated copy of the source tree
 (or a fresh temp DB for runtime checks), injects one seeded defect, runs the
@@ -24,15 +24,13 @@ Two new static detectors closed the remaining HIGH gaps: `check_write_only_setti
 a canonical channel identity). The 3 remaining gaps (N unused DB field, O service
 without caller, P control without behavior) are recorded in `KNOWN_GAP_IDS` and
 still **executed** — not hardcoded as misses.
-Released via reviewed `develop → main` PR #13 (merge `523c089`), tag `v1.5.2`; the
-Release workflow (run `37464579513`) attached the Windows portable ZIP
-(24 799 763 bytes, sha256 `ee8562ef…9ed03`) + `.sha256`. **`main` HEAD =
-`523c089`; `develop` is not equal to `main`.** The code commit for the M/Q gap
-closure is on `develop` (later commits are memory/doc syncs). Latest tag `v1.5.2`;
-latest release v1.5.2.
-Version strings read **1.5.2**; `ruff` clean; frontend `vue-tsc` + `npm run build`
-clean; Docker smoke clean (`/health` → `1.5.2`, SPA `200`, `/api/v1/consistency` →
-`pass`, 0 error / 0 warning / 6 info).
+Released as the patch `v1.5.3` via a reviewed `develop → main` PR; the Release
+workflow attaches the Windows portable ZIP + `.sha256`. **`main` = the released tag
+`v1.5.3`; `develop` was re-synced from `main` after the release merge.** Latest tag
+`v1.5.3`; latest release v1.5.3.
+Version strings read **1.5.3**; `ruff` clean; frontend `vue-tsc` + `npm run build`
+clean; Docker smoke clean (`/health` → `1.5.2` on the pre-release tree, SPA `200`,
+`/api/v1/consistency` → `pass`, 0 error / 0 warning / 6 info).
 Previous: **v1.5.1 forensic-audit fixes are released** — reviewed `develop → main`
 PR #12 (merge `f41ebc8`), tag `v1.5.1`; the Release workflow (run `37453582161`)
 attached the Windows portable ZIP + `.sha256` (D-060). It fixes five confirmed
@@ -45,9 +43,9 @@ complete.
 
 ---
 
-## Active task: none — M and Q closed (optional: promote the remaining gaps)
+## Active task: none — v1.5.3 released (optional: promote the remaining gaps)
 
-There is **no required next task**. v1.5.2 is released, the meta-audit is a
+There is **no required next task**. v1.5.3 is released, the meta-audit is a
 runtime engine (D-102), and the two HIGH gaps M and Q are closed (D-103).
 
 1. **Optional follow-up (next cycle):** promote one of the three remaining

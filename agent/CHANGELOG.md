@@ -5,11 +5,11 @@ Dates are ISO-8601.
 
 ---
 
-## [Unreleased] — develop
+## [1.5.3] — 2026-10-06
 
-**Consistency Auditor gaps M and Q closed (D-103).** No new product features; no
-release. The two remaining **high**-impact coverage gaps are now detected by pure
-static checks, and the kill rate rises to **88.0% with 0 high misses**.
+**Consistency Auditor gaps M and Q closed (D-103).** No new product features; a
+patch release. The two remaining **high**-impact coverage gaps are now detected by
+pure static checks, and the kill rate rises to **88.0% with 0 high misses**.
 
 ### Added
 - **`check_write_only_settings` (gap M).** Static AST check: a setting key written
@@ -36,7 +36,7 @@ static checks, and the kill rate rises to **88.0% with 0 high misses**.
 - `agent/META_AUDIT_RESULT.json` regenerated: **25 total, 22 detected, 3 missed,
   kill rate 88.0%, 0 false positives, 0 critical misses, 0 high misses**
   (`status: gaps_found`).
-- Full suite: **785 passed, 0 xfailed**; `ruff` clean; `vue-tsc` + `npm run build`
+- Full suite: **787 passed, 0 xfailed**; `ruff` clean; `vue-tsc` + `npm run build`
   clean; Docker smoke clean (`/health` → `1.5.2`, SPA `200`, `/api/v1/consistency`
   → `pass`, 0 error / 0 warning / 6 info).
 

@@ -66,14 +66,32 @@ PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_R
 
 ## 6. Release verification (fill in per release)
 
+### v1.5.3 (auditor gaps M + Q closed, 2026-10-06)
+
+| Gate | v1.5.3 | Notes |
+| --- | --- | --- |
+| Version consistency (`1.5.3` everywhere) | ✅ | app / pyproject / frontend / lock (guarded by `test_repo_version_is_consistent`) |
+| Meta-audit engine (runtime) | ✅ | kill rate **computed from executions** — 25 total, 22 detected, 3 missed, **88.0%**, 0 false positives, 0 critical/high (D-102/D-103) |
+| Gap M closed | ✅ | `check_write_only_settings` — a setting written with no reader is `settings.write_only.<key>` |
+| Gap Q closed | ✅ | `check_channel_registry_usage` — a channel-aware module without a canonical link is `channel-aware.module.<module>` |
+| Precision controls | ✅ | `NC4_setting_with_reader`, `NC5_channel_aware_with_registry` (no false positives) |
+| Runtime allow-list honest | ✅ | `_known_setting_keys()` drops `sync_enabled`/`owner_*` (no module consumes them) |
+| Tests (`pytest` / `ruff`) | ✅ | 787 passed; ruff clean |
+| Frontend build | ✅ | `vue-tsc` + `npm run build` clean |
+| Docker smoke | ✅ | `/health` → `1.5.2` on the pre-release tree, SPA `200`, `/api/v1/consistency` → `pass` (0 error, 0 warning, 6 info) |
+| CI job `meta-audit` | ✅ | engine + tests + leak assertion; uploads `agent/META_AUDIT_RESULT.json` (no hardcoded percentage) |
+| Git merge (`develop → main`) | ✅ | reviewed PR (`develop → main`) |
+| Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v1.5.3` → Release workflow (D-060) |
+| Artifact scan | ✅ | no `.session`/TDATA/DB/model in the ZIP; runtime dirs empty |
+
 ### v1.5.2 (audit-the-auditor meta-audit, 2026-10-06)
 
 | Gate | v1.5.2 | Notes |
 | --- | --- | --- |
 | Version consistency (`1.5.2` everywhere) | ✅ | app / pyproject / frontend / lock (guarded by `test_repo_version_is_consistent`) |
-| Meta-audit engine (runtime) | ✅ | `tests/meta_audit/engine.py` + `mutations.py`; kill rate **computed from executions** — at release 25 total, 20 detected, 5 missed, **80.0%**, 0 false positives, 0 critical (D-102); **on `develop` after D-103: 25 total, 22 detected, 3 missed, 88.0%, 0 critical/high** |
+| Meta-audit engine (runtime) | ✅ | `tests/meta_audit/engine.py` + `mutations.py`; kill rate **computed from executions** — 25 total, 20 detected, 5 missed, **80.0%**, 0 false positives, 0 critical (D-102) |
 | Silent-failure guard | ✅ | raising check → `audit.check_failed.<name>` error; missing source → `audit.source_unavailable.<name>` info |
-| New static checks | ✅ | router registration, backup-destination provider, notification routing, hardcoded UI strings; **+ write-only setting (M) and channel-registry usage (Q), D-103** |
+| New static checks | ✅ | router registration, backup-destination provider, notification routing, hardcoded UI strings |
 | Capability anchors + dependency | ✅ | strong `CAPABILITY_SERVICE_ANCHORS`; `evaluate()` blocks an unimplemented dependency |
 | Real defect fixed | ✅ | `_check_channel_aware` column mismatch (`ContentSource.channel_id`) |
 | README release line | ✅ | updated to `v1.5.2` (guarded by `test_readme_states_the_current_release`) |
