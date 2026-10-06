@@ -24,13 +24,15 @@ Two new static detectors closed the remaining HIGH gaps: `check_write_only_setti
 a canonical channel identity). The 3 remaining gaps (N unused DB field, O service
 without caller, P control without behavior) are recorded in `KNOWN_GAP_IDS` and
 still **executed** — not hardcoded as misses.
-Released as the patch `v1.5.3` via a reviewed `develop → main` PR; the Release
-workflow attaches the Windows portable ZIP + `.sha256`. **`main` = the released tag
-`v1.5.3`; `develop` was re-synced from `main` after the release merge.** Latest tag
-`v1.5.3`; latest release v1.5.3.
+Released as the patch `v1.5.3` via a reviewed `develop → main` PR #14 (merge
+`c072c8d`), tag `v1.5.3`; the Release workflow (run `37504360411`) attached the
+Windows portable ZIP (24 803 303 bytes, sha256 `f74369aa…5192`) + `.sha256`.
+**`main` HEAD = `c072c8d`; `develop` = `c072c8d`** (re-synced after the release
+merge). Latest tag `v1.5.3`; latest release v1.5.3.
 Version strings read **1.5.3**; `ruff` clean; frontend `vue-tsc` + `npm run build`
 clean; Docker smoke clean (`/health` → `1.5.2` on the pre-release tree, SPA `200`,
-`/api/v1/consistency` → `pass`, 0 error / 0 warning / 6 info).
+`/api/v1/consistency` → `pass`, 0 error / 0 warning / 6 info). Release ZIP scan:
+3090 entries, runtime dirs empty, no `.session`/TDATA/DB/model.
 Previous: **v1.5.1 forensic-audit fixes are released** — reviewed `develop → main`
 PR #12 (merge `f41ebc8`), tag `v1.5.1`; the Release workflow (run `37453582161`)
 attached the Windows portable ZIP + `.sha256` (D-060). It fixes five confirmed
