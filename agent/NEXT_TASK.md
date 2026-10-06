@@ -25,9 +25,10 @@ caller, P control without behavior, Q channel-aware module code) are recorded in
 Released via reviewed `develop → main` PR #13 (merge `523c089`), tag `v1.5.2`; the
 Release workflow (run `37464579513`) attached the Windows portable ZIP
 (24 799 763 bytes, sha256 `ee8562ef…9ed03`) + `.sha256`. **`main` HEAD =
-`523c089`; `develop` HEAD = `f007c0b` — they are NOT equal** (`develop` =
-`main` + 3 commits). Latest tag `v1.5.2`; latest release v1.5.2. CI on `develop`
-head: run `37479210076` — Backend, Frontend and `meta-audit` all success.
+`523c089`; `develop` is not equal to `main`.** The code commit for this change is
+`f007c0b` on `develop` (later commits are memory/doc syncs). Latest tag `v1.5.2`;
+latest release v1.5.2. CI on `develop` (code commit `f007c0b`): run
+`37479210076` — Backend, Frontend and `meta-audit` all success.
 Version strings read **1.5.2**; `ruff` clean; frontend `vue-tsc` + `npm run build`
 clean; static consistency suite `pass` (0 error, 0 warning, 2 info).
 Previous: **v1.5.1 forensic-audit fixes are released** — reviewed `develop → main`
