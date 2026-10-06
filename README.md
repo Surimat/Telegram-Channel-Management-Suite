@@ -9,10 +9,12 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v1.3.0`.** It adds the **Bot Factory** (plan and
-create a set of worker bots through the official @BotFather flow) and the
-optional **LAN Mesh / offline control plane** for several of your own computers
-on one local network (see Status below).
+**Current stable release: `v1.4.0`.** It adds the **Notification Center** (a
+durable, queryable history of important events with categories, priorities, quiet
+hours and de-duplication), the **TCMS Tray Agent** (a light Windows supervisor so
+the portable app runs with no console window) and the **Editorial Workspace**
+(a Telegram forum-supergroup editorial room where the owner, editors and
+moderators work the same publication queue the Web UI shows). See Status below.
 
 ## What it does
 
@@ -21,6 +23,17 @@ on one local network (see Status below).
 - **Bot Factory** — plan a set of worker bots, check usernames with Telegram,
   create each through the official @BotFather flow and adopt it, then bind it to
   your own channel. It never registers accounts or bypasses Telegram limits.
+- **Notification Center** — every important event is recorded (category,
+  priority, destination, delivery status) and can be routed to the owner DM, a
+  notification group or a Windows toast; quiet hours hold non-urgent messages and
+  identical messages are aggregated so you are never spammed.
+- **Editorial Workspace** — a linked Telegram forum supergroup with one topic per
+  queue status; the suite owns the queue order, cards mirror it as inline
+  buttons, roles are by numeric Telegram id and the bot's rights are verified (a
+  room is only "ready" after Telegram confirms them).
+- **Tray Agent** — an optional Windows tray icon that starts the backend hidden,
+  waits for `/health` (never a fixed sleep), supervises it with a bounded restart
+  backoff and can register itself in the Startup folder (no admin needed).
 - **Bot ↔ channel bindings** — connect a bot to a channel, verify its rights and
   the channel's available reactions (bot-only, no account needed).
 - **User Sessions / Account Hub** — MTProto accounts with an interactive auth
@@ -116,6 +129,15 @@ deterministic coordinator election, fencing leases, a `mesh.tick` maintenance jo
 and a guard so only the coordinator polls Telegram; D-079…D-083). Standalone (one
 computer) stays the default; neither feature registers accounts or bypasses
 Telegram limits.
+**v1.4.0 (released)** adds the **Notification Center** (durable, queryable
+history; categories and priorities; routing to owner DM / notification group /
+Windows toast; quiet hours for non-urgent messages; anti-spam aggregation),
+the **TCMS Tray Agent** (hidden backend start, `/health` readiness, bounded
+restart backoff, optional Startup-folder autostart, secret-free state snapshot
+surfaced in Diagnostics) and the **Editorial Workspace** (a linked Telegram forum
+supergroup with one topic per queue status, verified bot rights, roles by numeric
+Telegram id and a full audit trail). It adds no account registration and no
+Telegram-limit bypass.
 See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
 ## Deployment modes

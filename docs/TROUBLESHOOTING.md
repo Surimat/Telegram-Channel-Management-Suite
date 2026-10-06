@@ -386,6 +386,13 @@ restrictions.
 | Permission check says `privacy_restricted` / `admin_required` | channel hides members or you lack invite rights | Expected Telegram restriction — not a bug; it is never bypassed (D-006) |
 | Permission check says `flood_wait` | too many requests | Wait the shown time; the app resumes automatically, it does not retry in a loop |
 | Settings page shows notifications but none send | runtime disabled in tests/dev, or Telegram unreachable | Confirm the runtime is running (System page) and the network reaches api.telegram.org |
+| Notification says «Отложено» (postponed) | quiet hours are active and the item is not urgent | It is delivered when quiet hours end; warnings/errors/critical are never postponed |
+| No Windows toast, only Telegram | no toast library installed (honest `unavailable`) | Expected; install `winotify`/`plytoast`/`plyer` if you want toasts, or rely on Telegram |
+| Tray icon does not appear (portable) | `pystray` missing in the runtime | The supervisor still runs headlessly; the app works, only the icon is absent |
+| Tray shows «Автоматические перезапуски приостановлены» | backend crashed more than 5 times in an hour | Read **Журнал**, fix the cause, then start the app manually from the tray menu |
+| Editorial room stays «Нужны права» | bot is not a member or lacks «Отправлять сообщения» | Add the bot to the forum group and grant the shown right, then press «Проверить права и создать темы» again |
+| Editorial card buttons do nothing | the pressed action is not allowed for your role | Roles are by numeric Telegram id; ask the owner to grant your id a role |
+| Editorial move says «Конфликт версий» | the card changed since you loaded the board | Reload the board and retry; the queue never loses an edit |
 
 ## Recovering the project after a new chat/session
 

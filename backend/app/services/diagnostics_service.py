@@ -109,6 +109,7 @@ _CHECK_TITLES = {
     "scheduler": "Планировщик и очередь",
     "backup_destinations": "Места хранения копий",
     "update": "Обновления",
+    "tray": "Значок в трее",
 }
 
 logger = get_logger(__name__)
@@ -178,6 +179,7 @@ class DiagnosticsService:
             await self._guarded("ai", self._ai_item),
             await self._guarded("scheduler", lambda: self._scheduler_item(app_state)),
             self._storage_item(),
+            self._tray_item(),
             await self._guarded("backup_destinations", self._backup_destinations_item),
             await self._guarded("update", self._update_item),
             self._portable_item(),
@@ -689,6 +691,45 @@ class DiagnosticsService:
             "Планировщик",
             STATUS_OK,
             f"Планировщик работает. Заданий в ожидании: {pending}.",
+            "",
+        )
+
+    def _tray_item(self):  # type: ignore[no-untyped-def]
+        """Report the TCMS Tray Agent state (from its secret-free snapshot)."""
+        from backend.app.services.system_service import Check
+        from backend.app.tray.state import pid_alive, read_snapshot
+
+        snapshot = read_snapshot()
+        if snapshot.state == "stopped" and not snapshot.updated_at:
+            return Check(
+                "tray",
+                "Значок в трее",
+                STATUS_NOT_CONFIGURED,
+                "Приложение запущено напрямую (без значка в трее).",
+                "Запустите run.bat в портативной сборке, чтобы получить значок в трее.",
+            )
+        alive = snapshot.running or pid_alive(snapshot.pid)
+        if snapshot.state == "restart_limit":
+            return Check(
+                "tray",
+                "Значок в трее",
+                STATUS_ERROR,
+                "Автоматические перезапуски приостановлены из-за частых сбоев.",
+                "Проверьте «Журнал», затем запустите приложение вручную.",
+            )
+        if snapshot.state in ("crashed", "stopped") and not alive:
+            return Check(
+                "tray",
+                "Значок в трее",
+                STATUS_WARNING,
+                snapshot.last_error or "Основной процесс не запущен.",
+                "Откройте значок в трее и нажмите «Запустить».",
+            )
+        return Check(
+            "tray",
+            "Значок в трее",
+            STATUS_OK,
+            f"Значок в трее активен. Состояние: {snapshot.state_title}.",
             "",
         )
 

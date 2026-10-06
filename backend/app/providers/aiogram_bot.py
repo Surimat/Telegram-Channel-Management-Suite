@@ -197,6 +197,23 @@ class AiogramBotProvider:
         updates = await self._call(self._bot.get_updates(**kwargs))
         result: list[BotUpdate] = []
         for update in updates or []:
+            callback = getattr(update, "callback_query", None)
+            if callback is not None:
+                message = getattr(callback, "message", None)
+                sender = getattr(callback, "from_user", None)
+                result.append(
+                    BotUpdate(
+                        update_id=int(update.update_id),
+                        kind="callback",
+                        chat_id=getattr(getattr(message, "chat", None), "id", None),
+                        user_id=getattr(sender, "id", None),
+                        username=str(getattr(sender, "username", "") or ""),
+                        callback_query_id=str(getattr(callback, "id", "") or ""),
+                        callback_data=str(getattr(callback, "data", "") or ""),
+                        message_id=getattr(message, "message_id", None),
+                    )
+                )
+                continue
             message = getattr(update, "message", None) or getattr(update, "edited_message", None)
             if message is None:
                 result.append(BotUpdate(update_id=int(update.update_id), kind="other"))
@@ -211,6 +228,7 @@ class AiogramBotProvider:
                     user_id=getattr(sender, "id", None),
                     username=str(getattr(sender, "username", "") or ""),
                     text=str(getattr(message, "text", "") or ""),
+                    message_id=getattr(message, "message_id", None),
                 )
             )
         return result
@@ -260,6 +278,7 @@ class AiogramBotProvider:
             can_invite_users=bool(getattr(member, "can_invite_users", False)),
             can_restrict_members=bool(getattr(member, "can_restrict_members", False)),
             can_pin_messages=bool(getattr(member, "can_pin_messages", False)),
+            can_manage_topics=bool(getattr(member, "can_manage_topics", False)),
             # Telegram's Bot API has no dedicated "can set reactions" right; an
             # administrator (or a member in a channel where reactions are open)
             # may react. We treat administrator/creator as allowed and otherwise
@@ -553,3 +572,93 @@ class AiogramBotProvider:
             return None
         linked = getattr(chat, "linked_chat_id", None)
         return int(linked) if linked else None
+
+    # --- Editorial Workspace (v1.4) ------------------------------------------
+    async def create_forum_topic(
+        self, chat_id: int | str, name: str, *, icon_color: int = 0
+    ) -> int | None:
+        try:
+            topic = await self._call(
+                self._bot.create_forum_topic(chat_id=chat_id, name=name)
+            )
+        except TelegramProviderError:
+            return None
+        thread_id = getattr(topic, "message_thread_id", None)
+        return int(thread_id) if thread_id else None
+
+    async def edit_forum_topic(
+        self, chat_id: int | str, topic_id: int, name: str
+    ) -> bool:
+        try:
+            return bool(
+                await self._call(
+                    self._bot.edit_forum_topic(
+                        chat_id=chat_id, message_thread_id=topic_id, name=name
+                    )
+                )
+            )
+        except TelegramProviderError:
+            return False
+
+    async def send_topic_message(
+        self,
+        chat_id: int | str,
+        topic_id: int,
+        text: str,
+        *,
+        buttons: list[list[object]] | None = None,
+    ) -> PostSendResult:
+        try:
+            message = await self._call(
+                self._bot.send_message(
+                    chat_id=chat_id,
+                    message_thread_id=topic_id,
+                    text=text,
+                    reply_markup=self._reply_markup(buttons),
+                )
+            )
+            return PostSendResult(
+                ok=True, message_ids=[int(message.message_id)], message="Карточка создана."
+            )
+        except TelegramProviderError as exc:
+            return PostSendResult(
+                ok=False,
+                message=exc.message,
+                how_to_fix=exc.how_to_fix,
+                uncertain=isinstance(exc, NetworkError),
+            )
+
+    async def edit_message_reply_markup(
+        self,
+        chat_id: int | str,
+        message_id: int,
+        *,
+        buttons: list[list[object]] | None = None,
+    ) -> PostSendResult:
+        try:
+            await self._call(
+                self._bot.edit_message_reply_markup(
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    reply_markup=self._reply_markup(buttons),
+                )
+            )
+            return PostSendResult(ok=True, message_ids=[message_id], message="Кнопки обновлены.")
+        except TelegramProviderError as exc:
+            return PostSendResult(ok=False, message=exc.message, how_to_fix=exc.how_to_fix)
+
+    async def answer_callback_query(
+        self, callback_query_id: str, *, text: str = "", show_alert: bool = False
+    ) -> bool:
+        try:
+            return bool(
+                await self._call(
+                    self._bot.answer_callback_query(
+                        callback_query_id=callback_query_id,
+                        text=text or None,
+                        show_alert=show_alert,
+                    )
+                )
+            )
+        except TelegramProviderError:
+            return False

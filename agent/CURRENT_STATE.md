@@ -4,14 +4,15 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-05
-**Current phase:** **v1.x maintenance (no new phases).** **v1.3.0 Bot Factory + LAN Mesh is complete on `develop` (unreleased).** It adds the **Bot Factory** (D-077/D-078): plan a set of worker bots, check usernames with Telegram, create each bot through the official owner-confirmed @BotFather flow and adopt it, then bind it through the existing binding rules; and the **optional LAN Mesh / offline control plane** (D-079…D-082): deterministic identity, bounded broadcast discovery + manual peers, one-time-code pairing, deterministic coordinator election, fencing leases, a `mesh.tick` maintenance job and a guard so only the coordinator polls Telegram. Standalone (one computer) stays the default. New API (`/api/v1/bot-factory/*`, `/api/v1/mesh/*`), two RU-first UI pages (`/bot-factory`, `/mesh`) and offline tests. Pre-release hardening (D-083): pairing never persists/returns anything derived from a secret, and `/api/v1/mesh/ping` authenticates the shared secret; help topics `bot_factory` / `lan_mesh` added.
+**Current phase:** **v1.x maintenance (no new phases).** **v1.4.0 Notification Center + Tray Agent + Editorial Workspace is released** — reviewed `develop → main` PR, tag `v1.4.0`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It adds the **Notification Center** (D-084…D-086): a durable, queryable history of important events with categories, priorities, per-category routing (owner DM / notification group / Windows toast), quiet hours that postpone only non-urgent messages, anti-spam aggregation, a dashboard and a history API/UI; the **TCMS Tray Agent** (D-087/D-088): a light Windows supervisor that starts the backend hidden, waits for `/health` (never a fixed sleep), restarts a crashed backend with a bounded backoff (5/hour), offers optional Startup-folder autostart (no admin) and writes only a secret-free `data/tray.json` snapshot surfaced in Diagnostics; and the **Editorial Workspace** (D-089…D-091): a linked Telegram forum supergroup where the owner, editors and moderators work the same publication queue as the Web UI (honest, verified bot rights; roles by numeric Telegram id; optimistic-version moves; a full audit trail; publishing reuses the Content Studio posting path). New API (`/api/v1/notifications/*`, `/api/v1/editorial/*`), three RU-first UI pages (`/notifications`, `/editorial`, plus the tray) and offline tests. None of these features register accounts or bypass Telegram limits.
+Earlier: **v1.3.0 Bot Factory + LAN Mesh is released** — PR #9 (`develop → main`, merge `7788125`), tag `v1.3.0`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It adds the **Bot Factory** (D-077/D-078): plan a set of worker bots, check usernames with Telegram, create each bot through the official owner-confirmed @BotFather flow and adopt it, then bind it through the existing binding rules; and the **optional LAN Mesh / offline control plane** (D-079…D-082): deterministic identity, bounded broadcast discovery + manual peers, one-time-code pairing, deterministic coordinator election, fencing leases, a `mesh.tick` maintenance job and a guard so only the coordinator polls Telegram. Standalone (one computer) stays the default. New API (`/api/v1/bot-factory/*`, `/api/v1/mesh/*`), two RU-first UI pages (`/bot-factory`, `/mesh`) and offline tests. Pre-release hardening (D-083): pairing never persists/returns anything derived from a secret, and `/api/v1/mesh/ping` authenticates the shared secret; help topics `bot_factory` / `lan_mesh` added.
 Earlier: **v1.2.0 Content Studio is released** — PR #8 (`develop → main`, merge `ea6c161`), tag `v1.2.0`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It adds the v1.2 **content-studio foundation** (D-071…D-076): content sources (Telegram / RSS / Atom / manual) with deduplication, a deterministic explainable cleaner, usage-rights tracking + attribution, Telegram markup validation + a Telegram-like preview, inline button sets, per-source moderation (blocked keywords + quiet hours), multi-channel planning/calendar, publishing through a `PostingProvider` (bot by default; user account only in the expanded mode), durable auto-delete and first comments, and a bounded restart-safe posting tick (`content.posting`). Nothing is published without an explicit owner action; protected content keeps only its link (D-006/D-074); the AI narrows, it never picks emoji (D-033/D-076).
 Earlier: **v1.1.0 is released** — PR #7 (`develop → main`, merge commit `3438305`), tag `v1.1.0`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It carries the multi-format **Account Hub** importer (`.session`, `.session`+JSON, StringSession, optional TDATA; D-070), optional per-account **network routes (proxies)** (D-065), **donor discovery** (candidate proposals only, D-066), a **lightweight local encoder** classifier mode (D-067) with the optional **ruBERT-tiny2** embedding backend + install flow (D-068), and the bot-only/risk UX (D-069). The v1.0.5 **product slice** (D-064): bot↔channel **bindings** + channel **reaction capabilities**, session-free invite **Кампании** + explainable **donor quality**, **backup delivery destinations**, a resumable first-run **Setup Wizard**, and a conservative, off-by-default **auto-update**. `v1.0.0`–`v1.1.0` stay immutable (D-050).
-Version string is **1.3.0** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
-All gates pass: `pytest` **664 passed**, `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend and frontend gates.
-**Repository status:** `main == ea6c161` (v1.2.0 release merge, PR #8); `develop` is ahead with the unreleased v1.3.0 work; tags `v1.0.0`–`v1.2.0`; each GitHub Release carries the Windows portable ZIP + `.sha256` (built by CI, D-060).
+Version string is **1.4.0** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
+All gates pass: `pytest` **702 passed**, `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend and frontend gates.
+**Repository status:** `main` carries the v1.4.0 release merge; `develop` is that merge plus doc-only memory commits (no code difference from `main`); tags `v1.0.0`–`v1.4.0`; each GitHub Release carries the Windows portable ZIP + `.sha256` (built by CI, D-060).
 **Branch:** develop (working branch); main is released and updated only via pull request.
-**Latest work (v1.3.0 Bot Factory + LAN Mesh):** models + additive migration `d5b2e9c3f7a1` (bot_batches, bot_candidates, mesh_nodes, mesh_peers, mesh_pairing_codes, mesh_leases), the `mesh/` package (identity, discovery, pairing, election, lease, capability, transport, service), `services/bot_factory.py`, the `/api/v1/bot-factory/*` + `/api/v1/mesh/*` APIs, two RU-first UI pages (`/bot-factory`, `/mesh`), the `mesh.tick` durable maintenance job, help topics `bot_factory` / `lan_mesh`, and the D-083 hardening (no secret persisted/returned; authenticated ping). Suite **664 passed**; `ruff` clean; `vue-tsc` + `npm run build` clean.
+**Latest work (v1.4.0 Notification Center + Tray Agent + Editorial Workspace — released):** models + additive migration `e7a1c9d2f4b8` (notifications, notification_deliveries, editorial_rooms, editorial_members, editorial_items, editorial_audit), `services/notification_service.py` + `services/notification_destinations.py`, the `tray/` package (supervisor, agent, autostart, state), `services/editorial_service.py`, the `/api/v1/notifications/*` + `/api/v1/editorial/*` APIs, two RU-first UI pages (`/notifications`, `/editorial`), new provider forum-topic/callback methods, the tray Diagnostics row and help topics `notification_center` / `editorial_workspace`. Suite **702 passed**; `ruff` clean; `vue-tsc` + `npm run build` clean. Released via a reviewed `develop → main` PR, tag `v1.4.0`; Release workflow attached the Windows portable ZIP + `.sha256`.
 
 ---
 
@@ -434,6 +435,17 @@ Layered architecture: **core → db/models → db/repositories → services → 
 
 ## 4. What does NOT exist yet
 
+- **Worker Mesh remote dispatch/execution — PARTIAL (verified 2026-10-05).** The
+  LAN Mesh ships the *worker primitives* (the `WORKER` role, capability
+  advertisement/matching, fencing-token leases that a worker can acquire/complete,
+  `reclaim_expired`, coordinator election, and the coordinator-only poller guard
+  in `main.py`), but there is **no remote job-dispatch + worker-execution loop**:
+  `MeshTransport` is used only for the `/api/v1/mesh/ping` liveness probe, and
+  leases are acquired/completed locally through `/api/v1/mesh/leases/*`, not pulled
+  from a coordinator and executed on a peer. **VPS Worker mode** (`MeshMode.VPS_WORKER`)
+  is a declared enum/config value only — there is no PostgreSQL control plane
+  (SQLite-now/Postgres-later, D-002). So the LAN Mesh is a real *coordination layer*
+  for the owner's own computers, not a distributed job mesh.
 - Mini App: BotFather Web App **menu-button** registration is automated
   (`POST /api/v1/miniapp/setup`, D-054); providing a public HTTPS URL remains the
   owner's deployment step. The Mini App is off by default.
@@ -786,11 +798,55 @@ additive with server defaults).
   (v1.2 tables added in place), `test_help.py`. Suite **611 passed**; `ruff`
   clean; `vue-tsc` + `npm run build` clean.
 
+## 2i. v1.3.0 — Bot Factory + LAN Mesh (2026-10-05, released)
+
+Minor release: the **Bot Factory** and the **optional LAN Mesh / offline control
+plane** vertical slice (D-077…D-083). No new phase; Standalone (one computer)
+stays the default; nothing registers Telegram accounts or bypasses Telegram
+limits. Migration: `20261005_1600_d5b2e9c3f7a1` (bot-factory + mesh tables, all
+additive).
+
+- **Bot Factory (D-077/D-078).** `db/models/bot_factory.py` (`BotBatch`,
+  `BotCandidate`), `db/repositories/bot_factory.py`, `services/bot_factory.py`
+  (`BotFactoryService`: templates, deterministic `generate_name` /
+  `generate_username` / `sanitize_prefix` / `validate_username`,
+  `check_availability` — a real Telegram check per candidate username — native
+  creation, adopt, bind, write-only tokens, dashboards). `api/v1/bot_factory.py`
+  + `api/schemas/bot_factory.py` expose `/api/v1/bot-factory/*`; creation goes
+  through the official owner-confirmed @BotFather flow and adoption/binding reuse
+  the existing `BotService` + `BindingService` (one manager bot).
+- **LAN Mesh / offline control plane (D-079…D-082).** `db/models/mesh.py`
+  (`MeshNode`, `MeshPeer` — credential stored as a salted hash, `PairingCode`,
+  `MeshLease` with a monotonic `fencing_token`), `db/repositories/mesh.py`, and
+  the `mesh/` package (`identity`, `discovery`, `pairing`, `election`, `lease`,
+  `capability`, `transport` — `MeshTransport` protocol + `HttpMeshTransport` +
+  in-memory `RecordingTransport` — and `service`). `/api/v1/mesh/*`
+  (status, discover, peers, pairing-code, pair, unpair, probe, elect, leases);
+  the `mesh.tick` durable maintenance job (probe peers, re-elect, reclaim expired
+  leases; a cheap no-op while disabled). `main.py` keeps the manager-bot runtime
+  off when the node is not the coordinator (no double-polling, D-081).
+- **Hardening (D-083).** Pairing never persists or returns anything derived from
+  a secret (the peer `note` is a plain status string; the shared secret is never
+  stored); `/api/v1/mesh/ping` authenticates the `X-Mesh-Secret` header
+  (timing-safe) and rejects unauthenticated requests when a secret is configured.
+- **UI + config.** `frontend/src/views/BotFactoryView.vue` (`/bot-factory`) and
+  `MeshView.vue` (`/mesh`), RU-first, with help topics `bot_factory` /
+  `lan_mesh`; `core/config.py` mesh settings (`mesh_enabled` off by default,
+  `mesh_mode=standalone`).
+- Tests: `test_bot_factory.py`, `test_bot_factory_api.py`, `test_mesh.py`,
+  `test_mesh_api.py` (offline against the deterministic fakes, D-001). Suite
+  **664 passed**; `ruff` clean; `vue-tsc` + `npm run build` clean.
+- **Released:** reviewed PR #9 (`develop → main`, merge `7788125`), tag `v1.3.0`;
+  the Release workflow created the GitHub Release and attached the Windows
+  portable ZIP + `.sha256` (24.7 MB, checksum verified, artifact secret scan
+  clean — D-060).
+
 ## 5. Next action
 
-**v1.2.0 Content Studio is released** (PR #8 `develop → main`, merge `ea6c161`,
-tag `v1.2.0`; GitHub Release with the Windows portable ZIP + `.sha256`, built by
-CI — D-060). `develop` is synced to the merge commit. No required next phase.
+**v1.3.0 Bot Factory + LAN Mesh is released** (PR #9 `develop → main`, merge
+`7788125`, tag `v1.3.0`; GitHub Release with the Windows portable ZIP +
+`.sha256`, built by CI — D-060). `main == develop == 7788125`. No required next
+phase.
 
 `NEXT_TASK` returns to **MAINTENANCE / OPTIONAL EXTENSIONS**; the roadmap
 (PHASE 0–11) is complete. Optional future work (only if the owner asks): a fully
@@ -929,3 +985,12 @@ cd frontend && npm install && npm run build && cd ..
   only `.gitkeep` on the remote. The PHASE 5–6 diff contained no real tokens,
   api_hash values, session strings, passwords or exported PII (only code
   parameter names such as `api_hash`).
+- **Release v1.3.0 (2026-10-05):** the v1.3.0 Bot Factory + LAN Mesh work was
+  committed on `develop` (`548f309`), pushed (fast-forward, no force), and merged
+  into `main` via reviewed **PR #9** (`develop → main`, merge `7788125`). Annotated
+  tag **`v1.3.0`** created on `7788125` and pushed; the **Release** workflow
+  verified the code and built the Windows portable ZIP, then created the **GitHub
+  Release `v1.3.0`** and attached the ZIP + `.sha256` (24.7 MB; checksum verified,
+  artifact secret scan clean — D-060). `develop` fast-forwarded to `7788125`, so
+  `main == develop == 7788125`. No history rewrite, no force push; the
+  `v1.0.0`–`v1.2.0` tags are untouched (D-050).

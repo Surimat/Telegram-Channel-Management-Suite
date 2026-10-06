@@ -1597,3 +1597,138 @@ any host on the same network.
 
 **Consequence:** `mesh/service.py` (pair), `api/v1/mesh.py` (ping),
 `tests/test_mesh_api.py` (note-leak and ping-auth tests).
+
+---
+
+## D-084 — 2026-10-05 — The Notification Center is durable and stores no secrets — LOCKED
+
+**Decision:** Every notification the app raises is recorded in the `notifications`
+table with its category, priority, destination, status and display-safe text; each
+delivery attempt is recorded in `notification_deliveries`. Only non-secret,
+display-safe data is stored — no token, API hash, session string, password or
+audience record ever reaches these tables.
+
+**Why:** The pre-v1.4 in-process bus was fire-and-forget: the owner could not see
+what happened, what failed, or whether delivery worked. A durable history makes
+the subsystem inspectable, while the secret-free rule keeps the existing redaction
+guarantee intact.
+
+**Consequence:** `db/models/notification.py`, `db/repositories/notifications.py`,
+`services/notification_service.py`, `api/v1/notifications.py`,
+`tests/test_notifications.py`.
+
+---
+
+## D-085 — 2026-10-05 — Quiet hours postpone only non-urgent notifications — LOCKED
+
+**Decision:** During quiet hours, `info`/`success` notifications are postponed
+until the window ends (`postponed_until`); `warning`, `error` and `critical`
+notifications are always delivered immediately. Postponed items are delivered by
+the manager-bot runtime when due.
+
+**Why:** Quiet hours must silence routine chatter without hiding a real problem.
+A blanket mute would risk missing an error overnight; an unconditional
+pass-through would defeat quiet hours entirely.
+
+**Consequence:** `services/notification_service.py` (`in_quiet_hours`,
+`_quiet_until`, `deliver_due_postponed`), `manager/runtime.py`,
+`tests/test_notifications.py`.
+
+---
+
+## D-086 — 2026-10-05 — Identical notifications are aggregated, never spammed — LOCKED
+
+**Decision:** A notification carries a deterministic `dedup_key`
+(`category` + `event_key`). A repeat of the same key inside the aggregation window
+does not create a new delivery: the existing record's `aggregate_count` grows and
+its status becomes `aggregated` (the first record stays `sent` as the master).
+Aggregation can be turned off in settings.
+
+**Why:** A recurring condition (a flapping health check, a repeated channel error)
+must be visible once, not hundreds of times. Aggregation keeps the history
+readable and protects Telegram from a self-inflicted rate limit.
+
+**Consequence:** `services/notification_service.py` (`submit`,
+`_aggregate_message`), `db/models/notification.py` (`dedup_key`,
+`aggregate_count`, `NotificationStatus.AGGREGATED`), `tests/test_notifications.py`.
+
+---
+
+## D-087 — 2026-10-05 — The tray agent supervises the backend with a bounded restart backoff — LOCKED
+
+**Decision:** The TCMS Tray Agent starts the backend hidden, waits for `/health`
+(never a fixed sleep) and restarts an unexpectedly exited backend at most
+`DEFAULT_MAX_RESTARTS_PER_HOUR` (5) times per hour. When the cap is hit the agent
+stops auto-restarting and reports the state honestly.
+
+**Why:** A crash loop must not spin the CPU or the network forever, and a fixed
+sleep would either open the browser too early or delay it needlessly. Readiness is
+polled; restart is bounded.
+
+**Consequence:** `tray/supervisor.py`, `tray/agent.py`, `portable/run.bat`,
+`services/diagnostics_service.py::_tray_item`, `tests/test_tray_agent.py`.
+
+---
+
+## D-088 — 2026-10-05 — Tray autostart uses the Startup folder and writes no secret — LOCKED
+
+**Decision:** "Запускать вместе с Windows" writes a plain `.cmd` launcher into the
+user's Startup folder (no admin, no registry, no service). The agent's state
+snapshot (`data/tray.json`) contains only state, pid, restart count, last error,
+autostart flag and version; unknown fields are filtered on read.
+
+**Why:** A normal user must be able to enable/disable autostart without elevation,
+and a separate process must not become a new place where secrets could leak.
+
+**Consequence:** `tray/autostart.py`, `tray/state.py`, `tests/test_tray_agent.py`.
+
+---
+
+## D-089 — 2026-10-05 — Editorial rights are verified, never assumed — LOCKED
+
+**Decision:** An editorial room only reaches the `ready` status after Telegram
+confirms the bot is a member of the forum group and can send messages. A missing
+right leaves the room in `needs_rights` with the specific right named. The suite
+never shows a room as ready (or claims a capability) without a real check.
+
+**Why:** A card that silently fails to post is worse than an honest "needs rights"
+state; assuming rights would also violate the project-wide honesty rule used by
+the permission probe and the bot↔channel bindings.
+
+**Consequence:** `services/editorial_service.py` (`check_room`),
+`db/models/editorial.py` (`RoomStatus`), `frontend/src/views/EditorialView.vue`,
+`tests/test_editorial.py`.
+
+---
+
+## D-090 — 2026-10-05 — Editorial roles are numeric Telegram ids; the suite owns the queue order — LOCKED
+
+**Decision:** Editorial authorization matches a member by numeric
+`telegram_user_id` (the owner is determined by `MANAGER_BOT_ADMIN_IDS`); a username
+is never an identity. The queue order (`order_index`) and status live in the
+database; a status change posts a fresh card into the target topic rather than
+moving messages between topics.
+
+**Why:** A username can be changed or spoofed, so it cannot be an identity; and a
+bot cannot reliably move a message between forum topics, so the order must be
+owned by the suite and merely mirrored in Telegram.
+
+**Consequence:** `db/models/editorial.py` (`ROLE_ACTIONS`, `EditorialRole`,
+`EditorialMember`), `services/editorial_service.py` (`role_for`, `can`, `move`,
+`reorder`), `tests/test_editorial.py`.
+
+---
+
+## D-091 — 2026-10-05 — Editorial publishing reuses the Content Studio posting path — LOCKED
+
+**Decision:** Approving/publishing an editorial item resolves (or plans) the
+item's Content Studio publication and publishes it through the existing
+`PostingService`; the editorial queue does not implement a second publish path.
+
+**Why:** Two publish paths would diverge (different auto-delete/first-comment
+behaviour, different provider rules). Reusing one path keeps the editorial queue
+and Content Studio consistent and honours the existing content decisions
+(D-071…D-076).
+
+**Consequence:** `api/deps.py::get_editorial_service` (`_publish` handler),
+`services/editorial_service.py` (`publish_handler`), `tests/test_editorial.py`.

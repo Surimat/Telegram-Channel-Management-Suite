@@ -230,3 +230,47 @@ class TelegramBotProvider(Protocol):
     async def get_linked_chat(self, chat_id: int | str) -> int | None:
         """Return the linked discussion-group id, or ``None`` (v1.2)."""
         ...
+
+    # --- Editorial Workspace (v1.4: forum topics + inline callbacks) ---------
+    async def create_forum_topic(
+        self, chat_id: int | str, name: str, *, icon_color: int = 0
+    ) -> int | None:
+        """Create a forum topic in a supergroup; return its ``message_thread_id``.
+
+        Used to build the editorial room's topic map. Returns ``None`` when the
+        chat is not a forum or the bot lacks the ``can_manage_topics`` right.
+        """
+        ...
+
+    async def edit_forum_topic(
+        self, chat_id: int | str, topic_id: int, name: str
+    ) -> bool:
+        """Rename an existing forum topic (best effort)."""
+        ...
+
+    async def send_topic_message(
+        self,
+        chat_id: int | str,
+        topic_id: int,
+        text: str,
+        *,
+        buttons: list[list[object]] | None = None,
+    ) -> PostSendResult:
+        """Post a message into a specific forum topic (one editorial card)."""
+        ...
+
+    async def edit_message_reply_markup(
+        self,
+        chat_id: int | str,
+        message_id: int,
+        *,
+        buttons: list[list[object]] | None = None,
+    ) -> PostSendResult:
+        """Replace a message's inline keyboard (used after a queue action)."""
+        ...
+
+    async def answer_callback_query(
+        self, callback_query_id: str, *, text: str = "", show_alert: bool = False
+    ) -> bool:
+        """Acknowledge an inline-button callback (Telegram requires an answer)."""
+        ...

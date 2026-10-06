@@ -14,9 +14,10 @@ from backend.app.core.security import seal_secret
 from backend.app.db.models.bot import Bot, BotHealth, BotKind
 from backend.app.db.session import init_models, session_scope
 from backend.app.manager.bus import (
+    CATEGORY_ACCOUNTS,
     CATEGORY_AI,
+    CATEGORY_CONTENT,
     CATEGORY_SYSTEM,
-    CATEGORY_TELEGRAM,
     Notification,
     NotificationBus,
     category_for_module,
@@ -197,7 +198,9 @@ async def test_bus_is_bounded_and_never_raises() -> None:
 async def test_module_category_mapping() -> None:
     assert category_for_module("ai.classifier") == CATEGORY_AI
     assert category_for_module("invites") == "invites"
-    assert category_for_module("sessions.session_service") == CATEGORY_TELEGRAM
+    # v1.4: account/session events have their own "accounts" category.
+    assert category_for_module("sessions.session_service") == CATEGORY_ACCOUNTS
+    assert category_for_module("editorial") == CATEGORY_CONTENT
     assert category_for_module("unknown.module") == CATEGORY_SYSTEM
 
 

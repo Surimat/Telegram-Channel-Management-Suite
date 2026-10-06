@@ -274,3 +274,54 @@ def test_v1_2_content_tables_added_with_server_defaults() -> None:
             assert {"blocked_keywords", "quiet_hours_enabled", "etag"} <= src_cols
 
     asyncio.run(_run())
+
+
+def test_v1_4_notification_and_editorial_tables_added_in_place() -> None:
+    """The v1.4 migration adds its tables to an existing v1.3 database.
+
+    Proves the in-place upgrade path: a pre-v1.4 database gains the notification
+    and editorial tables, and the additive columns carry server defaults so no
+    backfill is required.
+    """
+    import sqlalchemy as sa
+
+    async def _run() -> None:
+        from alembic import command
+
+        cfg = migrate._alembic_config()
+        await asyncio.to_thread(command.upgrade, cfg, "d5b2e9c3f7a1")
+        await dispose_engine()
+
+        engine = get_engine()
+        async with engine.connect() as conn:
+            before = await conn.run_sync(lambda c: sa.inspect(c).get_table_names())
+        assert "notifications" not in before
+        assert "editorial_rooms" not in before
+        await dispose_engine()
+
+        status = await migrate.database_status()
+        assert status.state == migrate.DB_STATE_PENDING
+        result = await migrate.upgrade_database()
+        assert result.state == migrate.DB_STATE_UPDATED
+
+        engine = get_engine()
+        async with engine.connect() as conn:
+            names = await conn.run_sync(lambda c: sa.inspect(c).get_table_names())
+            assert {
+                "notifications",
+                "notification_deliveries",
+                "editorial_rooms",
+                "editorial_members",
+                "editorial_items",
+                "editorial_audit",
+            } <= set(names)
+            ncols = await conn.run_sync(
+                lambda c: {col["name"] for col in sa.inspect(c).get_columns("notifications")}
+            )
+            assert {"category", "priority", "dedup_key", "aggregate_count", "read"} <= ncols
+            icols = await conn.run_sync(
+                lambda c: {col["name"] for col in sa.inspect(c).get_columns("editorial_items")}
+            )
+            assert {"room_id", "status", "order_index", "version", "topic_id"} <= icols
+
+    asyncio.run(_run())

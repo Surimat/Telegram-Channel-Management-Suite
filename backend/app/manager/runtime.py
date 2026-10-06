@@ -68,26 +68,79 @@ class ManagerBotRuntime:
                 await asyncio.wait_for(self._stop.wait(), timeout=self._backoff)
 
     async def _tick(self) -> None:
-        """One poll cycle: build a provider, handle updates, flush notifications."""
+        """One poll cycle: flush notifications, handle updates."""
         async with session_scope() as session:
             service = ManagerBotService(session)
             provider = await service.manager_provider()
+            # Notification Center: drain the bus, deliver, and release anything
+            # postponed by quiet hours. Works with or without a manager bot
+            # (the Windows-toast destination needs no Telegram provider).
+            await self._flush_notifications(session, provider)
             if provider is None:
-                # No manager bot configured: nothing to do, but stay alive.
+                # No manager bot configured: nothing else to do, but stay alive.
                 return
             try:
                 await service.register_commands(provider)
                 updates = await provider.get_updates(offset=self._offset, timeout=0)
                 for update in updates:
                     self._offset = max(self._offset or 0, update.update_id + 1)
+                    if getattr(update, "kind", "") == "callback":
+                        await self._handle_editorial_callback(session, provider, update)
+                        continue
                     result = await service.handle_update(update)
                     chat_id = getattr(update, "chat_id", None)
                     if result.handled and result.reply and chat_id is not None:
                         with contextlib.suppress(TelegramProviderError):
                             await provider.send_message(chat_id, result.reply)
-                await service.deliver_pending(provider)
             finally:
                 await provider.close()
+
+    async def _handle_editorial_callback(self, session, provider, update) -> None:  # type: ignore[no-untyped-def]
+        """Route an inline-button callback from an editorial card."""
+        from backend.app.services.editorial_service import EditorialService
+
+        chat_id = getattr(update, "chat_id", None)
+        callback_id = getattr(update, "callback_query_id", "") or ""
+        data = getattr(update, "callback_data", "") or ""
+        if chat_id is None:
+            return
+        service = EditorialService(session)
+        room = await service.room_for_group(int(chat_id))
+        if room is None:
+            if callback_id:
+                with contextlib.suppress(TelegramProviderError):
+                    await provider.answer_callback_query(callback_id, text="Карточка не найдена.")
+            return
+        result = await service.handle_callback(
+            room_id=room.id,
+            telegram_user_id=getattr(update, "user_id", None),
+            username=getattr(update, "username", "") or "",
+            callback_query_id=callback_id,
+            data=data,
+        )
+        if callback_id:
+            with contextlib.suppress(TelegramProviderError):
+                await provider.answer_callback_query(
+                    callback_id, text=result.answer or result.message
+                )
+
+    async def _flush_notifications(self, session, provider) -> None:  # type: ignore[no-untyped-def]
+        """Route queued notifications through the Notification Center."""
+        from backend.app.services.notification_service import NotificationCenterService
+
+        async def _owner_provider():  # type: ignore[no-untyped-def]
+            return provider
+
+        center = NotificationCenterService(
+            session,
+            resolve_owner_provider=_owner_provider,
+            resolve_group_provider=_owner_provider,
+        )
+        try:
+            await center.flush_pending()
+            await center.deliver_due_postponed()
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("Notification flush failed: %s", type(exc).__name__)
 
 
 __all__ = ["ManagerBotRuntime"]

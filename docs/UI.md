@@ -160,6 +160,10 @@ Wording rule — instead of `BOT_TOKEN missing`, write:
 | `/system` | `SystemView` (Setup Wizard) | 1 |
 | `/diagnostics` | `DiagnosticsView` (status + safe actions + redacted report) | polish |
 | `/backup` | `BackupView` (backup / restore + config export/import) | 10 |
+| `/bot-factory` | `BotFactoryView` | v1.3 |
+| `/mesh` | `MeshView` (Компьютеры) | v1.3 |
+| `/editorial` | `EditorialView` (Редакция) | v1.4 |
+| `/notifications` | `NotificationsView` (Центр уведомлений) | v1.4 |
 
 ### Audience & Sources pages (`SourcesView.vue`, `AudienceView.vue`, PHASE 5)
 
@@ -467,6 +471,41 @@ only needed to join several.
   handed to another if that computer goes offline.
 
 No pairing code or shared secret is ever shown after pairing.
+
+---
+
+## 11d. Notification Center page (`NotificationsView.vue`, `/notifications`, v1.4)
+
+A single place to see important events and control how they reach you.
+
+- The top card shows whether notifications are on, how many are pending or
+  failed, and whether quiet hours are currently active.
+- Category toggles and quiet hours are editable in place; «Объединять похожие»
+  merges identical messages so you are never spammed.
+- «Отправить тест» proves delivery works for a chosen category and urgency.
+- The history lists every event with its category, priority, status and a plain
+  «→ что делать» hint when there is a fix; unread items can be marked read.
+- The page never shows a token; a Windows toast that is unavailable is reported
+  honestly instead of silently failing.
+
+---
+
+## 11e. Редакция / Editorial Workspace page (`EditorialView.vue`, `/editorial`, v1.4)
+
+A team queue over a linked Telegram forum supergroup.
+
+- The owner links a channel and a forum group (with topics) and picks the bot;
+  «Проверить права и создать темы» performs a **real** Telegram check. The status
+  only becomes «Готова» after Telegram confirms the bot can send messages; a
+  missing right stays «Нужны права».
+- The board shows one column per queue status (Входящие → В работе → На
+  согласование → Запланировано → Опубликовано, plus Отклонено/Пауза/Ошибка); each
+  card lists its available actions and moves only when the actor's role allows it.
+- Roles are set by **numeric Telegram id** (Редактор / Модератор / Наблюдатель);
+  a username is never an identity.
+- The audit log lists who moved what and when.
+- The page states plainly that the suite owns the order and that topics only
+  mirror the queue (cards are not moved between topics by the bot).
 
 ---
 

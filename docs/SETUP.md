@@ -488,6 +488,61 @@ Telegram limits, rotate proxies aggressively or register accounts.
 
 ---
 
+## Notification Center (v1.4)
+
+Open the Web UI → **Уведомления** (`/notifications`).
+
+1. The top card shows whether notifications are on, how many are pending or
+   failed, and whether quiet hours are currently active.
+2. Toggle the categories you care about, set quiet hours (non-urgent messages
+   wait; warnings/errors/critical always arrive) and optionally «Объединять
+   похожие» so identical messages are not repeated.
+3. **Отправить тест** proves delivery works for a chosen category and urgency.
+4. The history lists every event with its status and a plain «→ что делать» hint.
+
+Delivery uses the manager bot by default (owner DM and/or a notification group);
+a dedicated notification bot can be chosen with the `notification_bot_id`
+setting. A Windows toast is used only when a toast library is present, and its
+absence is reported honestly instead of silently failing.
+
+---
+
+## Tray Agent (portable, v1.4)
+
+In the portable build, `run.bat` starts the backend **hidden** through the TCMS
+Tray Agent and opens the browser only once `/health` answers. The tray icon menu
+offers Открыть Web UI / Диагностика / Перезапустить / Остановить / Запустить /
+Проверить обновления / Запускать вместе с Windows / Выход. Autostart registers a
+plain Startup-folder launcher — no admin rights and no registry changes. If
+`pystray` is not installed the agent still supervises the backend headlessly. The
+agent writes only a secret-free snapshot to `data/tray.json`, which Diagnostics
+reads.
+
+To run the agent manually: `python -m backend.app.tray.agent --tray --no-browser`
+(add `--headless` for no tray icon).
+
+---
+
+## Editorial Workspace (v1.4)
+
+Open the Web UI → **Редакция** (`/editorial`).
+
+1. Create a room: pick your channel, a **forum** supergroup with topics and the
+   bot that should post cards.
+2. **Проверить права и создать темы** performs a real Telegram check and creates
+   the status topics. The room is «Готова» only after Telegram confirms the bot
+   can send messages; otherwise it shows «Нужны права» with the missing right.
+3. Add members by **numeric Telegram id** and give them a role (Редактор /
+   Модератор / Наблюдатель). The owner is determined by `MANAGER_BOT_ADMIN_IDS`.
+4. Enqueue content items and work the board; each card carries the actions the
+   actor's role allows, and every move is written to the audit log.
+
+The suite owns the queue order; topics only mirror it (a status change posts a
+fresh card into the target topic — the bot does not move messages between
+topics).
+
+---
+
 ## Configuration
 
 All configuration is available through:

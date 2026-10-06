@@ -10,6 +10,7 @@ from __future__ import annotations
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.core.config import get_settings
 from backend.app.db.session import get_session
 from backend.app.manager.service import ManagerBotService
 from backend.app.mesh.service import MeshService
@@ -28,12 +29,15 @@ from backend.app.services.content_service import ContentError, ContentService
 from backend.app.services.destination_service import DestinationService
 from backend.app.services.diagnostics_service import DiagnosticsService
 from backend.app.services.donor_service import DonorService
+from backend.app.services.editorial_service import EditorialService
 from backend.app.services.invite_service import InviteService
+from backend.app.services.notification_service import NotificationCenterService
 from backend.app.services.permission_service import PermissionService
 from backend.app.services.posting_service import PostingService
 from backend.app.services.promotion_service import PromotionService
 from backend.app.services.reaction_service import ReactionService
 from backend.app.services.session_service import SessionProviderFactory, SessionService
+from backend.app.services.settings_service import SettingsService
 from backend.app.services.update_service import UpdateService
 
 
@@ -134,6 +138,78 @@ def get_manager_service(
     provider_factory: ProviderFactory = Depends(get_provider_factory),
 ) -> ManagerBotService:
     return ManagerBotService(session, provider_factory=provider_factory)
+
+
+async def get_editorial_service(
+    session: AsyncSession = Depends(get_session),
+    provider_factory: ProviderFactory = Depends(get_provider_factory),
+) -> EditorialService:
+    """Editorial Workspace wired to the bot provider and the Content Studio.
+
+    Publishing an approved item reuses the existing posting service: the handler
+    resolves the item's planned publication (or plans one) and publishes it, so
+    the editorial queue and Content Studio never diverge.
+    """
+    from backend.app.services.posting_service import PostingService, TargetSpec
+
+    async def _publish(content_item_id: str, channel_id: str) -> tuple[bool, str]:
+        if not content_item_id:
+            return False, "Материал не связан с контентом."
+        posting = PostingService(session)
+        pubs = await posting.publications.list_for_item(content_item_id)
+        target = next((p for p in pubs if not channel_id or p.channel_id == channel_id), None)
+        if target is None:
+            if not channel_id:
+                return False, "Не выбран канал для публикации."
+            created = await posting.plan(
+                content_item_id, [TargetSpec(channel_id=channel_id)]
+            )
+            target = created[0] if created else None
+        if target is None:
+            return False, "Не удалось создать публикацию."
+        outcome = await posting.publish(target.id)
+        return outcome.ok, outcome.message
+
+    return EditorialService(
+        session, provider_factory=provider_factory, publish_handler=_publish
+    )
+
+
+async def get_notification_service(
+    session: AsyncSession = Depends(get_session),
+    provider_factory: ProviderFactory = Depends(get_provider_factory),
+) -> NotificationCenterService:
+    """Notification Center wired to the manager (or a dedicated) notification bot.
+
+    The owner DM and the notification group reuse the manager bot by default; a
+    dedicated notification bot can be selected via the ``notification_bot_id``
+    setting. Both paths share the same bus and the same service.
+    """
+    from backend.app.core.security import open_secret
+    from backend.app.db.repositories.bots import BotRepository
+
+    async def _provider_for_bot():  # type: ignore[no-untyped-def]
+        settings = get_settings()
+        bots = BotRepository(session)
+        bot = None
+        chosen = await SettingsService(session).get_typed("notification_bot_id", "")
+        if chosen:
+            bot = await bots.get(str(chosen))
+        if bot is None or not bot.has_token:
+            bot = await bots.get_manager()
+        if bot is None or not bot.enabled or not bot.token_encrypted:
+            return None
+        try:
+            token = open_secret(bot.token_encrypted, settings)
+        except ValueError:
+            return None
+        return provider_factory(token, provider_name=bot.provider_name, settings=settings)
+
+    return NotificationCenterService(
+        session,
+        resolve_owner_provider=_provider_for_bot,
+        resolve_group_provider=_provider_for_bot,
+    )
 
 
 def get_channel_service(

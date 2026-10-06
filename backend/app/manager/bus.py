@@ -1,13 +1,15 @@
-"""Notification bus + routing for the manager bot (post-1.0 hardening).
+"""Notification bus + routing (post-1.0 hardening; extended in v1.4).
 
 A single in-process :class:`asyncio.Queue` carries lightweight notification
 payloads from anywhere in the app (typically the central event log) to the
-manager-bot runtime, which delivers them out of band. Publishing is
+Notification Center, which delivers them out of band. Publishing is
 non-blocking and never raises, so a notification problem can never break the
-main task (a hard requirement of the hardening brief).
+main task.
 
-The bus is a small module-level singleton with an explicit reset hook so tests
-get a clean instance. It holds no credentials and no application state.
+v1.4 adds the Notification Center categories, an explicit priority and a stable
+de-duplication key so the center can route, postpone during quiet hours and
+aggregate identical messages. The bus still holds no credentials and no
+application state.
 """
 
 from __future__ import annotations
@@ -18,40 +20,91 @@ from dataclasses import dataclass
 # Categories the owner can toggle independently (mirrors the UI).
 CATEGORY_SYSTEM = "system"
 CATEGORY_TELEGRAM = "telegram"
-CATEGORY_REACTIONS = "reactions"
+CATEGORY_ACCOUNTS = "accounts"
+CATEGORY_CHANNELS = "channels"
 CATEGORY_AUDIENCE = "audience"
+CATEGORY_REACTIONS = "reactions"
 CATEGORY_INVITES = "invites"
+CATEGORY_CONTENT = "content"
+CATEGORY_MEDIA = "media"
 CATEGORY_AI = "ai"
+CATEGORY_UPDATES = "updates"
+CATEGORY_WORKERS = "workers"
 
 CATEGORIES = (
     CATEGORY_SYSTEM,
     CATEGORY_TELEGRAM,
-    CATEGORY_REACTIONS,
+    CATEGORY_ACCOUNTS,
+    CATEGORY_CHANNELS,
     CATEGORY_AUDIENCE,
+    CATEGORY_REACTIONS,
     CATEGORY_INVITES,
+    CATEGORY_CONTENT,
+    CATEGORY_MEDIA,
     CATEGORY_AI,
+    CATEGORY_UPDATES,
+    CATEGORY_WORKERS,
 )
 
 CATEGORY_LABELS = {
     CATEGORY_SYSTEM: "Система",
     CATEGORY_TELEGRAM: "Telegram",
-    CATEGORY_REACTIONS: "Реакции",
+    CATEGORY_ACCOUNTS: "Аккаунты",
+    CATEGORY_CHANNELS: "Каналы",
     CATEGORY_AUDIENCE: "Аудитория",
+    CATEGORY_REACTIONS: "Реакции",
     CATEGORY_INVITES: "Приглашения",
+    CATEGORY_CONTENT: "Контент",
+    CATEGORY_MEDIA: "Медиа",
     CATEGORY_AI: "ИИ",
+    CATEGORY_UPDATES: "Обновления",
+    CATEGORY_WORKERS: "Узлы сети",
+}
+
+# Priorities (kept as plain strings on the bus to avoid a heavy import).
+PRIORITY_INFO = "info"
+PRIORITY_SUCCESS = "success"
+PRIORITY_WARNING = "warning"
+PRIORITY_ERROR = "error"
+PRIORITY_CRITICAL = "critical"
+
+PRIORITIES = (
+    PRIORITY_INFO,
+    PRIORITY_SUCCESS,
+    PRIORITY_WARNING,
+    PRIORITY_ERROR,
+    PRIORITY_CRITICAL,
+)
+
+#: Priorities delivered immediately even during quiet hours.
+URGENT_PRIORITIES = frozenset({PRIORITY_WARNING, PRIORITY_ERROR, PRIORITY_CRITICAL})
+
+#: Map an event level (INFO/WARNING/ERROR/CRITICAL) to a notification priority.
+LEVEL_TO_PRIORITY = {
+    "INFO": PRIORITY_INFO,
+    "SUCCESS": PRIORITY_SUCCESS,
+    "WARNING": PRIORITY_WARNING,
+    "ERROR": PRIORITY_ERROR,
+    "CRITICAL": PRIORITY_CRITICAL,
 }
 
 # How an event module maps to a notification category. Used by the events hook.
 MODULE_TO_CATEGORY = {
     "scheduler": CATEGORY_SYSTEM,
     "bots.bot_service": CATEGORY_TELEGRAM,
-    "sessions.session_service": CATEGORY_TELEGRAM,
+    "sessions.session_service": CATEGORY_ACCOUNTS,
     "reactions.reaction_service": CATEGORY_REACTIONS,
     "audience.audience_service": CATEGORY_AUDIENCE,
     "invites": CATEGORY_INVITES,
+    "content": CATEGORY_CONTENT,
+    "media": CATEGORY_MEDIA,
+    "editorial": CATEGORY_CONTENT,
     "backup": CATEGORY_SYSTEM,
     "ai.classifier": CATEGORY_AI,
     "permissions": CATEGORY_TELEGRAM,
+    "channels": CATEGORY_CHANNELS,
+    "update": CATEGORY_UPDATES,
+    "mesh": CATEGORY_WORKERS,
 }
 
 
@@ -80,6 +133,8 @@ class Notification:
     message: str
     level: str = "INFO"
     how_to_fix: str = ""
+    priority: str = PRIORITY_INFO
+    dedup_key: str = ""
 
 
 class NotificationBus:
@@ -140,8 +195,13 @@ def publish(
     message: str,
     level: str = "INFO",
     how_to_fix: str = "",
+    priority: str = "",
+    dedup_key: str = "",
 ) -> None:
-    """Convenience helper: publish without importing the bus everywhere."""
+    """Convenience helper: publish without importing the bus everywhere.
+
+    ``priority`` defaults to the priority implied by ``level``.
+    """
     get_notification_bus().publish(
         Notification(
             category=category,
@@ -149,20 +209,36 @@ def publish(
             message=message,
             level=level,
             how_to_fix=how_to_fix,
+            priority=priority or LEVEL_TO_PRIORITY.get(level.upper(), PRIORITY_INFO),
+            dedup_key=dedup_key,
         )
     )
 
 
 __all__ = [
     "CATEGORIES",
+    "CATEGORY_ACCOUNTS",
     "CATEGORY_AI",
     "CATEGORY_AUDIENCE",
+    "CATEGORY_CHANNELS",
+    "CATEGORY_CONTENT",
     "CATEGORY_INVITES",
     "CATEGORY_LABELS",
+    "CATEGORY_MEDIA",
     "CATEGORY_REACTIONS",
     "CATEGORY_SYSTEM",
     "CATEGORY_TELEGRAM",
+    "CATEGORY_UPDATES",
+    "CATEGORY_WORKERS",
+    "LEVEL_TO_PRIORITY",
     "MODULE_TO_CATEGORY",
+    "PRIORITIES",
+    "PRIORITY_CRITICAL",
+    "PRIORITY_ERROR",
+    "PRIORITY_INFO",
+    "PRIORITY_SUCCESS",
+    "PRIORITY_WARNING",
+    "URGENT_PRIORITIES",
     "Notification",
     "NotificationBus",
     "category_for_module",

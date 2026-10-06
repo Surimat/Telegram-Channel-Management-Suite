@@ -212,11 +212,16 @@ class BotUpdate:
     """
 
     update_id: int
-    kind: str = "message"  # "message" | "other"
+    kind: str = "message"  # "message" | "other" | "callback"
     chat_id: int | None = None
     user_id: int | None = None
     username: str = ""
     text: str = ""
+    # v1.4: inline-button callback (editorial cards). ``callback_query_id`` is
+    # set for a callback update; ``callback_data`` is the button payload.
+    callback_query_id: str = ""
+    callback_data: str = ""
+    message_id: int | None = None
 
 
 # --- Bot ↔ channel administration (product slice: bot-only mode) -------------
@@ -279,6 +284,8 @@ class BotChannelStatus:
     can_restrict_members: bool = False
     can_pin_messages: bool = False
     can_set_reactions: bool = False
+    # v1.4: forum topics (editorial room). Only Telegram's confirmed right.
+    can_manage_topics: bool = False
     chat_id: int | None = None
     chat_title: str = ""
     chat_username: str = ""
