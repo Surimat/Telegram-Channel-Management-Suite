@@ -79,7 +79,7 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 | Tests (`pytest` / `ruff`) | ✅ | 702 passed; ruff clean |
 | Security (artifact + git tree clean) | ✅ | no secrets/sessions/TDATA/DB/models in tree; tray snapshot secret-free; notification history secret-free |
 | Docker (`/health` + SPA + v1.4 routes) | ✅ | v1.4 routes served by the same SPA/API |
-| Git merge (`develop → main`) | ✅ | reviewed PR (`develop → main`) |
+| Git merge (`develop → main`) | ✅ | reviewed PR #10 (`develop → main`, merge `306672e`) |
 | CI green on `develop` head | ✅ | `.github/workflows/ci.yml` |
 | Automated Release workflow + ZIP/`.sha256` | ✅ | `v1.4.0` tag → release created by CI (D-060) |
 | GitHub Release `v1.4.0` published | ✅ | tag matches |

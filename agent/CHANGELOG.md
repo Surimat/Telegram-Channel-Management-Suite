@@ -15,7 +15,7 @@ Telegram forum-supergroup editorial room where the owner, editors and moderators
 work the same publication queue the Web UI shows. None of these features register
 Telegram accounts or bypass Telegram limits.
 
-Released via a reviewed `develop → main` PR, tag `v1.4.0`; the Release workflow
+Released via a reviewed `develop → main` PR #10 (merge `306672e`), tag `v1.4.0`; the Release workflow
 created the GitHub Release and attached the Windows portable ZIP + `.sha256`
 (D-060). Gates: `pytest` 702 passed, `ruff` clean, `vue-tsc` + `npm run build`
 clean, migration up/down clean, artifact/secret scan clean.

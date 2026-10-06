@@ -5,7 +5,7 @@
 
 **Updated:** 2026-10-05
 **Status:** **v1.4.0 Notification Center + Tray Agent + Editorial Workspace is
-released.** Reviewed PR (`develop → main`), tag `v1.4.0`; the Release workflow
+released.** Reviewed PR #10 (`develop → main`, merge `306672e`), tag `v1.4.0`; the Release workflow
 created the GitHub Release and attached the Windows portable ZIP + `.sha256`
 (D-060). It adds the **Notification Center** (D-084…D-086): a durable, queryable
 history of important events with categories, priorities, per-category routing
@@ -34,7 +34,7 @@ add new large features and do **not** open a new PHASE unless the owner asks.
 
 ### 1. Release v1.4.0 (done)
 
-Merged via a reviewed PR (`develop → main`), tagged `v1.4.0`; the Release
+Merged via a reviewed PR #10 (`develop → main`, merge `306672e`), tagged `v1.4.0`; the Release
 workflow created the GitHub Release and attached the Windows portable ZIP +
 `.sha256` (D-060). `develop` was synced back to the merge commit. No direct push
 to `main`; the `v1.0.0`–`v1.3.0` tags were not moved (D-050).

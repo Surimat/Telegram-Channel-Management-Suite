@@ -255,8 +255,8 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
   verified bot rights and a full audit trail. New API
   (`/api/v1/notifications/*`, `/api/v1/editorial/*`), two RU-first UI pages and
   tests; no new phases. Neither feature registers accounts nor bypasses Telegram
-  limits. Released from `develop` via a reviewed `develop → main` PR, tagged
-  `v1.4.0`; the Windows portable ZIP + `.sha256` are attached to the GitHub
+  limits. Released from `develop` via a reviewed `develop → main` PR #10
+  (merge `306672e`), tagged `v1.4.0`; the Windows portable ZIP + `.sha256` are attached to the GitHub
   Release by the automated Release workflow (D-060).
 - **v1.3.0 (2026-10-05):** Bot Factory + LAN Mesh / offline control plane
   (D-077…D-082). Create a set of worker bots for the owner's own channels through
