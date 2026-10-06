@@ -78,6 +78,7 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 | README release line | ✅ | updated to `v1.5.2` (guarded by `test_readme_states_the_current_release`) |
 | Tests (`pytest` / `ruff`) | ✅ | 761 passed, 4 xfailed; ruff clean |
 | Frontend build | ✅ | `vue-tsc` + `npm run build` clean |
+| Docker smoke | ✅ | `/health` → `1.5.2`, SPA `200`, `/api/v1/consistency` → `pass` (0 error, 0 warning, 6 info) |
 | CI job `meta-audit` | ✅ | runs the harness + uploads `agent/META_AUDIT_RESULT.json` |
 | Git merge (`develop → main`) | ✅ | reviewed PR #13 (`develop → main`, merge `523c089`) |
 | CI green on `develop` head | ✅ | run `37463801697` (push) + `37463867108` (PR) — backend/frontend/meta-audit |
