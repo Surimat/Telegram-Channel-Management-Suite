@@ -5,12 +5,18 @@ Dates are ISO-8601.
 
 ---
 
-## [1.5.0] — 2026-10-05 — in development
+## [1.5.0] — 2026-10-05 — released
 
 Minor release: a **capability graph**, a bilingual **i18n catalog** and a
 **Consistency Auditor** (D-092…D-094). Three small, additive cross-cutting layers
 that make the product explain itself honestly and catch cross-module drift in CI.
 No new phases; no account registration; no Telegram-limit bypass.
+
+Released via a reviewed `develop → main` PR #11 (merge `ad24bc6`), tag `v1.5.0`;
+the Release workflow (run `37442056281`) created the GitHub Release and attached
+the Windows portable ZIP + `.sha256` (D-060). Gates: `pytest` **726 passed**,
+`ruff` clean, `vue-tsc` + `npm run build` clean, Docker smoke clean, artifact/secret
+scan clean.
 
 ### Added — capability graph
 - `services/capability_graph.py`: a machine-readable registry of every capability

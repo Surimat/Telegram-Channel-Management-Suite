@@ -4,27 +4,29 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-05
-**Status:** **v1.5.0 Capability graph + i18n + Consistency Auditor is in
-development on `develop`** (D-092…D-094). Three small, additive cross-cutting
-layers: a machine-readable **capability graph** (`GET /api/v1/capability-graph`,
-embedded in the Promotion Wizard and shown on the Dashboard), a bilingual RU/EN
-**i18n catalog** with a stored `language` preference, and a **Consistency Auditor**
-(`GET /api/v1/consistency`, Diagnostics "Проверка целостности" panel) whose static
+**Status:** **v1.5.0 Capability graph + i18n + Consistency Auditor is released.**
+Reviewed PR #11 (`develop → main`, merge `ad24bc6`), tag `v1.5.0`; the Release
+workflow (run `37442056281`) created the GitHub Release and attached the Windows
+portable ZIP + `.sha256` (D-060). It adds (D-092…D-094) a machine-readable
+**capability graph** (`GET /api/v1/capability-graph`, embedded in the Promotion
+Wizard and shown on the Dashboard), a bilingual RU/EN **i18n catalog** with a
+stored `language` preference, and a **Consistency Auditor** (`GET
+/api/v1/consistency`, Diagnostics "Проверка целостности" panel) whose static
 checks run in `pytest`. Version strings read `1.5.0`. Suite is green at **726
-passed**; `ruff` clean; `vue-tsc` + `npm run build` clean. **Next step: commit,
-push `develop`, open a reviewed `develop → main` PR, merge, tag `v1.5.0`.** It is
-additive only — no account registration and no Telegram-limit bypass.
+passed**; `ruff` clean; `vue-tsc` + `npm run build` clean; Docker smoke clean;
+artifact/secret scan clean. Additive only — no account registration and no
+Telegram-limit bypass.
 Previous: **v1.4.0 Notification Center + Tray Agent + Editorial Workspace is
 released** (D-084…D-091). The roadmap (PHASE 0–11) is complete.
 
 ---
 
-## Active task: finish and release v1.5.0 (capability graph + i18n + Consistency Auditor)
+## Active task: none — v1.5.0 released (maintenance / optional extensions)
 
-The code is complete and green on `develop`. The remaining work is the release
-mechanics (D-050/D-060): commit, push `develop`, open a reviewed `develop → main`
-PR, merge, tag `v1.5.0`; the Release workflow then builds the Windows portable ZIP
-+ `.sha256`. No new phases.
+There is **no required next task**. The v1.5.0 release is complete: the code is
+green on `develop`, merged to `main` via a reviewed PR, tagged `v1.5.0`, and
+published as a GitHub Release with the Windows portable ZIP + `.sha256`. Do **not**
+add new large features and do **not** open a new PHASE unless the owner asks.
 
 ### What v1.5.0 adds (do not rebuild)
 
@@ -42,12 +44,13 @@ PR, merge, tag `v1.5.0`; the Release workflow then builds the Windows portable Z
   (`GET /api/v1/consistency`), Diagnostics "Проверка целостности" panel. Static
   checks also run in `pytest` (`tests/test_architecture_consistency.py`).
 
-### 1. Release v1.5.0 (next)
+### 1. Release v1.5.0 (done)
 
-Commit on `develop`, push, open a reviewed `develop → main` PR, merge, tag
-`v1.5.0`. No direct push to `main`; earlier tags are not moved (D-050). The
-Release workflow (`.github/workflows/release.yml`) creates the GitHub Release and
-attaches the Windows portable ZIP + `.sha256` (D-060).
+Merged via a reviewed PR #11 (`develop → main`, merge `ad24bc6`), tagged `v1.5.0`;
+the Release workflow (run `37442056281`) created the GitHub Release and attached
+the Windows portable ZIP + `.sha256` (D-060). `develop` was synced back to the
+merge commit. No direct push to `main`; the `v1.0.0`–`v1.4.0` tags were not moved
+(D-050).
 
 ### 2. Release history (done)
 
