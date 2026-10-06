@@ -5,6 +5,48 @@ Dates are ISO-8601.
 
 ---
 
+## [1.5.0] — 2026-10-05 — in development
+
+Minor release: a **capability graph**, a bilingual **i18n catalog** and a
+**Consistency Auditor** (D-092…D-094). Three small, additive cross-cutting layers
+that make the product explain itself honestly and catch cross-module drift in CI.
+No new phases; no account registration; no Telegram-limit bypass.
+
+### Added — capability graph
+- `services/capability_graph.py`: a machine-readable registry of every capability
+  and its requirements; `context_from_db(session)` reads the real database state;
+  `evaluate_all()` returns `available` / `partial` / `needs_setup` / `unavailable`
+  with `satisfied`, `missing` and `missing_fixes`.
+- `api/v1/capability_graph.py` + `api/schemas/capability.py`:
+  `GET /api/v1/capability-graph`.
+- The Promotion Wizard now embeds the evaluated graph (`WizardState.capabilities`),
+  and the Dashboard shows a **"Что уже доступно"** overview — one source of truth
+  for "is this ready?".
+
+### Added — i18n
+- `core/i18n.py`: one RU/EN catalog with `translate()`, `normalize_language()` and
+  `missing_keys()`. Backend-produced user strings are single-sourced here.
+- `services/ui_prefs.py`: a stored, non-secret `language` preference (default
+  `ru`), exposed with `available_languages` on `/api/v1/help/prefs`.
+
+### Added — Consistency Auditor
+- `services/consistency_types.py`, `services/consistency_checks.py` (static
+  checks: models↔migrations, frontend calls↔routes, job kinds↔handlers,
+  routes↔views, real/fake providers, capability registry, i18n completeness, help
+  topics, documented prefixes), `services/consistency.py` (runtime DB checks).
+- `api/v1/consistency.py` + `api/schemas/consistency.py`: `GET /api/v1/consistency`.
+- Diagnostics page gains a **"Проверка целостности"** panel (errors/warnings shown;
+  low-confidence info behind a toggle). The report never contains secrets,
+  sessions, phones or database rows.
+- The static checks also run in `pytest`, so cross-module drift fails a pull
+  request.
+
+### Tests
+- `tests/test_consistency.py`, `tests/test_architecture_consistency.py`,
+  `tests/test_i18n.py`, plus capability assertions in `tests/test_product_api.py`.
+
+---
+
 ## [1.4.0] — 2026-10-05 — released
 
 Minor release: the **Notification Center**, the **TCMS Tray Agent** and the
@@ -15,7 +57,7 @@ Telegram forum-supergroup editorial room where the owner, editors and moderators
 work the same publication queue the Web UI shows. None of these features register
 Telegram accounts or bypass Telegram limits.
 
-Released via a reviewed `develop → main` PR, tag `v1.4.0`; the Release workflow
+Released via a reviewed `develop → main` PR #10 (merge `306672e`), tag `v1.4.0`; the Release workflow
 created the GitHub Release and attached the Windows portable ZIP + `.sha256`
 (D-060). Gates: `pytest` 702 passed, `ruff` clean, `vue-tsc` + `npm run build`
 clean, migration up/down clean, artifact/secret scan clean.

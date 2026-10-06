@@ -13,7 +13,9 @@ from backend.app.api.v1 import (
     bot_factory,
     bots,
     campaigns,
+    capability_graph,
     channels,
+    consistency,
     content,
     diagnostics,
     discovery,
@@ -39,6 +41,8 @@ api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(system.router)
 api_router.include_router(help.router)
 api_router.include_router(diagnostics.router)
+api_router.include_router(consistency.router)
+api_router.include_router(capability_graph.router)
 api_router.include_router(settings.router)
 api_router.include_router(bots.router)
 api_router.include_router(bot_factory.router)

@@ -100,6 +100,10 @@ async def test_wizard_session_steps_become_optional_without_session(client: Asyn
     # Without an account the wizard explains why it is optional and what still works.
     assert "необязательно" in state["session_optional_note"].lower()
     assert state["session_risk_note"] == ""
+    # The capability graph travels with the wizard so both agree on what is ready.
+    caps = {c["key"]: c for c in state["capabilities"]}
+    assert "reaction" in caps and "bot_only_analytics" in caps
+    assert caps["reaction"]["state"] != "available"
 
 
 async def test_wizard_preset_switch(client: AsyncClient) -> None:

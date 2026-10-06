@@ -25,6 +25,7 @@ from backend.app.services.bot_service import BotService, ProviderFactory
 from backend.app.services.campaign_service import CampaignService
 from backend.app.services.capability_service import CapabilityService
 from backend.app.services.channel_service import ChannelService
+from backend.app.services.consistency import ConsistencyAuditor
 from backend.app.services.content_service import ContentError, ContentService
 from backend.app.services.destination_service import DestinationService
 from backend.app.services.diagnostics_service import DiagnosticsService
@@ -339,3 +340,10 @@ async def get_posting_service(
         resolve_bot_provider=_resolve_bot,
         resolve_user_provider=_resolve_user,
     )
+
+
+def get_consistency_auditor(
+    session: AsyncSession = Depends(get_session),
+) -> ConsistencyAuditor:
+    """Consistency Auditor for the "Проверка целостности" panel."""
+    return ConsistencyAuditor(session)

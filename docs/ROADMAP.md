@@ -244,6 +244,16 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ## Release
 
+- **v1.5.0 (2026-10-05):** Capability graph + i18n + Consistency Auditor. Three
+  small cross-cutting layers that make the product explain itself honestly: a
+  machine-readable **capability graph** (`GET /api/v1/capability-graph`, also
+  embedded in the Promotion Wizard and the Dashboard) so every surface agrees on
+  what is available now and what still needs setup; a bilingual RU/EN **i18n
+  catalog** (`core/i18n.py`) plus a stored `language` preference so wording is
+  single-sourced; and a **Consistency Auditor** (`GET /api/v1/consistency`,
+  rendered as the Diagnostics "Проверка целостности" panel) whose static checks run
+  in CI to catch cross-module drift. Additive only; no new phases; no account
+  registration and no Telegram-limit bypass.
 - **v1.4.0 (2026-10-05):** Notification Center + Tray Agent + Editorial
   Workspace (D-084…D-091). A durable, queryable Notification Center with
   categories, priorities, per-category routing (owner DM / notification group /
@@ -255,8 +265,8 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
   verified bot rights and a full audit trail. New API
   (`/api/v1/notifications/*`, `/api/v1/editorial/*`), two RU-first UI pages and
   tests; no new phases. Neither feature registers accounts nor bypasses Telegram
-  limits. Released from `develop` via a reviewed `develop → main` PR, tagged
-  `v1.4.0`; the Windows portable ZIP + `.sha256` are attached to the GitHub
+  limits. Released from `develop` via a reviewed `develop → main` PR #10
+  (merge `306672e`), tagged `v1.4.0`; the Windows portable ZIP + `.sha256` are attached to the GitHub
   Release by the automated Release workflow (D-060).
 - **v1.3.0 (2026-10-05):** Bot Factory + LAN Mesh / offline control plane
   (D-077…D-082). Create a set of worker bots for the owner's own channels through

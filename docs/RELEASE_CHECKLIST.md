@@ -79,12 +79,14 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 | Tests (`pytest` / `ruff`) | ✅ | 702 passed; ruff clean |
 | Security (artifact + git tree clean) | ✅ | no secrets/sessions/TDATA/DB/models in tree; tray snapshot secret-free; notification history secret-free |
 | Docker (`/health` + SPA + v1.4 routes) | ✅ | v1.4 routes served by the same SPA/API |
-| Git merge (`develop → main`) | ✅ | reviewed PR (`develop → main`) |
+| Git merge (`develop → main`) | ✅ | reviewed PR #10 (`develop → main`, merge `306672e`) |
 | CI green on `develop` head | ✅ | `.github/workflows/ci.yml` |
-| Automated Release workflow + ZIP/`.sha256` | ✅ | `v1.4.0` tag → release created by CI (D-060) |
-| GitHub Release `v1.4.0` published | ✅ | tag matches |
-| ZIP attached | ✅ | Windows portable ZIP, checksum verified |
-| `.sha256` attached | ✅ | `Telegram-Channel-Management-Suite-Windows-Portable-1.4.0.zip.sha256` |
+| Automated Release workflow + ZIP/`.sha256` | ✅ | `v1.4.0` tag → release created by CI, run `37432367573` (D-060) |
+| GitHub Release `v1.4.0` published | ✅ | tag matches (`306672e`) |
+| ZIP attached | ✅ | Windows portable ZIP (24.8 MB), checksum verified |
+| `.sha256` attached | ✅ | `Telegram-Channel-Management-Suite-Windows-Portable-1.4.0.zip.sha256` (`81d7fa35…08ee230`) |
+| Docker smoke | ✅ | build + run: `/health` → `1.4.0`, SPA `200`, `/api/v1/notifications/settings` + `/api/v1/editorial/rooms` → `200` |
+| Artifact scan | ✅ | ZIP has no `.session`/TDATA/DB/model; runtime dirs empty; only placeholder `.env.example` |
 
 ### v1.3.0 (released 2026-10-05)
 

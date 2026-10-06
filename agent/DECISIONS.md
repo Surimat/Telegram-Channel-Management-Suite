@@ -1732,3 +1732,69 @@ and Content Studio consistent and honours the existing content decisions
 
 **Consequence:** `api/deps.py::get_editorial_service` (`_publish` handler),
 `services/editorial_service.py` (`publish_handler`), `tests/test_editorial.py`.
+
+---
+
+## D-092 — 2026-10-05 — One machine-readable capability graph is the source of truth for "what is available" — LOCKED
+
+**Decision:** A single registry (`services/capability_graph.py`) declares every
+capability and the requirements it needs. `context_from_db(session)` reads the
+real database state, `evaluate_all()` returns a `CapabilityState` per capability
+(`available` / `partial` / `needs_setup` / `unavailable`, plus `satisfied`,
+`missing`, `missing_fixes`). The Dashboard, the Promotion Wizard and the
+Diagnostics panel all read this graph instead of re-deriving "does this need a
+session?" locally.
+
+**Why:** The same question ("is reaction ready?") was answered in several places
+with slightly different logic; they could disagree and the owner saw inconsistent
+advice. One graph removes the drift and gives the Diagnostics auditor something
+concrete to check.
+
+**Consequence:** `services/capability_graph.py`, `api/v1/capability_graph.py`,
+`api/schemas/capability.py`, `WizardState.capabilities`, `DashboardView.vue`
+("Что уже доступно"), `tests/test_consistency.py`,
+`tests/test_architecture_consistency.py::test_capability_requirements_are_known`.
+A missing optional requirement is always `needs_setup`/`unavailable`, never an
+error.
+
+---
+
+## D-093 — 2026-10-05 — Backend user strings come from one bilingual i18n catalog — LOCKED
+
+**Decision:** `core/i18n.py` holds one RU/EN catalog; backend-produced user
+strings (capability titles, the invite-risk warning) are read through
+`translate(key, language)`. The UI language is a stored, non-secret preference
+(`services/ui_prefs.py`, default `ru`) exposed on `/api/v1/help/prefs`.
+
+**Why:** Wording must be single-sourced so one change reaches every surface, and
+the risk wording in particular must never drift into something that promises a
+safe limit (D-006/D-069).
+
+**Consequence:** `core/i18n.py`, `services/ui_prefs.py`, `api/schemas/help.py`,
+`tests/test_i18n.py`,
+`tests/test_architecture_consistency.py::test_i18n_keys_are_complete`.
+`missing_keys()` is empty and asserted in CI.
+
+---
+
+## D-094 — 2026-10-05 — The Consistency Auditor reports drift; it never changes runtime behaviour — LOCKED
+
+**Decision:** `services/consistency_checks.py` runs **static** checks (models↔
+migrations, frontend calls↔routes, job kinds↔handlers, routes↔views, real/fake
+providers, capability registry, i18n completeness, help topics, documented
+prefixes). Hard drift is an `error`; heuristic noise (unused routers, orphan help
+topics) is `info`. `services/consistency.py` adds DB-backed runtime checks. The
+report (`GET /api/v1/consistency`) contains no secrets, sessions, phones or
+database rows. The static checks also run in `pytest` so drift fails a PR.
+
+**Why:** The project grew past 700 tests and many modules; cross-module drift
+(a route the UI calls but the backend removed, a table without a migration) is
+exactly the class of bug a human review misses. Making it a CI gate keeps the
+codebase honest.
+
+**Consequence:** `services/consistency_types.py`, `services/consistency_checks.py`,
+`services/consistency.py`, `api/v1/consistency.py`, `api/schemas/consistency.py`,
+`DiagnosticsView.vue` ("Проверка целостности"), `tests/test_consistency.py`,
+`tests/test_architecture_consistency.py`. The auditor is additive: it never blocks
+startup and never mutates data.
+

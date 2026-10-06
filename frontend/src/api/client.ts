@@ -1244,6 +1244,7 @@ export interface WizardState {
   steps: WizardStep[]
   session_optional_note: string
   session_risk_note: string
+  capabilities: CapabilityState[]
 }
 
 export interface WizardPreset {
@@ -1867,6 +1868,47 @@ export interface NotificationDashboard {
   in_quiet_hours: boolean
   status_counts: Record<string, number>
   category_counts: Record<string, number>
+}
+
+// Consistency ("Проверка целостности", v1.5)
+export interface ConsistencyFinding {
+  id: string
+  category: string
+  area: string
+  severity: 'error' | 'warning' | 'info'
+  confidence: 'high' | 'medium' | 'low'
+  title: string
+  detail: string
+  why: string
+  how_to_fix: string
+  subsystem: string
+}
+
+export interface ConsistencyArea {
+  key: string
+  label: string
+  status: 'pass' | 'warning' | 'fail' | 'not_tested'
+}
+
+export interface ConsistencyReport {
+  generated_at: string
+  overall: 'pass' | 'warning' | 'fail'
+  counts: Record<string, number>
+  areas: ConsistencyArea[]
+  findings: ConsistencyFinding[]
+}
+
+// Capability graph (v1.5)
+export interface CapabilityState {
+  key: string
+  title: string
+  state: 'available' | 'partial' | 'needs_setup' | 'unavailable'
+  state_label: string
+  requires: string[]
+  satisfied: string[]
+  missing: string[]
+  missing_fixes: string[]
+  note: string
 }
 
 export const api = {
@@ -2763,4 +2805,10 @@ export const api = {
     }),
   markNotificationRead: (id: string) =>
     request<NotificationItem>(`/api/v1/notifications/${id}/read`, { method: 'POST' }),
+
+  // Consistency ("Проверка целостности", v1.5)
+  consistency: () => request<ConsistencyReport>('/api/v1/consistency'),
+
+  // Capability graph (v1.5)
+  capabilityGraph: () => request<CapabilityState[]>('/api/v1/capability-graph'),
 }
