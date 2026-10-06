@@ -45,11 +45,30 @@ jobs:
       - name: Install dependencies
         run: pip install -r backend/requirements-dev.txt
 
-      # Proves the Consistency Auditor detects deliberately seeded drift, reports a
-      # failed check instead of swallowing it, and never false-greens. Writes
-      # agent/META_AUDIT_RESULT.json (uploaded below).
-      - name: Auditor meta-audit
+      # Proves the Consistency Auditor detects deliberately seeded drift by
+      # *executing* every mutation (D-102). The engine writes a generated
+      # agent/META_AUDIT_RESULT.json and fails the job if any mutation errored, a
+      # negative control false-fired, or a previously-detected mutation is now
+      # missed (a silently removed detector). No percentage is hardcoded here.
+      - name: Auditor meta-audit (runtime mutation engine)
+        run: PYTHONPATH=. python tests/meta_audit/engine.py
+
+      - name: Mutation + runtime tests
         run: pytest tests/test_consistency_mutations.py tests/test_meta_audit.py -q
+
+      # A synthetic defect must never leak into production source. Mutations only
+      # ever write into a temp copy, but guard the real tree explicitly by looking
+      # for the synthetic markers the mutations use (new untracked files are the
+      # most likely leak; committed edits are not).
+      - name: Assert no synthetic defects in the working tree
+        run: |
+          leaks=$(git status --porcelain -- backend/app frontend/src migrations/versions \
+            | grep -E 'zz_|ghost|Ghost' || true)
+          if [ -n "$leaks" ]; then
+            echo "::error::synthetic mutation leaked into the working tree"
+            echo "$leaks"
+            exit 1
+          fi
 
       - name: Upload kill-rate result
         uses: actions/upload-artifact@v4

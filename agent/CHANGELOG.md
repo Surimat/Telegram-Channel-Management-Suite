@@ -5,6 +5,49 @@ Dates are ISO-8601.
 
 ---
 
+## [Unreleased] — develop
+
+**Runtime mutation engine for the Consistency Auditor (D-102).** No new product
+features; no release. The v1.5.2 kill rate was *declarative* (hand-maintained
+`_DETECTABLE` / `_MISSED` lists). It is now **computed from real executions**.
+
+### Changed
+- **Meta-audit is now measured, not declared.** New package `tests/meta_audit/`
+  (`engine.py`, `mutations.py`): `MutationSandbox` copies `backend/app`,
+  `frontend/src`, `migrations/versions`, `docs` into a temp dir (or a fresh temp DB
+  for runtime checks), injects one seeded defect, runs the **real** auditor, and
+  semantically matches the finding it actually produced. `SuiteResult` derives
+  `detected`/`missed`/`kill_rate`/`false_positives`/`critical_misses`/`high_misses`
+  from those records; `verify()` asserts the arithmetic.
+- `agent/META_AUDIT_RESULT.json` is now a **generated** artifact with
+  `result_source: "computed from runtime mutation executions"`, `generated_at`,
+  `baseline_sha`, and per-mutation `{id, detected, expected, actual_findings,
+  severity}`. Current run: **25 total, 20 detected, 5 missed, kill rate 80.0%,
+  0 false positives, 0 critical misses, 2 high misses** (`status: gaps_found`).
+- `tests/test_consistency_mutations.py` rewritten: per-mutation runtime
+  classification, 3 negative controls (0 false positives), a **detector-removal
+  proof** (disabling a check flips its mutation to missed and lowers the rate), a
+  **new-mutation proof** (adding a mutation changes `total`), and working-tree
+  isolation assertions.
+- `tests/test_meta_audit.py` rewritten: the declarative `_DETECTABLE`/`_MISSED`
+  kill-rate summary is **deleted**; kept the silent-failure guard, the runtime
+  drift checks, and added generated-report provenance + arithmetic checks.
+- `.github/workflows/ci.yml` job `meta-audit` now runs the engine, the tests, and
+  a working-tree leak assertion. It no longer relies on a hardcoded percentage.
+- Full suite: **777 passed, 0 xfailed** (the declarative gap xfails were removed);
+  `ruff` clean.
+
+### Added
+- One extra mutation `U_help_reference` (25 total) and `KNOWN_GAP_IDS` — the 5
+  documented gaps are still **executed**, never hardcoded as misses.
+- Decisions D-101 (default language is Russian) and D-102 (kill rate is computed
+  from runtime executions).
+
+### Removed
+- The `strict=True` xfail gap tests and the declarative kill-rate constants.
+
+---
+
 ## [1.5.2] — 2026-10-06 — released
 
 Patch release: the **Consistency Auditor is now proven against deliberately seeded

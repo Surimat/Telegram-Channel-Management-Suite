@@ -15,8 +15,10 @@ meta-audit harness injects seeded defects into an isolated copy of the source tr
 and asserts each is reported, closing four detection gaps (false capability,
 stray-string mask, provider-registry drift, i18n) and adding router-registration,
 backup-destination and notification-routing checks. It also fixes a real silent
-failure in the runtime channel-aware check. Measured kill rate **75%** (18/24), 0
-critical misses; the 6 remaining gaps are recorded honestly in
+failure in the runtime channel-aware check. On `develop` the meta-audit is now a
+**runtime mutation engine**: the kill rate is **computed from real executions**
+(25 seeded defects + 3 negative controls), currently **80% (20/25), 0 critical
+misses, 0 false positives**; the 5 remaining gaps are recorded honestly in
 `agent/META_AUDIT_RESULT.json`. It keeps the **Capability Graph** (one
 machine-readable description of what the product can do and what each capability
 requires, so every screen agrees on what is ready), a
@@ -151,9 +153,11 @@ breakages it is meant to catch ("Проверка проверяющего"): a 
 seeds defects into an isolated copy of the source tree and asserts each is
 reported, closing four detection gaps and adding router/backup/notification
 checks; it also fixes a real silent failure in the runtime channel-aware check.
-The measured kill rate is **75%** (18/24 seeded defects, 0 critical misses) and
-the remaining gaps are recorded in `agent/META_AUDIT_RESULT.json`. It adds no
-account registration and no Telegram-limit bypass.
+On `develop` the harness was replaced by a **runtime mutation engine** that
+computes the kill rate from real executions — currently **80% (20/25 seeded
+defects), 0 critical misses, 0 false positives** — and the remaining gaps are
+recorded in `agent/META_AUDIT_RESULT.json`. It adds no account registration and no
+Telegram-limit bypass.
 See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
 ## Deployment modes

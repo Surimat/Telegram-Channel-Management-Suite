@@ -4,28 +4,31 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-06
-**Status:** **v1.5.2 meta-audit ("Проверка проверяющего") is RELEASED.**
-The Consistency Auditor is now *proven* to detect the breakages it is meant to
-catch, not merely assumed reliable (D-099/D-100). A meta-audit harness
-(`tests/test_consistency_mutations.py`, `tests/test_meta_audit.py`) copies the
-source tree to a temp dir, injects one synthetic defect per test, asserts the
-matching finding appears, and discards the copy — nothing is written to the working
-tree. It closed four detection gaps (false capability / stray-string mask,
-provider-registry drift, i18n, hardcoded UI placeholder strings) and added
-`check_router_registration`, `check_backup_destination_registry`,
-`check_notification_routing`; `capability_graph.evaluate()` now enforces
-capability-key dependencies. It also found and fixed a **real** silent failure:
-runtime `_check_channel_aware()` queried the non-existent `ContentItem.channel_id`,
-always raised, and was swallowed — now `ContentSource.channel_id`
-(`channel-aware.content_source`). Measured kill rate **75%** (18/24 seeded defects,
-**0 critical**, 2 high); the 6 remaining gaps are recorded in
-`agent/META_AUDIT_RESULT.json` and pinned by `strict=True` xfail tests. New CI job
-`meta-audit` uploads the result. Released via reviewed `develop → main` PR #13
-(merge `523c089`), tag `v1.5.2`; the Release workflow (run `37464579513`) attached
-the Windows portable ZIP (24 799 763 bytes, sha256 `ee8562ef…9ed03`) + `.sha256`.
-Version strings read **1.5.2**; suite **761 passed, 4 xfailed**; `ruff` clean;
-`vue-tsc` + `npm run build` clean; static consistency suite `pass` (0 error, 0
-warning, 2 info); artifact/secret scan clean.
+**Status:** **v1.5.2 is RELEASED; the meta-audit is now a *runtime mutation engine*
+(D-102).** The previous kill rate was *declarative* — computed from hand-maintained
+`_DETECTABLE` / `_MISSED` lists. It is now **computed from real executions**:
+`tests/meta_audit/` builds an isolated copy of the source tree (or a fresh temp
+DB for runtime checks), injects one seeded defect, runs the **real** auditor,
+semantically matches the finding it actually produced, and records
+``detected`` / ``missed``. The report `agent/META_AUDIT_RESULT.json` carries
+`result_source: "computed from runtime mutation executions"` and the arithmetic
+(`detected + missed == total`, `kill_rate == detected/total*100`) is asserted in
+`pytest` and CI. Removing a detector flips its mutation to `missed` and lowers the
+kill rate automatically; adding a mutation changes `total` automatically. There
+are **25** mutations (24 core + 1 extra `U_help_reference`) and **3 negative
+controls** (a clean tree must not produce a mutation finding → 0 false positives).
+Current computed result: **25 total, 20 detected, 5 missed, kill rate 80.0%,
+0 false positives, 0 critical misses, 2 high misses** (`status: gaps_found`).
+The 5 known gaps (M write-only setting, N unused DB field, O service without
+caller, P control without behavior, Q channel-aware module code) are recorded in
+`KNOWN_GAP_IDS` and still **executed** — not hardcoded as misses.
+Released via reviewed `develop → main` PR #13 (merge `523c089`), tag `v1.5.2`; the
+Release workflow (run `37464579513`) attached the Windows portable ZIP
+(24 799 763 bytes, sha256 `ee8562ef…9ed03`) + `.sha256`. **`main` HEAD =
+`523c089`; `develop` HEAD = `7d4a81b` — they are NOT equal** (`develop` =
+`main` + 2 doc-only commits). Latest tag `v1.5.2`; latest release v1.5.2.
+Version strings read **1.5.2**; `ruff` clean; frontend `vue-tsc` + `npm run build`
+clean; static consistency suite `pass` (0 error, 0 warning, 2 info).
 Previous: **v1.5.1 forensic-audit fixes are released** — reviewed `develop → main`
 PR #12 (merge `f41ebc8`), tag `v1.5.1`; the Release workflow (run `37453582161`)
 attached the Windows portable ZIP + `.sha256` (D-060). It fixes five confirmed
@@ -38,40 +41,48 @@ complete.
 
 ---
 
-## Active task: none — v1.5.2 released (optional: promote auditor gaps)
+## Active task: none — v1.5.2 released, runtime engine landed (optional: promote gaps)
 
-There is **no required next task**. v1.5.2 is complete: green on `develop`, merged
-to `main` via reviewed PR #13 (merge `523c089`), tagged `v1.5.2`, and published as
-a GitHub Release with the Windows portable ZIP + `.sha256`.
+There is **no required next task**. v1.5.2 is released and the meta-audit is now a
+runtime engine (D-102).
 
-1. **Optional follow-up (next cycle):** promote the recorded auditor gaps to real
-   checks, starting with **M — write-only setting (high)**: allow-listed
-   `sync_*`/`owner_*` setting keys are read nowhere. Each promotion should flip the
-   corresponding `strict=True` xfail in `tests/test_consistency_mutations.py` into
-   a passing detection test.
+1. **Optional follow-up (next cycle):** promote a recorded auditor gap to a real
+   check. Start with **M — write-only setting (high)**: allow-listed
+   `sync_*`/`owner_*` setting keys are read nowhere. When a gap is closed, remove
+   its id from `KNOWN_GAP_IDS` in `tests/meta_audit/mutations.py`; the kill rate
+   then rises automatically on the next engine run (no report hand-editing).
 
-Do **not** add new large features and do **not** open a new PHASE unless the owner
-asks.
+Do **not** add new large features, do **not** open a new PHASE, and do **not**
+create a release without the owner's ask.
 
-### Meta-audit findings (D-099/D-100) — implemented, do not rebuild
+### Meta-audit engine (D-102) — implemented, do not rebuild
 
-- **Kill rate 75%** (18/24). Detected: frontend route, api consumer, orphan
-  endpoint, scheduler handler, provider pair, registry-missing module, false
-  capability, stray-string mask, capability dependency, i18n, hardcoded UI string,
-  help reference, model/migration (×2), backup destination/provider, notification
-  routing, doc endpoint.
-- **Missed (recorded):** L orphan setting (static), M write-only setting (high),
-  N unused DB field, O service without caller, P control without behavior,
-  Q channel-aware module code (high).
-- **Real defect fixed:** `_check_channel_aware` column mismatch (see Status).
+- **Engine:** `tests/meta_audit/engine.py` — `MutationSandbox` (isolated copy),
+  `run_mutation`, `run_suite`, `SuiteResult` (derived `detected`/`missed`/
+  `kill_rate`/`false_positives`/`critical_misses`/`high_misses`), `write_report`,
+  `regression_against`, and a CLI (`python tests/meta_audit/engine.py`).
+- **Registry:** `tests/meta_audit/mutations.py` — 25 mutations + 3 negative
+  controls. No `detected` field anywhere; `KNOWN_GAP_IDS` marks documented gaps
+  that are still executed.
+- **Tests:** `tests/test_consistency_mutations.py` (per-mutation runtime
+  classification, negative controls, detector-removal proof, new-mutation proof,
+  working-tree isolation) and `tests/test_meta_audit.py` (silent-failure guard,
+  runtime drift, generated-report provenance + arithmetic).
+- **CI job `meta-audit`:** runs the engine, then the tests, then asserts the
+  working tree has no synthetic defect. It does **not** compare against a
+  hardcoded percentage.
+- **Detected now (20):** A, B, C, D, E1, E2, F, F2, G, H, I, J, K, K2, L, R1, R2,
+  S, T, U.
+- **Missed / recorded gaps (5):** M (high), N, O, P, Q (high).
 
 ### Verification for this change
 
 ```bash
-python -m pytest                 # 761 passed, 4 xfailed
+python -m pytest                 # full suite (green)
 ruff check backend tests         # clean
 cd frontend && npx vue-tsc --noEmit && npm run build   # clean
-python -m pytest tests/test_consistency_mutations.py tests/test_meta_audit.py -q  # meta-audit
+PYTHONPATH=. python tests/meta_audit/engine.py         # regenerates the report
+python -m pytest tests/test_consistency_mutations.py tests/test_meta_audit.py -q
 ```
 
 ### What v1.5.1 adds (do not rebuild)
@@ -225,7 +236,8 @@ Do not claim remote worker execution until a dispatch + execution loop exists.
 ### Verification checklist for any change
 
 ```bash
-python -m pytest                 # must stay green (currently 702 passed)
+python -m pytest                 # must stay green
 ruff check backend tests         # must stay clean
 cd frontend && npx vue-tsc --noEmit && npm run build   # outputs to backend/app/static
+PYTHONPATH=. python tests/meta_audit/engine.py         # regenerates META_AUDIT_RESULT.json
 ```

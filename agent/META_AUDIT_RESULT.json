@@ -1,62 +1,799 @@
 {
   "version": "1.5.2",
-  "baseline_sha": "2d5fad70266c7bc05c4d383546a46634cdde241a",
-  "seeded_defects": 24,
-  "detected": 18,
-  "missed": 6,
-  "kill_rate": 75.0,
+  "baseline_sha": "7d4a81be078323e4fefd2357d58298b8835142ee",
+  "generated_at": "2026-10-06T14:22:58.459592+00:00",
+  "result_source": "computed from runtime mutation executions",
+  "total": 25,
+  "detected": 20,
+  "missed": 5,
+  "kill_rate": 80.0,
+  "false_positives": 0,
   "critical_misses": 0,
   "high_misses": 2,
-  "false_green": false,
   "status": "gaps_found",
-  "detectable": {
-    "A_frontend_route": "error",
-    "B_api_consumer": "error",
-    "C_orphan_endpoint": "error",
-    "D_scheduler_handler": "error",
-    "E1_provider_missing": "error",
-    "E2_registry_missing_module": "error",
-    "F_false_capability": "error",
-    "F2_stray_string_mask": "error",
-    "G_capability_dependency": "error",
-    "H_i18n_missing": "error",
-    "I_hardcoded_ui_string": "warning",
-    "J_help_reference": "error",
-    "K_model_migration": "error",
-    "K2_column_migration": "error",
-    "R1_backup_destination_no_provider": "error",
-    "R2_backup_provider_missing": "error",
-    "S_notification_routing": "error",
-    "T_doc_endpoint_claim": "warning"
-  },
-  "missed_defects": {
-    "L_orphan_setting_static": {
-      "severity": "medium",
-      "reason": "runtime-only heuristic; no static consumer graph"
-    },
-    "M_write_only_setting": {
+  "mutations": [
+    {
+      "id": "A_frontend_route",
+      "name": "broken_frontend_route",
+      "detected": true,
+      "expected": {
+        "finding_id": "frontend.route.views/GhostView.vue",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "frontend.route.views/GhostView.vue",
+          "severity": "error",
+          "category": "frontend"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
       "severity": "high",
-      "reason": "no check that a persisted setting changes behaviour; sync_*/owner_* keys are allow-listed but read nowhere"
+      "note": "",
+      "error": null
     },
-    "N_unused_db_field": {
-      "severity": "medium",
-      "reason": "no per-column usage analysis"
-    },
-    "O_service_without_caller": {
-      "severity": "medium",
-      "reason": "no dead-code/caller analysis"
-    },
-    "P_control_without_behavior": {
-      "severity": "medium",
-      "reason": "no UI-control ↔ endpoint wiring check"
-    },
-    "Q_channel_aware_module": {
+    {
+      "id": "B_api_consumer",
+      "name": "broken_api_consumer",
+      "detected": true,
+      "expected": {
+        "finding_id": "api.frontend_unknown",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.frontend_unknown",
+          "severity": "error",
+          "category": "api"
+        },
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
       "severity": "high",
-      "reason": "runtime covers rows, not module code"
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "C_orphan_endpoint",
+      "name": "orphan_backend_endpoint",
+      "detected": true,
+      "expected": {
+        "finding_id": "api.router_unregistered.ghostarea",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "api.router_unregistered.ghostarea",
+          "severity": "error",
+          "category": "orphan"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "high",
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "D_scheduler_handler",
+      "name": "scheduler_job_without_handler",
+      "detected": true,
+      "expected": {
+        "finding_id": "scheduler.job_without_handler",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "scheduler.job_without_handler",
+          "severity": "error",
+          "category": "scheduler"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "high",
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "E1_provider_missing",
+      "name": "missing_fake_provider",
+      "detected": true,
+      "expected": {
+        "finding_id": "providers.audience.fake_audience.py",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "providers.audience.fake_audience.py",
+          "severity": "error",
+          "category": "providers"
+        },
+        {
+          "id": "providers.registry_missing.fake_audience",
+          "severity": "error",
+          "category": "providers"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "high",
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "E2_registry_missing_module",
+      "name": "registry_mapping_without_module",
+      "detected": true,
+      "expected": {
+        "finding_id": "providers.registry_missing.ghost_provider",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "providers.registry_missing.ghost_provider",
+          "severity": "error",
+          "category": "providers"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "high",
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "F_false_capability",
+      "name": "false_capability",
+      "detected": true,
+      "expected": {
+        "finding_id": "capabilities.no_anchor.config_sync",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "capabilities.no_anchor.config_sync",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "critical",
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "F2_stray_string_mask",
+      "name": "false_capability_masked_by_stray_string",
+      "detected": true,
+      "expected": {
+        "finding_id": "capabilities.unimplemented.reaction",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "audit.check_failed.check_scheduler_job_handlers",
+          "severity": "error",
+          "category": "integration"
+        },
+        {
+          "id": "capabilities.unimplemented.reaction",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "critical",
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "G_capability_dependency",
+      "name": "capability_dependency_on_unimplemented",
+      "detected": true,
+      "expected": {
+        "finding_id": "capabilities.dep_unimplemented.donor_discovery.config_sync",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "capabilities.unknown_req.donor_discovery.config_sync",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
+          "id": "capabilities.dep_unimplemented.donor_discovery.config_sync",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "high",
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "H_i18n_missing",
+      "name": "missing_i18n_translation",
+      "detected": true,
+      "expected": {
+        "finding_id": "i18n.missing.ghost.key",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "i18n.missing.ghost.key",
+          "severity": "error",
+          "category": "i18n"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "medium",
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "I_hardcoded_ui_string",
+      "name": "hardcoded_ui_string",
+      "detected": true,
+      "expected": {
+        "finding_id": "ux.hardcoded_string.views/DashboardView.vue",
+        "severity": "warning"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "ux.hardcoded_string.views/DashboardView.vue:202",
+          "severity": "warning",
+          "category": "ux"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "low",
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "J_help_reference",
+      "name": "missing_help_topic",
+      "detected": true,
+      "expected": {
+        "finding_id": "help.missing_topic",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "help.missing_topic",
+          "severity": "error",
+          "category": "help"
+        },
+        {
+          "id": "ux.hardcoded_string.views/DashboardView.vue:202",
+          "severity": "warning",
+          "category": "ux"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "medium",
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "K_model_migration",
+      "name": "model_without_migration",
+      "detected": true,
+      "expected": {
+        "finding_id": "db.model_without_migration",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.model_without_migration",
+          "severity": "error",
+          "category": "database"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "critical",
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "K2_column_migration",
+      "name": "column_without_migration",
+      "detected": true,
+      "expected": {
+        "finding_id": "db.model_without_migration",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.model_without_migration",
+          "severity": "error",
+          "category": "database"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "critical",
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "N_unused_db_field",
+      "name": "unused_db_field",
+      "detected": false,
+      "expected": {
+        "finding_id": "db.model_without_migration",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "medium",
+      "note": "GAP: a new column is only caught if the migration check inspects columns.",
+      "error": null
+    },
+    {
+      "id": "O_service_without_caller",
+      "name": "backend_service_without_caller",
+      "detected": false,
+      "expected": {
+        "finding_id": "dead.service.zz_dead_service",
+        "severity": "warning"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "medium",
+      "note": "GAP: the auditor has no static dead-service/caller analysis.",
+      "error": null
+    },
+    {
+      "id": "P_control_without_behavior",
+      "name": "frontend_control_without_behavior",
+      "detected": false,
+      "expected": {
+        "finding_id": "frontend.control_unwired.runGhostAction",
+        "severity": "warning"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "ux.hardcoded_string.views/DashboardView.vue:202",
+          "severity": "warning",
+          "category": "ux"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "medium",
+      "note": "GAP: no UI-control ↔ endpoint wiring check.",
+      "error": null
+    },
+    {
+      "id": "Q_channel_aware_module",
+      "name": "channel_aware_module_without_channel",
+      "detected": false,
+      "expected": {
+        "finding_id": "channel-aware.module.zz_channel_consumer",
+        "severity": "warning"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "high",
+      "note": "GAP: the runtime check covers DB rows, not module code.",
+      "error": null
+    },
+    {
+      "id": "R1_backup_destination_no_provider",
+      "name": "backup_destination_without_provider",
+      "detected": true,
+      "expected": {
+        "finding_id": "backup.destination_no_module.ghost_disk",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "backup.destination_no_module.ghost_disk",
+          "severity": "error",
+          "category": "integration"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "high",
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "R2_backup_provider_missing",
+      "name": "backup_provider_file_missing",
+      "detected": true,
+      "expected": {
+        "finding_id": "backup.destination_missing.yandex_disk",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "backup.destination_missing.yandex_disk",
+          "severity": "error",
+          "category": "integration"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "high",
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "S_notification_routing",
+      "name": "notification_category_without_routing",
+      "detected": true,
+      "expected": {
+        "finding_id": "notifications.no_routing.ghost",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "notifications.no_routing.ghost",
+          "severity": "error",
+          "category": "integration"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "high",
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "T_doc_endpoint_claim",
+      "name": "documented_endpoint_that_does_not_exist",
+      "detected": true,
+      "expected": {
+        "finding_id": "docs.api_unknown_prefix",
+        "severity": "warning"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "docs.api_unknown_prefix",
+          "severity": "warning",
+          "category": "docs"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "low",
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "U_help_reference",
+      "name": "broken_help_reference_extra",
+      "detected": true,
+      "expected": {
+        "finding_id": "help.missing_topic",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "help.missing_topic",
+          "severity": "error",
+          "category": "help"
+        },
+        {
+          "id": "ux.hardcoded_string.views/SettingsView.vue:242",
+          "severity": "warning",
+          "category": "ux"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "medium",
+      "note": "",
+      "error": null
+    },
+    {
+      "id": "L_orphan_setting",
+      "name": "orphan_setting_runtime",
+      "detected": true,
+      "expected": {
+        "finding_id": "settings.dead.zz_ghost_setting",
+        "severity": "info"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "settings.dead.zz_ghost_setting",
+          "severity": "info",
+          "category": "settings"
+        }
+      ],
+      "severity": "medium",
+      "note": "Detected by the runtime dead-setting check, not a static consumer graph.",
+      "error": null
+    },
+    {
+      "id": "M_write_only_setting",
+      "name": "write_only_setting",
+      "detected": false,
+      "expected": {
+        "finding_id": "settings.write_only.sync_enabled",
+        "severity": "warning"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "high",
+      "note": "High-impact: a persisted setting that no module reads.",
+      "error": null
     }
-  },
-  "out_of_scope": {
-    "auth_bypass": "no owner-auth feature in this cycle",
-    "secret_leak": "covered by secret scan, not the consistency auditor"
-  }
+  ],
+  "negative_controls": [
+    {
+      "id": "NC1_clean_frontend_route",
+      "name": "clean_tree_no_frontend_route_finding",
+      "passed": true,
+      "findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ]
+    },
+    {
+      "id": "NC2_clean_settings",
+      "name": "clean_tree_no_write_only_setting_finding",
+      "passed": true,
+      "findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ]
+    },
+    {
+      "id": "NC3_clean_capability",
+      "name": "clean_tree_no_false_capability_finding",
+      "passed": true,
+      "findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ]
+    }
+  ]
 }
