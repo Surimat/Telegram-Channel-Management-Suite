@@ -21,7 +21,10 @@ class UiPrefsOut(BaseModel):
     """UI preferences shared by the Web UI, Mini App and Setup Wizard."""
 
     show_explanations: bool = True
+    language: str = "ru"
+    available_languages: list[str] = ["ru", "en"]
 
 
 class UiPrefsUpdate(BaseModel):
     show_explanations: bool | None = None
+    language: str | None = None

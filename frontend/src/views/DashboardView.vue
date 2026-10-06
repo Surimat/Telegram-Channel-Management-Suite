@@ -7,6 +7,7 @@ import {
   api,
   type AnalyticsOverview,
   type BotSummary,
+  type CapabilityState,
   type ReactionStats,
   type SessionSummary,
 } from '@/api/client'
@@ -18,6 +19,7 @@ const bots = ref<BotSummary | null>(null)
 const reactions = ref<ReactionStats | null>(null)
 const accounts = ref<SessionSummary | null>(null)
 const analytics = ref<AnalyticsOverview | null>(null)
+const capabilities = ref<CapabilityState[]>([])
 
 onMounted(async () => {
   if (!store.status) store.loadStatus()
@@ -41,7 +43,19 @@ onMounted(async () => {
   } catch {
     analytics.value = null
   }
+  try {
+    capabilities.value = await api.capabilityGraph()
+  } catch {
+    capabilities.value = []
+  }
 })
+
+function capabilityClass(state: string): string {
+  if (state === 'available') return 'ok'
+  if (state === 'partial') return 'warning'
+  if (state === 'needs_setup') return 'warning'
+  return 'badge-muted'
+}
 
 const accountsLabel = (s: SessionSummary | null) => {
   if (!s || s.total === 0) return 'Пользовательские аккаунты ещё не добавлены.'
@@ -152,6 +166,28 @@ const managerLabel = (s: BotSummary | null) => {
             label="Выполненные реакции за 30 дней"
             color="var(--ok)"
           />
+        </div>
+      </div>
+
+      <div v-if="capabilities.length" class="card">
+        <div class="row-between">
+          <h3>Что уже доступно</h3>
+          <RouterLink to="/diagnostics">Проверка целостности →</RouterLink>
+        </div>
+        <p class="muted">
+          Здесь видно, какие возможности готовы, а для каких нужно кое-что настроить.
+          Ничего не ломается: каждая возможность просто ждёт своего шага.
+        </p>
+        <div class="capability-list">
+          <div v-for="cap in capabilities" :key="cap.key" class="capability-item">
+            <span class="badge" :class="capabilityClass(cap.state)">
+              {{ cap.state_label }}
+            </span>
+            <strong>{{ cap.title }}</strong>
+            <span v-if="cap.missing.length" class="muted">
+              · не хватает: {{ cap.missing.join(', ') }}
+            </span>
+          </div>
         </div>
       </div>
 

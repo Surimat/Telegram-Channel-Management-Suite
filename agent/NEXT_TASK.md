@@ -4,51 +4,61 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-05
-**Status:** **v1.4.0 Notification Center + Tray Agent + Editorial Workspace is
-released.** Reviewed PR #10 (`develop → main`, merge `306672e`), tag `v1.4.0`; the Release workflow
-created the GitHub Release and attached the Windows portable ZIP + `.sha256`
-(D-060). It adds the **Notification Center** (D-084…D-086): a durable, queryable
-history of important events with categories, priorities, per-category routing
-(owner DM / notification group / Windows toast), quiet hours that postpone only
-non-urgent messages, anti-spam aggregation, a dashboard and a history API/UI; the
-**TCMS Tray Agent** (D-087/D-088): a light Windows supervisor that starts the
-backend hidden, waits for `/health` (never a fixed sleep), restarts a crashed
-backend with a bounded backoff (5/hour), offers optional Startup-folder autostart
-(no admin) and writes only a secret-free `data/tray.json` snapshot surfaced in
-Diagnostics; and the **Editorial Workspace** (D-089…D-091): a linked Telegram
-forum supergroup where the owner, editors and moderators work the same
-publication queue as the Web UI (honest, verified bot rights; roles by numeric
-Telegram id; optimistic-version moves; a full audit trail; publishing reuses the
-Content Studio posting path). The roadmap (PHASE 0–11) is complete. Version
-strings read `1.4.0`. Suite is green at **702 passed**; `ruff` clean; `vue-tsc` +
-`npm run build` clean; CI enforces the gates (D-053).
+**Status:** **v1.5.0 Capability graph + i18n + Consistency Auditor is in
+development on `develop`** (D-092…D-094). Three small, additive cross-cutting
+layers: a machine-readable **capability graph** (`GET /api/v1/capability-graph`,
+embedded in the Promotion Wizard and shown on the Dashboard), a bilingual RU/EN
+**i18n catalog** with a stored `language` preference, and a **Consistency Auditor**
+(`GET /api/v1/consistency`, Diagnostics "Проверка целостности" panel) whose static
+checks run in `pytest`. Version strings read `1.5.0`. Suite is green at **726
+passed**; `ruff` clean; `vue-tsc` + `npm run build` clean. **Next step: commit,
+push `develop`, open a reviewed `develop → main` PR, merge, tag `v1.5.0`.** It is
+additive only — no account registration and no Telegram-limit bypass.
+Previous: **v1.4.0 Notification Center + Tray Agent + Editorial Workspace is
+released** (D-084…D-091). The roadmap (PHASE 0–11) is complete.
 
 ---
 
-## Active task: none — v1.4.0 released (maintenance / optional extensions)
+## Active task: finish and release v1.5.0 (capability graph + i18n + Consistency Auditor)
 
-There is **no required next task**. The v1.4.0 release is complete: the code is
-green on `develop`, merged to `main` via a reviewed PR, tagged `v1.4.0`, and
-published as a GitHub Release with the Windows portable ZIP + `.sha256`. Do **not**
-add new large features and do **not** open a new PHASE unless the owner asks.
+The code is complete and green on `develop`. The remaining work is the release
+mechanics (D-050/D-060): commit, push `develop`, open a reviewed `develop → main`
+PR, merge, tag `v1.5.0`; the Release workflow then builds the Windows portable ZIP
++ `.sha256`. No new phases.
 
-### 1. Release v1.4.0 (done)
+### What v1.5.0 adds (do not rebuild)
 
-Merged via a reviewed PR #10 (`develop → main`, merge `306672e`), tagged `v1.4.0`; the Release
-workflow created the GitHub Release and attached the Windows portable ZIP +
-`.sha256` (D-060). `develop` was synced back to the merge commit. No direct push
-to `main`; the `v1.0.0`–`v1.3.0` tags were not moved (D-050).
+- **Capability graph** (D-092): `services/capability_graph.py`
+  (`context_from_db`, `evaluate_all`, `CapabilityState`),
+  `api/v1/capability_graph.py` + `api/schemas/capability.py`
+  (`GET /api/v1/capability-graph`), embedded in `WizardState.capabilities` and
+  rendered on the Dashboard ("Что уже доступно").
+- **i18n** (D-093): `core/i18n.py` (RU/EN catalog, `translate`,
+  `normalize_language`, `missing_keys`), `services/ui_prefs.py` (`language`
+  preference on `/api/v1/help/prefs`).
+- **Consistency Auditor** (D-094): `services/consistency_types.py`,
+  `services/consistency_checks.py` (static), `services/consistency.py` (runtime),
+  `api/v1/consistency.py` + `api/schemas/consistency.py`
+  (`GET /api/v1/consistency`), Diagnostics "Проверка целостности" panel. Static
+  checks also run in `pytest` (`tests/test_architecture_consistency.py`).
+
+### 1. Release v1.5.0 (next)
+
+Commit on `develop`, push, open a reviewed `develop → main` PR, merge, tag
+`v1.5.0`. No direct push to `main`; earlier tags are not moved (D-050). The
+Release workflow (`.github/workflows/release.yml`) creates the GitHub Release and
+attaches the Windows portable ZIP + `.sha256` (D-060).
 
 ### 2. Release history (done)
 
-v1.3.0 merged via reviewed PR #9 (`develop → main`, merge `7788125`), tagged
-`v1.3.0`. v1.2.0 merged via reviewed PR #8 (`develop → main`, merge `ea6c161`),
-tagged `v1.2.0`. v1.1.0 merged via reviewed PR #7 (`develop → main`, merge
-`3438305`), tagged `v1.1.0`. v1.0.5 published from `develop` via reviewed PR #6
-(`develop → main`, merge `496598f`) → tag `v1.0.5` → Release workflow created the
-GitHub Release and attached the Windows portable ZIP + `.sha256` (~24 MB, checksum
-verified). No manual step. (v1.0.4: PR #5, merge `3f42c3d`, tag `v1.0.4`;
-v1.0.3: PR #4, merge `f18f53a`, tag `v1.0.3`.)
+v1.4.0 merged via reviewed PR #10 (`develop → main`, merge `306672e`), tagged
+`v1.4.0`. v1.3.0 merged via reviewed PR #9 (`develop → main`, merge `7788125`),
+tagged `v1.3.0`. v1.2.0 merged via reviewed PR #8 (`develop → main`, merge
+`ea6c161`), tagged `v1.2.0`. v1.1.0 via PR #7 (merge `3438305`), tag `v1.1.0`.
+v1.0.5 via PR #6 (merge `496598f`) → tag `v1.0.5` → Release workflow created the
+GitHub Release and attached the Windows portable ZIP + `.sha256`. No manual step.
+(v1.0.4: PR #5, merge `3f42c3d`, tag `v1.0.4`; v1.0.3: PR #4, merge `f18f53a`,
+tag `v1.0.3`.)
 
 ### 3. Worker Mesh verification (done — verified 2026-10-05)
 

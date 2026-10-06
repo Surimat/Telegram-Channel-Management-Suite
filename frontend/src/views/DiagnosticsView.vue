@@ -1,15 +1,24 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api, type DiagnosticsReport, type MaintenanceAction } from '@/api/client'
+import {
+  api,
+  type ConsistencyFinding,
+  type ConsistencyReport,
+  type DiagnosticsReport,
+  type MaintenanceAction,
+} from '@/api/client'
 import InfoHint from '@/components/InfoHint.vue'
 
 const report = ref<DiagnosticsReport | null>(null)
 const actions = ref<MaintenanceAction[]>([])
+const consistency = ref<ConsistencyReport | null>(null)
 const loading = ref(true)
 const error = ref('')
 const notice = ref('')
 const busyAction = ref('')
 const reportBusy = ref(false)
+const consistencyBusy = ref(false)
+const showConfidence = ref(false)
 
 const reportFormat = ref<'zip' | 'json' | 'txt'>('zip')
 
@@ -19,11 +28,74 @@ async function load() {
   try {
     report.value = await api.diagnostics()
     actions.value = await api.diagnosticActions()
+    await loadConsistency()
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Не удалось получить состояние системы.'
   } finally {
     loading.value = false
   }
+}
+
+async function loadConsistency() {
+  consistencyBusy.value = true
+  try {
+    consistency.value = await api.consistency()
+  } catch {
+    consistency.value = null
+  } finally {
+    consistencyBusy.value = false
+  }
+}
+
+const consistencyOverallLabel = computed(() => {
+  const overall = consistency.value?.overall
+  if (overall === 'pass') return 'Всё согласовано'
+  if (overall === 'fail') return 'Есть ошибки'
+  if (overall === 'warning') return 'Есть предупреждения'
+  return 'Не проверено'
+})
+
+const consistencyOverallClass = computed(() => {
+  const overall = consistency.value?.overall
+  if (overall === 'pass') return 'ok'
+  if (overall === 'fail') return 'error'
+  return 'warning'
+})
+
+const consistencyCounts = computed(() => {
+  const counts = consistency.value?.counts ?? {}
+  return {
+    errors: counts.error ?? 0,
+    warnings: counts.warning ?? 0,
+    info: counts.info ?? 0,
+  }
+})
+
+// The panel shows errors and warnings by default; info (low-confidence noise)
+// is hidden behind a toggle so the page never looks alarming for no reason.
+const visibleFindings = computed<ConsistencyFinding[]>(() =>
+  (consistency.value?.findings ?? []).filter(
+    (f) => showConfidence.value || f.severity !== 'info',
+  ),
+)
+
+function confidenceLabel(confidence: string): string {
+  if (confidence === 'high') return 'уверенность: высокая'
+  if (confidence === 'medium') return 'уверенность: средняя'
+  return 'уверенность: низкая'
+}
+
+function severityLabel(severity: string): string {
+  if (severity === 'error') return 'Ошибка'
+  if (severity === 'warning') return 'Предупреждение'
+  return 'К сведению'
+}
+
+function areaStatusClass(status: string): string {
+  if (status === 'pass') return 'ok'
+  if (status === 'fail') return 'error'
+  if (status === 'not_tested') return 'badge-muted'
+  return 'warning'
 }
 
 function friendlyError(e: unknown): string {
@@ -154,6 +226,73 @@ onMounted(load)
           </tbody>
         </table>
         <button style="margin-top: 12px" :disabled="loading" @click="load">Обновить</button>
+      </div>
+
+      <div class="card" style="margin-top: 20px">
+        <h3>Проверка целостности</h3>
+        <p class="muted">
+          Проверка ищет расхождения между модулями: база и миграции, маршруты API и экраны,
+          задачи и обработчики, переводы и подсказки. Это не поиск вирусов, а контроль
+          согласованности самой программы.
+        </p>
+        <div v-if="consistencyBusy && !consistency" class="muted">Проверяем…</div>
+        <template v-else-if="consistency">
+          <p>
+            Итог:
+            <span class="badge" :class="consistencyOverallClass">
+              {{ consistencyOverallLabel }}
+            </span>
+            <span class="muted">
+              · ошибок: {{ consistencyCounts.errors }} · предупреждений:
+              {{ consistencyCounts.warnings }}
+            </span>
+          </p>
+          <div class="consistency-areas">
+            <span
+              v-for="area in consistency.areas"
+              :key="area.key"
+              class="badge"
+              :class="areaStatusClass(area.status)"
+            >
+              {{ area.label }}
+            </span>
+          </div>
+
+          <p v-if="visibleFindings.length === 0" class="notice-text">
+            Замечаний нет — всё согласовано.
+          </p>
+          <div v-else class="consistency-list">
+            <div
+              v-for="finding in visibleFindings"
+              :key="finding.id"
+              class="consistency-item"
+            >
+              <p>
+                <span class="badge" :class="statusClass(finding.severity === 'error' ? 'error' : 'warning')">
+                  {{ severityLabel(finding.severity) }}
+                </span>
+                <strong>{{ finding.title }}</strong>
+                <span class="muted"> · {{ confidenceLabel(finding.confidence) }}</span>
+              </p>
+              <p class="muted">{{ finding.detail }}</p>
+              <p v-if="finding.why" class="muted">Почему важно: {{ finding.why }}</p>
+              <p v-if="finding.how_to_fix" class="muted">Что делать: {{ finding.how_to_fix }}</p>
+            </div>
+          </div>
+
+          <div class="report-controls" style="margin-top: 12px">
+            <label class="muted">
+              <input v-model="showConfidence" type="checkbox" />
+              Показывать замечания «к сведению» (низкая уверенность)
+            </label>
+            <button :disabled="consistencyBusy" @click="loadConsistency">
+              {{ consistencyBusy ? 'Проверяем…' : 'Проверить снова' }}
+            </button>
+          </div>
+        </template>
+        <p v-else class="muted">
+          Проверка недоступна. Это не влияет на работу программы.
+        </p>
       </div>
 
       <div class="card" style="margin-top: 20px">

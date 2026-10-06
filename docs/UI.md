@@ -533,3 +533,22 @@ etc. as synonyms for the terms above.
 Internal values must never reach the user raw: job kinds (`reaction.job`,
 `audience.scan`, `invite.batch`) and statuses (`pending`/`running`/…) are shown as
 plain Russian labels (see `QueueView.vue`), just like subsystem statuses.
+
+## What is available now (v1.5)
+
+Two views explain capability state in plain language, both fed by the same
+evaluated **capability graph**:
+
+- **Dashboard → "Что уже доступно"** — a short list of capabilities with a badge
+  (`Доступно` / `Частично` / `Требует настройки` / `Недоступно`) and, when a step
+  is missing, exactly what is missing (e.g. "не хватает: Канал, Бот, привязанный к
+  каналу").
+- **Diagnostics → "Проверка целостности"** — the consistency report. It shows
+  errors and warnings by default; low-confidence "к сведению" findings are hidden
+  behind a checkbox so the page never looks alarming for no reason. Each finding
+  states what it is, why it matters and what to do.
+
+Wording rules: never claim a right or a capability without a real check; a missing
+optional dependency is shown as "требует настройки" or "недоступно", never as an
+error; and a capability that needs a session is never presented as blocked — it is
+shown with what still works without one.

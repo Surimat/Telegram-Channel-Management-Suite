@@ -36,5 +36,7 @@ async def update_prefs(
     service = UiPrefsService(session)
     if payload.show_explanations is not None:
         await service.set_show_explanations(payload.show_explanations)
+    if payload.language is not None:
+        await service.set_language(payload.language)
     await session.commit()
     return UiPrefsOut(**(await service.as_dict()))

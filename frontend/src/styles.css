@@ -268,6 +268,43 @@ h4 {
 
 .ok-text { color: var(--ok); }
 
+/* v1.5 — capability overview + consistency panel */
+.capability-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.capability-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.consistency-areas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.consistency-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.consistency-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.consistency-item p { margin: 4px 0; }
+
 /* PHASE 8 — Analytics UI helpers */
 .metric {
   font-size: 30px;

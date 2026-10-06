@@ -825,6 +825,22 @@ does this automatically).
 
 ---
 
+## Capability graph + Consistency (v1.5)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/capability-graph` | evaluated capability graph (`?language=ru|en`) — what is available now, what is `partial`, what `needs_setup` and how to fix it |
+| GET | `/api/v1/consistency` | consistency report (overall, counts, areas, findings). Never contains secrets, sessions, phones or database rows |
+
+The Promotion Wizard (`GET /api/v1/promotion`) embeds the same evaluated graph in
+`capabilities`, so the wizard, the Dashboard and the Diagnostics panel always
+agree.
+
+UI preferences (`/api/v1/help/prefs`) now also carry `language` (default `ru`)
+and `available_languages`.
+
+---
+
 ## Versioning
 
 The API is versioned (`/api/v1`). Breaking changes go to a new version path.

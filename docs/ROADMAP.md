@@ -244,6 +244,16 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ## Release
 
+- **v1.5.0 (2026-10-05):** Capability graph + i18n + Consistency Auditor. Three
+  small cross-cutting layers that make the product explain itself honestly: a
+  machine-readable **capability graph** (`GET /api/v1/capability-graph`, also
+  embedded in the Promotion Wizard and the Dashboard) so every surface agrees on
+  what is available now and what still needs setup; a bilingual RU/EN **i18n
+  catalog** (`core/i18n.py`) plus a stored `language` preference so wording is
+  single-sourced; and a **Consistency Auditor** (`GET /api/v1/consistency`,
+  rendered as the Diagnostics "Проверка целостности" panel) whose static checks run
+  in CI to catch cross-module drift. Additive only; no new phases; no account
+  registration and no Telegram-limit bypass.
 - **v1.4.0 (2026-10-05):** Notification Center + Tray Agent + Editorial
   Workspace (D-084…D-091). A durable, queryable Notification Center with
   categories, priorities, per-category routing (owner DM / notification group /

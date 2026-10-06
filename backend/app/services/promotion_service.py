@@ -152,6 +152,10 @@ class WizardState:
     session_optional_note: str = ""
     #: Shown when an account is connected: the invite-restriction risk warning.
     session_risk_note: str = ""
+    #: Evaluated capability graph (v1.5): the single source of truth for what is
+    #: available now and what still needs setup. Keeps the wizard from
+    #: re-deriving "does this need a session?" on its own.
+    capabilities: list = field(default_factory=list)
 
 
 class PromotionService:
@@ -254,7 +258,21 @@ class PromotionService:
                 if has_session
                 else ""
             ),
+            capabilities=await self._capabilities(),
         )
+
+    async def _capabilities(self) -> list[dict[str, object]]:
+        """Evaluate the capability graph for the wizard (best-effort)."""
+        try:
+            from backend.app.services.capability_graph import (
+                context_from_db,
+                evaluate_all,
+            )
+
+            context = await context_from_db(self.session)
+            return [state.as_dict() for state in evaluate_all(context)]
+        except Exception:  # pragma: no cover - never break the wizard
+            return []
 
     async def _steps(self, required: list[str], *, has_session: bool) -> list[WizardStep]:
         builders = {

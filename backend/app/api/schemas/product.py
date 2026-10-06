@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from backend.app.api.schemas.capability import CapabilityStateOut
+
 
 class DestinationIn(BaseModel):
     kind: str
@@ -72,6 +74,7 @@ class WizardStateOut(BaseModel):
     steps: list[WizardStepOut] = Field(default_factory=list)
     session_optional_note: str = ""
     session_risk_note: str = ""
+    capabilities: list[CapabilityStateOut] = Field(default_factory=list)
 
 
 class PresetOut(BaseModel):

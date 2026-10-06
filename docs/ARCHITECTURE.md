@@ -771,4 +771,58 @@ order** (cards are never moved between topics — a status change posts a fresh 
 into the target topic and `order_index` lives in the database); **no secrets**
 (Telegram access goes through the provider abstraction).
 
+## 22. Capability graph, i18n and Consistency Auditor (v1.5.0)
+
+v1.5.0 adds three small, cross-cutting layers that make the product explain
+itself honestly instead of each surface re-deriving the same state.
+
+### Capability graph
+
+- `services/capability_graph.py` — a **machine-readable registry** of what the
+  product can do (`CAPABILITIES`, `CAPABILITIES_BY_KEY`). Each `Capability` lists
+  its `requires` (e.g. `channel`, `manager_bot`, `bot_binding`,
+  `posting_capability`, `session`, `encoder_model`, `proxy`, `backup_dest`) and a
+  human note. `context_from_db(session)` reads the *real* database state into a
+  boolean context; `evaluate_all(context, language)` returns `CapabilityState`s
+  with `state` (`available` / `partial` / `needs_setup` / `unavailable`),
+  `satisfied`, `missing` and `missing_fixes`.
+- `api/v1/capability_graph.py` + `api/schemas/capability.py` — `GET
+  /api/v1/capability-graph`.
+- The **Promotion Wizard** (`services/promotion_service.py`) embeds the same
+  evaluated graph in `WizardState.capabilities`, so the wizard and the Dashboard
+  never disagree about "is this ready yet?".
+
+### i18n
+
+- `core/i18n.py` — one bilingual RU/EN catalog (`CATALOG`), `translate(key,
+  language)`, `normalize_language()`, `missing_keys()`. Backend-produced user
+  strings (capability labels, the invite-risk warning) come from here, so a single
+  wording change reaches every surface. UI preference `language` (default `ru`)
+  is stored via `services/ui_prefs.py` and exposed on `/api/v1/help/prefs`.
+
+### Consistency Auditor
+
+- `services/consistency_types.py` — shared `Finding` / `HealthArea` /
+  `ConsistencyReport` types (kept separate to avoid a circular import).
+- `services/consistency_checks.py` — **static** checks, run in CI and by the
+  runtime auditor: every ORM table has a migration; every frontend `api.*` call
+  maps to a real route; every scheduler job kind has a handler; every frontend
+  route points at a real view; providers come in real + fake pairs; the capability
+  registry is well-formed; i18n keys are complete; UI help topics exist; documented
+  API prefixes are known. Hard drift is an **error**; heuristic noise (unused
+  routers, orphan help topics) is **info** only.
+- `services/consistency.py` — the runtime `ConsistencyAuditor` (DB-backed checks:
+  settings, accounts, channels, bindings, queue, jobs) that folds static + runtime
+  findings into one report grouped into `configuration`, `integration`,
+  `security`, `documentation`, `ux`.
+- `api/v1/consistency.py` + `api/schemas/consistency.py` — `GET
+  /api/v1/consistency`; the Diagnostics page renders it as the **"Проверка
+  целостности"** panel, showing errors and warnings and hiding low-confidence info
+  behind a toggle.
+
+Design notes: **no false alarms** (a missing optional dependency is `needs_setup`
+or `unavailable`, never an error); **no secret content** (the report never
+contains tokens, keys, sessions, phones or database rows); **additive only** (the
+auditor changes no runtime behaviour — it only reports).
+
 ---
