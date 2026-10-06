@@ -41,6 +41,9 @@ features; no release. The v1.5.2 kill rate was *declarative* (hand-maintained
   `meta-audit-result` artifact has `result_source = "computed from runtime mutation
   executions"`, 25 mutations with boolean `detected`, 3 negative controls, kill rate
   80.0%. `vue-tsc` + `npm run build` clean locally.
+- **Docker smoke (unchanged, re-verified):** `/health` → `1.5.2`, SPA `200`,
+  `/api/v1/consistency` → `pass` (0 error, 0 warning, 6 info); image artifact scan
+  clean (no `.session`/TDATA/DB/model/`.env`; runtime dirs empty).
 
 ### Added
 - One extra mutation `U_help_reference` (25 total) and `KNOWN_GAP_IDS` — the 5
