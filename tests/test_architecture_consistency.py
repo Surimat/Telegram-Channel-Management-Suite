@@ -25,14 +25,17 @@ from backend.app.services.consistency_checks import (
     check_channel_registry_usage,
     check_documented_endpoints,
     check_frontend_route_view,
+    check_frontend_unwired_controls,
     check_help_catalog_usage,
     check_i18n_completeness,
     check_model_migration,
+    check_orphan_service_classes,
     check_provider_registry,
     check_scheduler_job_handlers,
+    check_unused_model_columns,
     check_write_only_settings,
 )
-from backend.app.services.consistency_types import SEVERITY_ERROR
+from backend.app.services.consistency_types import SEVERITY_ERROR, SEVERITY_INFO
 
 
 def _errors(findings):  # type: ignore[no-untyped-def]
@@ -78,6 +81,37 @@ def test_channel_aware_modules_use_the_registry() -> None:
     # Channel-aware code must use a canonical channel identity (gap Q).
     assert _errors(check_channel_registry_usage()) == []
     assert check_channel_registry_usage() == []
+
+
+def test_no_unused_model_columns() -> None:
+    # A DB column no module reads or writes is dead schema (gap N). Info-only:
+    # it is an orphan signal, never a build failure.
+    assert _errors(check_unused_model_columns()) == []
+    findings = check_unused_model_columns()
+    assert all(f.severity == SEVERITY_INFO for f in findings)
+
+
+def test_no_orphan_service_classes() -> None:
+    # A public service class no module references is dead code (gap O).
+    assert _errors(check_orphan_service_classes()) == []
+    findings = check_orphan_service_classes()
+    assert all(f.severity == SEVERITY_INFO for f in findings)
+
+
+def test_no_frontend_control_without_behaviour() -> None:
+    # A template handler with no defined function does nothing (gap P). This one
+    # is a user-visible defect, so it is a warning.
+    assert _errors(check_frontend_unwired_controls()) == []
+    assert check_frontend_unwired_controls() == []
+
+
+def test_new_checks_are_deterministic() -> None:
+    for check in (
+        check_unused_model_columns,
+        check_orphan_service_classes,
+        check_frontend_unwired_controls,
+    ):
+        assert {f.id for f in check()} == {f.id for f in check()}
 
 
 def test_auditor_never_swallows_a_failed_check(monkeypatch) -> None:  # type: ignore[no-untyped-def]

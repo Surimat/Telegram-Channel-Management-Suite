@@ -9,16 +9,17 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v1.5.3`.** It proves the **Consistency Auditor**
-("Проверка целостности") actually detects the breakages it is meant to catch: a
-**runtime mutation engine** injects seeded defects into an isolated copy of the
-source tree, runs the real auditor, and computes the kill rate from real
-executions (not a declared list). It closes the two remaining high-impact gaps
-with static detectors — a **write-only setting** (saved but never read) and a
-**channel-aware module that bypasses the Channel Registry** — and keeps two
-negative controls so a correct tree is never flagged. The kill rate is **88%
-(22/25 seeded defects), 0 critical or high misses, 0 false positives**; the 3
-remaining gaps are recorded honestly in `agent/META_AUDIT_RESULT.json`. It keeps the **Capability Graph** (one
+**Current stable release: `v1.5.4`.** It closes the **last three Consistency
+Auditor gaps** and raises the meta-audit kill rate to **100% (25/25 seeded
+defects) with 0 false positives**. Three new static detectors make dead code
+impossible to hide: an **unused DB field** (a column no module reads or writes),
+a **backend service without a caller** (a class no module references), and a
+**frontend control without behaviour** (an `@click` handler with no function).
+The **runtime mutation engine** still computes the kill rate from real
+executions, never from a declared list, and `KNOWN_GAP_IDS` is now empty. It adds
+no account registration and no Telegram-limit bypass. The v1.5.3 detectors remain:
+a **write-only setting** and a **channel-aware module that bypasses the Channel
+Registry**. It keeps the **Capability Graph** (one
 machine-readable description of what the product can do and what each capability
 requires, so every screen agrees on what is ready), a
 **localized message catalog** (RU/EN, single-sourced in `core/i18n.py`) and the
@@ -147,13 +148,17 @@ the language preference selectable in Settings) and the **Consistency Auditor**
 (cross-module drift detection surfaced in Diagnostics, with a failed check
 reported as an error instead of being silently skipped). It adds no account
 registration and no Telegram-limit bypass.
-**v1.5.3 (this release)** closes the last two high-impact **Consistency Auditor**
-gaps with static detectors — a setting that is **saved but never read** (M) and a
-**channel-aware module that bypasses the Channel Registry** (Q) — proven by the
+**v1.5.4 (this release)** closes the **last three Consistency Auditor gaps** with
+static detectors — an **unused DB field** (N), a **backend service without a
+caller** (O) and a **frontend control without behaviour** (P) — proven by the
 **runtime mutation engine**, which computes the kill rate from real executions:
-**88% (22/25 seeded defects), 0 critical or high misses, 0 false positives**. The
-remaining gaps are recorded in `agent/META_AUDIT_RESULT.json`. It adds no account
-registration and no Telegram-limit bypass.
+**100% (25/25 seeded defects), 0 critical or high misses, 0 false positives**.
+`KNOWN_GAP_IDS` is now empty. It adds no account registration and no
+Telegram-limit bypass.
+**v1.5.3** closed two high-impact **Consistency Auditor** gaps with static
+detectors — a setting that is **saved but never read** (M) and a **channel-aware
+module that bypasses the Channel Registry** (Q) — proven by the runtime mutation
+engine (88%, 22/25).
 **v1.5.2** proved the **Consistency Auditor** actually detects the breakages it is
 meant to catch ("Проверка проверяющего"): a meta-audit harness seeds defects into
 an isolated copy of the source tree and asserts each is reported, closing four

@@ -227,7 +227,8 @@ def test_dependency_on_unimplemented_capability_blocks_availability(
 
 
 # ---------------------------------------------------------------------------
-# 6. Closed gaps M (write-only setting) and Q (channel-aware module drift)
+# 6. Closed gaps M (write-only setting), N (unused DB field), O (service without
+#    caller), P (frontend control without behaviour) and Q (channel-aware drift)
 # ---------------------------------------------------------------------------
 def _mutation(mutation_id: str):
     return next(m for m in MUTATIONS if m.id == mutation_id)
@@ -257,42 +258,91 @@ def test_channel_aware_module_mutation_is_detected_by_execution(tmp_path: Path) 
     )
 
 
-def test_closed_gaps_are_not_listed_as_known_gaps() -> None:
-    assert "M_write_only_setting" not in KNOWN_GAP_IDS
-    assert "Q_channel_aware_module" not in KNOWN_GAP_IDS
-
-
-def test_removing_the_write_only_detector_turns_m_into_a_miss(tmp_path: Path) -> None:
-    """Dynamism: removing the detector must flip M back to MISS."""
+def test_unused_db_field_mutation_is_detected_by_execution(tmp_path: Path) -> None:
+    """N: a column no module reads or writes must be flagged."""
     from tests.meta_audit.engine import run_mutation
 
+    result = asyncio.run(run_mutation(_mutation("N_unused_db_field"), tmp_path))
+    assert result.error is None
+    assert result.detected is True, (
+        "an unused DB column is no longer detected: "
+        f"{[f['id'] for f in result.actual_findings]}"
+    )
+
+
+def test_service_without_caller_mutation_is_detected_by_execution(tmp_path: Path) -> None:
+    """O: a public service class no module references must be flagged."""
+    from tests.meta_audit.engine import run_mutation
+
+    result = asyncio.run(run_mutation(_mutation("O_service_without_caller"), tmp_path))
+    assert result.error is None
+    assert result.detected is True, (
+        "a backend service without a caller is no longer detected: "
+        f"{[f['id'] for f in result.actual_findings]}"
+    )
+
+
+def test_control_without_behavior_mutation_is_detected_by_execution(tmp_path: Path) -> None:
+    """P: a template handler with no defined function must be flagged."""
+    from tests.meta_audit.engine import run_mutation
+
+    result = asyncio.run(run_mutation(_mutation("P_control_without_behavior"), tmp_path))
+    assert result.error is None
+    assert result.detected is True, (
+        "a frontend control without behaviour is no longer detected: "
+        f"{[f['id'] for f in result.actual_findings]}"
+    )
+
+
+def test_all_original_gaps_are_closed() -> None:
+    assert len(KNOWN_GAP_IDS) == 0
+    for gap in (
+        "M_write_only_setting",
+        "N_unused_db_field",
+        "O_service_without_caller",
+        "P_control_without_behavior",
+        "Q_channel_aware_module",
+    ):
+        assert gap not in KNOWN_GAP_IDS
+
+
+@pytest.mark.parametrize(
+    ("mutation_id", "detector"),
+    [
+        ("M_write_only_setting", "check_write_only_settings"),
+        ("N_unused_db_field", "check_unused_model_columns"),
+        ("O_service_without_caller", "check_orphan_service_classes"),
+        ("P_control_without_behavior", "check_frontend_unwired_controls"),
+        ("Q_channel_aware_module", "check_channel_registry_usage"),
+    ],
+)
+def test_removing_a_gap_detector_turns_it_into_a_miss(
+    mutation_id: str, detector: str, tmp_path: Path
+) -> None:
+    """Dynamism: removing each gap detector must flip its mutation back to MISS."""
+    from tests.meta_audit.engine import run_mutation
+
+    before = asyncio.run(run_mutation(_mutation(mutation_id), tmp_path / "before"))
+    assert before.detected is True
     after = asyncio.run(
         run_mutation(
-            _mutation("M_write_only_setting"),
-            tmp_path,
-            disabled_checks=("check_write_only_settings",),
+            _mutation(mutation_id), tmp_path / "after", disabled_checks=(detector,)
         )
     )
     assert after.detected is False
 
 
-def test_removing_the_channel_registry_detector_turns_q_into_a_miss(tmp_path: Path) -> None:
-    """Dynamism: removing the detector must flip Q back to MISS."""
-    from tests.meta_audit.engine import run_mutation
-
-    after = asyncio.run(
-        run_mutation(
-            _mutation("Q_channel_aware_module"),
-            tmp_path,
-            disabled_checks=("check_channel_registry_usage",),
-        )
-    )
-    assert after.detected is False
-
-
-def test_committed_report_records_m_and_q_as_detected() -> None:
+def test_committed_report_records_all_gaps_as_detected() -> None:
     committed = json.loads(report_path().read_text(encoding="utf-8"))
     by_id = {m["id"]: m for m in committed["mutations"]}
-    assert by_id["M_write_only_setting"]["detected"] is True
-    assert by_id["Q_channel_aware_module"]["detected"] is True
+    for gap in (
+        "M_write_only_setting",
+        "N_unused_db_field",
+        "O_service_without_caller",
+        "P_control_without_behavior",
+        "Q_channel_aware_module",
+    ):
+        assert by_id[gap]["detected"] is True, gap
     assert committed["high_misses"] == 0
+    assert committed["missed"] == 0
+    assert committed["kill_rate"] == 100.0

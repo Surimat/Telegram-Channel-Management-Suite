@@ -66,6 +66,24 @@ PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_R
 
 ## 6. Release verification (fill in per release)
 
+### v1.5.4 (auditor gaps N + O + P closed, 2026-10-06)
+
+| Gate | v1.5.4 | Notes |
+| --- | --- | --- |
+| Version consistency (`1.5.4` everywhere) | ✅ | app / pyproject / frontend / lock (guarded by `test_repo_version_is_consistent`) |
+| Meta-audit engine (runtime) | ✅ | kill rate **computed from executions** — 25 total, 25 detected, 0 missed, **100.0%**, 0 false positives, 0 critical/high (D-102/D-104) |
+| Gap N closed | ✅ | `check_unused_model_columns` — an ORM column no module reads/writes is `db.unused_column.<module>.<Class>.<name>` (info) |
+| Gap O closed | ✅ | `check_orphan_service_classes` — a public service class no module references is `dead.service.<module>.<Class>` (info) |
+| Gap P closed | ✅ | `check_frontend_unwired_controls` — a Vue handler with no defined function is `frontend.control_unwired.<name>` (warning) |
+| Precision controls | ✅ | `NC6_used_db_column`, `NC7_referenced_service`, `NC8_wired_frontend_control` (no false positives) |
+| `KNOWN_GAP_IDS` empty | ✅ | every recorded auditor gap is closed and detected at runtime |
+| Tests (`pytest` / `ruff`) | ✅ | 800 passed; ruff clean |
+| Frontend build | ✅ | `vue-tsc` + `npm run build` clean |
+| CI job `meta-audit` | ✅ | engine + tests + leak assertion; uploads `agent/META_AUDIT_RESULT.json` (no hardcoded percentage) |
+| Git merge (`develop → main`) | ✅ | reviewed PR (`develop → main`) |
+| Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v1.5.4` → Release workflow (D-060) |
+| Artifact scan | ✅ | no `.session`/TDATA/DB/model in the ZIP; runtime dirs empty |
+
 ### v1.5.3 (auditor gaps M + Q closed, 2026-10-06)
 
 | Gate | v1.5.3 | Notes |
@@ -78,7 +96,7 @@ PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_R
 | Runtime allow-list honest | ✅ | `_known_setting_keys()` drops `sync_enabled`/`owner_*` (no module consumes them) |
 | Tests (`pytest` / `ruff`) | ✅ | 787 passed; ruff clean |
 | Frontend build | ✅ | `vue-tsc` + `npm run build` clean |
-| Docker smoke | ✅ | `/health` → `1.5.2` on the pre-release tree, SPA `200`, `/api/v1/consistency` → `pass` (0 error, 0 warning, 6 info) |
+| Docker smoke | ✅ | `/health` → `1.5.3`, SPA `200`, `/api/v1/consistency` → `pass` (0 error, 0 warning, 6 info); image runtime dirs empty, no `.session`/DB/model |
 | CI job `meta-audit` | ✅ | engine + tests + leak assertion; uploads `agent/META_AUDIT_RESULT.json` (no hardcoded percentage) |
 | Git merge (`develop → main`) | ✅ | reviewed PR (`develop → main`) |
 | Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v1.5.3` → Release workflow (D-060) |
