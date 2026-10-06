@@ -30,7 +30,7 @@ Windows portable ZIP (24 803 303 bytes, sha256 `f74369aa…5192`) + `.sha256`.
 **`main` HEAD = `c072c8d`; `develop` = `c072c8d`** (re-synced after the release
 merge). Latest tag `v1.5.3`; latest release v1.5.3.
 Version strings read **1.5.3**; `ruff` clean; frontend `vue-tsc` + `npm run build`
-clean; Docker smoke clean (`/health` → `1.5.2` on the pre-release tree, SPA `200`,
+clean; Docker smoke clean (`/health` → `1.5.3`, SPA `200`,
 `/api/v1/consistency` → `pass`, 0 error / 0 warning / 6 info). Release ZIP scan:
 3090 entries, runtime dirs empty, no `.session`/TDATA/DB/model.
 Previous: **v1.5.1 forensic-audit fixes are released** — reviewed `develop → main`

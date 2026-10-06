@@ -78,7 +78,7 @@ PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_R
 | Runtime allow-list honest | ✅ | `_known_setting_keys()` drops `sync_enabled`/`owner_*` (no module consumes them) |
 | Tests (`pytest` / `ruff`) | ✅ | 787 passed; ruff clean |
 | Frontend build | ✅ | `vue-tsc` + `npm run build` clean |
-| Docker smoke | ✅ | `/health` → `1.5.2` on the pre-release tree, SPA `200`, `/api/v1/consistency` → `pass` (0 error, 0 warning, 6 info) |
+| Docker smoke | ✅ | `/health` → `1.5.3`, SPA `200`, `/api/v1/consistency` → `pass` (0 error, 0 warning, 6 info); image runtime dirs empty, no `.session`/DB/model |
 | CI job `meta-audit` | ✅ | engine + tests + leak assertion; uploads `agent/META_AUDIT_RESULT.json` (no hardcoded percentage) |
 | Git merge (`develop → main`) | ✅ | reviewed PR (`develop → main`) |
 | Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v1.5.3` → Release workflow (D-060) |
