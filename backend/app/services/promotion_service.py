@@ -98,6 +98,7 @@ PRESETS: dict[str, dict[str, object]] = {
             "invites",
             "analytics",
             "ai",
+            "config_sync",
         ],
         "requires_session": True,
     },
@@ -114,6 +115,7 @@ PRESETS: dict[str, dict[str, object]] = {
             "invites",
             "analytics",
             "ai",
+            "config_sync",
             "backup",
             "update",
         ],
@@ -286,6 +288,7 @@ class PromotionService:
             "invites": self._step_invites,
             "analytics": self._step_analytics,
             "ai": self._step_ai,
+            "config_sync": self._step_config_sync,
             "backup": self._step_backup,
             "update": self._step_update,
         }
@@ -465,6 +468,34 @@ class PromotionService:
             status_title=STEP_STATUS_TITLES[STEP_DONE if done else STEP_OPTIONAL],
             how_to_fix="" if done else "Можно пропустить: обычные правила работают без ИИ.",
             route="/ai",
+        )
+
+    async def _step_config_sync(self, *, has_session: bool) -> WizardStep:
+        from backend.app.services.config_sync_service import ConfigSyncService
+
+        status = await ConfigSyncService(self.session).status()
+        done = status.state == "available"
+        if done:
+            status_value = STEP_DONE
+        elif status.owner_ready:
+            status_value = STEP_OPTIONAL
+        else:
+            status_value = STEP_TODO
+        return WizardStep(
+            key="config_sync",
+            title="Настроить перенос настроек (необязательно)",
+            description=(
+                "Профиль владельца и синхронизация перенесут настройки на новый "
+                "компьютер. Файлы сессий и база данных не копируются."
+            ),
+            status=status_value,
+            status_title=STEP_STATUS_TITLES[status_value],
+            how_to_fix=(
+                ""
+                if done
+                else "Раздел «Владелец»: создайте профиль и подключите синхронизацию."
+            ),
+            route="/owner",
         )
 
     async def _step_backup(self, *, has_session: bool) -> WizardStep:

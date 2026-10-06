@@ -27,6 +27,7 @@ from backend.app.api.v1 import (
     mesh,
     miniapp,
     notifications,
+    owner,
     permissions,
     product,
     proxies,
@@ -43,6 +44,7 @@ api_router.include_router(help.router)
 api_router.include_router(diagnostics.router)
 api_router.include_router(consistency.router)
 api_router.include_router(capability_graph.router)
+api_router.include_router(owner.router)
 api_router.include_router(settings.router)
 api_router.include_router(bots.router)
 api_router.include_router(bot_factory.router)

@@ -21,6 +21,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/diagnostics', name: 'diagnostics', component: () => import('@/views/DiagnosticsView.vue') },
   { path: '/backup', name: 'backup', component: () => import('@/views/BackupView.vue') },
   { path: '/settings', name: 'settings', component: () => import('@/views/SettingsView.vue') },
+  { path: '/owner', name: 'owner', component: () => import('@/views/OwnerView.vue') },
   { path: '/logs', name: 'logs', component: () => import('@/views/LogsView.vue') },
   { path: '/queue', name: 'queue', component: () => import('@/views/QueueView.vue') },
   { path: '/:pathMatch(.*)*', name: 'notfound', component: () => import('@/views/NotFoundView.vue') },

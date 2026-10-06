@@ -557,3 +557,26 @@ Wording rules: never claim a right or a capability without a real check; a missi
 optional dependency is shown as "требует настройки" or "недоступно", never as an
 error; and a capability that needs a session is never presented as blocked — it is
 shown with what still works without one.
+
+## 11f. Владелец / Owner page (`OwnerView.vue`, `/owner`, v1.6)
+
+One RU-first page for the local owner profile and configuration sync:
+
+- **Профиль владельца** — shows whether a profile exists, whether protection is
+  on, the method (пароль / PIN) and the last login. Buttons: turn protection
+  on/off, sign out.
+- **Создать профиль** (no profile yet) — password + repeat, method, optional name
+  and a non-secret recovery reminder. The page states plainly that the password is
+  stored only as a one-way fingerprint and cannot be recovered.
+- **Вход владельца** (profile exists, not signed in) — the panel asks for the
+  password before the rest of the API answers.
+- **Сменить пароль** (signed in).
+- **Перенос настроек** (signed in) — choose the provider (Локальная папка /
+  Google Drive), connect Google, then upload / preview / apply the encrypted
+  bundle with the owner password. It shows the state badge, the last cloud copy
+  and its device, and reports a conflict explicitly. The page states that the
+  database, sessions and TDATA are never copied and that secrets are excluded.
+
+A `Владелец` link sits at the bottom of the sidebar; the page is reached from the
+Promotion Wizard step "Настроить перенос настроек (необязательно)". Help topics
+`owner_auth` and `config_sync` explain both in beginner language.

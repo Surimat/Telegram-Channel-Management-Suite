@@ -66,6 +66,20 @@ PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_R
 
 ## 6. Release verification (fill in per release)
 
+### v1.6.0 (Owner Auth + Config Sync, 2026-10-07)
+
+| Gate | v1.6.0 | Notes |
+| --- | --- | --- |
+| Version consistency (`1.6.0` everywhere) | ✅ | app / pyproject / frontend / lock (guarded by `test_repo_version_is_consistent`) |
+| Owner Auth | ✅ | local profile, PBKDF2 verifier, signed token, default-on middleware, local-first (D-105) |
+| Config Sync | ✅ | versioned AES-256-GCM bundle, secret denylist, conflict detection, local + Google Drive app-data (D-106) |
+| No secret in bundle | ✅ | `FORBIDDEN_KEY_MARKERS` + `scan_for_secrets`; sessions/TDATA/DB never synced |
+| Consistency Auditor | ✅ | section `5b-2` guards providers + bundle anchors |
+| Meta-audit engine (runtime) | ✅ | 25 total, 25 detected, 0 missed, **100.0%**, 0 false positives, 0 critical/high |
+| Tests (`pytest` / `ruff`) | ✅ | 822 passed; ruff clean |
+| Frontend build | ✅ | `vue-tsc` + `npm run build` clean |
+| Artifact scan | ✅ | no `.session`/TDATA/DB/model in the ZIP; runtime dirs empty |
+
 ### v1.5.4 (auditor gaps N + O + P closed, 2026-10-06)
 
 | Gate | v1.5.4 | Notes |

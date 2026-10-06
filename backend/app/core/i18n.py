@@ -54,6 +54,16 @@ MESSAGES: dict[str, dict[str, str]] = {
         "ru": "Установите ffmpeg для работы с медиа.",
         "en": "Install ffmpeg to work with media.",
     },
+    "cap.owner_auth": {"ru": "Владелец", "en": "Owner"},
+    "cap.owner_auth.fix": {
+        "ru": "Создайте профиль владельца в разделе «Владелец».",
+        "en": "Create the owner profile in the Owner section.",
+    },
+    "cap.google_drive": {"ru": "Google Drive", "en": "Google Drive"},
+    "cap.google_drive.fix": {
+        "ru": "Подключите Google Drive в разделе «Владелец» → «Синхронизация».",
+        "en": "Connect Google Drive in Owner → Configuration Sync.",
+    },
     "cap.state.available": {"ru": "Доступно", "en": "Available"},
     "cap.state.partial": {"ru": "Частично доступно", "en": "Partially available"},
     "cap.state.needs_setup": {"ru": "Требуется настройка", "en": "Needs setup"},
@@ -92,6 +102,68 @@ MESSAGES: dict[str, dict[str, str]] = {
         "вашим Telegram-аккаунтом и работает полностью офлайн.",
         "en": "This is a local identity that protects your configuration. It is not "
         "linked to your Telegram account and works fully offline.",
+    },
+    "owner.secret_too_short": {
+        "ru": "Пароль слишком короткий.",
+        "en": "The password is too short.",
+    },
+    "owner.logout": {"ru": "Владелец вышел.", "en": "The owner has logged out."},
+    "owner.auth_required": {
+        "ru": "Для этого действия нужно войти как владелец.",
+        "en": "You must sign in as the owner to do this.",
+    },
+    "owner.disabled_note": {
+        "ru": "Пока защита выключена, панель открыта без входа. Включите защиту, "
+        "если компьютером пользуются другие.",
+        "en": "While protection is off the panel is open without a login. Turn it on "
+        "if other people use this computer.",
+    },
+    "owner.google_separate": {
+        "ru": "Пароль владельца и вход в Google — разные вещи. Google нужен только для "
+        "синхронизации настроек.",
+        "en": "The owner password and the Google sign-in are separate. Google is used "
+        "only to sync settings.",
+    },
+    "owner.pin_note": {
+        "ru": "PIN-код короче пароля и подходит для быстрого входа на личном ПК.",
+        "en": "A PIN is shorter than a password and is convenient on a personal PC.",
+    },
+
+    # --- Config sync (v1.6) -------------------------------------------------
+    "sync.state.unavailable": {"ru": "Недоступно", "en": "Unavailable"},
+    "sync.state.needs_setup": {"ru": "Требуется настройка", "en": "Needs setup"},
+    "sync.state.available": {"ru": "Доступно", "en": "Available"},
+    "sync.state.error": {"ru": "Ошибка", "en": "Error"},
+    "sync.provider.none": {"ru": "Не выбран", "en": "Not selected"},
+    "sync.provider.local": {"ru": "Локальная папка", "en": "Local folder"},
+    "sync.provider.google_drive": {"ru": "Google Drive", "en": "Google Drive"},
+    "sync.uploaded": {"ru": "Конфигурация выгружена.", "en": "Configuration uploaded."},
+    "sync.applied": {"ru": "Конфигурация восстановлена.", "en": "Configuration restored."},
+    "sync.no_bundle": {
+        "ru": "В облаке нет файла конфигурации.",
+        "en": "There is no configuration bundle in the cloud.",
+    },
+    "sync.upload": {"ru": "Выгрузить конфигурацию", "en": "Upload configuration"},
+    "sync.download": {"ru": "Скачать конфигурацию", "en": "Download configuration"},
+    "sync.sync_now": {"ru": "Синхронизировать", "en": "Sync now"},
+    "sync.connect_google": {"ru": "Подключить Google Drive", "en": "Connect Google Drive"},
+    "sync.disconnect": {"ru": "Отключить Google Drive", "en": "Disconnect Google Drive"},
+    "sync.keep_local": {"ru": "Оставить локальные", "en": "Keep local"},
+    "sync.keep_cloud": {"ru": "Оставить облачные", "en": "Keep cloud"},
+    "sync.cancel": {"ru": "Отмена", "en": "Cancel"},
+    "sync.owner_required": {
+        "ru": "Сначала создайте профиль владельца: он нужен для шифрования.",
+        "en": "Create the owner profile first: it is needed for encryption.",
+    },
+    "sync.no_live_db": {
+        "ru": "Синхронизируется только конфигурация. Файлы сессий Telegram, TDATA и "
+        "сама база данных не копируются.",
+        "en": "Only configuration is synced. Telegram session files, TDATA and the "
+        "database itself are never copied.",
+    },
+    "sync.appdata_scope": {
+        "ru": "Приложение получает доступ только к своей скрытой папке в Google Drive.",
+        "en": "The app only gets access to its own hidden folder in Google Drive.",
     },
 
     # --- Config sync --------------------------------------------------------

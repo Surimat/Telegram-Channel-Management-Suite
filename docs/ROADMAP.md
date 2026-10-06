@@ -244,6 +244,14 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ## Release
 
+- **v1.6.0 (2026-10-07):** an **Owner Auth + Config Sync** vertical slice (D-105/D-106).
+  A **local owner profile** (password or PIN) protects the panel with a one-way
+  PBKDF2 verifier and an HMAC-signed session token (`X-Owner-Token`; default-on
+  middleware, local-first — open until a profile enables protection). A
+  **versioned encrypted configuration bundle** (canonical JSON → AES-256-GCM, secret
+  denylist) moves settings to a new computer via a local folder or Google Drive
+  (app-data scope) — never the DB, sessions or TDATA; conflicts are reported, not
+  overwritten. Additive only; no account registration and no Telegram-limit bypass.
 - **v1.5.4 (2026-10-06):** the last three **Consistency Auditor** coverage gaps
   (N, O, P) are closed with pure static checks — an unused ORM column, a public
   service class no module references, and a Vue control whose handler is undefined

@@ -69,6 +69,7 @@ onMounted(() => {
         <RouterLink class="nav-item" to="/notifications">Уведомления</RouterLink>
         <RouterLink class="nav-item" to="/logs">Логи</RouterLink>
         <RouterLink class="nav-item" to="/settings">Настройки</RouterLink>
+        <RouterLink class="nav-item" to="/owner">Владелец</RouterLink>
       </nav>
     </aside>
     <main class="content">

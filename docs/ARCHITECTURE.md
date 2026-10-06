@@ -883,3 +883,51 @@ contains tokens, keys, sessions, phones or database rows); **additive only** (th
 auditor changes no runtime behaviour — it only reports).
 
 ---
+
+## 23. Owner Auth + Config Sync (v1.6.0, D-105/D-106)
+
+v1.6 adds a **local owner identity** that protects the panel and a **versioned
+encrypted configuration bundle** that moves the owner's settings between their own
+computers. Neither touches Telegram accounts, sessions or the database.
+
+### Owner Auth (D-105)
+
+- `core/owner_security.py` — stdlib-only crypto. `hash_secret()` /
+  `verify_secret()` produce and check a slow **PBKDF2-HMAC-SHA256 verifier**
+  (200k iterations); `derive_bundle_key()` derives a 32-byte **bundle key** from
+  the password plus a non-secret per-owner `sync_salt`. The verifier is stored;
+  the password and the derived key are **never** stored, logged or returned.
+- `db/models/owner.py` + `db/repositories/owners.py` — a single `OwnerIdentity`
+  row (method, verifier, salt, enabled, rate-limit counters). `OwnerRepository`
+  and `ConfigSyncRepository` are the only access paths.
+- `services/owner_auth_service.py` — create/login/logout/lock/unlock/change/delete,
+  rate limiting (5 failures → 15-minute lock), and `derive_key()` (recomputes the
+  bundle key only after a successful check).
+- `api/owner_guard.py` — `OwnerGuardMiddleware` is a **middleware**, so protection
+  is default-on for every `/api/` path outside a small allowlist; a new router
+  cannot be added unguarded. A login issues an **HMAC-signed opaque token**
+  (`X-Owner-Token`). Local-first: no profile (or protection off) → pass-through.
+- `api/v1/owner.py` + `api/schemas/owner.py` — `/api/v1/owner/*`.
+
+### Config Sync (D-106)
+
+- `services/config_bundle.py` — a **versioned** `ConfigBundle` document,
+  serialized to canonical JSON and encrypted with **AES-256-GCM** (the schema
+  version is authenticated as associated data). `FORBIDDEN_KEY_MARKERS` +
+  `sanitize_settings()` + `scan_for_secrets()` keep secrets out.
+- `providers/config_sync_base.py` — the `ConfigSyncProvider` protocol +
+  `ConfigSyncError`; `config_sync_local.py` (folder) and `config_sync_gdrive.py`
+  (owner's Drive **app-data scope**, no bundled OAuth secret) implement it. The
+  registry builds one from `SyncProviderKind`.
+- `services/config_sync_service.py` — collects configuration, encrypts and hands
+  the ciphertext to the provider, detects **conflicts** (local vs cloud revision)
+  and never overwrites silently; restore is preview-first.
+- `db/models/config_sync.py` — non-secret bookkeeping (provider, revisions,
+  device, sealed OAuth tokens).
+- Consistency Auditor section **5b-2** fails CI if a provider kind has no module,
+  the registry is incomplete, or the bundle's secret anchors disappear.
+
+Design notes: **local-first** (nothing is locked until the owner opts in);
+**secret-free** (no password, token, session, TDATA or DB row leaves the machine);
+**honest** (conflicts are reported, not resolved blindly); **additive** (an
+existing v1.5 database upgrades in place).

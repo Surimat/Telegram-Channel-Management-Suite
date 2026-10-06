@@ -393,6 +393,13 @@ restrictions.
 | Editorial room stays «Нужны права» | bot is not a member or lacks «Отправлять сообщения» | Add the bot to the forum group and grant the shown right, then press «Проверить права и создать темы» again |
 | Editorial card buttons do nothing | the pressed action is not allowed for your role | Roles are by numeric Telegram id; ask the owner to grant your id a role |
 | Editorial move says «Конфликт версий» | the card changed since you loaded the board | Reload the board and retry; the queue never loses an edit |
+| Panel asks for the owner password | an owner profile with protection on exists | Enter the password in **Владелец**; the signed token is kept for the browser session |
+| Forgot the owner password | the verifier is one-way — the password cannot be recovered | Delete the owner profile in **Владелец** and create a new one (settings stay; the old sync bundle becomes unreadable) |
+| Owner login locked | 5 wrong attempts in a row | Wait 15 minutes, or restart the app to clear the lock |
+| Config sync says «Требуется настройка» | no provider connected, or Google client id not set | Choose **Локальная папка**, or register a Google OAuth client id and connect Drive |
+| Config sync says «Конфликт версий» | the cloud bundle is newer than local | Preview the cloud copy and apply it, or upload your local settings to overwrite deliberately |
+| Config sync cannot decrypt | wrong owner password or a damaged bundle | Use the password that was current when the bundle was uploaded; re-upload if needed |
+| Google Drive not offered | no OAuth client id/secret configured | Set the Google OAuth values in the app settings; the app ships no secret |
 
 ## Recovering the project after a new chat/session
 

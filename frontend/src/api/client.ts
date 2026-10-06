@@ -18,9 +18,12 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const token = getOwnerToken()
+  if (token) headers['X-Owner-Token'] = token
   const response = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' },
     ...init,
+    headers: { ...headers, ...(init?.headers as Record<string, string> | undefined) },
   })
   const text = await response.text()
   const data = text ? JSON.parse(text) : null
@@ -1914,6 +1917,98 @@ export interface CapabilityState {
   implemented: boolean
 }
 
+// Owner Auth + Config Sync (v1.6)
+export interface OwnerStatus {
+  exists: boolean
+  enabled: boolean
+  locked: boolean
+  method: string
+  method_title: string
+  display_name: string
+  last_login_at: string
+  failed_attempts: number
+  locked_until: string
+  recovery_hint: string
+  auth_required: boolean
+  local_only_note: string
+}
+
+export interface OwnerToken {
+  token: string
+  status: OwnerStatus
+}
+
+export interface SyncStatus {
+  state: string
+  state_label: string
+  provider: string
+  provider_label: string
+  connected: boolean
+  enabled: boolean
+  owner_ready: boolean
+  local_revision: number
+  cloud_revision: number
+  device_id: string
+  device_name: string
+  cloud_device: string
+  cloud_updated_at: string
+  last_sync_at: string
+  last_status: string
+  message: string
+  needs_reconnect: boolean
+  conflict: boolean
+  no_live_db_note: string
+  appdata_scope_note: string
+}
+
+export interface SyncRestorePreview {
+  revision: number
+  device_id: string
+  device_name: string
+  updated_at: string
+  settings: Record<string, unknown>
+  ui: Record<string, unknown>
+  bot_count: number
+  channel_count: number
+  differing: string[]
+}
+
+export interface SyncConflict {
+  local_revision: number
+  cloud_revision: number
+  cloud_device: string
+  cloud_updated_at: string
+  local_device: string
+  detected: boolean
+}
+
+export interface SyncGoogleAuth {
+  configured: boolean
+  authorization_url: string
+  state: string
+}
+
+// The owner token is a signed, opaque session value — never a password. It is
+// kept in sessionStorage so closing the tab ends the browser session.
+const OWNER_TOKEN_KEY = 'tcms.owner.token'
+
+export function getOwnerToken(): string {
+  try {
+    return sessionStorage.getItem(OWNER_TOKEN_KEY) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+export function setOwnerToken(token: string): void {
+  try {
+    if (token) sessionStorage.setItem(OWNER_TOKEN_KEY, token)
+    else sessionStorage.removeItem(OWNER_TOKEN_KEY)
+  } catch {
+    // Storage may be unavailable; the header simply stays empty.
+  }
+}
+
 export const api = {
   health: () => request<Health>('/health'),
   healthDeep: () => request<Record<string, unknown>>('/health/deep'),
@@ -2814,4 +2909,65 @@ export const api = {
 
   // Capability graph (v1.5)
   capabilityGraph: () => request<CapabilityState[]>('/api/v1/capability-graph'),
+
+  // Owner Auth (v1.6)
+  ownerStatus: () => request<OwnerStatus>('/api/v1/owner/status'),
+  ownerSetup: (payload: {
+    secret: string
+    method?: string
+    display_name?: string
+    recovery_hint?: string
+  }) =>
+    request<OwnerToken>('/api/v1/owner/setup', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  ownerLogin: (secret: string) =>
+    request<OwnerToken>('/api/v1/owner/login', {
+      method: 'POST',
+      body: JSON.stringify({ secret }),
+    }),
+  ownerLogout: () => request<OwnerStatus>('/api/v1/owner/logout', { method: 'POST' }),
+  ownerSetProtection: (enabled: boolean) =>
+    request<OwnerStatus>('/api/v1/owner/protection', {
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
+    }),
+  ownerChangePassword: (current: string, newSecret: string) =>
+    request<OwnerStatus>('/api/v1/owner/password', {
+      method: 'POST',
+      body: JSON.stringify({ current, new_secret: newSecret }),
+    }),
+
+  // Config Sync (v1.6)
+  syncStatus: () => request<SyncStatus>('/api/v1/owner/sync/status'),
+  syncConfigure: (provider: string, enabled = true) =>
+    request<SyncStatus>('/api/v1/owner/sync/configure', {
+      method: 'POST',
+      body: JSON.stringify({ provider, enabled }),
+    }),
+  syncUpload: (secret: string) =>
+    request<SyncStatus>('/api/v1/owner/sync/upload', {
+      method: 'POST',
+      body: JSON.stringify({ secret }),
+    }),
+  syncDownloadPreview: (secret: string) =>
+    request<SyncRestorePreview>('/api/v1/owner/sync/download/preview', {
+      method: 'POST',
+      body: JSON.stringify({ secret }),
+    }),
+  syncDownloadApply: (secret: string, keepLocal = false) =>
+    request<SyncStatus>('/api/v1/owner/sync/download/apply', {
+      method: 'POST',
+      body: JSON.stringify({ secret, keep_local: keepLocal }),
+    }),
+  syncConflict: () => request<SyncConflict>('/api/v1/owner/sync/conflict'),
+  syncDisconnect: () =>
+    request<SyncStatus>('/api/v1/owner/sync/disconnect', { method: 'POST' }),
+  syncGoogleAuth: () => request<SyncGoogleAuth>('/api/v1/owner/sync/google/auth'),
+  syncGoogleConnect: (accessToken: string, refreshToken = '') =>
+    request<SyncStatus>('/api/v1/owner/sync/google/connect', {
+      method: 'POST',
+      body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken }),
+    }),
 }

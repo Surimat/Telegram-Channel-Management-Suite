@@ -524,6 +524,84 @@ class SystemService:
             "Откройте его из меню управляющего бота в Telegram.",
         )
 
+    async def owner_auth_check(self, session: AsyncSession) -> Check:
+        """Owner protection status (v1.6). Never fails the wizard."""
+        from backend.app.services.owner_auth_service import OwnerAuthService
+
+        try:
+            status = await OwnerAuthService(session).status()
+        except Exception:  # pragma: no cover - defensive
+            return Check(
+                "owner_auth",
+                "Владелец",
+                STATUS_UNKNOWN,
+                "Не удалось проверить профиль владельца.",
+                "Откройте раздел «Владелец» и проверьте состояние.",
+            )
+        if not status.exists:
+            return Check(
+                "owner_auth",
+                "Владелец",
+                STATUS_WARNING,
+                "Профиль владельца не создан — панель открыта без входа.",
+                "Создайте профиль владельца, чтобы защитить настройки.",
+            )
+        if not status.enabled:
+            return Check(
+                "owner_auth",
+                "Владелец",
+                STATUS_WARNING,
+                "Защита приложения выключена.",
+                "Включите защиту, если компьютером пользуются другие.",
+            )
+        return Check(
+            "owner_auth",
+            "Владелец",
+            STATUS_OK,
+            "Профиль владельца создан, защита включена.",
+        )
+
+    async def config_sync_check(self, session: AsyncSession) -> Check:
+        """Config-sync setup check driven by the real capability state (v1.6).
+
+        Reports ``ok`` only when a provider is actually connected; otherwise
+        ``warning`` (optional feature) or ``error`` (needs reconnect).
+        """
+        from backend.app.services.config_sync_service import ConfigSyncService
+
+        try:
+            status = await ConfigSyncService(session).status()
+        except Exception:  # pragma: no cover - defensive
+            return Check(
+                "config_sync",
+                "Синхронизация конфигурации",
+                STATUS_UNKNOWN,
+                "Не удалось проверить состояние синхронизации.",
+                "Откройте раздел «Владелец» → «Синхронизация».",
+            )
+        if status.state == "available":
+            return Check(
+                "config_sync",
+                "Синхронизация конфигурации",
+                STATUS_OK,
+                f"Провайдер подключён: {status.provider_label}.",
+            )
+        if status.state == "error":
+            return Check(
+                "config_sync",
+                "Синхронизация конфигурации",
+                STATUS_ERROR,
+                status.message or "Провайдер синхронизации требует повторного входа.",
+                "Переподключите Google Drive.",
+            )
+        return Check(
+            "config_sync",
+            "Синхронизация конфигурации",
+            STATUS_WARNING,
+            "Синхронизация не настроена — это необязательно.",
+            "Подключите Google Drive или локальную папку в разделе «Владелец».",
+        )
+
     async def reactions_check(self, session: AsyncSession) -> Check:
         """Report the Reaction Manager state in plain language (PHASE 3)."""
         from backend.app.services.reaction_service import ReactionService
@@ -607,6 +685,8 @@ class SystemService:
         if session is not None:
             checks.append(await self.manager_bot_db_check(session))
             checks.append(await self.managed_bots_check(session))
+            checks.append(await self.owner_auth_check(session))
+            checks.append(await self.config_sync_check(session))
             checks.append(await self.reactions_check(session))
             checks.append(await self.accounts_check(session))
             checks.append(await self.audience_check(session))

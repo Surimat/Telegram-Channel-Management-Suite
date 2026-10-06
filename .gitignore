@@ -112,6 +112,11 @@ runtime/
 Telegram-Channel-Management-Suite-Windows-Portable-*.zip
 Telegram-Channel-Management-Suite-Windows-Portable-*.zip.sha256
 
+# --- Config-sync bundles (v1.6) ---
+# Encrypted configuration exports must never be committed.
+sync/
+*.bundle
+
 # --- AI models (large binaries) ---
 # Only ignore a top-level models/ directory, never source packages.
 /models/

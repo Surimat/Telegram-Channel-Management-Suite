@@ -846,6 +846,45 @@ the capability graph; the beginner help catalog stays RU-first.
 
 ---
 
+## Owner Auth + Config Sync (v1.6)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/owner/status` | owner profile state (exists/enabled/locked, method, last login) — no secret |
+| POST | `/api/v1/owner/setup` | create the owner profile (password/PIN); returns a signed token + status |
+| POST | `/api/v1/owner/login` | log in; returns a signed token + status |
+| POST | `/api/v1/owner/logout` | log out |
+| POST | `/api/v1/owner/lock` / `/unlock` | lock / unlock the app |
+| POST | `/api/v1/owner/protection` | turn app protection on/off |
+| POST | `/api/v1/owner/password` | change the owner password |
+| DELETE | `/api/v1/owner/profile` | delete the owner profile (204) |
+| GET | `/api/v1/owner/sync/status` | config-sync state (provider, revisions, conflict) — no token |
+| POST | `/api/v1/owner/sync/configure` | choose the sync provider (`local` / `google_drive`) |
+| POST | `/api/v1/owner/sync/upload` | encrypt the local config into a bundle and hand it to the provider |
+| POST | `/api/v1/owner/sync/download/preview` | decrypt a cloud bundle and show what differs (preview-first) |
+| POST | `/api/v1/owner/sync/download/apply` | apply a cloud bundle |
+| GET | `/api/v1/owner/sync/conflict` | local-vs-cloud revision conflict |
+| POST | `/api/v1/owner/sync/disconnect` | disconnect the provider |
+| GET | `/api/v1/owner/sync/google/auth` | Google consent URL for the installed-app loopback flow |
+| POST | `/api/v1/owner/sync/google/connect` | hand the OAuth tokens to the app (stored sealed) |
+
+While no owner profile exists — or protection is off — every endpoint stays open
+exactly as before (local-first). Once protection is on, all `/api/` calls outside a
+small allowlist (health, docs, owner status/setup/login, system status) require the
+signed `X-Owner-Token` header. No endpoint ever returns a password, verifier, token
+value or bundle plaintext.
+
+The config bundle is **canonical JSON → AES-256-GCM**, with the schema version
+authenticated as associated data. It carries settings, UI preferences and
+provider/scheduler/backup/notification configuration; a denylist plus
+`scan_for_secrets` excludes anything that looks secret. Telegram sessions, TDATA
+and the SQLite database are **never** synced.
+
+As of v1.6 the `config_sync` capability is **implemented** (requires owner auth +
+Google Drive; minimal: owner auth).
+
+---
+
 ## Versioning
 
 The API is versioned (`/api/v1`). Breaking changes go to a new version path.

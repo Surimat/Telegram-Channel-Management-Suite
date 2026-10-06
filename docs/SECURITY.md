@@ -391,3 +391,28 @@ The Diagnostics report (`GET /api/v1/diagnostics/report`, D-061) is explicitly a
 - [ ] Mass operations keep their confirmation + limit guards.
 - [ ] Telegram limit handling (FloodWait/privacy/admin) still respected.
 - [ ] Any new diagnostics field passes the redaction scan (D-061).
+
+## 7i. Owner Auth + Config Sync (v1.6, D-105/D-106)
+
+- **Passwords are never stored.** Only a slow PBKDF2-HMAC-SHA256 verifier
+  (200k iterations) is persisted; `core/owner_security.py` is stdlib-only. The
+  config-bundle key is derived from the password + a non-secret salt and is
+  **never** stored, logged or returned.
+- **Tokens are opaque and signed.** A login issues an HMAC-signed `X-Owner-Token`
+  (never a password, never reversible to one). `OwnerGuardMiddleware` is default-on
+  for every `/api/` path outside a small allowlist, so a new router cannot be added
+  unguarded. It is local-first: no profile (or protection off) → pass-through.
+- **Rate limiting.** 5 consecutive failures lock login for 15 minutes.
+- **The config bundle never carries secrets.** `FORBIDDEN_KEY_MARKERS` (password,
+  token, api_hash, session, tdata, auth_key, verifier, …) plus `scan_for_secrets`
+  exclude them; the scan runs again before an export. Telegram sessions, TDATA and
+  the SQLite database are never synced — only an encrypted, versioned settings
+  document (AES-256-GCM; schema version authenticated as associated data).
+- **Google Drive is least-privilege.** Only the app-data scope is requested, and
+  the app ships no OAuth client secret — the owner registers their own client id.
+  OAuth tokens are stored sealed (Fernet) and never returned.
+- **Diagnostics stay redacted.** The owner/config-sync Diagnostics payloads carry
+  state only (exists/enabled/locked, provider/revisions/device) — never a password,
+  verifier, token, bundle plaintext or database row.
+- **Never commit** `.session`, TDATA, StringSession, auth keys, API hashes or
+  passwords; `.gitignore` covers sessions, data, logs, backups and `sync/`.

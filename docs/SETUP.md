@@ -543,6 +543,31 @@ topics).
 
 ---
 
+## Owner profile and settings transfer (v1.6)
+
+Open the Web UI → **Владелец** (`/owner`).
+
+1. **Create the owner profile.** Choose a password (min 4 characters) or a PIN,
+   repeat it, optionally add a name and a non-secret reminder. The password is
+   stored only as a one-way fingerprint; it cannot be recovered — if you lose it,
+   delete the profile and create a new one. Until a profile exists the panel stays
+   open, exactly as before.
+2. **Sign in.** Once protection is on, the panel asks for the password and the API
+   requires the signed token the login returns.
+3. **Change password** or **turn protection off** at any time.
+4. **Transfer settings** (optional): choose a provider — **Локальная папка**
+   (default, offline) or **Google Drive** (app-data scope). For Google Drive,
+   register your own OAuth client id in the app settings; the app ships no secret.
+   Then enter the owner password, **Выгрузить настройки** on this computer, and on
+   the new computer **Просмотреть облачные** (preview) → **Применить облачные**.
+   If the cloud copy is newer the page shows a conflict instead of overwriting.
+
+Only configuration is transferred. The database, Telegram sessions and TDATA are
+**never** copied, and anything that looks like a secret is excluded from the
+bundle. Encrypted bundles are written to `data/sync/` and are git-ignored.
+
+---
+
 ## Configuration
 
 All configuration is available through:

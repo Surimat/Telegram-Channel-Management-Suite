@@ -79,6 +79,37 @@ def build_session_provider(
     )
 
 
+def build_config_sync_provider(
+    kind: str,
+    *,
+    directory: Path | None = None,
+    transport: object | None = None,
+) -> object:
+    """Return a :class:`ConfigSyncProvider` for ``kind`` (v1.6).
+
+    ``"local"`` uses a folder on disk; ``"google_drive"`` uses an authorized
+    Drive transport (``None`` when the owner has not connected Google Drive yet,
+    in which case the provider reports itself unavailable). ``"none"`` returns a
+    provider that is never available. The fake transport is injected in tests, so
+    CI never touches Google (D-106).
+    """
+    if kind == "local":
+        from backend.app.providers.config_sync_local import LocalConfigSyncProvider
+
+        return LocalConfigSyncProvider(directory or Path("./sync"))
+
+    if kind == "google_drive":
+        from backend.app.providers.config_sync_gdrive import (
+            GoogleDriveConfigSyncProvider,
+        )
+
+        return GoogleDriveConfigSyncProvider(transport)  # type: ignore[arg-type]
+
+    from backend.app.providers.config_sync_local import LocalConfigSyncProvider
+
+    return LocalConfigSyncProvider(Path("./sync-disabled"))
+
+
 def build_audience_provider(
     session_provider: SessionProvider,
     *,

@@ -213,17 +213,19 @@ def test_dependency_on_unimplemented_capability_blocks_availability(
     from backend.app.services import capability_graph as cg
 
     donor = next(c for c in cg.CAPABILITIES if c.key == "donor_discovery")
-    patched = dataclasses.replace(donor, requires=("config_sync",))
+    # ``media_conversion`` is registered but not implemented: a dependency on it
+    # must block availability (``config_sync`` is implemented as of v1.6).
+    patched = dataclasses.replace(donor, requires=("media_conversion",))
     monkeypatch.setattr(
         cg,
         "CAPABILITIES",
         tuple(patched if c.key == "donor_discovery" else c for c in cg.CAPABILITIES),
     )
     context = {req: True for cap in cg.CAPABILITIES for req in cap.requires}
-    context["config_sync"] = True
+    context["media_conversion"] = True
     state = cg.evaluate(patched, context)
     assert state.state != cg.STATE_AVAILABLE
-    assert any("config_sync" in m for m in state.missing)
+    assert any("media_conversion" in m for m in state.missing)
 
 
 # ---------------------------------------------------------------------------
