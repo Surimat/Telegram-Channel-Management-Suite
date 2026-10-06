@@ -5,11 +5,18 @@ Dates are ISO-8601.
 
 ---
 
-## [1.5.1] — 2026-10-06 — unreleased (forensic-audit fixes)
+## [1.5.1] — 2026-10-06 — released
 
 Patch release: an independent forensic audit of v1.5.0 verified the claimed state
-against the code and fixed four confirmed discrepancies (D-095…D-097). No new
+against the code and fixed five confirmed discrepancies (D-095…D-098). No new
 features; no account registration; no Telegram-limit bypass.
+
+Released via a reviewed `develop → main` PR #12 (merge `f41ebc8`), tag `v1.5.1`;
+the Release workflow (run `37453582161`) created the GitHub Release and attached
+the Windows portable ZIP (24 796 203 bytes, sha256 `b46f9333…68dee`) + `.sha256`
+(D-060). Gates: `pytest` **731 passed**, `ruff` clean, `vue-tsc` + `npm run build`
+clean, Docker smoke clean (`/api/v1/consistency` → `pass`), artifact/secret scan
+clean.
 
 ### Fixed
 - **False capability.** `config_sync` reported `available` on an empty install

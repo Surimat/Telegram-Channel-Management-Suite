@@ -4,33 +4,31 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-06
-**Status:** **v1.5.0 forensic audit complete; five confirmed fixes applied (D-095…D-098).**
-An independent audit verified the claimed v1.5.0 state against the code and fixed:
-(1) `config_sync`/`media_conversion` falsely reported `available` — now
-`not_implemented` (`implemented=False`) with a CI check
-(`check_capability_implementation`); (2) consistency checks that raised were
-silently swallowed — now an `error` finding `audit.check_failed.<name>`;
+**Status:** **v1.5.1 forensic-audit fixes are released.**
+An independent audit verified the claimed v1.5.0 state against the code and fixed
+five confirmed discrepancies (D-095…D-098): (1) `config_sync`/`media_conversion`
+falsely reported `available` — now `not_implemented` (`implemented=False`) with a
+CI check (`check_capability_implementation`); (2) consistency checks that raised
+were silently swallowed — now an `error` finding `audit.check_failed.<name>`;
 (3) the stored `language` preference was write-only — `GET /api/v1/capability-graph`
 now honours it and Settings has a real RU/EN selector; (4) the runtime Docker image
 reported `overall: fail` because it ships no frontend/docs source — source checks
 now report `audit.source_unavailable.<name>` as **info**; (5) `README.md` version
-drift. Suite green at **731 passed**; `ruff` clean; `vue-tsc` + `npm run build`
-clean; Docker `/api/v1/consistency` = `pass`. **Remaining:** commit on `develop`,
-push, open a `develop → main` PR and merge per the release checklist
-(D-050/D-060); no new features.
+drift. Released via reviewed `develop → main` PR #12 (merge `f41ebc8`), tag
+`v1.5.1`; the Release workflow (run `37453582161`) attached the Windows portable
+ZIP + `.sha256`. Suite **731 passed**; `ruff` clean; `vue-tsc` + `npm run build`
+clean; Docker `/api/v1/consistency` = `pass`; artifact/secret scan clean.
 Previous: **v1.5.0 Capability graph + i18n + Consistency Auditor is released**
 (PR #11, merge `ad24bc6`, tag `v1.5.0`). The roadmap (PHASE 0–11) is complete.
 
 ---
 
-## Active task: finish the v1.5.0 forensic audit (commit → push → PR)
+## Active task: none — v1.5.1 released (maintenance / optional extensions)
 
-The audit is done and the fixes are applied and tested on `develop` (uncommitted).
-The single remaining step is to **commit, push `develop`, open a reviewed
-`develop → main` PR and merge** (never a direct push to `main`; never force-push;
-D-050/D-060). This is a **patch-level maintenance change** (audit fixes only, no
-new features): release as **v1.5.1**. Do **not** add new large features and do
-**not** open a new PHASE.
+There is **no required next task**. The v1.5.1 release is complete: the code is
+green on `develop`, merged to `main` via a reviewed PR, tagged `v1.5.1`, and
+published as a GitHub Release with the Windows portable ZIP + `.sha256`. Do **not**
+add new large features and do **not** open a new PHASE unless the owner asks.
 
 ### Forensic audit findings (D-095…D-098) — fixed, do not re-fix
 
@@ -51,12 +49,6 @@ new features): release as **v1.5.1**. Do **not** add new large features and do
    `frontend/`/`docs/` source). Fixed: source-comparison checks report
    `audit.source_unavailable.<name>` as **info** and are skipped; Docker is `pass`.
 5. **Doc drift** — `README.md` said "Current stable release: `v1.4.0`". Fixed.
-
-Tests added: `test_unimplemented_capabilities_are_never_available`,
-`test_capability_graph_language_follows_ui_preference`,
-`test_capabilities_have_implementations`,
-`test_auditor_never_swallows_a_failed_check`,
-`test_missing_source_tree_is_info_not_error`.
 
 ### Verification for this change
 

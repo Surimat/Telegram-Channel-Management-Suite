@@ -79,9 +79,14 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 | Frontend build | ✅ | `vue-tsc` + `npm run build` clean |
 | Security (artifact + git tree clean) | ✅ | no secrets/sessions/TDATA/DB/models in tree |
 | Docker (`/health` + SPA + routes) | ✅ | `/health` → `1.5.1`, SPA `200`, `/api/v1/capability-graph` → `not_implemented`, `/api/v1/consistency` → `pass` |
-| Git merge (`develop → main`) | ⏳ | reviewed PR (`develop → main`) |
-| CI green on `develop` head | ⏳ | `.github/workflows/ci.yml` |
-| Automated Release workflow + ZIP/`.sha256` | ⏳ | tag `v1.5.1` → CI release (D-060) |
+| Git merge (`develop → main`) | ✅ | reviewed PR #12 (`develop → main`, merge `f41ebc8`) |
+| CI green on `develop` head | ✅ | runs `37453055448` + `37453075808` (backend + frontend) |
+| Automated Release workflow + ZIP/`.sha256` | ✅ | `v1.5.1` tag → CI release, run `37453582161` (D-060) |
+| GitHub Release `v1.5.1` published | ✅ | tag matches (`f41ebc8`) |
+| ZIP attached | ✅ | `…-1.5.1.zip` (24 796 203 bytes) |
+| `.sha256` attached | ✅ | `b46f9333…68dee`, local checksum matches |
+| Docker smoke | ✅ | `/health` → `1.5.1`, SPA `200`, `/api/v1/capability-graph` → `not_implemented`, `/api/v1/consistency` → `pass` |
+| Artifact scan | ✅ | ZIP has no `.session`/TDATA/DB/model (only the public `certifi/cacert.pem`); runtime dirs (`sessions/`, `data/`, `backups/`, `logs/`, `exports/`, `models/`, `updates/`) empty; only placeholder `.env.example` |
 
 ### v1.5.0 (released 2026-10-05)
 
