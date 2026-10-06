@@ -829,15 +829,20 @@ does this automatically).
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/v1/capability-graph` | evaluated capability graph (`?language=ru|en`) — what is available now, what is `partial`, what `needs_setup` and how to fix it |
+| GET | `/api/v1/capability-graph` | evaluated capability graph (`?language=ru|en`) — what is available now, what is `partial`, what `needs_setup` and how to fix it. Without an explicit `language` it uses the saved preference from `/api/v1/help/prefs` |
 | GET | `/api/v1/consistency` | consistency report (overall, counts, areas, findings). Never contains secrets, sessions, phones or database rows |
+
+A capability whose feature does not exist yet is reported as **`not_implemented`**
+(never `available`), and each item carries an `implemented` boolean. As of v1.5.1
+`config_sync` and `media_conversion` are `not_implemented`.
 
 The Promotion Wizard (`GET /api/v1/promotion`) embeds the same evaluated graph in
 `capabilities`, so the wizard, the Dashboard and the Diagnostics panel always
 agree.
 
 UI preferences (`/api/v1/help/prefs`) now also carry `language` (default `ru`)
-and `available_languages`.
+and `available_languages`. The language is selectable in Settings and is used by
+the capability graph; the beginner help catalog stays RU-first.
 
 ---
 

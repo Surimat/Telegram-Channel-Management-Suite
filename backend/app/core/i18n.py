@@ -58,6 +58,7 @@ MESSAGES: dict[str, dict[str, str]] = {
     "cap.state.partial": {"ru": "Частично доступно", "en": "Partially available"},
     "cap.state.needs_setup": {"ru": "Требуется настройка", "en": "Needs setup"},
     "cap.state.unavailable": {"ru": "Недоступно", "en": "Unavailable"},
+    "cap.state.not_implemented": {"ru": "Не реализовано", "en": "Not implemented"},
 
     # --- Consistency auditor severity ---------------------------------------
     "consistency.ok": {"ru": "Всё согласовано", "en": "Everything is consistent"},

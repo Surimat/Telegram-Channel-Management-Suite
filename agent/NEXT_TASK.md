@@ -3,30 +3,68 @@
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
-**Updated:** 2026-10-05
-**Status:** **v1.5.0 Capability graph + i18n + Consistency Auditor is released.**
-Reviewed PR #11 (`develop → main`, merge `ad24bc6`), tag `v1.5.0`; the Release
-workflow (run `37442056281`) created the GitHub Release and attached the Windows
-portable ZIP + `.sha256` (D-060). It adds (D-092…D-094) a machine-readable
-**capability graph** (`GET /api/v1/capability-graph`, embedded in the Promotion
-Wizard and shown on the Dashboard), a bilingual RU/EN **i18n catalog** with a
-stored `language` preference, and a **Consistency Auditor** (`GET
-/api/v1/consistency`, Diagnostics "Проверка целостности" panel) whose static
-checks run in `pytest`. Version strings read `1.5.0`. Suite is green at **726
-passed**; `ruff` clean; `vue-tsc` + `npm run build` clean; Docker smoke clean;
-artifact/secret scan clean. Additive only — no account registration and no
-Telegram-limit bypass.
-Previous: **v1.4.0 Notification Center + Tray Agent + Editorial Workspace is
-released** (D-084…D-091). The roadmap (PHASE 0–11) is complete.
+**Updated:** 2026-10-06
+**Status:** **v1.5.0 forensic audit complete; five confirmed fixes applied (D-095…D-098).**
+An independent audit verified the claimed v1.5.0 state against the code and fixed:
+(1) `config_sync`/`media_conversion` falsely reported `available` — now
+`not_implemented` (`implemented=False`) with a CI check
+(`check_capability_implementation`); (2) consistency checks that raised were
+silently swallowed — now an `error` finding `audit.check_failed.<name>`;
+(3) the stored `language` preference was write-only — `GET /api/v1/capability-graph`
+now honours it and Settings has a real RU/EN selector; (4) the runtime Docker image
+reported `overall: fail` because it ships no frontend/docs source — source checks
+now report `audit.source_unavailable.<name>` as **info**; (5) `README.md` version
+drift. Suite green at **731 passed**; `ruff` clean; `vue-tsc` + `npm run build`
+clean; Docker `/api/v1/consistency` = `pass`. **Remaining:** commit on `develop`,
+push, open a `develop → main` PR and merge per the release checklist
+(D-050/D-060); no new features.
+Previous: **v1.5.0 Capability graph + i18n + Consistency Auditor is released**
+(PR #11, merge `ad24bc6`, tag `v1.5.0`). The roadmap (PHASE 0–11) is complete.
 
 ---
 
-## Active task: none — v1.5.0 released (maintenance / optional extensions)
+## Active task: finish the v1.5.0 forensic audit (commit → push → PR)
 
-There is **no required next task**. The v1.5.0 release is complete: the code is
-green on `develop`, merged to `main` via a reviewed PR, tagged `v1.5.0`, and
-published as a GitHub Release with the Windows portable ZIP + `.sha256`. Do **not**
-add new large features and do **not** open a new PHASE unless the owner asks.
+The audit is done and the fixes are applied and tested on `develop` (uncommitted).
+The single remaining step is to **commit, push `develop`, open a reviewed
+`develop → main` PR and merge** (never a direct push to `main`; never force-push;
+D-050/D-060). This is a **patch-level maintenance change** (audit fixes only, no
+new features): release as **v1.5.1**. Do **not** add new large features and do
+**not** open a new PHASE.
+
+### Forensic audit findings (D-095…D-098) — fixed, do not re-fix
+
+1. **False capability** — `config_sync` returned `available` on an empty install
+   with no implementation; `media_conversion` was listed with no ffmpeg tooling.
+   Fixed: `Capability.implemented=False` → `STATE_NOT_IMPLEMENTED`
+   ("Не реализовано"), mirrored through the API; `check_capability_implementation()`
+   fails CI if any capability claims `implemented` without code.
+2. **Silent failure** — `ConsistencyAuditor._runtime_findings` and
+   `run_static_checks` used `except Exception: continue`. Fixed: a raising check
+   now emits an `error` finding `audit.check_failed.<name>`.
+3. **Write-only language preference** — the `language` setting and i18n catalog
+   were never consumed. Fixed: `GET /api/v1/capability-graph` resolves the saved
+   preference; Settings gained an RU/EN selector; the help store exposes
+   `language`/`availableLanguages`.
+4. **Runtime-image false failure** — the Docker smoke surfaced that the honest
+   no-silent-failure runner reported `overall: fail` in the runtime image (no
+   `frontend/`/`docs/` source). Fixed: source-comparison checks report
+   `audit.source_unavailable.<name>` as **info** and are skipped; Docker is `pass`.
+5. **Doc drift** — `README.md` said "Current stable release: `v1.4.0`". Fixed.
+
+Tests added: `test_unimplemented_capabilities_are_never_available`,
+`test_capability_graph_language_follows_ui_preference`,
+`test_capabilities_have_implementations`,
+`test_auditor_never_swallows_a_failed_check`,
+`test_missing_source_tree_is_info_not_error`.
+
+### Verification for this change
+
+```bash
+python -m pytest                 # 731 passed
+ruff check backend tests         # clean
+cd frontend && npx vue-tsc --noEmit && npm run build   # clean
+```
 
 ### What v1.5.0 adds (do not rebuild)
 

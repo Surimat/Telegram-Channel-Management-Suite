@@ -5,6 +5,49 @@ Dates are ISO-8601.
 
 ---
 
+## [1.5.1] — 2026-10-06 — unreleased (forensic-audit fixes)
+
+Patch release: an independent forensic audit of v1.5.0 verified the claimed state
+against the code and fixed four confirmed discrepancies (D-095…D-097). No new
+features; no account registration; no Telegram-limit bypass.
+
+### Fixed
+- **False capability.** `config_sync` reported `available` on an empty install
+  although no sync implementation existed; `media_conversion` was listed with no
+  ffmpeg/media tooling. A `Capability` now carries `implemented`; when `False`,
+  `evaluate()` returns the new `not_implemented` state ("Не реализовано" / "Not
+  implemented") regardless of context, and the flag travels through the API. The
+  static auditor gained `check_capability_implementation()`, which fails CI if a
+  capability claims `implemented=True` without a matching code signal (D-095).
+- **Silent consistency failure.** `ConsistencyAuditor._runtime_findings()` and
+  `run_static_checks()` used `except Exception: continue`, so a check that never
+  ran looked like a pass. A raising check now produces an `error` finding
+  `audit.check_failed.<name>` (D-096).
+- **Write-only language preference.** The stored `language` setting and the i18n
+  catalog were never consumed by the UI. `GET /api/v1/capability-graph` now
+  resolves the saved preference (an explicit `language` query parameter still
+  wins), and Settings gained a real RU/EN selector; the help store exposes
+  `language` / `availableLanguages` (D-097).
+- **Source-comparison checks on the runtime image.** The Docker smoke surfaced
+  that the no-silent-failure runner (D-096) reported `overall: fail` in the
+  runtime image because it ships no `frontend/`/`docs/` source. Those checks now
+  report `audit.source_unavailable.<name>` as **info** and are skipped, so the
+  Docker `/api/v1/consistency` report is `pass`; the dev checkout and CI still run
+  every check fully (D-098).
+- **Documentation drift.** `README.md` still said "Current stable release:
+  `v1.4.0`"; updated to `v1.5.0`/`v1.5.1`.
+
+### Tests
+- `test_unimplemented_capabilities_are_never_available`,
+  `test_capability_graph_language_follows_ui_preference` (`test_consistency.py`),
+  `test_capabilities_have_implementations`,
+  `test_auditor_never_swallows_a_failed_check`,
+  `test_missing_source_tree_is_info_not_error`
+  (`test_architecture_consistency.py`). Suite **731 passed**; `ruff` clean;
+  `vue-tsc` + `npm run build` clean.
+
+---
+
 ## [1.5.0] — 2026-10-05 — released
 
 Minor release: a **capability graph**, a bilingual **i18n catalog** and a

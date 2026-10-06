@@ -125,8 +125,43 @@ async def test_capability_graph_api(client: AsyncClient) -> None:
     keys = {i["key"] for i in items}
     assert {"reaction", "bot_only_analytics", "ai_ru", "donor_discovery"} <= keys
     for item in items:
-        assert item["state"] in {"available", "partial", "needs_setup", "unavailable"}
+        assert item["state"] in {
+            "available",
+            "partial",
+            "needs_setup",
+            "unavailable",
+            "not_implemented",
+        }
         assert item["state_label"]
+
+
+async def test_unimplemented_capabilities_are_never_available(client: AsyncClient) -> None:
+    """A registry entry without a real feature must not report `available`."""
+    resp = await client.get("/api/v1/capability-graph")
+    items = {i["key"]: i for i in resp.json()}
+    for key in ("config_sync", "media_conversion"):
+        assert items[key]["state"] == "not_implemented", key
+        assert items[key]["implemented"] is False, key
+        assert items[key]["state"] != "available", key
+
+
+async def test_capability_graph_language_follows_ui_preference(client: AsyncClient) -> None:
+    """The saved language preference must localise capability labels."""
+    await client.put("/api/v1/help/prefs", json={"language": "en"})
+    items = {i["key"]: i for i in (await client.get("/api/v1/capability-graph")).json()}
+    assert items["donor_discovery"]["title"] == "Donor discovery"
+    assert items["config_sync"]["state_label"] == "Not implemented"
+
+    # An explicit query parameter still wins over the preference.
+    items = {
+        i["key"]: i
+        for i in (
+            await client.get("/api/v1/capability-graph", params={"language": "ru"})
+        ).json()
+    }
+    assert items["donor_discovery"]["title"] == "Поиск источников"
+
+    await client.put("/api/v1/help/prefs", json={"language": "ru"})
 
 
 async def test_capability_graph_reports_missing_setup_on_empty_db(client: AsyncClient) -> None:

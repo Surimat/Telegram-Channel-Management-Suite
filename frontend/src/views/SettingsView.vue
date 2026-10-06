@@ -11,7 +11,7 @@ const error = ref('')
 const saved = ref(false)
 
 const help = useHelpStore()
-const { showExplanations } = storeToRefs(help)
+const { showExplanations, language, availableLanguages } = storeToRefs(help)
 
 const notifications = ref<NotificationSettings | null>(null)
 const notificationsSaved = ref(false)
@@ -119,6 +119,24 @@ onMounted(load)
           @change="help.setShowExplanations(($event.target as HTMLInputElement).checked)"
         />
         <span><strong>Показывать пояснения</strong> — включено по умолчанию</span>
+      </label>
+    </div>
+
+    <div class="card" style="margin-bottom: 20px">
+      <h3>Язык интерфейса</h3>
+      <p class="muted">
+        Язык подсказок и служебных сообщений. Изменение сохраняется и влияет на
+        пояснения и подписи возможностей.
+      </p>
+      <label class="toggle-row">
+        <select
+          :value="language"
+          @change="help.setLanguage(($event.target as HTMLSelectElement).value)"
+        >
+          <option v-for="lang in availableLanguages" :key="lang" :value="lang">
+            {{ lang === 'ru' ? 'Русский' : 'English' }}
+          </option>
+        </select>
       </label>
     </div>
 

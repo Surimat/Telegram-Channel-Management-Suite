@@ -540,13 +540,18 @@ Two views explain capability state in plain language, both fed by the same
 evaluated **capability graph**:
 
 - **Dashboard → "Что уже доступно"** — a short list of capabilities with a badge
-  (`Доступно` / `Частично` / `Требует настройки` / `Недоступно`) and, when a step
-  is missing, exactly what is missing (e.g. "не хватает: Канал, Бот, привязанный к
-  каналу").
+  (`Доступно` / `Частично` / `Требует настройки` / `Недоступно` / `Не реализовано`)
+  and, when a step is missing, exactly what is missing (e.g. "не хватает: Канал,
+  Бот, привязанный к каналу"). `Не реализовано` marks a capability the product
+  describes but has not built yet (`config_sync`, `media_conversion`) — it can
+  never be shown as `Доступно`.
 - **Diagnostics → "Проверка целостности"** — the consistency report. It shows
   errors and warnings by default; low-confidence "к сведению" findings are hidden
   behind a checkbox so the page never looks alarming for no reason. Each finding
   states what it is, why it matters and what to do.
+- **Settings → "Язык интерфейса"** — a RU/EN selector writing the stored
+  `language` preference. It localises backend-produced strings (capability titles
+  and states); the beginner help catalog stays RU-first.
 
 Wording rules: never claim a right or a capability without a real check; a missing
 optional dependency is shown as "требует настройки" or "недоступно", never as an

@@ -12,9 +12,9 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.schemas.capability import CapabilityStateOut
-from backend.app.core.config import Settings, get_settings
 from backend.app.db.session import get_session
 from backend.app.services.capability_graph import context_from_db, evaluate_all
+from backend.app.services.ui_prefs import UiPrefsService
 
 router = APIRouter(prefix="/capability-graph", tags=["capabilities"])
 
@@ -23,9 +23,10 @@ router = APIRouter(prefix="/capability-graph", tags=["capabilities"])
 async def capability_graph(
     language: str | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
-    settings: Settings = Depends(get_settings),
 ) -> list[CapabilityStateOut]:
-    lang = language or settings.app_language
+    # An explicit query parameter wins; otherwise honour the saved UI preference
+    # so the labels match the language the user picked (not just the env default).
+    lang = language or await UiPrefsService(session).get_language()
     context = await context_from_db(session)
     states = evaluate_all(context, lang)
     return [
@@ -39,6 +40,7 @@ async def capability_graph(
             missing=s.missing,
             missing_fixes=s.missing_fixes,
             note=s.note,
+            implemented=s.implemented,
         )
         for s in states
     ]

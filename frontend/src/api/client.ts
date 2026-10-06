@@ -1047,6 +1047,8 @@ export interface HelpTopic {
 
 export interface UiPrefs {
   show_explanations: boolean
+  language: string
+  available_languages: string[]
 }
 
 export interface ChannelSummary {
@@ -1902,13 +1904,14 @@ export interface ConsistencyReport {
 export interface CapabilityState {
   key: string
   title: string
-  state: 'available' | 'partial' | 'needs_setup' | 'unavailable'
+  state: 'available' | 'partial' | 'needs_setup' | 'unavailable' | 'not_implemented'
   state_label: string
   requires: string[]
   satisfied: string[]
   missing: string[]
   missing_fixes: string[]
   note: string
+  implemented: boolean
 }
 
 export const api = {
@@ -2457,7 +2460,7 @@ export const api = {
   // Help / explanations (novice mode): shared by Web UI, Mini App, Setup Wizard.
   helpTopics: () => request<HelpTopic[]>('/api/v1/help/topics'),
   helpPrefs: () => request<UiPrefs>('/api/v1/help/prefs'),
-  updateHelpPrefs: (payload: { show_explanations?: boolean }) =>
+  updateHelpPrefs: (payload: { show_explanations?: boolean; language?: string }) =>
     request<UiPrefs>('/api/v1/help/prefs', {
       method: 'PUT',
       body: JSON.stringify(payload),

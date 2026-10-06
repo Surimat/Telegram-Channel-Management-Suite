@@ -65,6 +65,24 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 
 ## 6. Release verification (fill in per release)
 
+### v1.5.1 (forensic-audit fixes, 2026-10-06)
+
+| Gate | v1.5.1 | Notes |
+| --- | --- | --- |
+| Version consistency (`1.5.1` everywhere) | ✅ | app / pyproject / frontend / lock |
+| Capability honesty | ✅ | `config_sync` + `media_conversion` → `not_implemented`; `implemented` flag through the API; `check_capability_implementation` |
+| Auditor no-silent-failure | ✅ | a raising check → `audit.check_failed.<name>` error finding (static + runtime) |
+| Runtime-image source checks | ✅ | missing `frontend/`/`docs/` → `audit.source_unavailable.<name>` **info** (not error); Docker report `pass` |
+| i18n preference consumed | ✅ | capability graph honours the saved `language`; Settings RU/EN selector |
+| Doc drift | ✅ | `README.md` release line updated |
+| Tests (`pytest` / `ruff`) | ✅ | 731 passed; ruff clean |
+| Frontend build | ✅ | `vue-tsc` + `npm run build` clean |
+| Security (artifact + git tree clean) | ✅ | no secrets/sessions/TDATA/DB/models in tree |
+| Docker (`/health` + SPA + routes) | ✅ | `/health` → `1.5.1`, SPA `200`, `/api/v1/capability-graph` → `not_implemented`, `/api/v1/consistency` → `pass` |
+| Git merge (`develop → main`) | ⏳ | reviewed PR (`develop → main`) |
+| CI green on `develop` head | ⏳ | `.github/workflows/ci.yml` |
+| Automated Release workflow + ZIP/`.sha256` | ⏳ | tag `v1.5.1` → CI release (D-060) |
+
 ### v1.5.0 (released 2026-10-05)
 
 | Gate | v1.5.0 | Notes |

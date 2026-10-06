@@ -9,8 +9,41 @@ Previous: **v1.4.0 Notification Center + Tray Agent + Editorial Workspace is rel
 Earlier: **v1.3.0 Bot Factory + LAN Mesh is released** — PR #9 (`develop → main`, merge `7788125`), tag `v1.3.0`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It adds the **Bot Factory** (D-077/D-078): plan a set of worker bots, check usernames with Telegram, create each bot through the official owner-confirmed @BotFather flow and adopt it, then bind it through the existing binding rules; and the **optional LAN Mesh / offline control plane** (D-079…D-082): deterministic identity, bounded broadcast discovery + manual peers, one-time-code pairing, deterministic coordinator election, fencing leases, a `mesh.tick` maintenance job and a guard so only the coordinator polls Telegram. Standalone (one computer) stays the default. New API (`/api/v1/bot-factory/*`, `/api/v1/mesh/*`), two RU-first UI pages (`/bot-factory`, `/mesh`) and offline tests. Pre-release hardening (D-083): pairing never persists/returns anything derived from a secret, and `/api/v1/mesh/ping` authenticates the shared secret; help topics `bot_factory` / `lan_mesh` added.
 Earlier: **v1.2.0 Content Studio is released** — PR #8 (`develop → main`, merge `ea6c161`), tag `v1.2.0`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It adds the v1.2 **content-studio foundation** (D-071…D-076): content sources (Telegram / RSS / Atom / manual) with deduplication, a deterministic explainable cleaner, usage-rights tracking + attribution, Telegram markup validation + a Telegram-like preview, inline button sets, per-source moderation (blocked keywords + quiet hours), multi-channel planning/calendar, publishing through a `PostingProvider` (bot by default; user account only in the expanded mode), durable auto-delete and first comments, and a bounded restart-safe posting tick (`content.posting`). Nothing is published without an explicit owner action; protected content keeps only its link (D-006/D-074); the AI narrows, it never picks emoji (D-033/D-076).
 Earlier: **v1.1.0 is released** — PR #7 (`develop → main`, merge commit `3438305`), tag `v1.1.0`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It carries the multi-format **Account Hub** importer (`.session`, `.session`+JSON, StringSession, optional TDATA; D-070), optional per-account **network routes (proxies)** (D-065), **donor discovery** (candidate proposals only, D-066), a **lightweight local encoder** classifier mode (D-067) with the optional **ruBERT-tiny2** embedding backend + install flow (D-068), and the bot-only/risk UX (D-069). The v1.0.5 **product slice** (D-064): bot↔channel **bindings** + channel **reaction capabilities**, session-free invite **Кампании** + explainable **donor quality**, **backup delivery destinations**, a resumable first-run **Setup Wizard**, and a conservative, off-by-default **auto-update**. `v1.0.0`–`v1.1.0` stay immutable (D-050).
-Version string is **1.5.0** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
-All gates pass: `pytest` **726 passed**, `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend and frontend gates.
+Version string is **1.5.1** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
+All gates pass: `pytest` **731 passed**, `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend and frontend gates.
+
+### Forensic audit of v1.5.0 (2026-10-06, D-095…D-098)
+
+An independent audit verified the claimed v1.5.0 state against the code and fixed
+five confirmed discrepancies (all additive, no new features):
+
+1. **False capability (fixed):** `config_sync` reported **`available` on an empty
+   install** while no sync implementation existed; `media_conversion` was listed
+   but no ffmpeg/media tooling exists. Both are now `implemented=False` →
+   `not_implemented` ("Не реализовано"), and `check_capability_implementation()`
+   fails CI if any capability claims `implemented` without code (D-095).
+2. **Silent failure (fixed):** `_runtime_findings` (and `run_static_checks`)
+   swallowed check exceptions with `except Exception: continue`; a check that
+   never ran looked like a pass. A raising check is now an `error` finding
+   `audit.check_failed.<name>` (D-096).
+3. **Write-only language preference (fixed):** the stored `language` preference and
+   the i18n catalog were never consumed by the UI. `GET /api/v1/capability-graph`
+   now honours the saved preference, and Settings has a real RU/EN selector
+   (D-097). Scope is honest: the RU-first help catalog stays RU (not
+   machine-translated).
+4. **Runtime-image false failure (fixed):** the Docker smoke surfaced that the new
+   no-silent-failure runner reported `overall: fail` in the runtime image (it
+   ships no `frontend/`/`docs/` source). Source-comparison checks now report
+   `audit.source_unavailable.<name>` as **info** and are skipped, so the Docker
+   report is `pass`; the dev checkout and CI still run every check (D-098).
+5. **Doc drift (fixed):** `README.md` still said "Current stable release: `v1.4.0`"
+   in two places; updated to `v1.5.0`/`v1.5.1`.
+
+Evidence: `pytest` **731 passed** (was 726; +5 audit tests), `ruff` clean,
+`vue-tsc` + `npm run build` clean, capability graph on an empty DB reports
+`config_sync`/`media_conversion` as `not_implemented`, the EN preference returns
+EN capability labels end-to-end, and the Docker `/api/v1/consistency` report is
+`pass` (5 info, 0 error).
 **Repository status:** `main` carries the v1.5.0 release merge (`ad24bc6`, PR #11); `develop` is that merge (synced back); tags `v1.0.0`–`v1.5.0`; each GitHub Release carries the Windows portable ZIP + `.sha256` (built by CI, D-060).
 **Branch:** develop (working branch); main is released and updated only via pull request.
 **Latest work (v1.5.0 Capability graph + i18n + Consistency Auditor — released):** `core/i18n.py` (RU/EN catalog + `translate`/`normalize_language`/`missing_keys`), `services/capability_graph.py` (`context_from_db` + `evaluate_all` + `CapabilityState`), `api/v1/capability_graph.py` + `api/schemas/capability.py` (`GET /api/v1/capability-graph`), `services/consistency_types.py` + `services/consistency_checks.py` (static) + `services/consistency.py` (runtime) + `api/v1/consistency.py` + `api/schemas/consistency.py` (`GET /api/v1/consistency`), `services/ui_prefs.py` (`language` preference), the Promotion Wizard now embeds `WizardState.capabilities`, the Dashboard shows "Что уже доступно", the Diagnostics page shows "Проверка целостности". Tests `test_consistency.py` / `test_architecture_consistency.py` / `test_i18n.py` + capability assertions in `test_product_api.py`. Suite **726 passed**; `ruff` clean; `vue-tsc` + `npm run build` clean. Released via a reviewed `develop → main` PR #11 (merge `ad24bc6`), tag `v1.5.0`; Release workflow (run `37442056281`) attached the Windows portable ZIP (24.8 MB, sha256 `a35484fd…b1f35`) + `.sha256`. Docker smoke: `/health` → `1.5.0`, SPA `200`, `/api/v1/capability-graph` + `/api/v1/consistency` + `/api/v1/help/prefs` → `200`; artifact scan clean (no sessions/TDATA/DB/model).

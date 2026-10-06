@@ -53,18 +53,30 @@ STATE_AVAILABLE = "available"
 STATE_PARTIAL = "partial"
 STATE_NEEDS_SETUP = "needs_setup"
 STATE_UNAVAILABLE = "unavailable"
+#: The capability is described in the registry but has no implementation yet.
+#: It is deliberately distinct from ``unavailable`` (which means "not set up"):
+#: the user cannot fix this by configuring anything.
+STATE_NOT_IMPLEMENTED = "not_implemented"
 
 STATE_ORDER = {
     STATE_AVAILABLE: 0,
     STATE_PARTIAL: 1,
     STATE_NEEDS_SETUP: 2,
     STATE_UNAVAILABLE: 3,
+    STATE_NOT_IMPLEMENTED: 4,
 }
 
 
 @dataclass(frozen=True)
 class Capability:
-    """A product capability and the requirements it depends on."""
+    """A product capability and the requirements it depends on.
+
+    ``implemented`` guards against a *false* ``available``: a capability that is
+    listed in the registry (so the UI can explain it) but has no real
+    implementation behind it must never evaluate to ``available``. A missing
+    implementation is an absolute prerequisite, not a user setup step, so it
+    forces ``unavailable`` regardless of the requirement context.
+    """
 
     key: str
     title_ru: str
@@ -73,6 +85,7 @@ class Capability:
     minimal: tuple[str, ...] = ()
     note_ru: str = ""
     note_en: str = ""
+    implemented: bool = True
 
     def title(self, language: str | None = None) -> str:
         return self.title_en if i18n.normalize_language(language) == "en" else self.title_ru
@@ -121,6 +134,12 @@ CAPABILITIES: tuple[Capability, ...] = (
         title_ru="Обработка медиа",
         title_en="Media processing",
         requires=(REQ_FFMPEG,),
+        implemented=False,
+        note_ru="Обработка медиа (сжатие, конвертация, миниатюры) в этой версии не реализована.",
+        note_en=(
+            "Media processing (compression, conversion, thumbnails) is not "
+            "implemented in this version."
+        ),
     ),
     Capability(
         key="ai_ru",
@@ -141,6 +160,9 @@ CAPABILITIES: tuple[Capability, ...] = (
         title_ru="Синхронизация конфигурации",
         title_en="Configuration sync",
         requires=(),
+        implemented=False,
+        note_ru="Синхронизация конфигурации в этой версии не реализована.",
+        note_en="Configuration sync is not implemented in this version.",
     ),
 )
 
@@ -160,6 +182,7 @@ class CapabilityState:
     missing: list[str] = field(default_factory=list)
     missing_fixes: list[str] = field(default_factory=list)
     note: str = ""
+    implemented: bool = True
 
     @property
     def available(self) -> bool:
@@ -176,6 +199,7 @@ class CapabilityState:
             "missing": self.missing,
             "missing_fixes": self.missing_fixes,
             "note": self.note,
+            "implemented": self.implemented,
         }
 
 
@@ -194,7 +218,27 @@ def state_label(state: str, language: str | None = None) -> str:
 def evaluate(
     capability: Capability, context: dict[str, bool], language: str | None = None
 ) -> CapabilityState:
-    """Evaluate one capability against a requirement context."""
+    """Evaluate one capability against a requirement context.
+
+    A capability with no implementation is always ``not_implemented``: the
+    registry entry exists so the UI can explain *why* the feature is absent, but
+    it must never report ``available``/``partial`` just because the registry
+    lists it (the exact failure this guard exists to prevent).
+    """
+    if not capability.implemented:
+        return CapabilityState(
+            key=capability.key,
+            title=capability.title(language),
+            state=STATE_NOT_IMPLEMENTED,
+            state_label=state_label(STATE_NOT_IMPLEMENTED, language),
+            requires=[requirement_label(r, language) for r in capability.requires],
+            satisfied=[],
+            missing=[],
+            missing_fixes=[],
+            note=capability.note(language),
+            implemented=False,
+        )
+
     satisfied = [r for r in capability.requires if context.get(r)]
     missing = [r for r in capability.requires if not context.get(r)]
 
@@ -217,6 +261,7 @@ def evaluate(
         missing=[requirement_label(r, language) for r in missing],
         missing_fixes=[requirement_fix(r, language) for r in missing],
         note=capability.note(language),
+        implemented=True,
     )
 
 
@@ -308,6 +353,7 @@ __all__ = [
     "REQ_USER_SESSION",
     "STATE_AVAILABLE",
     "STATE_NEEDS_SETUP",
+    "STATE_NOT_IMPLEMENTED",
     "STATE_PARTIAL",
     "STATE_UNAVAILABLE",
     "Capability",
