@@ -36,6 +36,11 @@ features; no release. The v1.5.2 kill rate was *declarative* (hand-maintained
   a working-tree leak assertion. It no longer relies on a hardcoded percentage.
 - Full suite: **777 passed, 0 xfailed** (the declarative gap xfails were removed);
   `ruff` clean.
+- **CI verified:** run `37479210076` (push, commit `f007c0b`) — Backend, Frontend and
+  `Meta-audit (auditor kill-rate)` all **success**; the uploaded
+  `meta-audit-result` artifact has `result_source = "computed from runtime mutation
+  executions"`, 25 mutations with boolean `detected`, 3 negative controls, kill rate
+  80.0%. `vue-tsc` + `npm run build` clean locally.
 
 ### Added
 - One extra mutation `U_help_reference` (25 total) and `KNOWN_GAP_IDS` — the 5
