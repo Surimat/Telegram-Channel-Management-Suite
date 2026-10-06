@@ -1720,6 +1720,155 @@ export interface FactoryBindResult {
   status_label: string
 }
 
+// Editorial Workspace (v1.4)
+export interface EditorialRoom {
+  id: string
+  channel_id: string
+  channel_label: string
+  bot_id: string
+  group_chat_id: number | null
+  group_title: string
+  status: string
+  status_label: string
+  topics: Record<string, number>
+  bot_is_member: boolean
+  bot_is_admin: boolean
+  can_send_messages: boolean
+  can_manage_topics: boolean
+  last_checked: string
+  last_error: string
+}
+
+export interface EditorialRoomList {
+  items: EditorialRoom[]
+  status_titles: Record<string, string>
+}
+
+export interface EditorialRoomCheck {
+  room_id: string
+  status: string
+  status_label: string
+  message: string
+  how_to_fix: string
+  topics: Record<string, number>
+}
+
+export interface EditorialMember {
+  id: string
+  telegram_user_id: number
+  display_name: string
+  username: string
+  role: string
+  role_title: string
+  enabled: boolean
+}
+
+export interface EditorialItem {
+  id: string
+  content_item_id: string
+  channel_id: string
+  channel_label: string
+  title: string
+  status: string
+  status_title: string
+  order_index: number
+  assigned_user_id: number
+  version: number
+  error: string
+  scheduled_at: string
+  card_message_id: number | null
+  topic_id: number | null
+  available_actions: string[]
+}
+
+export interface EditorialBoard {
+  room_id: string
+  channel_id: string
+  channel_label: string
+  group_title: string
+  status: string
+  status_label: string
+  topics: Record<string, number>
+  counts: Record<string, number>
+  columns: Record<string, EditorialItem[]>
+  status_titles: Record<string, string>
+}
+
+export interface EditorialActionResult {
+  ok: boolean
+  action: string
+  message: string
+  item_id: string
+  status: string
+}
+
+export interface EditorialAudit {
+  id: string
+  item_id: string
+  actor_telegram_id: number
+  actor_name: string
+  action: string
+  old_status: string
+  new_status: string
+  detail: string
+  created_at: string
+}
+
+// Notification Center (v1.4)
+export interface NotificationCategory {
+  key: string
+  label: string
+  enabled: boolean
+  destinations: string[]
+}
+
+export interface NotificationSettings {
+  enabled: boolean
+  categories: NotificationCategory[]
+  quiet_hours_enabled: boolean
+  quiet_hours_start: number
+  quiet_hours_end: number
+  quiet_hours_tz: string
+  aggregation_enabled: boolean
+  destinations: { key: string; label: string }[]
+}
+
+export interface NotificationItem {
+  id: string
+  category: string
+  category_label: string
+  priority: string
+  priority_label: string
+  destination: string
+  destination_label: string
+  event_key: string
+  message: string
+  how_to_fix: string
+  status: string
+  status_label: string
+  error: string
+  aggregate_count: number
+  read: boolean
+  postponed_until: string
+  delivered_at: string
+  created_at: string
+}
+
+export interface NotificationList {
+  items: NotificationItem[]
+  total: number
+}
+
+export interface NotificationDashboard {
+  enabled: boolean
+  pending: number
+  failed: number
+  quiet_hours_enabled: boolean
+  in_quiet_hours: boolean
+  status_counts: Record<string, number>
+  category_counts: Record<string, number>
+}
+
 export const api = {
   health: () => request<Health>('/health'),
   healthDeep: () => request<Record<string, unknown>>('/health/deep'),
@@ -2515,4 +2664,103 @@ export const api = {
       '/api/v1/content/tick',
       { method: 'POST' },
     ),
+
+  // Editorial Workspace (v1.4)
+  editorialRooms: () => request<EditorialRoomList>('/api/v1/editorial/rooms'),
+  createEditorialRoom: (payload: {
+    channel_id: string
+    group_chat_id: number
+    bot_id?: string
+    group_title?: string
+  }) =>
+    request<EditorialRoom>('/api/v1/editorial/rooms', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  deleteEditorialRoom: (id: string) =>
+    request<{ ok: boolean }>(`/api/v1/editorial/rooms/${id}`, { method: 'DELETE' }),
+  checkEditorialRoom: (id: string, createTopics = true) =>
+    request<EditorialRoomCheck>(
+      `/api/v1/editorial/rooms/${id}/check?create_topics=${createTopics}`,
+      { method: 'POST' },
+    ),
+  editorialMembers: (id: string) =>
+    request<EditorialMember[]>(`/api/v1/editorial/rooms/${id}/members`),
+  setEditorialMember: (
+    id: string,
+    payload: {
+      telegram_user_id: number
+      role: string
+      display_name?: string
+      username?: string
+      enabled?: boolean
+    },
+  ) =>
+    request<EditorialMember>(`/api/v1/editorial/rooms/${id}/members`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  removeEditorialMember: (id: string, userId: number) =>
+    request<{ ok: boolean }>(`/api/v1/editorial/rooms/${id}/members/${userId}`, {
+      method: 'DELETE',
+    }),
+  editorialBoard: (id: string) => request<EditorialBoard>(`/api/v1/editorial/rooms/${id}/board`),
+  editorialEnqueue: (
+    id: string,
+    payload: { content_item_id: string; channel_id?: string; title?: string },
+  ) =>
+    request<EditorialItem>(`/api/v1/editorial/rooms/${id}/items`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  editorialMove: (
+    id: string,
+    itemId: string,
+    payload: { status: string; actor_telegram_id?: number; expected_version?: number },
+  ) =>
+    request<EditorialActionResult>(`/api/v1/editorial/rooms/${id}/items/${itemId}/move`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  editorialReorder: (
+    id: string,
+    payload: { status: string; ordered_ids: string[]; actor_telegram_id?: number },
+  ) =>
+    request<EditorialBoard>(`/api/v1/editorial/rooms/${id}/reorder`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  editorialAudit: (id: string, itemId = '') =>
+    request<EditorialAudit[]>(
+      `/api/v1/editorial/rooms/${id}/audit` + (itemId ? `?item_id=${itemId}` : ''),
+    ),
+
+  // Notification Center (v1.4)
+  notificationSettings: () => request<NotificationSettings>('/api/v1/notifications/settings'),
+  updateNotificationSettings: (payload: {
+    enabled?: boolean
+    categories?: Record<string, boolean>
+    quiet_hours_enabled?: boolean
+    quiet_hours_start?: number
+    quiet_hours_end?: number
+    quiet_hours_tz?: string
+    aggregation_enabled?: boolean
+  }) =>
+    request<NotificationSettings>('/api/v1/notifications/settings', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  notifications: (params: Record<string, string> = {}) =>
+    request<NotificationList>(
+      '/api/v1/notifications?' + new URLSearchParams(params).toString(),
+    ),
+  notificationDashboard: () =>
+    request<NotificationDashboard>('/api/v1/notifications/dashboard'),
+  sendTestNotification: (payload: { category?: string; priority?: string } = {}) =>
+    request<NotificationItem>('/api/v1/notifications/test', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  markNotificationRead: (id: string) =>
+    request<NotificationItem>(`/api/v1/notifications/${id}/read`, { method: 'POST' }),
 }

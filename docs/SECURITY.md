@@ -260,6 +260,56 @@ estimated total, notes) before any job is queued.
 
 ---
 
+## 7f. Notification Center (v1.4, D-084…D-086)
+
+- **No secrets in history**: `notifications` / `notification_deliveries` store
+  only non-secret, display-safe text (category, priority, title, message,
+  how-to-fix, status). No token, API hash, session string or audience record is
+  ever written to them.
+- **Redaction still applies**: messages are produced by the existing logging path,
+  which already redacts secrets; the center never interpolates a token.
+- **A notification never breaks the app**: delivery is best effort and a failure
+  is recorded, never raised into the caller.
+- **Quiet hours are not a mute for urgent items**: warnings/errors/critical are
+  always delivered; only non-urgent messages are postponed.
+- **Toasts are optional and honest**: when no Windows toast backend exists the
+  delivery is reported `unavailable` (visible in history) instead of silently
+  failing.
+
+---
+
+## 7g. TCMS Tray Agent (v1.4, D-087…D-088)
+
+- **No secrets**: the agent writes only `data/tray.json` (state, pid, restart
+  count, last error, autostart flag, version). It never writes a token, session
+  or personal data, and the backend filters unknown fields on read.
+- **No privilege escalation**: autostart uses a plain Startup-folder launcher (no
+  admin, no registry, no service install); the user can disable it from the tray
+  menu at any time.
+- **Bounded restarts**: a crash loop is capped (5 restarts/hour) so a broken
+  backend cannot spin the CPU or the network forever.
+- **No hidden network surface**: the agent only starts/supervises the local
+  backend and opens the local Web UI; it adds no listener of its own.
+
+---
+
+## 7h. Editorial Workspace (v1.4, D-089…D-091)
+
+- **Honest rights**: a room is `ready` only after Telegram confirms the bot is a
+  member and can send messages; a missing right stays `needs_rights`. The suite
+  never claims a right it did not verify.
+- **Identity is a numeric Telegram id**: roles are matched by `telegram_user_id`
+  (`MANAGER_BOT_ADMIN_IDS` for the owner); a username is never used as an
+  identity or an authorisation.
+- **Telegram access through the provider**: no token or session ever reaches the
+  editorial service; card posting uses the existing bot provider.
+- **Full audit trail**: every status change is written to `editorial_audit` with
+  the actor, old/new status and a non-secret detail.
+- **No limit bypass**: the editorial workspace publishes only to the owner's own
+  channels and never performs invites or mass actions.
+
+---
+
 ## 8. Principle of least privilege
 
 - The manager bot only responds to whitelisted admin ids.

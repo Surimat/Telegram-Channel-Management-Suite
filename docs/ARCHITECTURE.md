@@ -675,3 +675,100 @@ liveness probe, and leases are acquired/completed locally through
 only — there is no PostgreSQL control plane (D-002).
 
 ---
+
+## 19. Notification Center (v1.4.0, D-084…D-086)
+
+Turns the in-process notification bus into a **durable, inspectable center**. An
+event anywhere in the app is published to a bounded in-process bus; the center
+records it, decides *whether* and *where* to deliver it, and reports the outcome.
+
+- `db/models/notification.py` — `NotificationRecord` (category, priority,
+  destination, event key, dedup key, message, how-to-fix, status, aggregate count,
+  read flag, timestamps) and `NotificationDelivery` (one attempt per destination).
+  Only non-secret, display-safe text is stored.
+- `db/repositories/notifications.py` — record + delivery repositories
+  (recent-by-dedup lookup, history with filters, status/category counts).
+- `services/notification_service.py` — `NotificationCenterService`: category
+  toggles, quiet hours (non-urgent messages are postponed until the window ends;
+  warnings/errors/critical always go through), anti-spam aggregation of identical
+  messages, routing per category, delivery, history and a dashboard. A delivery
+  problem never raises into the caller.
+- `services/notification_destinations.py` — destination adapters:
+  `TelegramDestination` (owner DM / notification group through the bot provider),
+  `WindowsToastDestination` (best effort; honestly `unavailable` when no toast
+  library exists) and `RecordingDestination` (tests).
+- `manager/bus.py` — categories (`system`, `telegram`, `accounts`, `channels`,
+  `audience`, `reactions`, `invites`, `content`, `media`, `ai`, `updates`,
+  `workers`), priorities, `category_for_module()` and the bounded bus (never
+  raises, drops oldest when full).
+- `api/v1/notifications.py` + `api/schemas/notification.py` — the
+  `/api/v1/notifications/*` router (settings, history, dashboard, test, read);
+  `api/deps.py::get_notification_service` reuses the manager bot (or a dedicated
+  `notification_bot_id`).
+- `manager/runtime.py` — flushes pending notifications and delivers due
+  postponed ones each poll cycle.
+
+---
+
+## 20. TCMS Tray Agent (v1.4.0, D-087…D-088)
+
+A very light supervisor so the portable app feels like a normal Windows
+application instead of a console window. It imports nothing heavy (no AI, no
+Telethon, no FFmpeg).
+
+- `tray/supervisor.py` — `BackendSupervisor`: spawn the backend **hidden**, wait
+  for `/health` (never a fixed sleep), detect an unexpected exit and restart it
+  with a **bounded** backoff (`DEFAULT_MAX_RESTARTS_PER_HOUR == 5`), stop and
+  status helpers.
+- `tray/agent.py` — `run_tray` (a `pystray` icon with start/stop/restart/
+  diagnostics/update/autostart/quit) and `_run_headless` (the graceful fallback
+  when `pystray` is absent); `main(argv)` understands `--tray`, `--headless`,
+  `--no-browser`.
+- `tray/autostart.py` — a Windows Startup-folder `.cmd` launcher (no admin, no
+  COM).
+- `tray/state.py` — a tiny **secret-free** JSON snapshot (`data/tray.json`:
+  state, pid, restarts, last error, autostart) the backend reads to show the tray
+  status in Diagnostics; unknown fields are filtered on read.
+- `portable/run.bat` starts the tray agent hidden and lets
+  `open_when_ready.ps1` open the browser only once `/health` answers.
+- `services/diagnostics_service.py::_tray_item` surfaces the snapshot as a
+  Diagnostics row.
+
+---
+
+## 21. Editorial Workspace (v1.4.0, D-089…D-091)
+
+A linked Telegram **forum supergroup** where the owner, editors and moderators
+work the same publication queue the Web UI shows. The suite owns the queue and
+the order; Telegram topics only mirror it as one card per content item.
+
+- `db/models/editorial.py` — `EditorialRoom` (linked channel + forum group +
+  bot + verified rights + topic map + status), `EditorialMember` (role by numeric
+  Telegram id), `EditorialItem` (queue position, status, version, card/topic ids)
+  and `EditorialAuditEntry` (the audit trail).
+- `services/editorial_service.py` — `EditorialService`: rooms, an **honest**
+  `check_room` (a room only reaches `ready` after Telegram confirms the bot is
+  present and can send messages; a missing right stays `needs_rights`), topic
+  creation, role-based permissions (`ROLE_ACTIONS`), the queue (`enqueue_item`,
+  `move` with optimistic `version`, `reorder`, `assign`), card mirroring and
+  `handle_callback`.
+- `db/repositories/editorial.py` — room/member/item/audit repositories.
+- `api/v1/editorial.py` + `api/schemas/editorial.py` — the
+  `/api/v1/editorial/*` router; `api/deps.py::get_editorial_service` reuses the
+  Content Studio `PostingService` as the publish handler, so the editorial queue
+  and Content Studio never diverge.
+- `providers/base.py` + `aiogram_bot.py` + `fake_bot.py` — forum-topic and inline
+  callback methods (`create_forum_topic`, `send_topic_message`,
+  `edit_message_reply_markup`, `answer_callback_query`).
+- `manager/runtime.py` — routes a card's inline-button callback into
+  `EditorialService.handle_callback`.
+- `frontend/src/views/EditorialView.vue` (`/editorial`) — the board, roles and
+  audit log.
+
+Design notes: **honest rights** (never claim a right without a Telegram check);
+**roles by numeric id** (a username is never an identity); **the suite owns the
+order** (cards are never moved between topics — a status change posts a fresh card
+into the target topic and `order_index` lives in the database); **no secrets**
+(Telegram access goes through the provider abstraction).
+
+---

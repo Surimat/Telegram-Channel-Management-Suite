@@ -5,6 +5,83 @@ Dates are ISO-8601.
 
 ---
 
+## [1.4.0] — 2026-10-05 — released
+
+Minor release: the **Notification Center**, the **TCMS Tray Agent** and the
+**Editorial Workspace** (D-084…D-091). A durable, queryable history of important
+events with per-category routing, quiet hours and anti-spam aggregation; a light
+Windows tray supervisor so the portable app runs with no console window; and a
+Telegram forum-supergroup editorial room where the owner, editors and moderators
+work the same publication queue the Web UI shows. None of these features register
+Telegram accounts or bypass Telegram limits.
+
+Released via a reviewed `develop → main` PR, tag `v1.4.0`; the Release workflow
+created the GitHub Release and attached the Windows portable ZIP + `.sha256`
+(D-060). Gates: `pytest` 702 passed, `ruff` clean, `vue-tsc` + `npm run build`
+clean, migration up/down clean, artifact/secret scan clean.
+
+### Added — Notification Center
+- `db/models/notification.py`: `NotificationRecord` (category, priority,
+  destination, event key, dedup key, message, how-to-fix, status, aggregate count,
+  read flag) and `NotificationDelivery` (one attempt per destination). Additive
+  migration `20261006_1000_e7a1c9d2f4b8` — an existing v1.3 database upgrades in
+  place.
+- `db/repositories/notifications.py`: record + delivery repositories (recent-by-
+  dedup lookup, filtered history, status/category counts).
+- `services/notification_service.py`: `NotificationCenterService` — category
+  toggles, quiet hours (only non-urgent messages are postponed), anti-spam
+  aggregation, per-category routing, delivery, history and a dashboard. A delivery
+  problem never raises into the caller.
+- `services/notification_destinations.py`: `TelegramDestination`,
+  `WindowsToastDestination` (honest `unavailable`) and `RecordingDestination`.
+- `api/v1/notifications.py` + `api/schemas/notification.py`: the
+  `/api/v1/notifications/*` router; `api/deps.py::get_notification_service` reuses
+  the manager bot (or a dedicated `notification_bot_id`).
+- `manager/bus.py`: the new categories (`accounts`, `channels`, `content`,
+  `media`, `updates`, `workers`), priorities and `category_for_module()`.
+- `frontend/src/views/NotificationsView.vue` (`/notifications`) + nav link.
+
+### Added — TCMS Tray Agent
+- `tray/supervisor.py`: `BackendSupervisor` — hidden start, `/health` readiness,
+  bounded restart backoff (5/hour), stop/status.
+- `tray/agent.py`: `run_tray` (a `pystray` icon) and `_run_headless` (graceful
+  fallback); `main(argv)` understands `--tray`/`--headless`/`--no-browser`.
+- `tray/autostart.py`: a Startup-folder `.cmd` launcher (no admin).
+- `tray/state.py`: a secret-free `data/tray.json` snapshot the backend reads.
+- `portable/run.bat` starts the agent hidden and opens the browser only once
+  `/health` answers; `services/diagnostics_service.py::_tray_item` surfaces the
+  snapshot as a Diagnostics row.
+
+### Added — Editorial Workspace
+- `db/models/editorial.py`: `EditorialRoom`, `EditorialMember`, `EditorialItem`,
+  `EditorialAuditEntry` (+ `DEFAULT_TOPICS`, `OPTIONAL_TOPICS`, `ROLE_ACTIONS`).
+- `db/repositories/editorial.py`: room/member/item/audit repositories.
+- `services/editorial_service.py`: `EditorialService` — rooms, an honest
+  `check_room` (ready only after Telegram confirms the bot can send messages),
+  topic creation, role-based permissions, the queue (`enqueue_item`, `move` with
+  optimistic version, `reorder`, `assign`), card mirroring and `handle_callback`.
+- `api/v1/editorial.py` + `api/schemas/editorial.py`: the `/api/v1/editorial/*`
+  router; `api/deps.py::get_editorial_service` reuses the Content Studio
+  `PostingService` as the publish handler (D-091).
+- `providers/base.py` + `aiogram_bot.py` + `fake_bot.py`: forum-topic and inline
+  callback methods; `manager/runtime.py` routes card callbacks into the service.
+- `frontend/src/views/EditorialView.vue` (`/editorial`) + nav link.
+
+### Tests
+- `tests/test_notifications.py` (settings, quiet hours, aggregation, dashboard,
+  delivery, toast-unavailable), `tests/test_editorial.py` (roles, honest rights,
+  board, move + optimistic version, callback, audit), `tests/test_tray_agent.py`
+  (supervisor backoff, snapshot, autostart, headless). Help topics
+  `notification_center` / `editorial_workspace`.
+
+### Docs / memory
+- `docs/ARCHITECTURE.md` §19–§21, `docs/API.md`, `docs/UI.md` §11d/§11e,
+  `docs/SETUP.md`, `docs/SECURITY.md` §7f–§7h, `docs/TROUBLESHOOTING.md`,
+  `docs/ROADMAP.md`, `docs/RELEASE_CHECKLIST.md`, `README.md`;
+  `agent/DECISIONS.md` D-084…D-091.
+
+---
+
 ## [1.3.0] — 2026-10-05 — released
 
 Minor release: the **Bot Factory** and the **LAN Mesh / offline control plane**

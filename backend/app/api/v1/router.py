@@ -17,12 +17,14 @@ from backend.app.api.v1 import (
     content,
     diagnostics,
     discovery,
+    editorial,
     events,
     help,
     invites,
     manager,
     mesh,
     miniapp,
+    notifications,
     permissions,
     product,
     proxies,
@@ -42,9 +44,11 @@ api_router.include_router(bots.router)
 api_router.include_router(bot_factory.router)
 api_router.include_router(channels.router)
 api_router.include_router(content.router)
+api_router.include_router(editorial.router)
 api_router.include_router(bindings.router)
 api_router.include_router(bindings.capabilities_router)
 api_router.include_router(manager.router)
+api_router.include_router(notifications.router)
 api_router.include_router(sessions.router)
 api_router.include_router(proxies.router)
 api_router.include_router(audience.router)

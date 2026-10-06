@@ -777,6 +777,54 @@ automatically.
 
 ---
 
+## Notification Center (v1.4)
+
+A durable, queryable history of important events with per-category routing,
+quiet hours and anti-spam aggregation. Secrets are never stored or returned.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/notifications/settings` | categories, routing, quiet hours |
+| PUT | `/api/v1/notifications/settings` | update toggles / routing / quiet hours |
+| GET | `/api/v1/notifications` | history (`category`, `priority`, `status`, `page`, `page_size`) |
+| GET | `/api/v1/notifications/dashboard` | enabled/pending/failed + counts + in-quiet-hours |
+| POST | `/api/v1/notifications/test` | send a test notification (`category`, `priority`) |
+| POST | `/api/v1/notifications/{id}/read` | mark a notification read |
+
+---
+
+## Editorial Workspace (v1.4)
+
+A linked Telegram forum supergroup where the owner, editors and moderators work
+the same publication queue the Web UI shows. The suite owns the queue order; the
+bot's rights are verified, never assumed.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/editorial/rooms` | list rooms |
+| POST | `/api/v1/editorial/rooms` | create/link a room (`channel_id`, `group_chat_id`, optional `bot_id`) |
+| DELETE | `/api/v1/editorial/rooms/{id}` | delete a room |
+| POST | `/api/v1/editorial/rooms/{id}/check` | verify bot rights and create topics (`create_topics`) |
+| GET | `/api/v1/editorial/rooms/{id}/members` | list members |
+| PUT | `/api/v1/editorial/rooms/{id}/members` | set a member role (by numeric Telegram id) |
+| DELETE | `/api/v1/editorial/rooms/{id}/members/{telegram_user_id}` | remove a member |
+| GET | `/api/v1/editorial/rooms/{id}/board` | the queue board (columns + counts) |
+| POST | `/api/v1/editorial/rooms/{id}/items` | enqueue a content item |
+| POST | `/api/v1/editorial/rooms/{id}/items/{item_id}/move` | move an item (`status`, optional `expected_version`) |
+| POST | `/api/v1/editorial/rooms/{id}/reorder` | reorder one status column |
+| GET | `/api/v1/editorial/rooms/{id}/audit` | the audit trail (`item_id` optional) |
+
+---
+
+## Tray Agent (v1.4)
+
+The tray agent is a separate process; it is not an HTTP surface. It writes a
+secret-free snapshot to `data/tray.json` that Diagnostics reads. Start it with
+`python -m backend.app.tray.agent --tray --no-browser` (the portable `run.bat`
+does this automatically).
+
+---
+
 ## Versioning
 
 The API is versioned (`/api/v1`). Breaking changes go to a new version path.

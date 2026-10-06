@@ -62,6 +62,14 @@ class FakeTelegramBotProvider:
         self.fail_posting: bool = False
         self.fail_deletion: bool = False
         self._next_message_id: int = 1000
+        # Editorial Workspace (v1.4).
+        self.topics: list[tuple[int | str, int, str]] = []
+        self.topic_edits: list[tuple[int | str, int, str]] = []
+        self.topic_messages: list[tuple[int | str, int, str]] = []
+        self.card_buttons: list[list[list[object]]] = []
+        self.markup_edits: list[tuple[int | str, int, list[list[object]]]] = []
+        self.answered_callbacks: list[tuple[str, str, bool]] = []
+        self._next_topic_id: int = 100
 
     def script_linked_chat(self, chat_id: int | str, discussion_id: int) -> None:
         """Link a discussion group to ``chat_id`` (tests)."""
@@ -370,3 +378,62 @@ class FakeTelegramBotProvider:
         self._ensure_token()
         self._maybe_fail()
         return self.linked_chats.get(str(chat_id))
+
+    # --- Editorial Workspace (v1.4) ------------------------------------------
+    def script_topic(self, chat_id: int | str, topic_id: int) -> None:
+        """Pre-seed a topic id returned by ``create_forum_topic`` (tests)."""
+        self._next_topic_id = max(self._next_topic_id, topic_id + 1)
+
+    async def create_forum_topic(
+        self, chat_id: int | str, name: str, *, icon_color: int = 0
+    ) -> int | None:
+        self._ensure_token()
+        self._maybe_fail()
+        topic_id = self._next_topic_id
+        self._next_topic_id += 1
+        self.topics.append((chat_id, topic_id, name))
+        return topic_id
+
+    async def edit_forum_topic(
+        self, chat_id: int | str, topic_id: int, name: str
+    ) -> bool:
+        self._ensure_token()
+        self._maybe_fail()
+        self.topic_edits.append((chat_id, topic_id, name))
+        return True
+
+    async def send_topic_message(
+        self,
+        chat_id: int | str,
+        topic_id: int,
+        text: str,
+        *,
+        buttons: list[list[object]] | None = None,
+    ) -> PostSendResult:
+        self._ensure_token()
+        self._maybe_fail()
+        self.topic_messages.append((chat_id, topic_id, text))
+        self.card_buttons.append(buttons or [])
+        mid = self._next_message_id
+        self._next_message_id += 1
+        return PostSendResult(ok=True, message_ids=[mid], message="Карточка создана.")
+
+    async def edit_message_reply_markup(
+        self,
+        chat_id: int | str,
+        message_id: int,
+        *,
+        buttons: list[list[object]] | None = None,
+    ) -> PostSendResult:
+        self._ensure_token()
+        self._maybe_fail()
+        self.markup_edits.append((chat_id, message_id, buttons or []))
+        return PostSendResult(ok=True, message_ids=[message_id], message="Кнопки обновлены.")
+
+    async def answer_callback_query(
+        self, callback_query_id: str, *, text: str = "", show_alert: bool = False
+    ) -> bool:
+        self._ensure_token()
+        self._maybe_fail()
+        self.answered_callbacks.append((callback_query_id, text, show_alert))
+        return True

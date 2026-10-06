@@ -221,6 +221,19 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
       polls Telegram (D-079…D-082). Standalone (one computer) stays the default.
       New API (`/api/v1/bot-factory/*`, `/api/v1/mesh/*`), two RU-first UI pages
       and tests; no new phases.
+- [x] **Notification Center + Tray Agent + Editorial Workspace (v1.4.0,
+      released)**: a durable, queryable **Notification Center** (categories,
+      priorities, per-category routing to owner DM / notification group / Windows
+      toast, quiet hours for non-urgent messages, anti-spam aggregation and a
+      history; D-084…D-086); the **TCMS Tray Agent** so the portable app runs with
+      no console window (hidden start, `/health` readiness, bounded restart
+      backoff, optional Startup-folder autostart, secret-free snapshot surfaced in
+      Diagnostics; D-087…D-088); and the **Editorial Workspace**, a linked Telegram
+      forum supergroup where the owner, editors and moderators work the same
+      publication queue as the Web UI (verified bot rights, roles by numeric
+      Telegram id, optimistic-version moves and a full audit trail;
+      D-089…D-091). New API (`/api/v1/notifications/*`, `/api/v1/editorial/*`),
+      two RU-first UI pages and tests; no new phases.
 - [ ] Optional (remaining, non-blocking): a full automated BotFather Mini App
       flow (the one-click menu-button registration exists, D-054); richer
       analytics; additional AI backends; a reliable permissively-licensed TDATA
@@ -231,6 +244,20 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ## Release
 
+- **v1.4.0 (2026-10-05):** Notification Center + Tray Agent + Editorial
+  Workspace (D-084…D-091). A durable, queryable Notification Center with
+  categories, priorities, per-category routing (owner DM / notification group /
+  Windows toast), quiet hours and anti-spam aggregation; the TCMS Tray Agent so
+  the portable app runs with no console window (hidden start, `/health`
+  readiness, bounded restart backoff, optional Startup-folder autostart); and the
+  Editorial Workspace, a linked Telegram forum supergroup where the owner,
+  editors and moderators work the same publication queue as the Web UI with
+  verified bot rights and a full audit trail. New API
+  (`/api/v1/notifications/*`, `/api/v1/editorial/*`), two RU-first UI pages and
+  tests; no new phases. Neither feature registers accounts nor bypasses Telegram
+  limits. Released from `develop` via a reviewed `develop → main` PR, tagged
+  `v1.4.0`; the Windows portable ZIP + `.sha256` are attached to the GitHub
+  Release by the automated Release workflow (D-060).
 - **v1.3.0 (2026-10-05):** Bot Factory + LAN Mesh / offline control plane
   (D-077…D-082). Create a set of worker bots for the owner's own channels through
   the official owner-confirmed @BotFather flow, and optionally join several of the
