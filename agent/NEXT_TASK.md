@@ -4,27 +4,32 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-06
-**Status:** **v1.5.4 is COMMITTED on `develop` (pending release); the meta-audit is
-a *runtime mutation engine* (D-102) and ALL original gaps M, N, O, P and Q are
-CLOSED (D-103).** The kill rate is **computed from real executions**:
-`tests/meta_audit/` builds an isolated copy of the source tree (or a fresh temp DB
-for runtime checks), injects one seeded defect, runs the **real** auditor,
-semantically matches the finding it actually produced, and records ``detected`` /
-``missed``. The report `agent/META_AUDIT_RESULT.json` carries
-`result_source: "computed from runtime mutation executions"` and the arithmetic
-(`detected + missed == total`, `kill_rate == detected/total*100`) is asserted in
-`pytest` and CI. Removing a detector flips its mutation to `missed` and lowers the
-kill rate automatically; adding a mutation changes `total` automatically. There are
-**25** mutations and **8 negative controls** (a clean/correct tree must not produce
-a mutation finding → 0 false positives). Current computed result: **25 total,
-25 detected, 0 missed, kill rate 100.0%, 0 false positives, 0 critical misses,
-0 high misses** (`status: clean`). `KNOWN_GAP_IDS` is **empty**. Five static
-detectors closed the gaps: `check_write_only_settings` (M),
-`check_channel_registry_usage` (Q), `check_unused_model_columns` (N),
-`check_orphan_service_classes` (O) and `check_frontend_unwired_controls` (P).
-**The remaining action is the v1.5.4 release** (`develop → main` PR, tag, ZIP).
+**Status:** **v1.5.4 is RELEASED; the meta-audit is a *runtime mutation engine*
+(D-102) and ALL original gaps M, N, O, P and Q are CLOSED (D-104).** The kill rate
+is **computed from real executions**: `tests/meta_audit/` builds an isolated copy of
+the source tree (or a fresh temp DB for runtime checks), injects one seeded defect,
+runs the **real** auditor, semantically matches the finding it actually produced,
+and records ``detected`` / ``missed``. The report `agent/META_AUDIT_RESULT.json`
+carries `result_source: "computed from runtime mutation executions"` and the
+arithmetic (`detected + missed == total`, `kill_rate == detected/total*100`) is
+asserted in `pytest` and CI. Removing a detector flips its mutation to `missed` and
+lowers the kill rate automatically; adding a mutation changes `total`
+automatically. There are **25** mutations and **8 negative controls** (a
+clean/correct tree must not produce a mutation finding → 0 false positives).
+Current computed result: **25 total, 25 detected, 0 missed, kill rate 100.0%,
+0 false positives, 0 critical misses, 0 high misses** (`status: clean`).
+`KNOWN_GAP_IDS` is **empty**. Five static detectors closed the gaps:
+`check_write_only_settings` (M), `check_channel_registry_usage` (Q),
+`check_unused_model_columns` (N), `check_orphan_service_classes` (O) and
+`check_frontend_unwired_controls` (P).
+Released as the patch `v1.5.4` via a reviewed `develop → main` PR #15 (merge
+`b219341`), tag `v1.5.4`; the Release workflow (run `37522394131`) attached the
+Windows portable ZIP (24 807 288 bytes, sha256 `ff01f787…dc67a`) + `.sha256`.
+**`main` HEAD = `b219341`; `develop` = `b219341`** (re-synced after the release
+merge). Latest tag `v1.5.4`; latest release v1.5.4.
 Version strings read **1.5.4**; `ruff` clean; frontend `vue-tsc` + `npm run build`
-clean.
+clean. Release ZIP scan: 3090 entries, app runtime dirs empty, no
+`.session`/TDATA/DB/model.
 Previous: **v1.5.1 forensic-audit fixes are released** — reviewed `develop → main`
 PR #12 (merge `f41ebc8`), tag `v1.5.1`; the Release workflow (run `37453582161`)
 attached the Windows portable ZIP + `.sha256` (D-060). It fixes five confirmed
@@ -37,13 +42,16 @@ complete.
 
 ---
 
-## Active task: release v1.5.4 (all auditor gaps closed)
+## Active task: none — v1.5.4 released (all auditor gaps closed)
 
-The v1.5.4 change is committed on `develop` and all gates pass. The remaining
-action is the **release**: open a reviewed `develop → main` PR, merge, tag
-`v1.5.4`, and let the Release workflow attach the Windows portable ZIP +
-`.sha256` (D-060). `KNOWN_GAP_IDS` is empty; the meta-audit engine reaches **100%**
-(25/25, 0 false positives).
+There is **no required next task**. v1.5.4 is released, the meta-audit is a runtime
+engine (D-102), and **all** recorded auditor gaps M, N, O, P and Q are closed
+(D-103/D-104). The kill rate is **100% (25/25, 0 false positives)**.
+
+1. **Optional follow-up (next cycle):** only if the owner asks — e.g. a remote
+   job-dispatch + worker-execution loop over `MeshTransport`, a reliable
+   permissively-licensed TDATA converter, or a dependency-free Windows toast
+   backend. Record a decision first.
 
 Do **not** add new large features, do **not** open a new PHASE, and do **not**
 create a release without the owner's ask.

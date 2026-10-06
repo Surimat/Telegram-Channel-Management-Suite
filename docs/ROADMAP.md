@@ -244,6 +244,23 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ## Release
 
+- **v1.5.4 (2026-10-06):** the last three **Consistency Auditor** coverage gaps
+  (N, O, P) are closed with pure static checks — an unused ORM column, a public
+  service class no module references, and a Vue control whose handler is undefined
+  or empty. The runtime mutation engine now detects **every** seeded defect:
+  **25/25, 100%, 0 false positives**, and `KNOWN_GAP_IDS` is empty. Additive only;
+  no new phases; no account registration and no Telegram-limit bypass.
+- **v1.5.3 (2026-10-06):** two high-impact **Consistency Auditor** gaps (M, Q)
+  closed statically — a setting saved but never read, and a channel-aware module
+  that bypasses the Channel Registry; the runtime orphan-setting allow-list made
+  honest (88%, 22/25).
+- **v1.5.2 (2026-10-06):** the auditor's kill rate is **computed from runtime
+  mutation executions**, never declared; silent-failure guard, router/backup/
+  notification checks (D-102).
+- **v1.5.1 (2026-10-06):** five forensic-audit fixes — false `available`
+  capabilities, a swallowed consistency-check failure, a write-only `language`
+  preference, runtime-image source-unavailable checks, and `README.md` version
+  drift (D-095…D-098).
 - **v1.5.0 (2026-10-05):** Capability graph + i18n + Consistency Auditor. Three
   small cross-cutting layers that make the product explain itself honestly: a
   machine-readable **capability graph** (`GET /api/v1/capability-graph`, also
