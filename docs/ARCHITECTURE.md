@@ -781,13 +781,16 @@ itself honestly instead of each surface re-deriving the same state.
 - `services/capability_graph.py` — a **machine-readable registry** of what the
   product can do (`CAPABILITIES`, `CAPABILITIES_BY_KEY`). Each `Capability` lists
   its `requires` (e.g. `channel`, `manager_bot`, `bot_binding`,
-  `posting_capability`, `session`, `encoder_model`, `proxy`, `backup_dest`) and a
-  human note. `context_from_db(session)` reads the *real* database state into a
-  boolean context; `evaluate_all(context, language)` returns `CapabilityState`s
-  with `state` (`available` / `partial` / `needs_setup` / `unavailable`),
-  `satisfied`, `missing` and `missing_fixes`.
+  `posting_capability`, `session`, `encoder_model`, `proxy`, `backup_dest`), a
+  human note, and an `implemented` flag. `context_from_db(session)` reads the
+  *real* database state into a boolean context; `evaluate_all(context, language)`
+  returns `CapabilityState`s with `state` (`available` / `partial` / `needs_setup`
+  / `unavailable` / `not_implemented`), `satisfied`, `missing` and
+  `missing_fixes`. A capability with `implemented=False` is always
+  `not_implemented` — the registry can describe a future capability without ever
+  claiming it is ready (D-095).
 - `api/v1/capability_graph.py` + `api/schemas/capability.py` — `GET
-  /api/v1/capability-graph`.
+  /api/v1/capability-graph`. The language defaults to the saved UI preference.
 - The **Promotion Wizard** (`services/promotion_service.py`) embeds the same
   evaluated graph in `WizardState.capabilities`, so the wizard and the Dashboard
   never disagree about "is this ready yet?".
@@ -798,7 +801,9 @@ itself honestly instead of each surface re-deriving the same state.
   language)`, `normalize_language()`, `missing_keys()`. Backend-produced user
   strings (capability labels, the invite-risk warning) come from here, so a single
   wording change reaches every surface. UI preference `language` (default `ru`)
-  is stored via `services/ui_prefs.py` and exposed on `/api/v1/help/prefs`.
+  is stored via `services/ui_prefs.py`, exposed on `/api/v1/help/prefs` and
+  selectable in Settings; the capability graph reads it so labels match the
+  chosen language (D-097).
 
 ### Consistency Auditor
 
@@ -808,9 +813,11 @@ itself honestly instead of each surface re-deriving the same state.
   runtime auditor: every ORM table has a migration; every frontend `api.*` call
   maps to a real route; every scheduler job kind has a handler; every frontend
   route points at a real view; providers come in real + fake pairs; the capability
-  registry is well-formed; i18n keys are complete; UI help topics exist; documented
-  API prefixes are known. Hard drift is an **error**; heuristic noise (unused
-  routers, orphan help topics) is **info** only.
+  registry is well-formed and every `implemented=True` capability has a matching
+  code signal; i18n keys are complete; UI help topics exist; documented API
+  prefixes are known. Hard drift is an **error**; heuristic noise (unused routers,
+  orphan help topics) is **info** only. A check that raises is reported as an
+  `error` (`audit.check_failed.<name>`) — never silently skipped (D-096).
 - `services/consistency.py` — the runtime `ConsistencyAuditor` (DB-backed checks:
   settings, accounts, channels, bindings, queue, jobs) that folds static + runtime
   findings into one report grouped into `configuration`, `integration`,

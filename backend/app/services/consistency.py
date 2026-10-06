@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.config import Settings, get_settings
 from backend.app.services.consistency_checks import run_static_checks
 from backend.app.services.consistency_types import (
+    SEVERITY_ERROR,
     SEVERITY_INFO,
     SEVERITY_WARNING,
     ConsistencyReport,
@@ -68,8 +69,23 @@ class ConsistencyAuditor:
         ):
             try:
                 findings.extend(await check())
-            except Exception:  # pragma: no cover - a check must never crash the page
-                continue
+            except Exception as exc:  # a failing check is itself a finding
+                findings.append(
+                    Finding(
+                        id=f"audit.check_failed.{check.__name__}",
+                        category="integration",
+                        severity=SEVERITY_ERROR,
+                        confidence="high",
+                        title="Проверка целостности не выполнилась",
+                        detail=f"{check.__name__}: {type(exc).__name__}: {exc}",
+                        why=(
+                            "Проверка не отработала, поэтому её результат неизвестен — "
+                            "это не «всё в порядке»."
+                        ),
+                        how_to_fix="Исправьте ошибку в самой проверке (см. detail) и повторите.",
+                        subsystem="audit",
+                    )
+                )
         return findings
 
     async def _check_channel_aware(self) -> list[Finding]:

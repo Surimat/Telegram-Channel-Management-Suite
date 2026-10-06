@@ -13,13 +13,14 @@ from pydantic import BaseModel, Field
 class CapabilityStateOut(BaseModel):
     key: str
     title: str
-    state: str  # available | partial | needs_setup | unavailable
+    state: str  # available | partial | needs_setup | unavailable | not_implemented
     state_label: str
     requires: list[str] = Field(default_factory=list)
     satisfied: list[str] = Field(default_factory=list)
     missing: list[str] = Field(default_factory=list)
     missing_fixes: list[str] = Field(default_factory=list)
     note: str = ""
+    implemented: bool = True
 
 
 __all__ = ["CapabilityStateOut"]

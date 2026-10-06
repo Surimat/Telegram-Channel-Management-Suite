@@ -9,12 +9,13 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v1.4.0`.** It adds the **Notification Center** (a
-durable, queryable history of important events with categories, priorities, quiet
-hours and de-duplication), the **TCMS Tray Agent** (a light Windows supervisor so
-the portable app runs with no console window) and the **Editorial Workspace**
-(a Telegram forum-supergroup editorial room where the owner, editors and
-moderators work the same publication queue the Web UI shows). See Status below.
+**Current stable release: `v1.5.0`.** It adds the **Capability Graph** (one
+machine-readable description of what the product can do and what each capability
+requires, so every screen agrees on what is ready), a **localized message
+catalog** (RU/EN, single-sourced in `core/i18n.py`) and the **Consistency
+Auditor** ("Проверка целостности": cross-module drift detection between DB,
+migrations, API, frontend, scheduler, providers, i18n and help catalog). See
+Status below.
 
 ## What it does
 
@@ -129,15 +130,14 @@ deterministic coordinator election, fencing leases, a `mesh.tick` maintenance jo
 and a guard so only the coordinator polls Telegram; D-079…D-083). Standalone (one
 computer) stays the default; neither feature registers accounts or bypasses
 Telegram limits.
-**v1.4.0 (released)** adds the **Notification Center** (durable, queryable
-history; categories and priorities; routing to owner DM / notification group /
-Windows toast; quiet hours for non-urgent messages; anti-spam aggregation),
-the **TCMS Tray Agent** (hidden backend start, `/health` readiness, bounded
-restart backoff, optional Startup-folder autostart, secret-free state snapshot
-surfaced in Diagnostics) and the **Editorial Workspace** (a linked Telegram forum
-supergroup with one topic per queue status, verified bot rights, roles by numeric
-Telegram id and a full audit trail). It adds no account registration and no
-Telegram-limit bypass.
+**v1.5.0 (released)** adds the **Capability Graph** (one machine-readable view
+of what the product can do and what each capability requires; unimplemented
+capabilities are reported honestly as "Не реализовано" rather than "Доступно"),
+the **localized message catalog** (RU/EN, single-sourced in `core/i18n.py`, with
+the language preference selectable in Settings) and the **Consistency Auditor**
+(cross-module drift detection surfaced in Diagnostics, with a failed check
+reported as an error instead of being silently skipped). It adds no account
+registration and no Telegram-limit bypass.
 See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
 ## Deployment modes

@@ -9,6 +9,8 @@ export const useHelpStore = defineStore('help', {
     topics: {} as Record<string, HelpTopic>,
     loaded: false,
     showExplanations: true,
+    language: 'ru',
+    availableLanguages: ['ru', 'en'] as string[],
   }),
   getters: {
     topic(state) {
@@ -24,6 +26,10 @@ export const useHelpStore = defineStore('help', {
         for (const t of topics) map[t.key] = t
         this.topics = map
         this.showExplanations = prefs.show_explanations
+        this.language = prefs.language
+        if (prefs.available_languages?.length) {
+          this.availableLanguages = prefs.available_languages
+        }
         this.loaded = true
       } catch {
         // Explanations are a nicety; never block the app if they fail.
@@ -37,6 +43,16 @@ export const useHelpStore = defineStore('help', {
         this.showExplanations = prefs.show_explanations
       } catch {
         // Keep the optimistic value; the UI still respects the toggle.
+      }
+    },
+    async setLanguage(value: string) {
+      const previous = this.language
+      this.language = value
+      try {
+        const prefs: UiPrefs = await api.updateHelpPrefs({ language: value })
+        this.language = prefs.language
+      } catch {
+        this.language = previous
       }
     },
   },

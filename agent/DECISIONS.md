@@ -1798,3 +1798,91 @@ codebase honest.
 `tests/test_architecture_consistency.py`. The auditor is additive: it never blocks
 startup and never mutates data.
 
+---
+
+## D-095 — 2026-10-06 — A capability without an implementation is never `available` — LOCKED
+
+**Decision:** A `Capability` carries an explicit `implemented` flag. When it is
+`False`, `evaluate()` always returns the new state `not_implemented`
+("Не реализовано" / "Not implemented") regardless of the requirement context, and
+`CapabilityState.implemented` mirrors the flag through the API. The static
+Consistency Auditor gained `check_capability_implementation()`, which fails
+(`error`) if a capability is marked `implemented=True` while no matching code
+signal exists in `backend/app`. `config_sync` and `media_conversion` are
+`implemented=False` (no Owner-Auth/cloud-sync and no ffmpeg/media tooling exist).
+
+**Why:** The forensic audit of v1.5.0 found `config_sync` reporting **`available`
+on an empty install** while no sync implementation existed — a false claim the
+user could not fix by configuring anything. The registry must be able to describe
+a future capability without lying about its readiness.
+
+**Consequence:** `services/capability_graph.py` (`implemented`,
+`STATE_NOT_IMPLEMENTED`), `api/schemas/capability.py` + `api/v1/capability_graph.py`
+(`implemented`), `core/i18n.py` (`cap.state.not_implemented`),
+`services/consistency_checks.py` (`check_capability_implementation`),
+`DashboardView.vue` (renders the note),
+`tests/test_consistency.py::test_unimplemented_capabilities_are_never_available`,
+`tests/test_architecture_consistency.py::test_capabilities_have_implementations`.
+
+---
+
+## D-096 — 2026-10-06 — A consistency check that raises is an error, never silently skipped — LOCKED
+
+**Decision:** `run_static_checks()` (static) and
+`ConsistencyAuditor._runtime_findings()` (runtime) no longer `except Exception:
+continue`. A check that raises produces an `error` finding
+(`audit.check_failed.<name>`) carrying the exception type and message, so
+"checked and clean" is distinguishable from "could not run".
+
+**Why:** The audit found `_runtime_findings` silently swallowed errors. A check
+that never runs looks identical to a passing check — the auditor could report
+"pass" precisely when it was blind.
+
+**Consequence:** `services/consistency_checks.py`, `services/consistency.py`,
+`tests/test_architecture_consistency.py::test_auditor_never_swallows_a_failed_check`.
+
+---
+
+## D-097 — 2026-10-06 — Capability labels and the language preference are actually consumed — LOCKED
+
+**Decision:** `GET /api/v1/capability-graph` resolves the language from the saved
+UI preference (`UiPrefsService.get_language()`) when no explicit `language` query
+parameter is given, so the labels match what the user picked. The Settings page
+gained a real language selector (`help.setLanguage`) writing the stored
+preference; the help store exposes `language` / `availableLanguages`.
+
+**Why:** The audit found the i18n catalog and the stored `language` preference
+were wired to the API but **no UI ever read them** — the preference was
+write-only and every label stayed RU.
+
+**Consequence:** `api/v1/capability_graph.py`, `frontend/src/stores/help.ts`,
+`frontend/src/views/SettingsView.vue`, `frontend/src/api/client.ts` (`UiPrefs`),
+`tests/test_consistency.py::test_capability_graph_language_follows_ui_preference`.
+Scope is honest: the beginner help catalog (`help_topics.py`) stays RU-first (not
+machine-translated); the preference localises backend-produced strings (capability
+titles/states), not the entire UI.
+
+---
+
+## D-098 — 2026-10-06 — A source-comparison check with no sources reports "unavailable" (info) — LOCKED
+
+**Decision:** Static checks that compare repository *source* files
+(`check_api_route_frontend_client`, `check_frontend_route_view`,
+`check_help_catalog_usage`, `check_orphan_help_ids`, `check_documented_endpoints`)
+first verify their input directory exists (`frontend/`, `docs/`). When it does not
+(the runtime Docker image ships only the backend), the check emits an **`info`**
+finding `audit.source_unavailable.<name>` and is skipped, instead of raising into
+an `audit.check_failed.<name>` **error**. Backend-only checks always run.
+
+**Why:** The v1.5.1 Docker smoke surfaced a real defect: on the honest
+no-silent-failure runner (D-096), the runtime image reported
+`overall: fail` because it has no `frontend/` source, even though nothing was
+wrong. A deployment condition must not look like drift — but it also must not be
+silently skipped (D-096). "Could not check here" is a distinct, honest state.
+
+**Consequence:** `services/consistency_checks.py` (`_SOURCE_CHECKS`,
+`run_static_checks`). The Docker `/api/v1/consistency` report now returns
+`overall: pass` with five `info` notes; the dev checkout and CI still run every
+check fully. Test:
+`tests/test_architecture_consistency.py::test_missing_source_tree_is_info_not_error`.
+

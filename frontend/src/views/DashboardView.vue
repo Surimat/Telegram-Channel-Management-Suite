@@ -187,6 +187,7 @@ const managerLabel = (s: BotSummary | null) => {
             <span v-if="cap.missing.length" class="muted">
               · не хватает: {{ cap.missing.join(', ') }}
             </span>
+            <span v-else-if="cap.note" class="muted">· {{ cap.note }}</span>
           </div>
         </div>
       </div>

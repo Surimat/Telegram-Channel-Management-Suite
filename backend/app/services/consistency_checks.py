@@ -37,9 +37,30 @@ DOCS = ROOT / "docs"
 #: Modules whose user-facing strings are localized by the central catalog.
 LOCALIZED_MODULES = ("i18n.py", "help_topics.py")
 
+#: Static checks that compare repository *source* files (frontend TS/Vue, docs).
+#: The runtime Docker image ships only the backend, so when the source tree is
+#: absent these checks report "недоступно" (info) instead of raising — CI and the
+#: dev checkout still run them fully. Paths are resolved at call time (by module
+#: attribute name) so the guard sees the current values.
+_SOURCE_CHECKS: dict[str, tuple[str, ...]] = {
+    "check_api_route_frontend_client": ("FRONTEND",),
+    "check_frontend_route_view": ("FRONTEND",),
+    "check_help_catalog_usage": ("FRONTEND",),
+    "check_orphan_help_ids": ("FRONTEND",),
+    "check_documented_endpoints": ("DOCS",),
+}
+
 
 def run_static_checks() -> list[Finding]:
-    """Run every static check and return the raw findings."""
+    """Run every static check and return the raw findings.
+
+    A check that raises must **not** silently disappear: it is reported as an
+    ``error`` finding so CI and the Diagnostics panel can distinguish "checked
+    and clean" from "could not run". A missing finding is never treated as a
+    pass (D-096). A source-comparison check whose inputs are absent (the runtime
+    image ships no frontend/docs source) is reported as ``info`` "недоступно",
+    because that is an honest "could not check here", not drift.
+    """
     findings: list[Finding] = []
     for check in (
         check_api_route_frontend_client,
@@ -48,15 +69,57 @@ def run_static_checks() -> list[Finding]:
         check_scheduler_job_handlers,
         check_provider_registry,
         check_capability_registry,
+        check_capability_implementation,
         check_i18n_completeness,
         check_help_catalog_usage,
         check_documented_endpoints,
         check_orphan_help_ids,
     ):
+        missing = [
+            globals()[name]
+            for name in _SOURCE_CHECKS.get(check.__name__, ())
+            if not globals()[name].exists()
+        ]
+        if missing:
+            findings.append(
+                Finding(
+                    id=f"audit.source_unavailable.{check.__name__}",
+                    category="integration",
+                    severity=SEVERITY_INFO,
+                    confidence="high",
+                    title="Проверка недоступна без исходников",
+                    detail=(
+                        f"{check.__name__}: нет каталога {missing[0]} — "
+                        "runtime-сборка без исходников frontend/docs."
+                    ),
+                    why=(
+                        "Проверка сравнивает исходные файлы, которых нет в "
+                        "runtime-образе; результат здесь неизвестен."
+                    ),
+                    how_to_fix="Запустите проверку в репозитории (CI) — там исходники есть.",
+                    subsystem="audit",
+                )
+            )
+            continue
         try:
             findings.extend(check())
-        except Exception:  # pragma: no cover - a check must never crash the page
-            continue
+        except Exception as exc:  # a failing check is itself a finding
+            findings.append(
+                Finding(
+                    id=f"audit.check_failed.{check.__name__}",
+                    category="integration",
+                    severity=SEVERITY_ERROR,
+                    confidence="high",
+                    title="Проверка целостности не выполнилась",
+                    detail=f"{check.__name__}: {type(exc).__name__}: {exc}",
+                    why=(
+                        "Проверка не отработала, поэтому её результат неизвестен — "
+                        "это не «всё в порядке»."
+                    ),
+                    how_to_fix="Исправьте ошибку в самой проверке (см. detail) и повторите.",
+                    subsystem="audit",
+                )
+            )
     return findings
 
 
@@ -345,6 +408,58 @@ def check_capability_registry() -> list[Finding]:
                         subsystem="capabilities",
                     )
                 )
+    return findings
+
+
+def check_capability_implementation() -> list[Finding]:
+    """A capability must not claim ``implemented`` when the feature is absent.
+
+    The registry can only mark a capability ``implemented`` if there is a real
+    implementation behind it. This check ties each capability to a codebase
+    signal, so a false ``available`` (the config_sync bug) fails CI instead of
+    reaching the user.
+    """
+    findings: list[Finding] = []
+
+    # Only code that actually implements behaviour counts; the registry and the
+    # auditor itself must not satisfy their own signal.
+    haystack = "\n".join(
+        p.read_text(encoding="utf-8")
+        for p in (BACKEND / "api" / "v1").glob("*.py")
+    )
+    for path in (BACKEND / "services").glob("*.py"):
+        if path.name in {"capability_graph.py", "consistency_checks.py"}:
+            continue
+        haystack += path.read_text(encoding="utf-8")
+
+    # key -> a substring that must exist in backend/app when implemented=True.
+    signals = {
+        "reaction": "reaction",
+        "content_publish": "posting",
+        "ai_ru": "encoder",
+        "donor_discovery": "donor_discovery",
+        "config_sync": "config_sync",
+        "media_conversion": "ffmpeg",
+    }
+    for cap in CAPABILITIES:
+        signal = signals.get(cap.key)
+        if signal is None or not cap.implemented:
+            continue
+        if signal not in haystack:
+            findings.append(
+                Finding(
+                    id=f"capabilities.unimplemented.{cap.key}",
+                    category="capabilities",
+                    severity=SEVERITY_ERROR,
+                    confidence="high",
+                    title="Возможность помечена как реализованная без реализации",
+                    detail=f"{cap.key}: не найден признак «{signal}» в backend/app.",
+                    why="Граф возможностей покажет «Доступно» для функции, которой нет.",
+                    how_to_fix="Либо реализуйте функцию, либо переведите capability в "
+                    "implemented=False.",
+                    subsystem="capabilities",
+                )
+            )
     return findings
 
 
