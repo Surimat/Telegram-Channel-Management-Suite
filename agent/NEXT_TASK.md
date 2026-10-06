@@ -4,8 +4,7 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-06
-**Status:** **v1.5.2 meta-audit ("Проверка проверяющего") is implemented and green on
-`develop`; ready to release.**
+**Status:** **v1.5.2 meta-audit ("Проверка проверяющего") is RELEASED.**
 The Consistency Auditor is now *proven* to detect the breakages it is meant to
 catch, not merely assumed reliable (D-099/D-100). A meta-audit harness
 (`tests/test_consistency_mutations.py`, `tests/test_meta_audit.py`) copies the
@@ -21,9 +20,12 @@ always raised, and was swallowed — now `ContentSource.channel_id`
 (`channel-aware.content_source`). Measured kill rate **75%** (18/24 seeded defects,
 **0 critical**, 2 high); the 6 remaining gaps are recorded in
 `agent/META_AUDIT_RESULT.json` and pinned by `strict=True` xfail tests. New CI job
-`meta-audit` uploads the result. Version strings read **1.5.2**; suite **762 passed,
-4 xfailed**; `ruff` clean; `vue-tsc` + `npm run build` clean; static consistency
-suite `pass` (0 error, 0 warning, 2 info).
+`meta-audit` uploads the result. Released via reviewed `develop → main` PR #13
+(merge `523c089`), tag `v1.5.2`; the Release workflow (run `37464579513`) attached
+the Windows portable ZIP (24 799 763 bytes, sha256 `ee8562ef…9ed03`) + `.sha256`.
+Version strings read **1.5.2**; suite **761 passed, 4 xfailed**; `ruff` clean;
+`vue-tsc` + `npm run build` clean; static consistency suite `pass` (0 error, 0
+warning, 2 info); artifact/secret scan clean.
 Previous: **v1.5.1 forensic-audit fixes are released** — reviewed `develop → main`
 PR #12 (merge `f41ebc8`), tag `v1.5.1`; the Release workflow (run `37453582161`)
 attached the Windows portable ZIP + `.sha256` (D-060). It fixes five confirmed
@@ -36,16 +38,20 @@ complete.
 
 ---
 
-## Active task: release v1.5.2 (meta-audit) — then promote auditor gaps
+## Active task: none — v1.5.2 released (optional: promote auditor gaps)
 
-1. **Release v1.5.2** on `develop → main` via a reviewed PR, tag `v1.5.2`, let the
-   Release workflow attach the Windows portable ZIP + `.sha256`. Do **not** push to
-   `main` directly; do **not** move existing tags (D-050).
-2. **Optional follow-up (next cycle):** promote the recorded auditor gaps to real
+There is **no required next task**. v1.5.2 is complete: green on `develop`, merged
+to `main` via reviewed PR #13 (merge `523c089`), tagged `v1.5.2`, and published as
+a GitHub Release with the Windows portable ZIP + `.sha256`.
+
+1. **Optional follow-up (next cycle):** promote the recorded auditor gaps to real
    checks, starting with **M — write-only setting (high)**: allow-listed
    `sync_*`/`owner_*` setting keys are read nowhere. Each promotion should flip the
    corresponding `strict=True` xfail in `tests/test_consistency_mutations.py` into
    a passing detection test.
+
+Do **not** add new large features and do **not** open a new PHASE unless the owner
+asks.
 
 ### Meta-audit findings (D-099/D-100) — implemented, do not rebuild
 

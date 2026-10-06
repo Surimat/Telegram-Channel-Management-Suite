@@ -79,8 +79,13 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # typecheck + SPA build
 | Tests (`pytest` / `ruff`) | ✅ | 761 passed, 4 xfailed; ruff clean |
 | Frontend build | ✅ | `vue-tsc` + `npm run build` clean |
 | CI job `meta-audit` | ✅ | runs the harness + uploads `agent/META_AUDIT_RESULT.json` |
-| Git merge (`develop → main`) | ⏳ | reviewed PR (do not push to `main` directly) |
-| Automated Release workflow + ZIP/`.sha256` | ⏳ | on tag `v1.5.2` (D-060) |
+| Git merge (`develop → main`) | ✅ | reviewed PR #13 (`develop → main`, merge `523c089`) |
+| CI green on `develop` head | ✅ | run `37463801697` (push) + `37463867108` (PR) — backend/frontend/meta-audit |
+| Automated Release workflow + ZIP/`.sha256` | ✅ | `v1.5.2` tag → run `37464579513` (D-060) |
+| GitHub Release `v1.5.2` published | ✅ | tag matches (`523c089`) |
+| ZIP attached | ✅ | `…-1.5.2.zip` (24 799 763 bytes) |
+| `.sha256` attached | ✅ | `ee8562ef…9ed03`, local checksum matches |
+| Artifact scan | ✅ | ZIP has no `.session`/TDATA/DB/model (only public `certifi/cacert.pem`); runtime dirs (`sessions/`, `data/`, `backups/`, `logs/`, `exports/`, `models/`, `updates/`) empty; only placeholder `.env.example` |
 
 ### v1.5.1 (forensic-audit fixes, 2026-10-06)
 

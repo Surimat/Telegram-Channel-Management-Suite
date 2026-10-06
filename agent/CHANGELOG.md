@@ -5,11 +5,18 @@ Dates are ISO-8601.
 
 ---
 
-## [1.5.2] — 2026-10-06
+## [1.5.2] — 2026-10-06 — released
 
 Patch release: the **Consistency Auditor is now proven against deliberately seeded
 defects** ("Проверка проверяющего", D-099/D-100). No new product features; no
 account registration; no Telegram-limit bypass.
+
+Released via a reviewed `develop → main` PR #13 (merge `523c089`), tag `v1.5.2`;
+the Release workflow (run `37464579513`) created the GitHub Release and attached
+the Windows portable ZIP (24 799 763 bytes, sha256 `ee8562ef…9ed03`) + `.sha256`
+(D-060). Gates: `pytest` **761 passed, 4 xfailed**, `ruff` clean, `vue-tsc` +
+`npm run build` clean, static consistency suite `pass` (0 error, 0 warning, 2
+info), CI job `meta-audit` green (kill rate 75%), artifact/secret scan clean.
 
 ### Added
 - **Meta-audit harness** (`tests/test_consistency_mutations.py`,
