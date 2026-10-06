@@ -1886,3 +1886,92 @@ silently skipped (D-096). "Could not check here" is a distinct, honest state.
 check fully. Test:
 `tests/test_architecture_consistency.py::test_missing_source_tree_is_info_not_error`.
 
+
+---
+
+## D-099 — 2026-10-06 — The Consistency Auditor is proven against seeded defects ("Проверка проверяющего") — LOCKED
+
+**Decision:** The Consistency Auditor may not be assumed reliable. A **meta-audit**
+harness (`tests/test_consistency_mutations.py` + `tests/test_meta_audit.py`) builds
+an isolated copy of the repository source tree, injects **one synthetic defect per
+test**, and asserts the corresponding finding appears — then discards the copy. A
+machine-readable kill-rate summary is written to `agent/META_AUDIT_RESULT.json` and
+uploaded by a dedicated `meta-audit` CI job. No synthetic defect is ever written to
+the working tree.
+
+The same cycle closed four detection gaps the harness exposed and hardened two
+checks that were structurally unable to fail:
+
+1. **False capability / stray-string mask (F1/F2).** `check_capability_implementation()`
+   now requires a **strong anchor** — a real service class (e.g.
+   `class ReactionService` in `services/reaction_service.py`) registered in
+   `CAPABILITY_SERVICE_ANCHORS`. A capability with `implemented=True` and no anchor
+   is `capabilities.no_anchor.<key>`; a missing/renamed service is
+   `capabilities.unimplemented.<key>`. A stray string/comment named after the
+   capability no longer counts.
+2. **Registry pointing at a deleted module (E2).** `check_provider_registry()` now
+   verifies every `backend.app.providers.<module>` import in `registry.py`
+   resolves to a real file (`providers.registry_missing.<module>`).
+3. **i18n / hardcoded UI strings (H).** `check_hardcoded_ui_strings()` flags
+   user-visible Vue text carrying a placeholder marker (`_RU_UI_MARKERS`) that
+   bypasses the catalog (`ux.hardcoded_string.<file>:<line>`), severity
+   **warning**, confidence **low**. Broad Cyrillic scanning is deliberately avoided
+   (the current SPA keeps Russian UI text in components); the limitation is
+   documented in the check docstring.
+4. **New static checks.** `check_router_registration()` (an `APIRouter` module not
+   included in `router.py` → `api.router_unregistered.<module>`),
+   `check_backup_destination_registry()` (enum kind with no provider →
+   `backup.destination_no_module.<kind>` / `backup.destination_missing.<kind>`),
+   `check_notification_routing()` (category with no `DEFAULT_ROUTING` entry →
+   `notifications.no_routing.<category>`).
+5. **Capability dependency is enforced at evaluation.** `capability_graph.evaluate()`
+   treats a requirement naming an unimplemented capability as missing, so a
+   dependent capability can never report `available`/`partial` on that basis.
+
+**Why:** The prior cycle "fixed" the auditor but only proved the checks that were
+easy to trigger. Four breakages (false capability, stray-string mask, registry
+miss, i18n gap) passed green. Trust in the auditor must be earned with evidence,
+not asserted.
+
+**Consequence:** `services/consistency_checks.py`,
+`services/capability_graph.py`, `tests/test_consistency_mutations.py`,
+`tests/test_meta_audit.py`, `.github/workflows/ci.yml` (job `meta-audit`).
+Static suite stays `pass` (0 error, 0 warning, 2 info) on the real tree.
+
+---
+
+## D-100 — 2026-10-06 — Auditor coverage gaps are recorded honestly; `_check_channel_aware` silent failure fixed — LOCKED
+
+**Decision:** The meta-audit reports the auditor's real kill rate (**75%**: 18 of 24
+seeded defects detected, 6 missed, **0 critical**, 2 high) in
+`agent/META_AUDIT_RESULT.json` with `status: gaps_found`. Remaining gaps are
+documented and pinned by `strict=True` `xfail` tests, never hidden:
+
+| Gap | Severity | Reason |
+|-----|----------|--------|
+| L — orphan setting (static) | medium | runtime-only heuristic; no static consumer graph |
+| M — write-only setting | **high** | allow-listed `sync_*`/`owner_*` keys are read nowhere |
+| N — unused DB field | medium | no per-column usage analysis |
+| O — service without caller | medium | no dead-code/caller analysis |
+| P — control without behavior | medium | no UI-control ↔ endpoint wiring check |
+| Q — channel-aware module code | **high** | runtime covers rows, not module code |
+
+The meta-audit also surfaced and fixed a **real** silent failure: the runtime
+`_check_channel_aware()` queried `ContentItem.channel_id`, which does not exist, so
+it always raised and was swallowed by `except Exception: return findings` — the
+check had never detected anything. It now queries `ContentSource.channel_id` (the
+D-051 registry link) and emits `channel-aware.content_source`.
+
+A cross-file release-hygiene guard (`test_repo_version_is_consistent`,
+`test_readme_states_the_current_release`) caught `README.md` still claiming
+`v1.5.0` while the code shipped `v1.5.1`; the README is corrected.
+
+**Why:** "No gaps found" would be a false claim. A trustworthy auditor states what
+it cannot yet catch, and a high-severity miss (write-only settings) must prevent a
+"trust: HIGH" verdict. The `except Exception` swallow is exactly the class of
+silent failure the meta-audit exists to find.
+
+**Consequence:** `services/consistency.py`, `agent/META_AUDIT_RESULT.json`,
+`tests/test_consistency_mutations.py` (xfail gap tests),
+`tests/test_meta_audit.py`, `README.md`. Next work may promote gaps L/M/N/O/P/Q to
+real checks, starting with M (write-only settings) since it is high severity.

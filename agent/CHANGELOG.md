@@ -5,11 +5,66 @@ Dates are ISO-8601.
 
 ---
 
-## [1.5.1] — 2026-10-06 — unreleased (forensic-audit fixes)
+## [1.5.2] — 2026-10-06
+
+Patch release: the **Consistency Auditor is now proven against deliberately seeded
+defects** ("Проверка проверяющего", D-099/D-100). No new product features; no
+account registration; no Telegram-limit bypass.
+
+### Added
+- **Meta-audit harness** (`tests/test_consistency_mutations.py`,
+  `tests/test_meta_audit.py`): each test builds an isolated copy of the source
+  tree, injects one synthetic defect, and asserts the auditor reports it. Nothing
+  is written to the working tree. A machine-readable kill-rate summary is written
+  to `agent/META_AUDIT_RESULT.json` and uploaded by a new CI job `meta-audit`.
+- **New static checks** in `services/consistency_checks.py`:
+  `check_router_registration` (`api.router_unregistered.<module>`),
+  `check_backup_destination_registry` (`backup.destination_no_module` /
+  `backup.destination_missing`), `check_notification_routing`
+  (`notifications.no_routing.<category>`), and `check_hardcoded_ui_strings`
+  (`ux.hardcoded_string.<file>:<line>`, warning).
+- **Release-hygiene guards**: `test_repo_version_is_consistent` and
+  `test_readme_states_the_current_release`.
+
+### Fixed
+- **Capability false-positive / stray-string mask.** `check_capability_implementation`
+  now requires a strong anchor (a real service class) via
+  `CAPABILITY_SERVICE_ANCHORS`; a capability claiming `implemented=True` with no
+  anchor is an error (`capabilities.no_anchor.<key>`), and a missing/renamed
+  service is `capabilities.unimplemented.<key>`.
+- **Provider registry drift.** `check_provider_registry` now verifies every
+  provider module imported by `registry.py` exists
+  (`providers.registry_missing.<module>`).
+- **Capability dependency not enforced.** `capability_graph.evaluate()` now treats
+  a requirement naming an unimplemented capability as missing, so a dependent
+  capability can never report `available`/`partial` on that basis.
+- **Runtime `_check_channel_aware` silent failure.** It queried
+  `ContentItem.channel_id` (a non-existent column), always raised, and was
+  swallowed by `except Exception: return findings` — the check had never detected
+  anything. It now queries `ContentSource.channel_id` and emits
+  `channel-aware.content_source`.
+- **README version drift.** README claimed `v1.5.0` while the code shipped
+  `v1.5.1`.
+
+### Known gaps (recorded, not hidden)
+The auditor's measured kill rate is **75%** (18 of 24 seeded defects detected, 6
+missed, 0 critical, 2 high). The 6 misses are documented in
+`agent/META_AUDIT_RESULT.json` and pinned by `strict=True` `xfail` tests.
+
+---
+
+## [1.5.1] — 2026-10-06 — released
 
 Patch release: an independent forensic audit of v1.5.0 verified the claimed state
-against the code and fixed four confirmed discrepancies (D-095…D-097). No new
+against the code and fixed five confirmed discrepancies (D-095…D-098). No new
 features; no account registration; no Telegram-limit bypass.
+
+Released via a reviewed `develop → main` PR #12 (merge `f41ebc8`), tag `v1.5.1`;
+the Release workflow (run `37453582161`) created the GitHub Release and attached
+the Windows portable ZIP (24 796 203 bytes, sha256 `b46f9333…68dee`) + `.sha256`
+(D-060). Gates: `pytest` **731 passed**, `ruff` clean, `vue-tsc` + `npm run build`
+clean, Docker smoke clean (`/api/v1/consistency` → `pass`), artifact/secret scan
+clean.
 
 ### Fixed
 - **False capability.** `config_sync` reported `available` on an empty install

@@ -66,14 +66,19 @@ def test_capabilities_have_implementations() -> None:
     assert _errors(check_capability_implementation()) == []
 
 
-def test_auditor_never_swallows_a_failed_check() -> None:
-    # Every registered check must surface as a finding, not vanish. Run the full
-    # static suite and require the two audit-only checks to be present (i.e. the
-    # runner did not silently drop them).
-    from backend.app.services.consistency_checks import run_static_checks
+def test_auditor_never_swallows_a_failed_check(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    # Inject a *real* failure: a registered check that raises must surface as an
+    # error finding, never vanish into a false pass. (The meta-audit suite
+    # `tests/test_meta_audit.py` covers the same guarantee in depth.)
+    from backend.app.services import consistency_checks as cc
 
-    ids = {f.id for f in run_static_checks()}
-    assert not any(i.startswith("audit.check_failed.") for i in ids)
+    def boom() -> list:
+        raise RuntimeError("SYNTHETIC AUDIT FAILURE")
+
+    boom.__name__ = "check_i18n_completeness"
+    monkeypatch.setattr(cc, "check_i18n_completeness", boom)
+    findings = cc.run_static_checks()
+    assert any(f.id == "audit.check_failed.check_i18n_completeness" for f in findings)
 
 
 def test_i18n_keys_are_complete() -> None:
