@@ -830,16 +830,36 @@ itself honestly instead of each surface re-deriving the same state.
   findings into one report grouped into `configuration`, `integration`,
   `security`, `documentation`, `ux`.
 - **Meta-audit ("Проверка проверяющего")** — the auditor is not assumed reliable.
-  `tests/test_consistency_mutations.py` copies the source tree to a temp dir,
-  injects one synthetic defect per test, asserts the matching finding appears, and
-  discards the copy (nothing is written to the working tree).
-  `tests/test_meta_audit.py` covers the silent-failure guard (a raising check
-  becomes `audit.check_failed.<name>`, a missing source tree becomes
-  `audit.source_unavailable.<name>` info), the runtime checks, and writes the
-  kill-rate summary `agent/META_AUDIT_RESULT.json` (uploaded by CI job
-  `meta-audit`). Measured kill rate **75%** (18/24 seeded defects, 0 critical);
-  the 6 remaining gaps are recorded honestly and pinned by `strict=True` xfail
-  tests (D-099/D-100).
+  The kill rate is **computed from real executions** (D-102). `tests/meta_audit/`
+  (`engine.py` + `mutations.py`) builds an isolated copy of the source tree (or a
+  fresh temp DB for runtime checks), injects one seeded defect, runs the **real**
+  auditor, and classifies the result by semantically matching the finding it
+  actually produced. The copy is discarded — nothing is written to the working
+  tree (asserted by a test and by a CI leak check). `SuiteResult` derives
+  `detected`/`missed`/`kill_rate`/`false_positives`/`critical_misses`/`high_misses`
+  from those records and `verify()` asserts the arithmetic. There are 25 mutations
+  and 5 negative controls (a clean/correct tree must not produce a mutation
+  finding). Removing a detector flips its mutation to `missed` and lowers the rate;
+  adding a mutation changes `total` — both proven by tests. `tests/test_meta_audit.py`
+  covers the silent-failure guard (a raising check becomes
+  `audit.check_failed.<name>`, a missing source tree becomes
+  `audit.source_unavailable.<name>` info) and the runtime checks.
+  `agent/META_AUDIT_RESULT.json` is a **generated** artifact
+  (`result_source: "computed from runtime mutation executions"`), uploaded by the
+  CI job `meta-audit`. Current run: **25 total, 22 detected, 3 missed, kill rate
+  88.0%, 0 false positives, 0 critical misses, 0 high misses**; the 3 remaining
+  gaps (N, O, P) are recorded in `KNOWN_GAP_IDS` and still executed, never
+  hardcoded as misses (D-099/D-100/D-102/D-103).
+- **Write-only-setting check (`check_write_only_settings`, D-103)** — a static AST
+  check that flags a setting written via `SettingsService.set(<literal>)` with no
+  literal reader (`.get_typed`/`.get_raw` or a declared `*_SETTING_SPECS` map);
+  env-backed keys are skipped. Closes gap M.
+- **Channel-registry-usage check (`check_channel_registry_usage`, D-103)** — a
+  static check that flags a channel-aware service module (a `*channel*` class/
+  function or a `channel_id`/`registry_channel_id` parameter) that never uses a
+  canonical channel identity (no `Channel*` import). Closes gap Q and complements
+  the runtime `_check_channel_aware` (DB rows) with module-code coverage
+  (D-051/D-055).
 - `api/v1/consistency.py` + `api/schemas/consistency.py` — `GET
   /api/v1/consistency`; the Diagnostics page renders it as the **"Проверка
   целостности"** panel, showing errors and warnings and hiding low-confidence info

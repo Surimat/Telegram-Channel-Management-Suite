@@ -248,21 +248,32 @@ class ConsistencyAuditor:
 
 
 def _known_setting_keys() -> set[str]:
-    """Return setting keys the codebase reads through known services/UI prefs."""
+    """Return setting keys the codebase reads (via services, constants or UI prefs).
+
+    Keys that are read through a module constant (``ui_prefs.SHOW_EXPLANATIONS``,
+    ``ui_prefs.LANGUAGE``) or a declared spec map cannot be seen by a literal AST
+    scan, so they are listed here to avoid a false "dead setting" finding. Keys
+    that no module consumes at all are deliberately **not** listed, so the runtime
+    orphan check stays honest (the static ``check_write_only_settings`` covers the
+    write-without-read case).
+    """
     from backend.app.services.ui_prefs import SHOW_EXPLANATIONS
 
     return {
         SHOW_EXPLANATIONS,
-        # AI / sync / owner settings are stored under these keys.
+        # ``language`` is read through ``ui_prefs.LANGUAGE`` and the Settings UI.
         "language",
-        "sync_enabled",
-        "sync_auto_check",
-        "sync_auto_overwrite",
-        "sync_conflict_mode",
-        "sync_provider",
-        "owner_auth_enabled",
-        "owner_session_timeout",
-        "owner_password_hash",
-        "owner_pin_hash",
-        "owner_recovery_salt",
+        # Notification toggles are read through ``notification_service``.
+        "notifications_enabled",
+        "notification_routing",
+        "notification_quiet_enabled",
+        "notification_quiet_start",
+        "notification_quiet_end",
+        "notification_quiet_tz",
+        "notification_aggregation",
+        "notification_bot_id",
+        "notification_group_chat_id",
+        # Mini App settings are read through ``miniapp.service``.
+        "miniapp_enabled",
+        "miniapp_public_url",
     }

@@ -5,11 +5,103 @@ Dates are ISO-8601.
 
 ---
 
-## [1.5.2] — 2026-10-06
+## [1.5.3] — 2026-10-06
+
+**Consistency Auditor gaps M and Q closed (D-103).** No new product features; a
+patch release. The two remaining **high**-impact coverage gaps are now detected by
+pure static checks, and the kill rate rises to **88.0% with 0 high misses**.
+
+### Added
+- **`check_write_only_settings` (gap M).** Static AST check: a setting key written
+  via `SettingsService.set(<literal>)` (including a local alias, `self.settings`,
+  `self.repo`) with no literal reader (`.get_typed`/`.get_raw` or a declared
+  `*_SETTING_SPECS` map) is flagged `settings.write_only.<key>`. Env-backed keys are
+  skipped. Clean on the real tree (no false positives).
+- **`check_channel_registry_usage` (gap Q).** Static check: a service module that is
+  channel-aware (class/function named `*channel*`, or a `channel_id` /
+  `registry_channel_id` parameter) but never uses a canonical channel identity (no
+  `Channel*` import, no canonical parameter) is flagged
+  `channel-aware.module.<module>`. Clean on the real tree.
+- Two negative controls — `NC4_setting_with_reader` and
+  `NC5_channel_aware_with_registry` — prove precision (a written-and-read setting
+  and a channel-aware module using `ChannelRepository` are not flagged).
+- Decision D-103.
+
+### Changed
+- `M_write_only_setting` and `Q_channel_aware_module` moved out of
+  `KNOWN_GAP_IDS` and are now **detected** at runtime (remaining gaps: N, O, P).
+- Runtime `_known_setting_keys()` is honest: it no longer allow-lists setting keys
+  that no module consumes (`sync_enabled`, `owner_*`), so the runtime orphan check
+  agrees with the static one.
+- `agent/META_AUDIT_RESULT.json` regenerated: **25 total, 22 detected, 3 missed,
+  kill rate 88.0%, 0 false positives, 0 critical misses, 0 high misses**
+  (`status: gaps_found`).
+- Full suite: **787 passed, 0 xfailed**; `ruff` clean; `vue-tsc` + `npm run build`
+  clean; Docker smoke clean (`/health` → `1.5.2`, SPA `200`, `/api/v1/consistency`
+  → `pass`, 0 error / 0 warning / 6 info).
+
+### Runtime mutation engine for the Consistency Auditor (D-102)
+
+**No new product features; no release.** The v1.5.2 kill rate was *declarative*
+(hand-maintained `_DETECTABLE` / `_MISSED` lists). It is now **computed from real
+executions**.
+
+### Changed
+- **Meta-audit is now measured, not declared.** New package `tests/meta_audit/`
+  (`engine.py`, `mutations.py`): `MutationSandbox` copies `backend/app`,
+  `frontend/src`, `migrations/versions`, `docs` into a temp dir (or a fresh temp DB
+  for runtime checks), injects one seeded defect, runs the **real** auditor, and
+  semantically matches the finding it actually produced. `SuiteResult` derives
+  `detected`/`missed`/`kill_rate`/`false_positives`/`critical_misses`/`high_misses`
+  from those records; `verify()` asserts the arithmetic.
+- `agent/META_AUDIT_RESULT.json` is now a **generated** artifact with
+  `result_source: "computed from runtime mutation executions"`, `generated_at`,
+  `baseline_sha`, and per-mutation `{id, detected, expected, actual_findings,
+  severity}`. At D-102 the run was **25 total, 20 detected, 5 missed, kill rate
+  80.0%, 0 false positives, 0 critical misses, 2 high misses**; D-103 raised it to
+  22/25 / 88.0% / 0 high misses.
+- `tests/test_consistency_mutations.py` rewritten: per-mutation runtime
+  classification, negative controls (0 false positives), a **detector-removal
+  proof** (disabling a check flips its mutation to missed and lowers the rate), a
+  **new-mutation proof** (adding a mutation changes `total`), and working-tree
+  isolation assertions.
+- `tests/test_meta_audit.py` rewritten: the declarative `_DETECTABLE`/`_MISSED`
+  kill-rate summary is **deleted**; kept the silent-failure guard, the runtime
+  drift checks, and added generated-report provenance + arithmetic checks.
+- `.github/workflows/ci.yml` job `meta-audit` now runs the engine, the tests, and
+  a working-tree leak assertion. It no longer relies on a hardcoded percentage.
+- **CI verified:** run `37479210076` (push, commit `f007c0b`) — Backend, Frontend and
+  `Meta-audit (auditor kill-rate)` all **success**; the uploaded
+  `meta-audit-result` artifact has `result_source = "computed from runtime mutation
+  executions"`, 25 mutations with boolean `detected`, negative controls, kill rate
+  computed dynamically. `vue-tsc` + `npm run build` clean locally.
+- **Docker smoke (unchanged, re-verified):** `/health` → `1.5.2`, SPA `200`,
+  `/api/v1/consistency` → `pass` (0 error, 0 warning, 6 info); image artifact scan
+  clean (no `.session`/TDATA/DB/model/`.env`; runtime dirs empty).
+
+### Added
+- One extra mutation `U_help_reference` (25 total) and `KNOWN_GAP_IDS` — documented
+  gaps are still **executed**, never hardcoded as misses.
+- Decisions D-101 (default language is Russian) and D-102 (kill rate is computed
+  from runtime executions).
+
+### Removed
+- The `strict=True` xfail gap tests and the declarative kill-rate constants.
+
+---
+
+## [1.5.2] — 2026-10-06 — released
 
 Patch release: the **Consistency Auditor is now proven against deliberately seeded
 defects** ("Проверка проверяющего", D-099/D-100). No new product features; no
 account registration; no Telegram-limit bypass.
+
+Released via a reviewed `develop → main` PR #13 (merge `523c089`), tag `v1.5.2`;
+the Release workflow (run `37464579513`) created the GitHub Release and attached
+the Windows portable ZIP (24 799 763 bytes, sha256 `ee8562ef…9ed03`) + `.sha256`
+(D-060). Gates: `pytest` **761 passed, 4 xfailed**, `ruff` clean, `vue-tsc` +
+`npm run build` clean, static consistency suite `pass` (0 error, 0 warning, 2
+info), CI job `meta-audit` green (kill rate 75%), artifact/secret scan clean.
 
 ### Added
 - **Meta-audit harness** (`tests/test_consistency_mutations.py`,

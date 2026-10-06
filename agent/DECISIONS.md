@@ -1975,3 +1975,102 @@ silent failure the meta-audit exists to find.
 `tests/test_consistency_mutations.py` (xfail gap tests),
 `tests/test_meta_audit.py`, `README.md`. Next work may promote gaps L/M/N/O/P/Q to
 real checks, starting with M (write-only settings) since it is high severity.
+
+---
+
+## D-101 — 2026-10-06 — The default language is Russian, resolved from the saved preference — LOCKED
+
+**Decision:** The product is Russian-first. `core/i18n.py` exposes
+`normalize_language()`; an unknown/absent language resolves to Russian
+(`DEFAULT_LANGUAGE = "ru"`) rather than English, and the stored `language`
+preference is consumed (capability graph + Settings RU/EN selector, D-097). Every
+catalog key must have both RU and EN text (`missing_keys()` → CI check).
+
+**Why:** The target user is a Russian-speaking channel owner; an English fallback
+would surface the wrong language on a fresh install. A single catalog keeps the
+Web UI, Mini App and backend messages consistent.
+
+**Consequence:** `core/i18n.py`, `services/ui_prefs.py`, `services/consistency_checks.py`
+(`check_i18n_completeness`).
+
+---
+
+## D-102 — 2026-10-06 — The auditor's kill rate is computed from runtime mutation executions, never declared — LOCKED
+
+**Decision:** The Consistency Auditor's kill rate must be **measured**, not
+asserted. `tests/meta_audit/engine.py` runs a real mutation suite: for each seeded
+defect it builds an isolated copy of the source tree (or a fresh temp DB for
+runtime checks), injects the defect, runs the **real** auditor, and classifies the
+result by semantically matching the finding it actually produced against the
+expected finding id/severity. `agent/META_AUDIT_RESULT.json` is a **generated**
+artifact (`result_source: "computed from runtime mutation executions"`) with
+per-mutation `{id, detected, expected, actual_findings, severity}`; all totals
+(`detected`, `missed`, `kill_rate`, `false_positives`, `critical_misses`,
+`high_misses`, `status`) are derived from those records.
+
+Hard rules:
+1. No `detected`/`missed` value may come from a pre-declared list (`_DETECTABLE`,
+   `_MISSED` or equivalent). The previous declarative lists are **deleted**.
+2. An unrelated finding is never a detection (semantic match only).
+3. The suite includes **negative controls**: a clean tree must not produce a
+   mutation finding (0 false positives), asserted in `pytest` and CI.
+4. The working tree is never mutated; synthetic defects live only in throwaway
+   copies (asserted by a test and by a CI leak check).
+5. CI must **not** compare against a hardcoded percentage. It checks that every
+   mutation has a runtime result, that the arithmetic is consistent, that negative
+   controls false-fire zero times, and that no previously-detected mutation has
+   become a miss (`regression_against`).
+
+**Why:** A kill rate assembled from hand-maintained lists keeps showing the old
+number even after a detector is deleted. Measuring by execution makes the number a
+property of the code: remove a detector and the mutation becomes a miss and the
+rate drops automatically; add a mutation and `total` grows automatically.
+
+**Consequence:** `tests/meta_audit/engine.py`, `tests/meta_audit/mutations.py`,
+`tests/test_consistency_mutations.py`, `tests/test_meta_audit.py`,
+`.github/workflows/ci.yml` (job `meta-audit`), `agent/META_AUDIT_RESULT.json`
+(regenerated). Known gaps are recorded in `KNOWN_GAP_IDS` and still executed —
+never hardcoded as misses.
+
+---
+
+## D-103 — 2026-10-06 — Write-only settings and channel-registry drift are detected statically — LOCKED
+
+**Decision.** Two auditor coverage gaps that the runtime mutation engine recorded
+as **high** misses are closed with **pure, deterministic static checks** in
+`backend/app/services/consistency_checks.py`, registered in `run_static_checks()`
+(so `pytest` and CI fail on regression):
+
+- **M — `check_write_only_settings`.** Parses the backend AST and compares the set
+  of setting keys **written** (a `.set(<literal>)` call on a SettingsService-like
+  receiver: `SettingsService(...)`, a local alias bound to it, `self.settings`,
+  `self.repo`) against the set **read** (`.get_typed`/`.get_raw` literals plus keys
+  declared in a `*_SETTING_SPECS` map). A literal write with no reader is a finding
+  `settings.write_only.<key>`. Environment-backed keys (`OPENHANDS_*`/`TCMS_*`) are
+  skipped; the check never matches a bare string occurrence.
+- **Q — `check_channel_registry_usage`.** Flags a service module that is
+  channel-aware (a class/function named `*channel*`, or a function taking a
+  `channel_id`/`registry_channel_id` parameter) but never uses a canonical channel
+  identity (no `Channel*` import, no canonical parameter). Finding
+  `channel-aware.module.<module>`. This complements the runtime
+  `_check_channel_aware` (which covers DB rows) by covering module **code**
+  (D-051/D-055).
+
+Both are proven by execution, not declaration: their mutations
+`M_write_only_setting` and `Q_channel_aware_module` moved out of `KNOWN_GAP_IDS`
+and are now **detected** by the runtime engine. Two negative controls
+(`NC4_setting_with_reader`, `NC5_channel_aware_with_registry`) assert precision —
+a written-and-read setting and a channel-aware module that uses `ChannelRepository`
+are **not** flagged.
+
+**Why:** A setting the owner can save but nothing reads is a silent trap; channel
+code that keeps a private target string drifts from the registry (no verified
+rights, no shared settings). Both are detectable without a database or network.
+
+**Consequence:** `consistency_checks.py` (+2 checks), `tests/meta_audit/mutations.py`
+(M/Q detected, NC4/NC5 controls, `KNOWN_GAP_IDS` = {N, O, P}),
+`tests/test_architecture_consistency.py`, `tests/test_meta_audit.py`,
+`backend/app/services/consistency.py` (honest `_known_setting_keys`),
+`agent/META_AUDIT_RESULT.json` (regenerated: 25 total, 22 detected, 3 missed,
+88.0%, 0 false positives, 0 critical/high misses). The remaining gaps (N, O, P) stay
+executed and honestly recorded.
