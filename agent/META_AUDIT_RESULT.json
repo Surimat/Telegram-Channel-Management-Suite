@@ -1,15 +1,15 @@
 {
   "version": "1.5.2",
-  "baseline_sha": "7d4a81be078323e4fefd2357d58298b8835142ee",
-  "generated_at": "2026-10-06T14:22:58.459592+00:00",
+  "baseline_sha": "dbcfe6004d6970b3005ff105dbadf09d7ba7be35",
+  "generated_at": "2026-10-06T15:52:02.371926+00:00",
   "result_source": "computed from runtime mutation executions",
   "total": 25,
-  "detected": 20,
-  "missed": 5,
-  "kill_rate": 80.0,
+  "detected": 22,
+  "missed": 3,
+  "kill_rate": 88.0,
   "false_positives": 0,
   "critical_misses": 0,
-  "high_misses": 2,
+  "high_misses": 0,
   "status": "gaps_found",
   "mutations": [
     {
@@ -518,7 +518,7 @@
     {
       "id": "Q_channel_aware_module",
       "name": "channel_aware_module_without_channel",
-      "detected": false,
+      "detected": true,
       "expected": {
         "finding_id": "channel-aware.module.zz_channel_consumer",
         "severity": "warning"
@@ -533,10 +533,44 @@
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "channel-aware.module.zz_channel_consumer",
+          "severity": "warning",
+          "category": "channels"
         }
       ],
       "severity": "high",
-      "note": "GAP: the runtime check covers DB rows, not module code.",
+      "note": "Channel-aware code that bypasses the canonical Channel Registry.",
+      "error": null
+    },
+    {
+      "id": "M_write_only_setting",
+      "name": "write_only_setting",
+      "detected": true,
+      "expected": {
+        "finding_id": "settings.write_only.zz_write_only_setting",
+        "severity": "warning"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "settings.write_only.zz_write_only_setting",
+          "severity": "warning",
+          "category": "settings"
+        }
+      ],
+      "severity": "high",
+      "note": "A setting with a real write path but no reader: saved, yet it never changes behaviour. Detected by static write/read analysis (D-100/M).",
       "error": null
     },
     {
@@ -717,30 +751,6 @@
       "severity": "medium",
       "note": "Detected by the runtime dead-setting check, not a static consumer graph.",
       "error": null
-    },
-    {
-      "id": "M_write_only_setting",
-      "name": "write_only_setting",
-      "detected": false,
-      "expected": {
-        "finding_id": "settings.write_only.sync_enabled",
-        "severity": "warning"
-      },
-      "actual_findings": [
-        {
-          "id": "api.backend_unused",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
-          "id": "help.orphan_topics",
-          "severity": "info",
-          "category": "orphan"
-        }
-      ],
-      "severity": "high",
-      "note": "High-impact: a persisted setting that no module reads.",
-      "error": null
     }
   ],
   "negative_controls": [
@@ -781,6 +791,40 @@
     {
       "id": "NC3_clean_capability",
       "name": "clean_tree_no_false_capability_finding",
+      "passed": true,
+      "findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ]
+    },
+    {
+      "id": "NC4_setting_with_reader",
+      "name": "setting_with_a_reader_is_not_write_only",
+      "passed": true,
+      "findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ]
+    },
+    {
+      "id": "NC5_channel_aware_with_registry",
+      "name": "channel_aware_module_using_registry_is_not_flagged",
       "passed": true,
       "findings": [
         {

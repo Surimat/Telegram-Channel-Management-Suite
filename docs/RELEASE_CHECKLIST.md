@@ -71,9 +71,9 @@ PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_R
 | Gate | v1.5.2 | Notes |
 | --- | --- | --- |
 | Version consistency (`1.5.2` everywhere) | ✅ | app / pyproject / frontend / lock (guarded by `test_repo_version_is_consistent`) |
-| Meta-audit engine (runtime) | ✅ | `tests/meta_audit/engine.py` + `mutations.py`; kill rate **computed from executions** — 25 total, 20 detected, 5 missed, **80.0%**, 0 false positives, 0 critical (D-102) |
+| Meta-audit engine (runtime) | ✅ | `tests/meta_audit/engine.py` + `mutations.py`; kill rate **computed from executions** — at release 25 total, 20 detected, 5 missed, **80.0%**, 0 false positives, 0 critical (D-102); **on `develop` after D-103: 25 total, 22 detected, 3 missed, 88.0%, 0 critical/high** |
 | Silent-failure guard | ✅ | raising check → `audit.check_failed.<name>` error; missing source → `audit.source_unavailable.<name>` info |
-| New static checks | ✅ | router registration, backup-destination provider, notification routing, hardcoded UI strings |
+| New static checks | ✅ | router registration, backup-destination provider, notification routing, hardcoded UI strings; **+ write-only setting (M) and channel-registry usage (Q), D-103** |
 | Capability anchors + dependency | ✅ | strong `CAPABILITY_SERVICE_ANCHORS`; `evaluate()` blocks an unimplemented dependency |
 | Real defect fixed | ✅ | `_check_channel_aware` column mismatch (`ContentSource.channel_id`) |
 | README release line | ✅ | updated to `v1.5.2` (guarded by `test_readme_states_the_current_release`) |

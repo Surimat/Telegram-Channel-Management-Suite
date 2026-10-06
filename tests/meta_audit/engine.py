@@ -362,14 +362,23 @@ async def run_controls(
     controls: list[Mutation],
     workdir: Path,
 ) -> list[ControlResult]:
-    """Negative controls: a clean tree must not produce the expected finding."""
+    """Negative controls: a clean/correct tree must not produce the finding.
+
+    A control may inject a *correct* variant via ``apply`` (e.g. a channel-aware
+    module that does use the registry). If the auditor still flags it, the control
+    fails and the run is marked as producing false positives (D-102).
+    """
     results: list[ControlResult] = []
     for index, control in enumerate(controls):
         sandbox = MutationSandbox.create(workdir / f"control_{index}")
         try:
+            if control.apply is not None:
+                control.apply(sandbox)
             if control.runtime_setup is not None:
                 async with _fresh_session(workdir / f"control_{index}.db") as factory:
                     async with factory() as session:
+                        await control.runtime_setup(session)
+                        await session.commit()
                         report = await ConsistencyAuditor(session).run()
                         findings = list(report.findings)
             else:

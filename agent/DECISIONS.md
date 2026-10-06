@@ -2031,3 +2031,46 @@ rate drops automatically; add a mutation and `total` grows automatically.
 `.github/workflows/ci.yml` (job `meta-audit`), `agent/META_AUDIT_RESULT.json`
 (regenerated). Known gaps are recorded in `KNOWN_GAP_IDS` and still executed —
 never hardcoded as misses.
+
+---
+
+## D-103 — 2026-10-06 — Write-only settings and channel-registry drift are detected statically — LOCKED
+
+**Decision.** Two auditor coverage gaps that the runtime mutation engine recorded
+as **high** misses are closed with **pure, deterministic static checks** in
+`backend/app/services/consistency_checks.py`, registered in `run_static_checks()`
+(so `pytest` and CI fail on regression):
+
+- **M — `check_write_only_settings`.** Parses the backend AST and compares the set
+  of setting keys **written** (a `.set(<literal>)` call on a SettingsService-like
+  receiver: `SettingsService(...)`, a local alias bound to it, `self.settings`,
+  `self.repo`) against the set **read** (`.get_typed`/`.get_raw` literals plus keys
+  declared in a `*_SETTING_SPECS` map). A literal write with no reader is a finding
+  `settings.write_only.<key>`. Environment-backed keys (`OPENHANDS_*`/`TCMS_*`) are
+  skipped; the check never matches a bare string occurrence.
+- **Q — `check_channel_registry_usage`.** Flags a service module that is
+  channel-aware (a class/function named `*channel*`, or a function taking a
+  `channel_id`/`registry_channel_id` parameter) but never uses a canonical channel
+  identity (no `Channel*` import, no canonical parameter). Finding
+  `channel-aware.module.<module>`. This complements the runtime
+  `_check_channel_aware` (which covers DB rows) by covering module **code**
+  (D-051/D-055).
+
+Both are proven by execution, not declaration: their mutations
+`M_write_only_setting` and `Q_channel_aware_module` moved out of `KNOWN_GAP_IDS`
+and are now **detected** by the runtime engine. Two negative controls
+(`NC4_setting_with_reader`, `NC5_channel_aware_with_registry`) assert precision —
+a written-and-read setting and a channel-aware module that uses `ChannelRepository`
+are **not** flagged.
+
+**Why:** A setting the owner can save but nothing reads is a silent trap; channel
+code that keeps a private target string drifts from the registry (no verified
+rights, no shared settings). Both are detectable without a database or network.
+
+**Consequence:** `consistency_checks.py` (+2 checks), `tests/meta_audit/mutations.py`
+(M/Q detected, NC4/NC5 controls, `KNOWN_GAP_IDS` = {N, O, P}),
+`tests/test_architecture_consistency.py`, `tests/test_meta_audit.py`,
+`backend/app/services/consistency.py` (honest `_known_setting_keys`),
+`agent/META_AUDIT_RESULT.json` (regenerated: 25 total, 22 detected, 3 missed,
+88.0%, 0 false positives, 0 critical/high misses). The remaining gaps (N, O, P) stay
+executed and honestly recorded.

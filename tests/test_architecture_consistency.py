@@ -22,6 +22,7 @@ from backend.app.services.consistency_checks import (
     check_api_route_frontend_client,
     check_capability_implementation,
     check_capability_registry,
+    check_channel_registry_usage,
     check_documented_endpoints,
     check_frontend_route_view,
     check_help_catalog_usage,
@@ -29,6 +30,7 @@ from backend.app.services.consistency_checks import (
     check_model_migration,
     check_provider_registry,
     check_scheduler_job_handlers,
+    check_write_only_settings,
 )
 from backend.app.services.consistency_types import SEVERITY_ERROR
 
@@ -64,6 +66,18 @@ def test_capability_requirements_are_known() -> None:
 def test_capabilities_have_implementations() -> None:
     # A registry entry must not claim `implemented` without real code.
     assert _errors(check_capability_implementation()) == []
+
+
+def test_settings_have_a_consumer() -> None:
+    # A setting that is written but never read is silent drift (gap M).
+    assert _errors(check_write_only_settings()) == []
+    assert check_write_only_settings() == []
+
+
+def test_channel_aware_modules_use_the_registry() -> None:
+    # Channel-aware code must use a canonical channel identity (gap Q).
+    assert _errors(check_channel_registry_usage()) == []
+    assert check_channel_registry_usage() == []
 
 
 def test_auditor_never_swallows_a_failed_check(monkeypatch) -> None:  # type: ignore[no-untyped-def]

@@ -4,33 +4,35 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-06
-**Status:** **v1.5.2 is RELEASED; the meta-audit is now a *runtime mutation engine*
-(D-102).** The previous kill rate was *declarative* — computed from hand-maintained
-`_DETECTABLE` / `_MISSED` lists. It is now **computed from real executions**:
-`tests/meta_audit/` builds an isolated copy of the source tree (or a fresh temp
-DB for runtime checks), injects one seeded defect, runs the **real** auditor,
-semantically matches the finding it actually produced, and records
-``detected`` / ``missed``. The report `agent/META_AUDIT_RESULT.json` carries
-`result_source: "computed from runtime mutation executions"` and the arithmetic
-(`detected + missed == total`, `kill_rate == detected/total*100`) is asserted in
-`pytest` and CI. Removing a detector flips its mutation to `missed` and lowers the
-kill rate automatically; adding a mutation changes `total` automatically. There
-are **25** mutations (24 core + 1 extra `U_help_reference`) and **3 negative
-controls** (a clean tree must not produce a mutation finding → 0 false positives).
-Current computed result: **25 total, 20 detected, 5 missed, kill rate 80.0%,
-0 false positives, 0 critical misses, 2 high misses** (`status: gaps_found`).
-The 5 known gaps (M write-only setting, N unused DB field, O service without
-caller, P control without behavior, Q channel-aware module code) are recorded in
-`KNOWN_GAP_IDS` and still **executed** — not hardcoded as misses.
+**Status:** **v1.5.2 is RELEASED; the meta-audit is a *runtime mutation engine*
+(D-102) and gaps M and Q are CLOSED (D-103).** The kill rate is **computed from
+real executions**: `tests/meta_audit/` builds an isolated copy of the source tree
+(or a fresh temp DB for runtime checks), injects one seeded defect, runs the
+**real** auditor, semantically matches the finding it actually produced, and
+records ``detected`` / ``missed``. The report `agent/META_AUDIT_RESULT.json`
+carries `result_source: "computed from runtime mutation executions"` and the
+arithmetic (`detected + missed == total`, `kill_rate == detected/total*100`) is
+asserted in `pytest` and CI. Removing a detector flips its mutation to `missed` and
+lowers the kill rate automatically; adding a mutation changes `total`
+automatically. There are **25** mutations and **5 negative controls** (a
+clean/correct tree must not produce a mutation finding → 0 false positives).
+Current computed result: **25 total, 22 detected, 3 missed, kill rate 88.0%,
+0 false positives, 0 critical misses, 0 high misses** (`status: gaps_found`).
+Two new static detectors closed the remaining HIGH gaps: `check_write_only_settings`
+(M — a setting written via `SettingsService.set` with no reader) and
+`check_channel_registry_usage` (Q — a channel-aware service module that never uses
+a canonical channel identity). The 3 remaining gaps (N unused DB field, O service
+without caller, P control without behavior) are recorded in `KNOWN_GAP_IDS` and
+still **executed** — not hardcoded as misses.
 Released via reviewed `develop → main` PR #13 (merge `523c089`), tag `v1.5.2`; the
 Release workflow (run `37464579513`) attached the Windows portable ZIP
 (24 799 763 bytes, sha256 `ee8562ef…9ed03`) + `.sha256`. **`main` HEAD =
-`523c089`; `develop` is not equal to `main`.** The code commit for this change is
-`f007c0b` on `develop` (later commits are memory/doc syncs). Latest tag `v1.5.2`;
-latest release v1.5.2. CI on `develop` (code commit `f007c0b`): run
-`37479210076` — Backend, Frontend and `meta-audit` all success.
+`523c089`; `develop` is not equal to `main`.** The code commit for the M/Q gap
+closure is on `develop` (later commits are memory/doc syncs). Latest tag `v1.5.2`;
+latest release v1.5.2.
 Version strings read **1.5.2**; `ruff` clean; frontend `vue-tsc` + `npm run build`
-clean; static consistency suite `pass` (0 error, 0 warning, 2 info).
+clean; Docker smoke clean (`/health` → `1.5.2`, SPA `200`, `/api/v1/consistency` →
+`pass`, 0 error / 0 warning / 6 info).
 Previous: **v1.5.1 forensic-audit fixes are released** — reviewed `develop → main`
 PR #12 (merge `f41ebc8`), tag `v1.5.1`; the Release workflow (run `37453582161`)
 attached the Windows portable ZIP + `.sha256` (D-060). It fixes five confirmed
@@ -43,16 +45,16 @@ complete.
 
 ---
 
-## Active task: none — v1.5.2 released, runtime engine landed (optional: promote gaps)
+## Active task: none — M and Q closed (optional: promote the remaining gaps)
 
-There is **no required next task**. v1.5.2 is released and the meta-audit is now a
-runtime engine (D-102).
+There is **no required next task**. v1.5.2 is released, the meta-audit is a
+runtime engine (D-102), and the two HIGH gaps M and Q are closed (D-103).
 
-1. **Optional follow-up (next cycle):** promote a recorded auditor gap to a real
-   check. Start with **M — write-only setting (high)**: allow-listed
-   `sync_*`/`owner_*` setting keys are read nowhere. When a gap is closed, remove
-   its id from `KNOWN_GAP_IDS` in `tests/meta_audit/mutations.py`; the kill rate
-   then rises automatically on the next engine run (no report hand-editing).
+1. **Optional follow-up (next cycle):** promote one of the three remaining
+   recorded auditor gaps (N unused DB field, O service without caller, P control
+   without behavior — all below high) to a real check. When a gap is closed,
+   remove its id from `KNOWN_GAP_IDS` in `tests/meta_audit/mutations.py`; the kill
+   rate then rises automatically on the next engine run (no report hand-editing).
 
 Do **not** add new large features, do **not** open a new PHASE, and do **not**
 create a release without the owner's ask.

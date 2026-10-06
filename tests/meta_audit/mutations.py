@@ -4,10 +4,12 @@ Each entry describes one seeded defect: how to inject it and which finding the
 auditor *should* produce. There is deliberately **no** ``detected`` field — the
 engine measures detection at runtime.
 
-The 24 core mutations mirror the original "проверка проверяющего" suite, including
-the six intentionally-missed gaps (L, M, N, O, P, Q) which are run for real and
-classified by execution. ``U_help_reference`` is an extra mutation used to prove
-the total is computed dynamically (no hardcoded count).
+The core mutations mirror the original "проверка проверяющего" suite. Gaps M
+(write-only setting) and Q (channel-aware module drift) are now closed and are
+therefore expected to be **detected**; the remaining intentional gaps (N, O, P)
+are still run for real and classified by execution. ``U_help_reference`` is an
+extra mutation used to prove the total is computed dynamically (no hardcoded
+count).
 
 Severities are the *impact if the defect is missed*, used for ``critical_misses``
 and ``high_misses``.
@@ -261,12 +263,30 @@ STATIC_MUTATIONS: list[Mutation] = [
         expected_finding_id="channel-aware.module.zz_channel_consumer",
         expected_severity="warning",
         severity="high",
-        note="GAP: the runtime check covers DB rows, not module code.",
+        note="Channel-aware code that bypasses the canonical Channel Registry.",
         apply=lambda b: b.write(
             "backend/app/services/zz_channel_consumer.py",
             "class ChannelConsumer:\n"
             "    def handle(self, payload: dict) -> None:\n"
             "        return None\n",
+        ),
+    ),
+    Mutation(
+        id="M_write_only_setting",
+        name="write_only_setting",
+        expected_finding_id="settings.write_only.zz_write_only_setting",
+        expected_severity="warning",
+        severity="high",
+        note=(
+            "A setting with a real write path but no reader: saved, yet it never "
+            "changes behaviour. Detected by static write/read analysis (D-100/M)."
+        ),
+        apply=lambda b: b.write(
+            "backend/app/services/zz_write_only.py",
+            "from backend.app.services.settings_service import SettingsService\n\n\n"
+            "class GhostWriter:\n"
+            "    async def save(self, session) -> None:\n"
+            '        await SettingsService(session).set("zz_write_only_setting", True)\n',
         ),
     ),
     Mutation(
@@ -337,15 +357,6 @@ RUNTIME_MUTATIONS: list[Mutation] = [
         note="Detected by the runtime dead-setting check, not a static consumer graph.",
         runtime_setup=lambda s: _seed_setting(s, "zz_ghost_setting"),
     ),
-    Mutation(
-        id="M_write_only_setting",
-        name="write_only_setting",
-        expected_finding_id="settings.write_only.sync_enabled",
-        expected_severity="warning",
-        severity="high",
-        note="High-impact: a persisted setting that no module reads.",
-        runtime_setup=lambda s: _seed_setting(s, "sync_enabled"),
-    ),
 ]
 
 #: All seeded defects, static then runtime. The engine runs each one.
@@ -356,8 +367,7 @@ MUTATIONS: list[Mutation] = STATIC_MUTATIONS + RUNTIME_MUTATIONS
 #: per-defect test not to demand detection. If a gap is later closed, the kill
 #: rate rises automatically without touching this set.
 KNOWN_GAP_IDS: frozenset[str] = frozenset(
-    {"M_write_only_setting", "N_unused_db_field", "O_service_without_caller",
-     "P_control_without_behavior", "Q_channel_aware_module"}
+    {"N_unused_db_field", "O_service_without_caller", "P_control_without_behavior"}
 )
 
 
@@ -378,7 +388,7 @@ NEGATIVE_CONTROLS: list[Mutation] = [
     Mutation(
         id="NC2_clean_settings",
         name="clean_tree_no_write_only_setting_finding",
-        expected_finding_id="settings.write_only.sync_enabled",
+        expected_finding_id="settings.write_only.language",
         expected_severity="warning",
         severity="low",
         runtime_setup=lambda s: _seed_setting(s, "language", "ru"),
@@ -390,5 +400,44 @@ NEGATIVE_CONTROLS: list[Mutation] = [
         expected_severity="error",
         severity="low",
         apply=lambda b: None,
+    ),
+    Mutation(
+        id="NC4_setting_with_reader",
+        name="setting_with_a_reader_is_not_write_only",
+        expected_finding_id="settings.write_only.zz_round_trip_setting",
+        expected_severity="warning",
+        severity="low",
+        note="A setting that is written *and* read must not be flagged (M precision).",
+        apply=lambda b: b.write(
+            "backend/app/services/zz_round_trip.py",
+            "from backend.app.services.settings_service import SettingsService\n\n\n"
+            "class RoundTrip:\n"
+            "    async def save(self, session) -> None:\n"
+            "        svc = SettingsService(session)\n"
+            '        await svc.set("zz_round_trip_setting", True)\n\n'
+            "    async def load(self, session) -> object:\n"
+            "        svc = SettingsService(session)\n"
+            '        return await svc.get_typed("zz_round_trip_setting", False)\n',
+        ),
+    ),
+    Mutation(
+        id="NC5_channel_aware_with_registry",
+        name="channel_aware_module_using_registry_is_not_flagged",
+        expected_finding_id="channel-aware.module.zz_channel_ok",
+        expected_severity="warning",
+        severity="low",
+        note=(
+            "A channel-aware module that uses ChannelRepository must not be "
+            "flagged (Q precision)."
+        ),
+        apply=lambda b: b.write(
+            "backend/app/services/zz_channel_ok.py",
+            "from backend.app.db.repositories.channels import ChannelRepository\n\n\n"
+            "class ChannelConsumer:\n"
+            "    def __init__(self, session) -> None:\n"
+            "        self.channels = ChannelRepository(session)\n\n"
+            "    async def handle(self, channel_id: str) -> None:\n"
+            "        await self.channels.get(channel_id)\n",
+        ),
     ),
 ]

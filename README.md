@@ -15,11 +15,12 @@ meta-audit harness injects seeded defects into an isolated copy of the source tr
 and asserts each is reported, closing four detection gaps (false capability,
 stray-string mask, provider-registry drift, i18n) and adding router-registration,
 backup-destination and notification-routing checks. It also fixes a real silent
-failure in the runtime channel-aware check. On `develop` the meta-audit is now a
+failure in the runtime channel-aware check. On `develop` the meta-audit is a
 **runtime mutation engine**: the kill rate is **computed from real executions**
-(25 seeded defects + 3 negative controls), currently **80% (20/25), 0 critical
-misses, 0 false positives**; the 5 remaining gaps are recorded honestly in
-`agent/META_AUDIT_RESULT.json`. It keeps the **Capability Graph** (one
+(25 seeded defects + 5 negative controls), currently **88% (22/25), 0 critical or
+high misses, 0 false positives**; the 3 remaining gaps are recorded honestly in
+`agent/META_AUDIT_RESULT.json`. Two more detectors closed the previously-missed
+write-only-setting (M) and channel-registry-drift (Q) gaps. It keeps the **Capability Graph** (one
 machine-readable description of what the product can do and what each capability
 requires, so every screen agrees on what is ready), a
 **localized message catalog** (RU/EN, single-sourced in `core/i18n.py`) and the

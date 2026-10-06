@@ -93,6 +93,42 @@ _RU_UI_MARKERS = (
 #: come from the i18n catalog, not be hardcoded in the component.
 _VUE_TEXT_ATTRS = ("placeholder", "label", "title")
 
+#: SettingsService call names: a key read back by ``get_typed``/``get_raw`` is a
+#: consumer; a key passed to ``set`` is a writer. Matching on the literal key (not
+#: a bare string search) is what makes the write-only check (M) precise.
+_SETTINGS_READ_CALLS = ("get_typed", "get_raw")
+_SETTINGS_WRITE_CALLS = ("set", "upsert")
+_SETTINGS_SERVICE_MARKER = "SettingsService"
+
+#: Settings whose value is overridden by an environment variable are consumed by
+#: ``backend/app/core/config.py`` through the env, not by a ``get_typed`` call, so
+#: they are not "write-only" even when no module reads them from the DB.
+ENV_OVERRIDABLE_PREFIXES = ("OPENHANDS_", "TCMS_")
+
+#: Modules allowed to reference channels without a Channel Registry link:
+#: the registry itself and the auditor. Everything else must use a canonical
+#: channel identity (D-051/D-055).
+_CHANNEL_AWARE_EXEMPT = frozenset(
+    {
+        "channel_service.py",  # defines the canonical registry
+        "consistency.py",  # runtime channel-aware DB check
+        "consistency_checks.py",  # this auditor
+        "consistency_types.py",
+    }
+)
+
+#: Canonical channel-identity markers (D-051/D-055). A channel-aware module must
+#: use at least one so its channel references resolve to a registry row instead
+#: of a private target string.
+CANONICAL_CHANNEL_MARKERS = (
+    "ChannelRepository",
+    "ChannelService",
+    "backend.app.db.models.channel",
+    "registry_channel_id",
+)
+
+_CANONICAL_CHANNEL_PARAMS = frozenset({"channel_id", "registry_channel_id"})
+
 
 def run_static_checks() -> list[Finding]:
     """Run every static check and return the raw findings.
@@ -122,6 +158,8 @@ def run_static_checks() -> list[Finding]:
         check_hardcoded_ui_strings,
         check_documented_endpoints,
         check_orphan_help_ids,
+        check_write_only_settings,
+        check_channel_registry_usage,
     ):
         missing = [
             globals()[name]
@@ -857,6 +895,222 @@ def check_documented_endpoints() -> list[Finding]:
 
 
 # ---------------------------------------------------------------------------
+# 10. Write-only setting (M) — a setting that is stored but never consumed
+# ---------------------------------------------------------------------------
+def _is_settings_receiver(node: ast.AST, aliases: set[str]) -> bool:
+    """True when an attribute call receiver is a SettingsService-like object.
+
+    Matches ``SettingsService(...)``, ``self.settings``/``self.repo`` and local
+    names bound to ``SettingsService`` (collected per module), so a genuine
+    write/read is recognised regardless of the local variable name.
+    """
+    text = ast.unparse(node)
+    if _SETTINGS_SERVICE_MARKER in text:
+        return True
+    if text in {"self.settings", "self.repo", "self.settings.repo"}:
+        return True
+    return isinstance(node, ast.Name) and node.id in aliases
+
+
+def _settings_aliases(tree: ast.Module) -> set[str]:
+    """Local names bound to a ``SettingsService(...)`` call in one module."""
+    aliases: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        value = node.value
+        if not isinstance(value, ast.Call):
+            continue
+        func = value.func
+        name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", "")
+        if name != _SETTINGS_SERVICE_MARKER:
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                aliases.add(target.id)
+    return aliases
+
+
+def _settings_usage() -> tuple[set[str], set[str]]:
+    """Return ``(written, read)`` setting keys from the backend source.
+
+    A key is *written* when it is the literal first argument of ``.set(...)`` on a
+    SettingsService-like receiver, and *read* when it is the literal first
+    argument of ``.get_typed(...)``/``.get_raw(...)``. Keys declared in a
+    ``*_SETTING_SPECS`` mapping are also treated as read, because those modules
+    read every spec key back through ``effective()``.
+    """
+    written: set[str] = set()
+    read: set[str] = set()
+    for path in sorted(BACKEND.rglob("*.py")):
+        if "__pycache__" in path.parts:
+            continue
+        tree = _parse(path)
+        if tree is None:
+            continue
+        aliases = _settings_aliases(tree)
+        for node in ast.walk(tree):
+            # Declared specs: keys a module iterates over to read their values.
+            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Dict):
+                for target in node.targets:
+                    if (
+                        isinstance(target, ast.Name)
+                        and target.id.endswith("_SETTING_SPECS")
+                    ):
+                        for key in node.value.keys:
+                            if isinstance(key, ast.Constant) and isinstance(key.value, str):
+                                read.add(key.value)
+            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+                continue
+            if not _is_settings_receiver(node.func.value, aliases):
+                continue
+            if not node.args:
+                continue
+            first = node.args[0]
+            if not (isinstance(first, ast.Constant) and isinstance(first.value, str)):
+                continue
+            if node.func.attr in _SETTINGS_READ_CALLS:
+                read.add(first.value)
+            elif node.func.attr in _SETTINGS_WRITE_CALLS:
+                written.add(first.value)
+    return written, read
+
+
+def _is_env_backed(key: str) -> bool:
+    """True when a setting's value can come from an environment variable."""
+    return key.upper().startswith(ENV_OVERRIDABLE_PREFIXES)
+
+
+def check_write_only_settings() -> list[Finding]:
+    """Flag settings the code *writes* but never *reads* (D-100 gap M).
+
+    A write-only setting is saved (e.g. via the generic ``PATCH /settings`` or a
+    service) yet no module reads it back, so changing it has no effect on the
+    application — a silent trap for the owner. The check is conservative:
+
+    * it matches the literal key on a SettingsService-like receiver, never a bare
+      string occurrence;
+    * it ignores keys that are read through a declared ``*_SETTING_SPECS`` map or
+      that are environment-backed (``OPENHANDS_*``/``TCMS_*``).
+
+    Confidence is ``high`` because a literal writer with no reader is a real gap;
+    the severity is a ``warning`` because a dynamic (computed) reader is possible.
+    """
+    written, read = _settings_usage()
+    findings: list[Finding] = []
+    for key in sorted(written - read):
+        if _is_env_backed(key):
+            continue
+        findings.append(
+            Finding(
+                id=f"settings.write_only.{key}",
+                category="settings",
+                severity=SEVERITY_WARNING,
+                confidence="high",
+                title="Настройка сохраняется, но нигде не используется",
+                detail=(
+                    f"Ключ «{key}» записывается через SettingsService, но ни один "
+                    "модуль не читает его обратно."
+                ),
+                why="Значение сохраняется, но не влияет на поведение приложения — "
+                "пользователь меняет настройку и не видит результата.",
+                how_to_fix="Добавьте чтение настройки в модуле, который должен её "
+                "использовать, или удалите сохранение.",
+                subsystem="settings",
+            )
+        )
+    return findings
+
+
+# ---------------------------------------------------------------------------
+# 11. Channel-aware module without canonical registry link (Q)
+# ---------------------------------------------------------------------------
+def _is_channel_aware(tree: ast.Module) -> bool:
+    """True when a module exposes channel-aware behaviour.
+
+    A module is channel-aware if it defines a class/function whose name mentions
+    "channel", or a function that takes a channel identity parameter
+    (``channel_id`` / ``registry_channel_id``). This is a structural signal, not a
+    word search, so unrelated mentions do not trigger it.
+    """
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and "channel" in node.name.lower():
+            return True
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if "channel" in node.name.lower():
+                return True
+            params = {a.arg for a in (*node.args.args, *node.args.kwonlyargs)}
+            if params & _CANONICAL_CHANNEL_PARAMS:
+                return True
+    return False
+
+
+def _uses_canonical_channel(tree: ast.Module) -> bool:
+    """True when a module references a canonical channel identity.
+
+    Canonical use means importing the Channel Registry (repository, service or
+    model), referring to ``registry_channel_id``, or taking a canonical
+    ``channel_id`` parameter. A module that touches channels without any of these
+    keeps a private target string and drifts from the registry (D-051/D-055).
+    """
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            for alias in node.names:
+                if "channel" in alias.name.lower():
+                    return True
+            module = getattr(node, "module", None)
+            if module and "channel" in module.lower():
+                return True
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            params = {a.arg for a in (*node.args.args, *node.args.kwonlyargs)}
+            if params & _CANONICAL_CHANNEL_PARAMS:
+                return True
+    return False
+
+
+def check_channel_registry_usage() -> list[Finding]:
+    """Flag channel-aware service modules that bypass the Channel Registry (gap Q).
+
+    The runtime check (:meth:`ConsistencyAuditor._check_channel_aware`) catches
+    *rows* whose ``channel_id`` is empty; this static check catches *module code*
+    that is channel-aware but never uses a canonical channel identity. Together
+    they cover both the data and the code side of D-051/D-055 drift.
+    """
+    findings: list[Finding] = []
+    services = BACKEND / "services"
+    if not services.is_dir():
+        return findings
+    for path in sorted(services.glob("*.py")):
+        if path.name in _CHANNEL_AWARE_EXEMPT:
+            continue
+        tree = _parse(path)
+        if tree is None:
+            continue
+        if not _is_channel_aware(tree) or _uses_canonical_channel(tree):
+            continue
+        module = path.stem
+        findings.append(
+            Finding(
+                id=f"channel-aware.module.{module}",
+                category="channels",
+                severity=SEVERITY_WARNING,
+                confidence="medium",
+                title="Модуль работает с каналами в обход реестра",
+                detail=(
+                    f"{path.name} учитывает каналы, но не использует каноническую "
+                    "связь (ChannelRepository/ChannelService/registry_channel_id)."
+                ),
+                why="Приватная строка канала расходится с общим реестром: настройки "
+                "канала и его проверка прав не применяются к этому модулю.",
+                how_to_fix="Используйте ChannelRepository/ChannelService и канонический "
+                "channel_id вместо собственной строки-цели.",
+                subsystem="channels",
+            )
+        )
+    return findings
+
+
+# ---------------------------------------------------------------------------
 # AST helpers (kept for future, more precise checks)
 # ---------------------------------------------------------------------------
 def _parse(path: Path) -> ast.Module | None:
@@ -874,6 +1128,7 @@ __all__ = [
     "check_capability_dependencies",
     "check_capability_implementation",
     "check_capability_registry",
+    "check_channel_registry_usage",
     "check_documented_endpoints",
     "check_frontend_route_view",
     "check_hardcoded_ui_strings",
@@ -885,5 +1140,6 @@ __all__ = [
     "check_provider_registry",
     "check_router_registration",
     "check_scheduler_job_handlers",
+    "check_write_only_settings",
     "run_static_checks",
 ]

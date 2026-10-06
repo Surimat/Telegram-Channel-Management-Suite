@@ -37,7 +37,7 @@ from tests.meta_audit.engine import (
     run_suite,
     write_report,
 )
-from tests.meta_audit.mutations import MUTATIONS, NEGATIVE_CONTROLS
+from tests.meta_audit.mutations import KNOWN_GAP_IDS, MUTATIONS, NEGATIVE_CONTROLS
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -224,3 +224,75 @@ def test_dependency_on_unimplemented_capability_blocks_availability(
     state = cg.evaluate(patched, context)
     assert state.state != cg.STATE_AVAILABLE
     assert any("config_sync" in m for m in state.missing)
+
+
+# ---------------------------------------------------------------------------
+# 6. Closed gaps M (write-only setting) and Q (channel-aware module drift)
+# ---------------------------------------------------------------------------
+def _mutation(mutation_id: str):
+    return next(m for m in MUTATIONS if m.id == mutation_id)
+
+
+def test_write_only_setting_mutation_is_detected_by_execution(tmp_path: Path) -> None:
+    """M: a setting written but never read must be flagged by the real auditor."""
+    from tests.meta_audit.engine import run_mutation
+
+    result = asyncio.run(run_mutation(_mutation("M_write_only_setting"), tmp_path))
+    assert result.error is None
+    assert result.detected is True, (
+        "a write-only setting is no longer detected: "
+        f"{[f['id'] for f in result.actual_findings]}"
+    )
+
+
+def test_channel_aware_module_mutation_is_detected_by_execution(tmp_path: Path) -> None:
+    """Q: channel-aware code that bypasses the registry must be flagged."""
+    from tests.meta_audit.engine import run_mutation
+
+    result = asyncio.run(run_mutation(_mutation("Q_channel_aware_module"), tmp_path))
+    assert result.error is None
+    assert result.detected is True, (
+        "a channel-aware module without a canonical link is no longer detected: "
+        f"{[f['id'] for f in result.actual_findings]}"
+    )
+
+
+def test_closed_gaps_are_not_listed_as_known_gaps() -> None:
+    assert "M_write_only_setting" not in KNOWN_GAP_IDS
+    assert "Q_channel_aware_module" not in KNOWN_GAP_IDS
+
+
+def test_removing_the_write_only_detector_turns_m_into_a_miss(tmp_path: Path) -> None:
+    """Dynamism: removing the detector must flip M back to MISS."""
+    from tests.meta_audit.engine import run_mutation
+
+    after = asyncio.run(
+        run_mutation(
+            _mutation("M_write_only_setting"),
+            tmp_path,
+            disabled_checks=("check_write_only_settings",),
+        )
+    )
+    assert after.detected is False
+
+
+def test_removing_the_channel_registry_detector_turns_q_into_a_miss(tmp_path: Path) -> None:
+    """Dynamism: removing the detector must flip Q back to MISS."""
+    from tests.meta_audit.engine import run_mutation
+
+    after = asyncio.run(
+        run_mutation(
+            _mutation("Q_channel_aware_module"),
+            tmp_path,
+            disabled_checks=("check_channel_registry_usage",),
+        )
+    )
+    assert after.detected is False
+
+
+def test_committed_report_records_m_and_q_as_detected() -> None:
+    committed = json.loads(report_path().read_text(encoding="utf-8"))
+    by_id = {m["id"]: m for m in committed["mutations"]}
+    assert by_id["M_write_only_setting"]["detected"] is True
+    assert by_id["Q_channel_aware_module"]["detected"] is True
+    assert committed["high_misses"] == 0
