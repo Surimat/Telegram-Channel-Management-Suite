@@ -5,6 +5,34 @@ Dates are ISO-8601.
 
 ---
 
+## [Unreleased]
+
+**Clean-checkout verification of v1.6.1 + documentation reconcile.** No code
+change, no new feature, no release.
+
+### Fixed
+- **Documentation drift after the v1.6.1 release.** `agent/CURRENT_STATE.md`
+  still stated `Version string is **1.6.0**` and `main HEAD = 39efc37`, and
+  `agent/NEXT_TASK.md` still announced `v1.6.0 is released` with `822 passed`;
+  `docs/RELEASE_CHECKLIST.md` had no v1.6.1 verification section. All three now
+  name v1.6.1 (`a38823d` / `b8ee5ca`) with the 843-test result and the v1.6.1
+  gate table.
+
+### Added
+- `tests/test_meta_audit.py::test_memory_files_state_the_current_release` and
+  `::test_release_checklist_covers_the_current_release` — guard the memory files'
+  current-version anchor and the release-checklist section, so this drift cannot
+  recur unnoticed.
+
+### Notes
+- Verified the released tag on a **clean checkout** (`git clone` →
+  `git checkout v1.6.1` → fresh venv): `pytest` **843 passed**, `ruff` clean,
+  `vue-tsc` + `npm run build` clean, Docker build + smoke (`/health` → `1.6.1`),
+  portable build/smoke (ZIP 1.6.1, app copy imports), meta-audit **25/25, 100%**,
+  artifact scan clean (2799 entries, no session/TDATA/DB/model).
+
+---
+
 ## [1.6.1] — 2026-10-07
 
 **Patch: independent verification of v1.6.0 Owner Auth + Config Sync.** Fixes a

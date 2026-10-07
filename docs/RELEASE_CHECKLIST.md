@@ -66,6 +66,27 @@ PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_R
 
 ## 6. Release verification (fill in per release)
 
+### v1.6.1 (verification patch, 2026-10-07, D-107)
+
+Independent verification of the released tag on a **clean checkout** (not the
+author's working tree): clone → `git checkout v1.6.1` → fresh venv.
+
+| Gate | v1.6.1 | Notes |
+| --- | --- | --- |
+| Clean checkout of tag `v1.6.1` | ✅ | `a38823d`; worktree clean; fresh venv + `backend/requirements-dev.txt` |
+| Version consistency (`1.6.1` everywhere) | ✅ | app / pyproject / frontend / lock (`test_repo_version_is_consistent`) |
+| Owner Auth | ✅ | setup/login 401/200 matrix; local-first; runtime E2E in Docker |
+| Config Sync | ✅ | encrypted bundle (`TCMS1` AES-256-GCM), wrong-key → 400, preview/apply; local provider E2E |
+| Google Drive provider | ✅ | `/sync/google/auth` returns `configured=false` (no bundled secret); app-data scope note |
+| Meta-audit engine (runtime) | ✅ | 25 total, 25 detected, 0 missed, **100.0%**, 0 false positives, 0 critical/high |
+| Tests (`pytest` / `ruff`) | ✅ | **843 passed** (clean checkout); ruff clean |
+| Frontend build | ✅ | `vue-tsc --noEmit` + `npm run build` clean |
+| Docker build + smoke | ✅ | `docker build`; container `/health` → `{"status":"ok","version":"1.6.1"}`; migrations applied |
+| Portable build/smoke | ✅ | `scripts/build_portable.sh` → ZIP 1.6.1; app copy imports; runtime `python.exe` staged |
+| Artifact scan | ✅ | 2799 entries; no `.session`/TDATA/DB/model in the ZIP |
+| Git merge (`develop → main`) | ✅ | reviewed PR #17 (`develop → main`, merge `a38823d`) |
+| Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v1.6.1` → Release workflow (run `37601801598`, D-060) |
+
 ### v1.6.0 (Owner Auth + Config Sync, 2026-10-07)
 
 | Gate | v1.6.0 | Notes |

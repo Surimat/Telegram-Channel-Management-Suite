@@ -2230,3 +2230,32 @@ middleware-level test (synthetic ASGI scope) proves a raw `//api/v1/settings`
 returns 401, and the capability test proves `config_sync` is never `partial`.
 Nothing here searches for, downloads or bulk-registers accounts, and nothing
 bypasses Telegram limits (D-006/D-070 stand).
+
+
+## D-108 — 2026-10-07 — Release docs must name the shipped version; guarded by tests (clean-checkout verification of v1.6.1) — LOCKED
+
+**Context.** A clean-checkout verification of the released tag `v1.6.1` (fresh
+clone → `git checkout v1.6.1` → fresh venv, not the author's working tree) passed
+every gate: `pytest` 843, `ruff` clean, `vue-tsc` + `npm run build` clean, Docker
+build + smoke (`/health` → `1.6.1`, migrations applied), portable build/smoke (ZIP
+1.6.1, app copy imports), meta-audit 25/25 (100%, 0 false positives), artifact scan
+clean. **No code defect was found.** The only problem was documentation drift:
+`agent/CURRENT_STATE.md` still read `Version string is **1.6.0**` / `main HEAD =
+39efc37`, and `agent/NEXT_TASK.md` still announced `v1.6.0 is released` with `822
+passed`; `docs/RELEASE_CHECKLIST.md` had no v1.6.1 section.
+
+**Decision.** The release-hygiene tests are extended so this specific drift cannot
+recur silently:
+1. `test_memory_files_state_the_current_release` asserts the **first** `Version
+   string…` anchor line in both `agent/CURRENT_STATE.md` and `agent/NEXT_TASK.md`
+   contains the shipped `__version__` (historical lines legitimately name older
+   versions, so only the current anchor is checked).
+2. `test_release_checklist_covers_the_current_release` asserts
+   `docs/RELEASE_CHECKLIST.md` has a `### vX.Y.Z ` verification section for the
+   shipped version.
+
+**Consequences.** `tests/test_meta_audit.py` already guarded the repo version
+consistency, the README release string and the meta-audit report version; these add
+the memory files and the release checklist. This is documentation/guard only — no
+code, API, schema or dependency change, and no new release (v1.6.1 stays the
+latest tag; these edits are `Unreleased` on `develop`).

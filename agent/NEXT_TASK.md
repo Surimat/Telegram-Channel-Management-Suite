@@ -4,23 +4,24 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-07
-**Status:** **v1.6.0 (Owner Auth + Config Sync) is RELEASED** via a reviewed
-`develop → main` PR #16 (merge `39efc37`), tag `v1.6.0`; the Release workflow (run
-`37546399665`) created the GitHub Release and attached the Windows portable ZIP
-(24 846 043 bytes, sha256 `cf7968c7…61ae6`) + `.sha256`. `main` HEAD = `39efc37`;
-`develop` = `39efc37` (re-synced). A local owner
+**Status:** **v1.6.1 (verification patch) is RELEASED** via a reviewed
+`develop → main` PR #17 (merge `a38823d`), tag `v1.6.1`; the Release workflow (run
+`37601801598`) created the GitHub Release and attached the Windows portable ZIP
+(24 846 601 bytes, sha256 `8b6d7c18…f519`) + `.sha256`. `main` HEAD = `a38823d`;
+`develop` = `b8ee5ca` (release-facts commit). v1.6.1 is a patch over v1.6.0, which
+added an Owner Auth + Config Sync slice (D-105/D-106): a local owner
 profile (password/PIN, PBKDF2 verifier, signed session token) protects the panel,
 and a versioned **encrypted configuration bundle** moves settings to a new computer
 via a local folder or Google Drive (app-data scope) — never the DB, sessions or
-TDATA (D-105/D-106). Additive only; no account registration and no Telegram-limit
+TDATA. Additive only; no account registration and no Telegram-limit
 bypass. Owner Auth is **local-first**: while no profile exists, the panel stays open
 exactly as before. Config Sync detects conflicts instead of overwriting.
 
 The meta-audit remains a *runtime mutation engine* (D-102) and still detects
 **every** seeded defect: **25 total, 25 detected, 0 missed, 100.0%, 0 false
 positives, 0 critical/high misses** (`status: clean`); `KNOWN_GAP_IDS` is empty.
-Version strings read **1.6.0**; `ruff` clean; frontend `vue-tsc` + `npm run build`
-clean; the full suite is green (822 passed).
+Version strings read **1.6.1**; `ruff` clean; frontend `vue-tsc` + `npm run build`
+clean; the full suite is green (843 passed).
 
 Previous release: **v1.5.4** (auditor gaps N/O/P closed, D-104) via a reviewed
 `develop → main` PR #15 (merge `b219341`), tag `v1.5.4`; the Release workflow (run
@@ -73,9 +74,9 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # clean
 PYTHONPATH=. python tests/meta_audit/engine.py         # 25/25, 100%
 ```
 
-## Active task: none — v1.6.0 released (Owner Auth + Config Sync)
+## Active task: none — v1.6.1 released
 
-There is **no required next task**. v1.6.0 is released (PR #16, tag `v1.6.0`) and
+There is **no required next task**. v1.6.1 is released (PR #17, tag `v1.6.1`) and
 the meta-audit still reaches **100% (25/25, 0 false positives)**.
 
 1. **Optional follow-up (next cycle):** only if the owner asks — e.g. a remote
