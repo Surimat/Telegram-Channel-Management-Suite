@@ -6,6 +6,7 @@ from fastapi import APIRouter
 
 from backend.app.api.v1 import (
     ai,
+    ai_gateway,
     analytics,
     audience,
     backup,
@@ -65,6 +66,7 @@ api_router.include_router(discovery.router)
 api_router.include_router(reactions.router)
 api_router.include_router(permissions.router)
 api_router.include_router(ai.router)
+api_router.include_router(ai_gateway.router)
 api_router.include_router(analytics.router)
 api_router.include_router(miniapp.router)
 api_router.include_router(mesh.router)

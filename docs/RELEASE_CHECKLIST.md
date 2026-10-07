@@ -66,6 +66,30 @@ PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_R
 
 ## 6. Release verification (fill in per release)
 
+### v1.8.0 (AI Gateway + Web Wrapper Hub, 2026-10-09, D-111…D-113)
+
+Additive minor over v1.7.0: a single AI Gateway over many providers plus browser
+"web wrappers" that drive the owner's own logged-in session.
+
+| Gate | v1.8.0 | Notes |
+| --- | --- | --- |
+| Version consistency (`1.8.0` everywhere) | ✅ | app / pyproject / frontend (`test_repo_version_is_consistent`) |
+| AI Gateway domain | ✅ | `ai/gateway/` types, reliability, router, registry, http, providers |
+| Provider kinds | ✅ | openai_compatible / openrouter / google / anthropic / deepseek / ollama / web |
+| Web wrappers | ✅ | `WrapperDefinition` + `WebWrapperEngine`; `AUTH_REQUIRED` stops at a login wall |
+| Routing + reliability | ✅ | eligible-set ordering, bounded retry, circuit breaker, failover, `describe()` dry-run |
+| Secret safety | ✅ | keys sealed + write-only (`has_key`); journal metadata only; no prompt text |
+| Capability + anchor | ✅ | `ai_gateway` capability (requires `ai_provider`) + `CAPABILITY_SERVICE_ANCHORS` |
+| Meta-audit engine (runtime) | ✅ | 27 total, 27 detected, 0 missed, **100.0%**, 0 false positives |
+| Tests (`pytest` / `ruff`) | ✅ | full suite green; ruff clean |
+| Frontend build | ✅ | `vue-tsc --noEmit` + `npm run build` clean |
+| Docker build + smoke | ✅ | `docker build`; container `/health` + `/api/v1/consistency` pass |
+| Portable build/smoke | ✅ | Release workflow builds the Windows portable ZIP + `.sha256` |
+| Artifact scan | ✅ | no `.session`/TDATA/DB/model in the ZIP; runtime dirs empty |
+| Secret scan | ✅ | no tokens/api_hash/session strings in the diff |
+| Git merge (`develop → main`) | ✅ | reviewed `develop → main` PR |
+| Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v1.8.0` → Release workflow (D-060) |
+
 ### v1.7.0 (Bot Factory creation queue, 2026-10-08, D-109)
 
 Additive minor over v1.6.1: the Bot Factory batch becomes a durable creation

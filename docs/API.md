@@ -897,6 +897,49 @@ Google Drive; minimal: owner auth).
 
 ---
 
+## AI Gateway + Web Wrapper Hub (v1.8)
+
+One access layer over many AI providers plus a browser-based "web wrapper"
+subsystem. The gateway never registers accounts, never defeats CAPTCHA/MFA or
+regional blocks, and never touches someone else's cookies or sessions.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/ai-gateway/status` | gateway health: provider counts, strategy, browser availability |
+| GET | `/api/v1/ai-gateway/providers` | configured providers (boolean `has_key` only) + kinds + strategies |
+| POST | `/api/v1/ai-gateway/providers` | create/update a provider; the API key is sealed and never echoed |
+| POST | `/api/v1/ai-gateway/providers/{provider}/toggle` | enable/disable a provider |
+| DELETE | `/api/v1/ai-gateway/providers/{provider}` | remove a provider (204) |
+| GET | `/api/v1/ai-gateway/settings` | routing settings (strategy, allow-paid, timeout, retries, history) |
+| PUT | `/api/v1/ai-gateway/settings` | update one routing setting |
+| POST | `/api/v1/ai-gateway/chat` | run a request through the router with failover |
+| GET | `/api/v1/ai-gateway/wrappers` | the web-wrapper library (definitions) |
+| GET | `/api/v1/ai-gateway/browser` | browser-runtime availability (honest; never claims unprobed) |
+| GET | `/api/v1/ai-gateway/use-cases` | capability/use-case matrix per modality |
+| GET | `/api/v1/ai-gateway/requests` | bounded observability ring (metadata only — no prompt text) |
+
+**Provider kinds:** `openai_compatible`, `openrouter`, `google`, `anthropic`,
+`deepseek`, `ollama` (local), `web` (browser wrapper). **Strategies:** `auto`,
+`free_first`, `cheapest`, `fastest`, `best_quality`, `manual`.
+
+The router orders eligible providers (capability match, then strategy, then
+priority), retries transient failures with bounded backoff, trips a per-provider
+circuit breaker, honours a rate-limit cooldown, and fails over to the next
+provider. Every attempt is recorded; the response reports `fallback_used` and the
+per-attempt statuses. API keys are sealed with `seal_secret` and registered with
+the logging redaction filter — never returned, logged or exported.
+
+Web wrappers drive the owner's **own** logged-in browser session via a
+`WrapperDefinition` (URL, selectors, extraction, login markers). The engine runs
+the open steps, fills the prompt, submits, reads the newest answer, and returns
+`AUTH_REQUIRED` (stopping) when the site asks for a login. The browser runtime is
+optional: when unavailable, the wrapper reports honest unavailability rather than
+pretending to work. A consistency anchor (`services/ai_gateway_service.py`) and
+capability requirement (`ai_provider`) guard against advertising the gateway with
+nothing behind it.
+
+---
+
 ## Versioning
 
 The API is versioned (`/api/v1`). Breaking changes go to a new version path.

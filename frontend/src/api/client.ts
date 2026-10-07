@@ -2008,6 +2008,135 @@ export interface SyncGoogleAuth {
   state: string
 }
 
+// AI Gateway (v1.8): one access layer over many providers + Web wrappers.
+export interface GatewayCapability {
+  text: boolean
+  image: boolean
+  file: boolean
+  streaming: boolean
+  structured: boolean
+  verified: boolean
+}
+
+export interface GatewayProvider {
+  provider: string
+  kind: string
+  kind_label: string
+  model: string
+  base_url: string
+  auth_mode: string
+  has_key: boolean
+  enabled: boolean
+  priority: number
+  cost: string
+  source: string
+  capabilities: Record<string, boolean>
+  wrapper_id: string
+  region_status: string
+  note: string
+  status: string
+  status_detail: string
+  latency_ms: number
+  last_error: string
+  last_success: string
+}
+
+export interface GatewayProviderList {
+  items: GatewayProvider[]
+  kinds: { value: string; label: string }[]
+  strategies: string[]
+}
+
+export interface GatewayStatus {
+  enabled: boolean
+  strategy: string
+  providers: number
+  enabled_providers: number
+  available_providers: number
+  browser_available: boolean
+  browser_detail: string
+  allow_paid: boolean
+  web_enabled: boolean
+  note: string
+}
+
+export interface GatewaySettings {
+  strategy: string
+  allow_paid: boolean
+  web_enabled: boolean
+  max_retries: number
+  timeout_seconds: number
+  history_limit: number
+  enabled: boolean
+}
+
+export interface GatewayAttempt {
+  provider: string
+  status: string
+  ok: boolean
+  latency_ms: number
+  detail: string
+}
+
+export interface GatewayChatResult {
+  ok: boolean
+  text: string
+  provider_used: string
+  model_used: string
+  source: string
+  fallback_used: boolean
+  attempts: GatewayAttempt[]
+  latency_ms: number
+  status: string
+  error: string
+  error_category: string
+  request_id: string
+  structured: Record<string, unknown> | null
+}
+
+export interface GatewayWrapper {
+  id: string
+  name: string
+  website: string
+  capabilities: Record<string, boolean>
+  auth_mode: string
+  version: string
+  enabled: boolean
+  fallback_priority: number
+  cost: string
+  note: string
+}
+
+export interface GatewayBrowserStatus {
+  available: boolean
+  detail: string
+  runtime: string
+  docker_note: string
+}
+
+export interface GatewayUseCase {
+  group: string
+  id: string
+  modality: string
+  providers: string[]
+  available: boolean
+}
+
+export interface GatewayRequestRecord {
+  request_id: string
+  provider: string
+  model: string
+  source: string
+  strategy: string
+  ok: boolean
+  fallback_used: boolean
+  attempts: number
+  latency_ms: number
+  status: string
+  error_category: string
+  at: string
+}
+
 // The owner token is a signed, opaque session value — never a password. It is
 // kept in sessionStorage so closing the tab ends the browser session.
 const OWNER_TOKEN_KEY = 'tcms.owner.token'
@@ -3011,4 +3140,64 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken }),
     }),
+
+  // AI Gateway (v1.8): providers, routing, Web wrappers, use-case matrix.
+  gatewayStatus: () => request<GatewayStatus>('/api/v1/ai-gateway/status'),
+  gatewayProviders: () =>
+    request<GatewayProviderList>('/api/v1/ai-gateway/providers'),
+  gatewayUpsertProvider: (payload: {
+    provider: string
+    kind: string
+    model?: string
+    base_url?: string
+    api_key?: string
+    auth_mode?: string
+    enabled?: boolean
+    priority?: number
+    cost?: string
+    capabilities?: Partial<GatewayCapability>
+    wrapper_id?: string
+    note?: string
+  }) =>
+    request<GatewayProvider>('/api/v1/ai-gateway/providers', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  gatewayToggleProvider: (provider: string, enabled: boolean) =>
+    request<GatewayProvider>(`/api/v1/ai-gateway/providers/${encodeURIComponent(provider)}/toggle`, {
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
+    }),
+  gatewayRemoveProvider: (provider: string) =>
+    request<null>(`/api/v1/ai-gateway/providers/${encodeURIComponent(provider)}`, {
+      method: 'DELETE',
+    }),
+  gatewaySettings: () => request<GatewaySettings>('/api/v1/ai-gateway/settings'),
+  gatewaySetSetting: (key: string, value: unknown) =>
+    request<GatewaySettings>('/api/v1/ai-gateway/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ key, value }),
+    }),
+  gatewayChat: (payload: {
+    text: string
+    system?: string
+    strategy?: string
+    provider?: string
+    task?: string
+    timeout_seconds?: number
+    structured?: boolean
+    modality?: string
+  }) =>
+    request<GatewayChatResult>('/api/v1/ai-gateway/chat', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  gatewayWrappers: () =>
+    request<{ items: GatewayWrapper[] }>('/api/v1/ai-gateway/wrappers'),
+  gatewayBrowser: () =>
+    request<GatewayBrowserStatus>('/api/v1/ai-gateway/browser'),
+  gatewayUseCases: () =>
+    request<{ items: GatewayUseCase[] }>('/api/v1/ai-gateway/use-cases'),
+  gatewayRequests: (limit = 50) =>
+    request<{ items: GatewayRequestRecord[] }>(`/api/v1/ai-gateway/requests?limit=${limit}`),
 }

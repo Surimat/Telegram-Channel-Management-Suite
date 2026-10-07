@@ -244,6 +244,13 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ## Release
 
+- **v1.8.0 (2026-10-09):** the **AI Gateway + Web Wrapper Hub** (D-111…D-113) —
+  one access layer over many AI providers (OpenAI-compatible, OpenRouter, Google,
+  Anthropic, DeepSeek, local Ollama) plus browser **web wrappers** that drive the
+  owner's own logged-in session. Strategy-based routing, bounded retries, a
+  per-provider circuit breaker and automatic failover; keys sealed and write-only;
+  the request journal stores metadata only. Honest availability, no account
+  registration and no CAPTCHA/MFA/regional-block or Telegram-limit bypass.
 - **v1.7.0 (2026-10-08):** the **Bot Factory** (v1.3) becomes a **durable creation
   queue** (D-109/D-110). A batch marks its free candidates and the scheduler job
   `bot_factory.create` creates them **one operation per tick**, so the batch is

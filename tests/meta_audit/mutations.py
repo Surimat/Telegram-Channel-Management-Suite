@@ -40,6 +40,12 @@ def _set_requires(key: str, requires: tuple[str, ...]) -> None:
     )
 
 
+def _drop_anchor(key: str) -> None:
+    cc.CAPABILITY_SERVICE_ANCHORS = {
+        k: v for k, v in cc.CAPABILITY_SERVICE_ANCHORS.items() if k != key
+    }
+
+
 async def _seed_setting(session, key: str, value: str = "1") -> None:
     from backend.app.db.repositories.settings import SettingRepository
 
@@ -352,6 +358,36 @@ STATIC_MUTATIONS: list[Mutation] = [
         apply=lambda b: b.append(
             "frontend/src/views/SettingsView.vue",
             '\n<template><InfoHint topic="ghost_extra_topic" /></template>\n',
+        ),
+    ),
+    # --- AI Gateway (v1.8) ---------------------------------------------------
+    Mutation(
+        id="V_gateway_capability_anchor",
+        name="gateway_capability_without_anchor",
+        expected_finding_id="capabilities.no_anchor.ai_gateway",
+        expected_severity="error",
+        severity="high",
+        note=(
+            "The AI Gateway capability is marked implemented but its service "
+            "anchor is removed: the capability would advertise a feature with no "
+            "implementation behind it (D-099)."
+        ),
+        apply=lambda b: _drop_anchor("ai_gateway"),
+    ),
+    Mutation(
+        id="W_frontend_unknown_gateway",
+        name="frontend_calls_missing_gateway_area",
+        expected_finding_id="api.frontend_unknown",
+        expected_severity="error",
+        severity="medium",
+        note=(
+            "The frontend client calls an AI Gateway area the backend does not "
+            "expose; the route would 404."
+        ),
+        apply=lambda b: b.append(
+            "frontend/src/api/client.ts",
+            "\n// zz: ghost gateway area\n"
+            "export const zzGhost = () => fetch('/api/v1/ghostgateway/x')\n",
         ),
     ),
 ]

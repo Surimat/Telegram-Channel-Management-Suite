@@ -9,13 +9,19 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v1.7.0`.** It turns the **Bot Factory** into a
+**Current stable release: `v1.8.0`.** It adds an **AI Gateway + Web Wrapper
+Hub**: one access layer over many AI providers (official/OpenAI-compatible APIs,
+free providers, local Ollama, and browser "web wrappers" that drive your own
+logged-in session) with strategy-based routing, bounded retries, a circuit
+breaker and automatic failover. Keys are sealed and write-only; the request
+journal stores metadata only, never prompt text; and the gateway never registers
+accounts or bypasses CAPTCHA/MFA/verification, regional blocks or Telegram limits.
+**v1.7.0** turned the **Bot Factory** into a
 durable **creation queue**: a batch can create its worker bots **one at a time**
 through the scheduler, so it survives a restart and can be closed safely while
 already-created bots are never rolled back. A failed candidate can be retried or
 skipped, and each candidate exposes a display-only masked token (`1234…xyz`) —
-the raw token is never returned, logged or exported. The release is additive: no
-new account registration and no Telegram-limit bypass.
+the raw token is never returned, logged or exported.
 **v1.6.1** is an independent verification patch of
 v1.6.0 (owner-guard path normalisation, `config_sync` state, Google Drive UI).
 **v1.6.0** adds an **Owner Auth + Config Sync**
@@ -39,6 +45,13 @@ catalog** (RU/EN, single-sourced in `core/i18n.py`). See Status below.
 - **Config Sync** — move your settings to a new computer as a versioned encrypted
   bundle (AES-256-GCM) via a local folder or Google Drive (app-data scope). Never
   the database, sessions or TDATA; a conflict is reported, not overwritten.
+- **AI Gateway** — one access layer over many AI providers (OpenAI-compatible
+  APIs, OpenRouter, Google, Anthropic, DeepSeek, local Ollama) and browser
+  "web wrappers" that drive your own logged-in session. Strategy-based routing
+  (free-first / cheapest / fastest / best-quality), bounded retries, a per-provider
+  circuit breaker and automatic failover. Keys are sealed and write-only; the
+  journal stores metadata only; no account registration and no CAPTCHA/MFA/
+  regional-block or Telegram-limit bypass.
 - **Manager Bot** — control the suite from Telegram (admin whitelist, notifications).
 - **Managed Bots** — add/health/remove Telegram bots; tokens sealed at rest.
 - **Bot Factory** — plan a set of worker bots, check usernames with Telegram,
@@ -158,7 +171,15 @@ the language preference selectable in Settings) and the **Consistency Auditor**
 (cross-module drift detection surfaced in Diagnostics, with a failed check
 reported as an error instead of being silently skipped). It adds no account
 registration and no Telegram-limit bypass.
-**v1.7.0 (this release)** turns the **Bot Factory** (v1.3) into a durable
+**v1.8.0 (this release)** adds the **AI Gateway + Web Wrapper Hub**: one access
+layer over many AI providers and a browser-based wrapper subsystem. The router
+orders eligible providers by capability and strategy, retries transient failures
+with bounded backoff, trips a per-provider circuit breaker and fails over
+automatically; the response reports `fallback_used` and per-attempt statuses.
+Provider keys are sealed (`seal_secret`) and write-only, the request journal keeps
+metadata only, and the wrapper engine returns `AUTH_REQUIRED` and stops on a login
+wall. It adds no account registration and no Telegram-limit bypass.
+**v1.7.0** turns the **Bot Factory** (v1.3) into a durable
 **creation queue**: `enqueue_candidates` / `run_queue_once` advance the batch
 through the scheduler job `bot_factory.create` — one creation operation per tick,
 restart-resumable. A batch can be stopped and resumed; a failed candidate can be

@@ -967,3 +967,76 @@ managed-bot creation flow, never registers accounts and never bypasses Telegram
 limits (D-001, D-060). `token_mask` is derived without decrypting the sealed
 token, so the UI can show *which* credential is stored without ever exposing it
 (D-110).
+
+
+---
+
+## 25. AI Gateway + Web Wrapper Hub (v1.8, D-111…D-113)
+
+v1.8 is an additive minor over v1.7. It adds one access layer over many AI
+providers (`backend/app/ai/gateway/`) so the rest of the Suite never talks to a
+vendor directly, plus a browser-based "web wrapper" subsystem that turns a Web UI
+the owner is already logged into into an API-shaped provider.
+
+### 25.1 Layers
+
+- **Domain** (`ai/gateway/`): `types.py` (Capability, ChatRequest/Response,
+  SourceKind, status codes), `errors.py`, `reliability.py` (bounded backoff,
+  per-provider circuit breaker, rate-limit cooldown, `HealthStore`),
+  `provider.py` (the `AIProvider` protocol + `availability()`), `http.py`
+  (`HttpTransport` protocol, httpx + fake transports), `router.py` (`AIRouter`:
+  ordering, retry, failover, `describe()` dry-run), `registry.py`
+  (`ProviderConfig` → `AIProvider`).
+- **Providers** (`ai/gateway/providers/`): OpenAI-compatible, OpenRouter, Google,
+  Anthropic, DeepSeek, Ollama and the `web` wrapper provider. Adding a kind is one
+  branch in the registry — the single extension point.
+- **Wrappers** (`ai/gateway/wrappers/`): `definition.py` (all site-specific
+  detail: URL, selectors, extraction, login markers, version, cost),
+  `engine.py` (`WebWrapperEngine` + `GenericWebWrapperProvider`). The engine
+  drives the owner's own browser session; on a login wall it returns
+  `AUTH_REQUIRED` and stops.
+- **Browser** (`ai/gateway/browser/`): `BrowserRuntime` protocol, an optional
+  Playwright runtime and a fake runtime for tests. Unavailable → honest
+  unavailability, never a false "available".
+
+### 25.2 Routing and reliability (D-111)
+
+The router builds the eligible set (capability match, then strategy order, then
+priority), then for each provider retries transient failures with bounded backoff
+(`backoff_delays`), honours a per-provider circuit breaker and rate-limit
+cooldown, and fails over to the next provider. `describe()` returns the planned
+order without executing. Every attempt is recorded and the response carries
+`fallback_used` + per-attempt statuses. If nothing is eligible the response is
+honestly `no_provider` — never a silent empty success.
+
+### 25.3 Persistence, service and API
+
+`db/models/ai_gateway.py` (`ai_providers`, `ai_route_settings`,
+`ai_gateway_requests`) + repository, migration
+`20261008_1200_b2c3d4e5f6a7_v1_8_ai_gateway.py`.
+`services/ai_gateway_service.py` orchestrates provider CRUD (keys sealed via
+`seal_secret`, registered with the redaction filter), routing preferences, the
+router/registry build, the bounded observability ring, the wrapper library,
+browser status and the capability/use-case matrix. The API lives in
+`api/v1/ai_gateway.py` and is injected through `api/deps.py`
+(`get_ai_gateway_service`) so tests override it with a fake transport + fake
+browser.
+
+### 25.4 Guardrails (D-112, D-113)
+
+- No account registration, no CAPTCHA/MFA/verification or regional-block bypass,
+  no identity rotation, no reading someone else's cookies or sessions.
+- No secret ever leaves sealed form: API keys are write-only (`has_key` boolean),
+  the observability ring stores metadata only (never prompt text), and no wrapper
+  credential is returned.
+- Honest availability: a provider/wrapper is "available" only after a real probe;
+  the browser runtime reports `Docker`/engine status rather than claiming success.
+- Consistency: the `ai_gateway` capability is anchored to
+  `services/ai_gateway_service.py` and requires an enabled `ai_provider`; the
+  auditor and meta-audit both fail if the implementation anchor disappears.
+
+### 25.5 UI
+
+`AiGatewayView.vue` (`/ai-gateway`, "Центр ИИ") with tabs for providers, routing,
+web wrappers, testing and the observability journal; a nav entry in `App.vue`; and
+two help topics (`ai_gateway`, `ai_gateway_wrapper`).

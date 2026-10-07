@@ -69,6 +69,11 @@ MESSAGES: dict[str, dict[str, str]] = {
         "ru": "Добавьте управляющего бота в разделе «Боты».",
         "en": "Add a manager bot in the Bots section.",
     },
+    "cap.ai_provider": {"ru": "Провайдер ИИ", "en": "AI provider"},
+    "cap.ai_provider.fix": {
+        "ru": "Добавьте провайдера в разделе «Центр ИИ» → «Провайдеры».",
+        "en": "Add a provider in AI Center → Providers.",
+    },
     "cap.state.available": {"ru": "Доступно", "en": "Available"},
     "cap.state.partial": {"ru": "Частично доступно", "en": "Partially available"},
     "cap.state.needs_setup": {"ru": "Требуется настройка", "en": "Needs setup"},

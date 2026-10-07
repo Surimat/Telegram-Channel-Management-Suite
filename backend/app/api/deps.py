@@ -16,6 +16,7 @@ from backend.app.manager.service import ManagerBotService
 from backend.app.mesh.service import MeshService
 from backend.app.miniapp.service import MiniAppService
 from backend.app.providers.registry import build_bot_provider, build_session_provider
+from backend.app.services.ai_gateway_service import AiGatewayService
 from backend.app.services.analytics_service import AnalyticsService
 from backend.app.services.audience_service import AudienceService
 from backend.app.services.backup_service import BackupService
@@ -57,6 +58,13 @@ def get_bot_service(
     provider_factory: ProviderFactory = Depends(get_provider_factory),
 ) -> BotService:
     return BotService(session, provider_factory=provider_factory)
+
+
+def get_ai_gateway_service(
+    session: AsyncSession = Depends(get_session),
+) -> AiGatewayService:
+    """Return the AI Gateway service (tests may override this)."""
+    return AiGatewayService(session)
 
 
 def get_bot_factory_service(

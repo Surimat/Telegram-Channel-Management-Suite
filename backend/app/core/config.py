@@ -159,6 +159,24 @@ class Settings(BaseSettings):
     # How many recent AI inference records to keep for diagnostics (0 = none).
     ai_history_limit: int = 200
 
+    # --- AI Gateway (v1.8) ---
+    # Master switch for the multi-provider gateway. Off by default: the existing
+    # rules/encoder/AI classifier keeps working exactly as before.
+    ai_gateway_enabled: bool = False
+    # Default routing strategy: auto/free_first/cheapest/fastest/best_quality/manual.
+    ai_gateway_strategy: str = "auto"
+    # Retries per provider before falling over to the next one.
+    ai_gateway_max_retries: int = 2
+    # Per-request timeout for a gateway call, in seconds.
+    ai_gateway_timeout_seconds: float = 60.0
+    # How many recent gateway request records to keep (0 = none).
+    ai_gateway_history_limit: int = 200
+    # Whether the owner may route through *paid* providers under free-first.
+    # Off by default: free-first will not silently spend money.
+    ai_gateway_allow_paid: bool = False
+    # Web UI wrappers require a browser runtime; off by default (Docker/weak PC).
+    ai_gateway_web_enabled: bool = False
+
     # --- Owner Auth + Config Sync (v1.6) ---
     # Require an owner login before the API answers (set by the owner profile;
     # this env flag only forces protection on for managed installs).

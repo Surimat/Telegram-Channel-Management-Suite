@@ -439,3 +439,28 @@ The Diagnostics report (`GET /api/v1/diagnostics/report`, D-061) is explicitly a
   settles. A cancelled queue never rolls back an already-created bot.
 - **Diagnostics/API carry queue state only.** Per-candidate payloads expose
   `queue_state`, `attempts` and the mask — never a token, session or auth key.
+
+
+## 7k. AI Gateway + Web Wrapper Hub (v1.8, D-111…D-113)
+
+- **Provider keys are write-only and sealed.** An API key is accepted once,
+  sealed with `seal_secret` and registered with the logging redaction filter. No
+  endpoint returns it: the API exposes a boolean `has_key` only, and Diagnostics,
+  logs, exports and the request journal never carry it.
+- **The request journal stores metadata only.** `ai_gateway_requests` keeps the
+  provider, source, strategy, status, latency, attempt count and error category —
+  never prompt text, response text or any secret. The ring is bounded by
+  `ai_gateway_history_limit`.
+- **The gateway cannot bypass anything.** It performs ordinary HTTP calls and (for
+  web wrappers) drives the owner's **own** logged-in browser session. It never
+  registers accounts, defeats CAPTCHA/MFA/verification, rotates identity, reads
+  someone else's cookies/sessions, or bypasses regional blocks or Telegram limits.
+- **Web wrappers stop at a login wall.** On a login marker the engine returns
+  `AUTH_REQUIRED` and stops; it never attempts credential entry or MFA.
+- **Honest availability.** A provider or wrapper is reported `available` only
+  after a real probe; the browser runtime reports engine/Docker status instead of
+  claiming success. A missing optional dependency is "требует настройки" or
+  "недоступно", never a false "готово".
+- **No paid spend by accident.** Paid providers are excluded from routing unless
+  `ai_gateway_allow_paid` is on; web wrappers are excluded unless
+  `ai_gateway_web_enabled` is on.

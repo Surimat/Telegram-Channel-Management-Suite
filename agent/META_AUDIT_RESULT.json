@@ -1,10 +1,10 @@
 {
-  "version": "1.7.0",
-  "baseline_sha": "5dca65858af7f15eab255d0b0e1e0a25fb259d09",
-  "generated_at": "2026-10-07T13:25:37.972968+00:00",
+  "version": "1.8.0",
+  "baseline_sha": "63d5364f1c5fc5e451fc5824cf8b4a5b1278fde8",
+  "generated_at": "2026-10-07T16:04:05.589385+00:00",
   "result_source": "computed from runtime mutation executions",
-  "total": 25,
-  "detected": 25,
+  "total": 27,
+  "detected": 27,
   "missed": 0,
   "kill_rate": 100.0,
   "false_positives": 0,
@@ -2324,6 +2324,199 @@
       "error": null
     },
     {
+      "id": "V_gateway_capability_anchor",
+      "name": "gateway_capability_without_anchor",
+      "detected": true,
+      "expected": {
+        "finding_id": "capabilities.no_anchor.ai_gateway",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "capabilities.no_anchor.ai_gateway",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "high",
+      "note": "The AI Gateway capability is marked implemented but its service anchor is removed: the capability would advertise a feature with no implementation behind it (D-099).",
+      "error": null
+    },
+    {
+      "id": "W_frontend_unknown_gateway",
+      "name": "frontend_calls_missing_gateway_area",
+      "detected": true,
+      "expected": {
+        "finding_id": "api.frontend_unknown",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.frontend_unknown",
+          "severity": "error",
+          "category": "api"
+        },
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "capabilities.no_anchor.ai_gateway",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "medium",
+      "note": "The frontend client calls an AI Gateway area the backend does not expose; the route would 404.",
+      "error": null
+    },
+    {
       "id": "L_orphan_setting",
       "name": "orphan_setting_runtime",
       "detected": true,
@@ -2332,6 +2525,11 @@
         "severity": "info"
       },
       "actual_findings": [
+        {
+          "id": "capabilities.no_anchor.ai_gateway",
+          "severity": "error",
+          "category": "capabilities"
+        },
         {
           "id": "api.backend_unused",
           "severity": "info",
@@ -2430,6 +2628,11 @@
           "category": "orphan"
         },
         {
+          "id": "capabilities.no_anchor.ai_gateway",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
@@ -2506,6 +2709,11 @@
       "name": "clean_tree_no_write_only_setting_finding",
       "passed": true,
       "findings": [
+        {
+          "id": "capabilities.no_anchor.ai_gateway",
+          "severity": "error",
+          "category": "capabilities"
+        },
         {
           "id": "api.backend_unused",
           "severity": "info",
@@ -2594,6 +2802,11 @@
           "category": "orphan"
         },
         {
+          "id": "capabilities.no_anchor.ai_gateway",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
@@ -2674,6 +2887,11 @@
           "id": "api.backend_unused",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "capabilities.no_anchor.ai_gateway",
+          "severity": "error",
+          "category": "capabilities"
         },
         {
           "id": "help.orphan_topics",
@@ -2763,6 +2981,11 @@
           "category": "orphan"
         },
         {
+          "id": "capabilities.no_anchor.ai_gateway",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
@@ -2850,6 +3073,11 @@
           "category": "orphan"
         },
         {
+          "id": "capabilities.no_anchor.ai_gateway",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
@@ -2932,6 +3160,11 @@
           "category": "orphan"
         },
         {
+          "id": "capabilities.no_anchor.ai_gateway",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
           "id": "help.orphan_topics",
           "severity": "info",
           "category": "orphan"
@@ -3012,6 +3245,11 @@
           "id": "api.backend_unused",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "capabilities.no_anchor.ai_gateway",
+          "severity": "error",
+          "category": "capabilities"
         },
         {
           "id": "help.orphan_topics",

@@ -4,6 +4,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/', name: 'dashboard', component: () => import('@/views/DashboardView.vue') },
   { path: '/reactions', name: 'reactions', component: () => import('@/views/ReactionsView.vue') },
   { path: '/ai', name: 'ai', component: () => import('@/views/AiView.vue') },
+  { path: '/ai-gateway', name: 'ai-gateway', component: () => import('@/views/AiGatewayView.vue') },
   { path: '/analytics', name: 'analytics', component: () => import('@/views/AnalyticsView.vue') },
   { path: '/bots', name: 'bots', component: () => import('@/views/BotsView.vue') },
   { path: '/bot-factory', name: 'bot-factory', component: () => import('@/views/BotFactoryView.vue') },

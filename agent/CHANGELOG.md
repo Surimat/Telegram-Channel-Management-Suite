@@ -5,6 +5,59 @@ Dates are ISO-8601.
 
 ---
 
+## [1.8.0] — 2026-10-09
+
+**v1.8.0 — AI Gateway + Web Wrapper Hub (additive minor).** One access layer over
+many AI providers plus a browser-based "web wrapper" subsystem. Released via a
+reviewed `develop → main` PR; the Release workflow attaches the Windows portable
+ZIP + `.sha256`. Version strings read **1.8.0**. Additive only: no account
+registration and no CAPTCHA/MFA/regional-block or Telegram-limit bypass.
+
+### Added
+- **AI Gateway domain (`backend/app/ai/gateway/`, D-111).** `types.py`
+  (`Capability`, `ChatRequest`/`ChatResponse`, `SourceKind`, status codes),
+  `errors.py`, `reliability.py` (bounded `backoff_delays`, per-provider circuit
+  breaker, rate-limit cooldown, `HealthStore`, correlation ids), `provider.py`
+  (`AIProvider` protocol + `availability()`), `http.py` (`HttpTransport` protocol,
+  httpx + fake transports), `router.py` (`AIRouter`: eligible-set ordering,
+  retry, failover, `describe()` dry-run) and `registry.py` (the single provider
+  extension point).
+- **Provider kinds:** `openai_compatible`, `openrouter`, `google`, `anthropic`,
+  `deepseek`, `ollama` (local) and `web` (browser wrapper).
+- **Web wrappers (D-112).** `WrapperDefinition` (URL, open steps, input/send/
+  response selectors, extraction, login markers, version, cost) +
+  `WebWrapperEngine`/`GenericWebWrapperProvider` driving the owner's **own**
+  logged-in browser session. On a login marker the engine returns `AUTH_REQUIRED`
+  and stops. Optional Playwright runtime + fake runtime for tests.
+- **Persistence:** models `ai_providers` / `ai_route_settings` /
+  `ai_gateway_requests`, repository, migration
+  `20261008_1200_b2c3d4e5f6a7_v1_8_ai_gateway.py`.
+- **Service + API:** `services/ai_gateway_service.py` (provider CRUD with sealed
+  keys, routing preferences, router/registry build, bounded observability ring,
+  wrapper library, browser status, use-case matrix) and `api/v1/ai_gateway.py`
+  (`/status`, `/providers`, `/providers/{p}/toggle`, `/settings`, `/chat`,
+  `/wrappers`, `/browser`, `/use-cases`, `/requests`), injected through
+  `api/deps.py::get_ai_gateway_service`.
+- **UI:** `AiGatewayView.vue` (`/ai-gateway`, "Центр ИИ") with providers, routing,
+  web wrappers, testing and journal tabs; a sidebar nav entry; two help topics
+  (`ai_gateway`, `ai_gateway_wrapper`).
+- **Guardrails (D-113):** the `ai_gateway` capability + consistency anchor, i18n
+  keys, and meta-audit mutations `V_gateway_capability_anchor` /
+  `W_frontend_unknown_gateway`.
+- **Tests:** `tests/test_ai_gateway.py` (router/reliability/registry/wrappers) and
+  `tests/test_ai_gateway_api.py` (HTTP surface, key write-only, metadata-only
+  journal).
+
+### Notes
+- Paid providers are excluded from routing unless `ai_gateway_allow_paid` is on;
+  web wrappers unless `ai_gateway_web_enabled` is on. Safe defaults mean a fresh
+  install never spends money or opens a browser.
+- Keys are sealed (`seal_secret`) and write-only; the request journal stores
+  metadata only (never prompt text). Honest availability — a provider is
+  `available` only after a real probe.
+
+---
+
 ## [1.7.0] — 2026-10-08
 
 **v1.7.0 — Bot Factory becomes a durable creation queue (additive minor).**
