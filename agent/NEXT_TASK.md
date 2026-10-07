@@ -8,7 +8,7 @@
 a reviewed `develop → main` PR #19 (merge `d8c62c1`), tag `v1.8.0`; the Release
 workflow (run `37653661662`) created the GitHub Release and attached the Windows
 portable ZIP (24 904 789 bytes, sha256 `9bb39e4b…d353c`) + `.sha256`. `main`
-HEAD = `d8c62c1`; `develop` re-synced to `d8c62c1`. One access layer over many AI
+HEAD = `d8c62c1`; `develop` = `5757f9b` (post-release memory commit). One access layer over many AI
 providers (OpenAI-compatible, OpenRouter, Google, Anthropic, DeepSeek, local
 Ollama) plus browser **web wrappers** that drive the owner's own logged-in
 session, with strategy-based routing, bounded retries, a per-provider circuit
