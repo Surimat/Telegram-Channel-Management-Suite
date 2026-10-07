@@ -268,6 +268,43 @@ class SystemService:
             f"Управляемых ботов готово: {count}.",
         )
 
+    async def bot_factory_check(self, session: AsyncSession) -> Check:
+        """Report the Bot Factory queue state (optional feature)."""
+        from backend.app.db.repositories.bot_factory import (
+            BotBatchRepository,
+            BotCandidateRepository,
+        )
+
+        batches, total = await BotBatchRepository(session).list_all(limit=100)
+        if total == 0:
+            return Check(
+                "bot_factory",
+                "Фабрика ботов",
+                STATUS_OK,
+                "Пакеты ботов не создавались — это необязательно.",
+                "Подготовить несколько ботов сразу можно в разделе «Фабрика ботов».",
+            )
+        queued = 0
+        failed = 0
+        for batch in batches:
+            counts = await BotCandidateRepository(session).count_by_queue_state(batch.id)
+            queued += counts.get("queued", 0) + counts.get("running", 0)
+            failed += counts.get("failed", 0)
+        if failed:
+            return Check(
+                "bot_factory",
+                "Фабрика ботов",
+                STATUS_WARNING,
+                f"Пакетов: {total}. Незавершённых операций: {queued}. С ошибкой: {failed}.",
+                "Откройте «Фабрика ботов» и повторите неудачные операции.",
+            )
+        return Check(
+            "bot_factory",
+            "Фабрика ботов",
+            STATUS_OK,
+            f"Пакетов: {total}. Незавершённых операций: {queued}.",
+        )
+
     def telegram_api_check(self) -> Check:
         if self.settings.telegram_api_id and self.settings.telegram_api_hash.get_secret_value():
             return Check(
@@ -685,6 +722,7 @@ class SystemService:
         if session is not None:
             checks.append(await self.manager_bot_db_check(session))
             checks.append(await self.managed_bots_check(session))
+            checks.append(await self.bot_factory_check(session))
             checks.append(await self.owner_auth_check(session))
             checks.append(await self.config_sync_check(session))
             checks.append(await self.reactions_check(session))

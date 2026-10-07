@@ -609,9 +609,17 @@ confirms in the official @BotFather flow) and then adopts the created bot.
   name/username generation (`generate_name` / `generate_username` /
   `sanitize_prefix` / `validate_username`), `check_availability` (asks Telegram
   for each candidate username — it never claims a username is free without a
-  check), native creation, adopt, bind, tokens and a dashboard.
+  check), native creation, adopt, bind, tokens, a dashboard, and the **v1.7
+  durable creation queue** (`enqueue_candidates`, `run_queue_once`,
+  `queue_progress`, `retry_candidate`, `skip_candidate`, `cancel_queue`,
+  `resume_queue`). The queue advances through the scheduler job
+  `bot_factory.create` (one creation operation per tick, restart-resumable);
+  deep-link batches are not re-ticked because the owner finishes them by hand.
 - `api/v1/bot_factory.py` + `api/schemas/bot_factory.py` — the
-  `/api/v1/bot-factory/*` router; `api/deps.py::get_bot_factory_service`.
+  `/api/v1/bot-factory/*` router (including the queue endpoints); the queue
+  state is serialized per candidate; `token_mask` is a non-reversible
+  head/tail shape (`1234…xyz`) and the raw token is never returned.
+  `api/deps.py::get_bot_factory_service`.
 - `providers/fake_session.py` — the deterministic `FakeBotFactoryScenario` used
   by tests (D-001): no network, no credentials.
 
@@ -935,3 +943,27 @@ Design notes: **local-first** (nothing is locked until the owner opts in);
 **secret-free** (no password, token, session, TDATA or DB row leaves the machine);
 **honest** (conflicts are reported, not resolved blindly); **additive** (an
 existing v1.5 database upgrades in place).
+
+---
+
+## 24. Bot Factory creation queue (v1.7, D-109)
+
+v1.7 is an additive minor over v1.6.1: the Bot Factory batch (v1.3) becomes a
+**durable creation queue** instead of a single synchronous call. A batch marks
+its free candidates and the scheduler job `bot_factory.create` advances it **one
+creation operation per tick**, so:
+
+- the batch is **restart-resumable** — the queue state lives in the database and
+  the job is recovered by the scheduler's normal recovery pass;
+- **already-created bots are never rolled back** — cancelling only stops the
+  remaining work;
+- a failed candidate is **retryable** (`retry_candidate`, bounded attempts) or
+  **skippable** (`skip_candidate`) without disturbing the rest;
+- **deep-link batches are not background-ticked** — the owner completes those by
+  hand in Telegram, so the queue settles instead of looping.
+
+It stays honest and additive: the queue only *prepares and drives* the official
+managed-bot creation flow, never registers accounts and never bypasses Telegram
+limits (D-001, D-060). `token_mask` is derived without decrypting the sealed
+token, so the UI can show *which* credential is stored without ever exposing it
+(D-110).

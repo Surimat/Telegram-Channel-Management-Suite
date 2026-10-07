@@ -7,6 +7,40 @@ Dates are ISO-8601.
 
 ## [Unreleased]
 
+**v1.7.0 — Bot Factory becomes a durable creation queue (additive minor).**
+Version strings read **1.7.0**; no account registration and no Telegram-limit
+bypass.
+
+### Added
+- **Bot Factory creation queue (D-109).** A batch now marks its free candidates
+  and lets the durable scheduler job `bot_factory.create` create them **one at a
+  time**, so the batch is restart-resumable and can be closed safely. New service
+  methods `enqueue_candidates`, `run_queue_once`, `queue_progress`,
+  `retry_candidate`, `skip_candidate`, `cancel_queue`, `resume_queue`; a
+  `QueueState` state machine and `queue_cancelled`.
+- **API queue endpoints.** `POST /api/v1/bot-factory/batches/{id}/enqueue|cancel|resume`
+  and `POST /api/v1/bot-factory/candidates/{cid}/retry|skip`; per-candidate queue
+  state in the batch payload; a `queue` block on the dashboard.
+- **Non-reversible `token_mask` (D-110).** A display-only `1234…xyz` shape derived
+  from the non-secret numeric bot id — never by decrypting the sealed token.
+- Queue controls in `BotFactoryView.vue` (start/stop/resume, per-row retry/skip,
+  queue progress), a `bot_factory` capability requirement, a Diagnostics check, a
+  Promotion Wizard step and a "Фабрика ботов" help topic.
+- Migration `20261008_0900_a1b2c3d4e5f6_v1_7_bot_factory_queue.py`
+  (`bot_batches.queue_cancelled`, `bot_candidates.queue_state`/`attempts`/
+  `token_mask`).
+
+### Notes
+- Deep-link batches are **not** background-ticked: the owner finishes them by hand
+  in Telegram, so the queue settles instead of looping.
+- Tests: `tests/test_bot_factory.py` (queue lifecycle, retry/skip, cancel/resume,
+  mask), `tests/test_bot_factory_api.py` (queue over HTTP), `tests/test_scheduler.py`
+  (one op per tick, no deep-link loop).
+
+---
+
+## [Unreleased] (historical)
+
 **Clean-checkout verification of v1.6.1 + documentation reconcile.** No code
 change, no new feature, no release.
 

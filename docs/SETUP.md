@@ -458,6 +458,10 @@ Open the Web UI → **Фабрика ботов** (`/bot-factory`) and:
    accounts and never bypasses Telegram limits.
 4. **Подключить к каналу** — bind the created bot to your own channel; it follows
    the same binding + rights rules as the **Боты** page.
+5. **Запустить очередь** (v1.7) — let the suite create the free candidates one at
+   a time through the durable scheduler. The batch survives a restart, and a
+   failed candidate can be retried or skipped; already-created bots are never
+   rolled back.
 
 The managed-bot token is write-only: enter it once and it is sealed; it is never
 displayed again.

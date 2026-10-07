@@ -15,6 +15,10 @@ from backend.app.db.base import utcnow
 from backend.app.db.models.job import Job
 from backend.app.scheduler.scheduler import Scheduler
 from backend.app.services.audience_service import SCAN_JOB_KIND, AudienceService
+from backend.app.services.bot_factory import (
+    BOT_FACTORY_JOB_KIND,
+    BotFactoryService,
+)
 from backend.app.services.invite_service import INVITE_JOB_KIND, InviteService
 from backend.app.services.posting_service import POSTING_JOB_KIND, PostingService
 from backend.app.services.queue_service import QueueService
@@ -24,6 +28,10 @@ from backend.app.services.reaction_service import REACTION_JOB_KIND, ReactionSer
 #: enough that a scheduled publication fires close to its time, large enough
 #: that an idle install does not spin.
 POSTING_TICK_SECONDS = 15
+
+#: Pause between two bot-creation operations in the queue. Kept deliberately
+#: modest so the durable queue paces itself instead of hammering Telegram.
+BOT_FACTORY_TICK_SECONDS = 2
 
 #: Durable-queue kind for the LAN Mesh maintenance tick.
 MESH_TICK_JOB_KIND = "mesh.tick"
@@ -100,12 +108,37 @@ async def _handle_mesh_tick(session: AsyncSession, job: Job) -> None:
     )
 
 
+async def _handle_bot_factory(session: AsyncSession, job: Job) -> None:
+    # One creation operation per tick so a large queue never blocks the scheduler
+    # and a restart resumes where it stopped (D-008 style). While queued work
+    # remains, a follow-up job is scheduled ahead of time.
+    payload = json.loads(job.payload or "{}")
+    batch_id = payload.get("batch_id")
+    if not batch_id:
+        return
+    service = BotFactoryService(session)
+    via_deeplink = bool(payload.get("via_deeplink", False))
+    await service.run_queue_once(batch_id, via_deeplink=via_deeplink)
+    progress = await service.queue_progress(batch_id)
+    # Deep-link batches are completed by the owner in Telegram, so there is
+    # nothing for the queue to keep ticking on.
+    if progress["queued"] > 0 and not via_deeplink:
+        await QueueService(session).enqueue(
+            kind=BOT_FACTORY_JOB_KIND,
+            payload={"batch_id": batch_id, "via_deeplink": via_deeplink},
+            scheduled_at=utcnow() + timedelta(seconds=BOT_FACTORY_TICK_SECONDS),
+            group_key=batch_id,
+            max_attempts=1,
+        )
+
+
 def register_handlers(scheduler: Scheduler) -> None:
     """Register every durable-queue handler on ``scheduler``."""
     scheduler.register(REACTION_JOB_KIND, _handle_reaction)
     scheduler.register(SCAN_JOB_KIND, _handle_scan)
     scheduler.register(INVITE_JOB_KIND, _handle_invite)
     scheduler.register(POSTING_JOB_KIND, _handle_posting)
+    scheduler.register(BOT_FACTORY_JOB_KIND, _handle_bot_factory)
     scheduler.register(MESH_TICK_JOB_KIND, _handle_mesh_tick)
 
 

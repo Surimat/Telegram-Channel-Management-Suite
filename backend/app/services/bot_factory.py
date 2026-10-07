@@ -32,10 +32,12 @@ from backend.app.db.models.bot_factory import (
     BATCH_STATUS_TITLES,
     BOT_CREATE_LIMIT_NOTE,
     CANDIDATE_STATUS_TITLES,
+    QUEUE_STATE_TITLES,
     BatchStatus,
     BotBatch,
     BotCandidate,
     CandidateStatus,
+    QueueState,
 )
 from backend.app.db.repositories.bot_factory import (
     BotBatchRepository,
@@ -50,6 +52,11 @@ from backend.app.services.session_service import SessionProviderFactory, Session
 
 MODULE = "bot_factory"
 
+#: Durable-queue kind for a bot-creation operation (v1.7). The handler runs one
+#: bounded pass over the batch's queued candidates, so a restart resumes the
+#: queue instead of losing it (D-008 style).
+BOT_FACTORY_JOB_KIND = "bot_factory.create"
+
 #: Local username rules (a pre-filter only; Telegram is the source of truth).
 USERNAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]{2,29}bot$")
 #: Telegram recommends debouncing ``bots.checkUsername`` by 200 ms.
@@ -58,6 +65,25 @@ CHECK_DEBOUNCE_SECONDS = 0.2
 CHECK_CONCURRENCY = 2
 #: Maximum bots per batch (Telegram caps ownership well below this anyway).
 MAX_BATCH_SIZE = 50
+
+#: Queue sizes the UI offers (v1.7). 10/20/50, bounded by MAX_BATCH_SIZE.
+QUEUE_SIZES = (10, 20, 50)
+
+
+def mask_token(token: str) -> str:
+    """Return a masked, display-safe form of a bot token.
+
+    The token itself is a secret (D-110): it is never shown, logged or exported.
+    Only a short, non-reversible shape is exposed so the owner can tell *which*
+    credential is stored. ``123456789:AAH...xyz`` → ``1234…xyz``.
+    """
+    value = (token or "").strip()
+    if not value:
+        return ""
+    bot_id = value.split(":", 1)[0]
+    tail = value[-4:] if len(value) > 4 else ""
+    head = bot_id[:4] if bot_id else value[:2]
+    return f"{head}…{tail}"
 
 NAME_TEMPLATES = {
     "index": "{prefix} {index}",
@@ -292,6 +318,11 @@ class BotFactoryService:
                     creation_status=(
                         CandidateStatus.GENERATED if ok else CandidateStatus.INVALID
                     ),
+                    queue_state=(
+                        QueueState.PENDING.value
+                        if ok
+                        else QueueState.FAILED.value
+                    ),
                     deep_link=manager_deep_link(manager_username, username, name),
                 )
             )
@@ -353,6 +384,7 @@ class BotFactoryService:
                 row.username_status = "invalid"
                 row.username_message = reason
                 row.creation_status = CandidateStatus.INVALID
+                row.queue_state = QueueState.SKIPPED.value
                 return
             async with semaphore:
                 await asyncio.sleep(CHECK_DEBOUNCE_SECONDS)  # Telegram debounce
@@ -363,6 +395,7 @@ class BotFactoryService:
                     row.username_message = exc.message
                     row.creation_status = CandidateStatus.FAILED
                     row.error = exc.message
+                    row.queue_state = QueueState.FAILED.value
                     return
             row.username_status = "available" if available else "occupied"
             row.username_message = (
@@ -370,6 +403,11 @@ class BotFactoryService:
             )
             row.creation_status = (
                 CandidateStatus.AVAILABLE if available else CandidateStatus.OCCUPIED
+            )
+            # Confirmed-free usernames become the real creation queue; occupied or
+            # invalid ones are skipped (their operation will never run).
+            row.queue_state = (
+                QueueState.QUEUED.value if available else QueueState.SKIPPED.value
             )
 
         try:
@@ -463,11 +501,16 @@ class BotFactoryService:
                     row.deep_link = manager_deep_link(
                         manager_username, row.suggested_username, row.suggested_name
                     )
+                    # Hand-created bots are queued until the owner confirms them.
+                    if row.queue_state == QueueState.PENDING.value:
+                        row.queue_state = QueueState.QUEUED.value
             batch.status = BatchStatus.READY
             await self.session.commit()
             return batch
 
+        # Starting a native run revives the queue unless the owner cancelled it.
         batch.status = BatchStatus.CREATING
+        batch.queue_cancelled = False
         await self.session.flush()
         created = 0
         failed = 0
@@ -476,6 +519,8 @@ class BotFactoryService:
                 if not _is_create_ready(row.creation_status, via_deeplink=via_deeplink):
                     continue
                 row.creation_status = CandidateStatus.CREATING
+                row.queue_state = QueueState.RUNNING.value
+                row.attempts += 1
                 await self.session.flush()
                 try:
                     ref = await provider.create_managed_bot(
@@ -486,11 +531,13 @@ class BotFactoryService:
                     )
                 except TelegramProviderError as exc:
                     row.creation_status = CandidateStatus.FAILED
+                    row.queue_state = QueueState.FAILED.value
                     row.error = exc.message
                     failed += 1
                     continue
                 row.telegram_id = ref.user_id
                 row.creation_status = CandidateStatus.CREATED
+                row.queue_state = QueueState.SUCCESS.value
                 bot = await self._bot_service().register_managed_bot(
                     ref.user_id,
                     username=ref.username or row.suggested_username,
@@ -550,15 +597,221 @@ class BotFactoryService:
             if row.creation_status is not CandidateStatus.CREATED or not row.bot_id:
                 continue
             try:
-                await self._bot_service().fetch_managed_bot_token(row.bot_id)
+                bot = await self._bot_service().fetch_managed_bot_token(row.bot_id)
             except BotServiceError as exc:
                 row.error = exc.message
                 pending += 1
                 continue
             row.creation_status = CandidateStatus.TOKEN_IMPORTED
+            row.queue_state = QueueState.SUCCESS.value
+            # Show only a masked, non-reversible hint. The token itself stays
+            # sealed in the Bot row and is never decrypted here, logged or
+            # exported (D-110).
+            ident = str(row.telegram_id or bot.telegram_id or "")
+            if ident:
+                row.token_mask = mask_token(ident)
             imported += 1
         await self.session.commit()
         return {"imported": imported, "pending": pending}
+
+    # --- creation queue (v1.7) ----------------------------------------------
+    async def enqueue_candidates(self, batch_id: str) -> BotBatch:
+        """Queue every creatable candidate (the "start creation" action).
+
+        A batch is a size-10/20/50 *queue* (D-109). Only candidates that Telegram
+        confirmed free and the owner has not skipped are queued; the rest stay
+        ``skipped``. Queuing does not create anything — the durable handler does.
+        """
+        batch = await self.get_batch(batch_id)
+        rows = await self.candidates.list_for_batch(batch_id)
+        queued = 0
+        for row in rows:
+            status = row.creation_status
+            if status in (
+                CandidateStatus.AVAILABLE,
+                CandidateStatus.READY,
+                CandidateStatus.GENERATED,
+            ) and row.queue_state not in (
+                QueueState.SUCCESS.value,
+                QueueState.SKIPPED.value,
+            ):
+                row.queue_state = QueueState.QUEUED.value
+                queued += 1
+        batch.queue_cancelled = False
+        if queued:
+            batch.status = BatchStatus.READY
+        await self.session.commit()
+        return batch
+
+    async def retry_candidate(self, candidate_id: str) -> BotCandidate:
+        """Re-queue one failed operation (retry). A created bot is never re-made."""
+        row = await self.candidates.get(candidate_id)
+        if row is None:
+            raise BotFactoryError("Кандидат не найден.", status_code=404)
+        if row.creation_status in (
+            CandidateStatus.CREATED,
+            CandidateStatus.TOKEN_IMPORTED,
+        ):
+            raise BotFactoryError(
+                "Этот бот уже создан — повтор не нужен.",
+                how_to_fix="При необходимости получите токен.",
+                status_code=409,
+            )
+        batch = await self.get_batch(row.batch_id)
+        row.queue_state = QueueState.QUEUED.value
+        row.creation_status = CandidateStatus.READY
+        row.error = ""
+        batch.queue_cancelled = False
+        batch.status = BatchStatus.READY
+        await self.session.commit()
+        return row
+
+    async def skip_candidate(self, candidate_id: str) -> BotCandidate:
+        """Skip one operation; the rest of the queue continues."""
+        row = await self.candidates.get(candidate_id)
+        if row is None:
+            raise BotFactoryError("Кандидат не найден.", status_code=404)
+        batch = await self.get_batch(row.batch_id)
+        row.queue_state = QueueState.SKIPPED.value
+        row.creation_status = CandidateStatus.CANCELLED
+        batch.skipped_count += 1
+        await self.session.commit()
+        return row
+
+    async def cancel_queue(self, batch_id: str) -> BotBatch:
+        """Cancel the queue. Created bots are kept; pending/failed ones stop."""
+        batch = await self.get_batch(batch_id)
+        rows = await self.candidates.list_for_batch(batch_id)
+        for row in rows:
+            if row.queue_state in (QueueState.QUEUED.value, QueueState.FAILED.value):
+                row.queue_state = QueueState.CANCELLED.value
+        batch.queue_cancelled = True
+        batch.status = BatchStatus.CANCELLED
+        await self.events.info(
+            MODULE,
+            f"Очередь создания «{batch.title}» отменена.",
+            explanation="Уже созданные боты сохранены и не откатываются.",
+            operation="cancel_queue",
+            status="ok",
+        )
+        await self.session.commit()
+        return batch
+
+    async def resume_queue(self, batch_id: str) -> BotBatch:
+        """Re-open a cancelled queue so the remaining operations run again."""
+        batch = await self.get_batch(batch_id)
+        rows = await self.candidates.list_for_batch(batch_id)
+        revived = 0
+        for row in rows:
+            if row.queue_state == QueueState.CANCELLED.value:
+                row.queue_state = QueueState.QUEUED.value
+                row.error = ""
+                revived += 1
+        batch.queue_cancelled = False
+        batch.status = BatchStatus.READY if revived else batch.status
+        await self.session.commit()
+        return batch
+
+    async def queue_progress(self, batch_id: str) -> dict[str, int]:
+        """Counts for the progress view (queue_size/total/succeeded/failed/…)."""
+        counts = await self.candidates.count_by_queue_state(batch_id)
+        return {
+            "total": sum(counts.values()),
+            "pending": counts.get(QueueState.PENDING.value, 0),
+            "queued": counts.get(QueueState.QUEUED.value, 0),
+            "running": counts.get(QueueState.RUNNING.value, 0),
+            "success": counts.get(QueueState.SUCCESS.value, 0),
+            "failed": counts.get(QueueState.FAILED.value, 0),
+            "skipped": counts.get(QueueState.SKIPPED.value, 0),
+            "cancelled": counts.get(QueueState.CANCELLED.value, 0),
+        }
+
+    async def run_queue_once(self, batch_id: str, *, via_deeplink: bool = False) -> BotBatch:
+        """One bounded queue pass — the durable job handler body (v1.7).
+
+        Processes the next queued candidate only, so the scheduler ticks through
+        the queue (restart-safe) instead of blocking on one long request. A
+        cancelled or fully-drained queue is a no-op. Each operation is isolated:
+        one failure never aborts the others.
+        """
+        batch = await self.get_batch(batch_id)
+        if batch.queue_cancelled:
+            return batch
+        rows = await self.candidates.list_for_batch(batch_id)
+        row = next(
+            (r for r in rows if r.queue_state == QueueState.QUEUED.value), None
+        )
+        if row is None:
+            # Nothing left to do: settle the batch status.
+            if rows and all(
+                r.queue_state
+                in (
+                    QueueState.SUCCESS.value,
+                    QueueState.SKIPPED.value,
+                    QueueState.CANCELLED.value,
+                )
+                for r in rows
+            ):
+                from backend.app.db.base import utcnow
+
+                batch.status = BatchStatus.COMPLETED
+                batch.completed_at = utcnow()
+                await self.session.commit()
+            return batch
+
+        manager_username = batch.manager_username or await self._manager_username(
+            batch.manager_bot_id
+        )
+        provider = None if via_deeplink else await self._session_provider(batch.account_id)
+        if provider is None:
+            # Without an account the operation is handed to Telegram by link.
+            row.deep_link = manager_deep_link(
+                manager_username, row.suggested_username, row.suggested_name
+            )
+            row.queue_state = QueueState.QUEUED.value
+            return batch
+
+        batch.status = BatchStatus.CREATING
+        if not manager_username:
+            raise BotFactoryError(
+                "Не выбран управляющий бот.",
+                how_to_fix="Добавьте управляющего бота в разделе «Боты».",
+                status_code=409,
+            )
+        row.creation_status = CandidateStatus.CREATING
+        row.queue_state = QueueState.RUNNING.value
+        row.attempts += 1
+        await self.session.flush()
+        try:
+            ref = await provider.create_managed_bot(
+                row.suggested_name,
+                row.suggested_username,
+                manager_username,
+                via_deeplink=via_deeplink,
+            )
+        except TelegramProviderError as exc:
+            row.creation_status = CandidateStatus.FAILED
+            row.queue_state = QueueState.FAILED.value
+            row.error = exc.message
+        else:
+            row.telegram_id = ref.user_id
+            row.creation_status = CandidateStatus.CREATED
+            row.queue_state = QueueState.SUCCESS.value
+            bot = await self._bot_service().register_managed_bot(
+                ref.user_id,
+                username=ref.username or row.suggested_username,
+                title=ref.first_name or row.suggested_name,
+            )
+            row.bot_id = bot.id
+        finally:
+            with contextlib.suppress(Exception):
+                await provider.aclose()
+
+        progress = await self.queue_progress(batch_id)
+        batch.created_count = progress["success"]
+        batch.failed_count = progress["failed"]
+        await self.session.commit()
+        return batch
 
     # --- channel binding -----------------------------------------------------
     async def bind_created(
@@ -600,13 +853,17 @@ class BotFactoryService:
             "requested_count": batch.requested_count,
             "created_count": batch.created_count,
             "failed_count": batch.failed_count,
+            "skipped_count": batch.skipped_count,
+            "queue_cancelled": batch.queue_cancelled,
             "counts": counts,
+            "queue": await self.queue_progress(batch_id),
             "manager_username": batch.manager_username,
             "channel_id": batch.channel_id,
             "limit_note": BOT_CREATE_LIMIT_NOTE,
         }
 
     def candidate_to_dict(self, row: BotCandidate) -> dict[str, object]:
+        queue_state = str(row.queue_state)
         return {
             "id": row.id,
             "batch_id": row.batch_id,
@@ -619,8 +876,13 @@ class BotFactoryService:
             "creation_status_label": CANDIDATE_STATUS_TITLES.get(
                 row.creation_status, str(row.creation_status)
             ),
+            "queue_state": queue_state,
+            "queue_state_label": QUEUE_STATE_TITLES.get(queue_state, queue_state),
+            "attempts": row.attempts,
             "bot_id": row.bot_id,
             "telegram_id": row.telegram_id,
+            # Masked, non-reversible shape only; the token itself is sealed (D-110).
+            "token_mask": row.token_mask,
             "deep_link": row.deep_link,
             "error": row.error,
         }
@@ -635,10 +897,12 @@ class BotFactoryService:
             "requested_count": batch.requested_count,
             "created_count": batch.created_count,
             "failed_count": batch.failed_count,
+            "skipped_count": batch.skipped_count,
             "status": str(batch.status.value),
             "status_label": BATCH_STATUS_TITLES.get(batch.status, str(batch.status)),
             "manager_username": batch.manager_username,
             "channel_id": batch.channel_id,
+            "queue_cancelled": batch.queue_cancelled,
             "limit_note": BOT_CREATE_LIMIT_NOTE,
         }
 

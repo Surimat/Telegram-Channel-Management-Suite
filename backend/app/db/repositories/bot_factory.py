@@ -62,6 +62,15 @@ class BotCandidateRepository:
         stmt = select(BotCandidate).order_by(BotCandidate.created_at.desc()).limit(limit)
         return list((await self.session.execute(stmt)).scalars().all())
 
+    async def count_by_queue_state(self, batch_id: str) -> dict[str, int]:
+        stmt = (
+            select(BotCandidate.queue_state, func.count())
+            .where(BotCandidate.batch_id == batch_id)
+            .group_by(BotCandidate.queue_state)
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return {str(state): int(count) for state, count in rows}
+
     async def delete_for_batch(self, batch_id: str) -> int:
         rows = await self.list_for_batch(batch_id)
         for row in rows:

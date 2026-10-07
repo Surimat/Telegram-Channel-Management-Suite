@@ -63,6 +63,7 @@ CAPABILITY_SERVICE_ANCHORS: dict[str, tuple[str, str]] = {
     "direct_invite": ("services/invite_service.py", "class InviteService"),
     "content_publish": ("services/posting_service.py", "class PostingService"),
     "ai_ru": ("services/encoder_service.py", "class EncoderService"),
+    "bot_factory": ("services/bot_factory.py", "class BotFactoryService"),
     "donor_discovery": (
         "services/donor_discovery_service.py",
         "class DonorDiscoveryService",
@@ -497,6 +498,7 @@ def _registered_handlers() -> set[str]:
         ("invite_service", "invite_service.py"),
         ("posting_service", "posting_service.py"),
         ("reaction_service", "reaction_service.py"),
+        ("bot_factory", "bot_factory.py"),
     ):
         module_text = (BACKEND / "services" / module_path).read_text(encoding="utf-8")
         for name, value in re.findall(r'([A-Z_]+)\s*=\s*"([^"]+)"', module_text):

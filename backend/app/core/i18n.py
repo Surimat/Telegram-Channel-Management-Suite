@@ -64,6 +64,11 @@ MESSAGES: dict[str, dict[str, str]] = {
         "ru": "Подключите Google Drive в разделе «Владелец» → «Синхронизация».",
         "en": "Connect Google Drive in Owner → Configuration Sync.",
     },
+    "cap.manager_bot": {"ru": "Управляющий бот", "en": "Manager bot"},
+    "cap.manager_bot.fix": {
+        "ru": "Добавьте управляющего бота в разделе «Боты».",
+        "en": "Add a manager bot in the Bots section.",
+    },
     "cap.state.available": {"ru": "Доступно", "en": "Available"},
     "cap.state.partial": {"ru": "Частично доступно", "en": "Partially available"},
     "cap.state.needs_setup": {"ru": "Требуется настройка", "en": "Needs setup"},

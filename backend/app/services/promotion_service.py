@@ -68,7 +68,7 @@ PRESETS: dict[str, dict[str, object]] = {
     PRESET_BOT_ONLY: {
         "title": "Только боты (без аккаунта)",
         "description": "Реакции и продвижение ссылками без входа в аккаунт Telegram.",
-        "steps": ["channel", "manager_bot", "bind_bot", "reactions", "campaigns"],
+        "steps": ["channel", "manager_bot", "bot_factory", "bind_bot", "reactions", "campaigns"],
         "requires_session": False,
     },
     PRESET_BASIC: {
@@ -77,6 +77,7 @@ PRESETS: dict[str, dict[str, object]] = {
         "steps": [
             "channel",
             "manager_bot",
+            "bot_factory",
             "bind_bot",
             "reactions",
             "account",
@@ -91,6 +92,7 @@ PRESETS: dict[str, dict[str, object]] = {
         "steps": [
             "channel",
             "manager_bot",
+            "bot_factory",
             "bind_bot",
             "reactions",
             "account",
@@ -108,6 +110,7 @@ PRESETS: dict[str, dict[str, object]] = {
         "steps": [
             "channel",
             "manager_bot",
+            "bot_factory",
             "bind_bot",
             "reactions",
             "account",
@@ -280,6 +283,7 @@ class PromotionService:
         builders = {
             "channel": self._step_channel,
             "manager_bot": self._step_manager_bot,
+            "bot_factory": self._step_bot_factory,
             "bind_bot": self._step_bind_bot,
             "reactions": self._step_reactions,
             "campaigns": self._step_campaigns,
@@ -324,6 +328,26 @@ class PromotionService:
             status_title=STEP_STATUS_TITLES[STEP_DONE if done else STEP_TODO],
             how_to_fix="" if done else "Создайте бота в @BotFather и вставьте токен в «Боты».",
             route="/bots",
+        )
+
+    async def _step_bot_factory(self, *, has_session: bool) -> WizardStep:
+        # The Factory is optional: it only helps when several managed bots are
+        # needed. It becomes "done" once the owner has prepared at least one batch.
+        from backend.app.db.repositories.bot_factory import BotBatchRepository
+
+        _rows, total = await BotBatchRepository(self.session).list_all(limit=1)
+        done = total > 0
+        return WizardStep(
+            key="bot_factory",
+            title="Подготовить ботов пачкой (необязательно)",
+            description=(
+                "Фабрика ботов помогает создать сразу несколько управляемых ботов "
+                "и подключить их к каналу."
+            ),
+            status=STEP_DONE if done else STEP_OPTIONAL,
+            status_title=STEP_STATUS_TITLES[STEP_DONE if done else STEP_OPTIONAL],
+            how_to_fix="" if done else "Раздел «Фабрика ботов» → «Создать пакет».",
+            route="/bot-factory",
         )
 
     async def _step_bind_bot(self, *, has_session: bool) -> WizardStep:

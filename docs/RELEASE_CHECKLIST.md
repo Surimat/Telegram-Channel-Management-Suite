@@ -66,6 +66,28 @@ PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_R
 
 ## 6. Release verification (fill in per release)
 
+### v1.7.0 (Bot Factory creation queue, 2026-10-08, D-109)
+
+Additive minor over v1.6.1: the Bot Factory batch becomes a durable creation
+queue driven by the scheduler job `bot_factory.create`.
+
+| Gate | v1.7.0 | Notes |
+| --- | --- | --- |
+| Version consistency (`1.7.0` everywhere) | ✅ | app / pyproject / frontend / lock (`test_repo_version_is_consistent`) |
+| Bot Factory creation queue | ✅ | `enqueue_candidates` / `run_queue_once` / `queue_progress` / `retry` / `skip` / `cancel` / `resume`; one op per scheduler tick |
+| Restart-resumable | ✅ | queue state persisted; `bot_factory.create` job recovered on start |
+| Token safety | ✅ | `token_mask` derived without decryption; raw token never returned/logged/exported |
+| Deep-link mode | ✅ | not background-ticked; owner finishes in Telegram |
+| Meta-audit engine (runtime) | ⬜ | regenerate with `PYTHONPATH=. python tests/meta_audit/engine.py` |
+| Tests (`pytest` / `ruff`) | ⬜ | full suite + ruff clean |
+| Frontend build | ⬜ | `vue-tsc --noEmit` + `npm run build` clean |
+| Docker build + smoke | ⬜ | container `/health` → `{"status":"ok","version":"1.7.0"}` |
+| Portable build/smoke | ⬜ | `scripts/build_portable.sh` → ZIP 1.7.0 |
+| Artifact scan | ⬜ | no `.session`/TDATA/DB/model in the ZIP |
+| Secret scan | ⬜ | no tokens/api_hash/session strings in the diff |
+| Git merge (`develop → main`) | ⬜ | reviewed PR `develop → main` |
+| Automated Release workflow + ZIP/`.sha256` | ⬜ | tag `v1.7.0` → Release workflow (D-060) |
+
 ### v1.6.1 (verification patch, 2026-10-07, D-107)
 
 Independent verification of the released tag on a **clean checkout** (not the

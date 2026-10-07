@@ -420,3 +420,22 @@ The Diagnostics report (`GET /api/v1/diagnostics/report`, D-061) is explicitly a
   verifier, token, bundle plaintext or database row.
 - **Never commit** `.session`, TDATA, StringSession, auth keys, API hashes or
   passwords; `.gitignore` covers sessions, data, logs, backups and `sync/`.
+
+## 7j. Bot Factory creation queue (v1.7, D-109/D-110)
+
+- **Managed-bot tokens stay sealed.** The raw token is written once through
+  `BotService` and stored encrypted (Fernet); it is never returned by the API,
+  never logged and never exported. `register_tokens` only reports a count.
+- **`token_mask` is non-reversible and not derived from the token.** The
+  display-only `1234…xyz` shape is computed from the **non-secret numeric bot
+  id** via `mask_token` (bot id head + last 4 file characters), so the UI can
+  identify *which* credential is stored without ever decrypting it (D-110).
+- **The queue creates nothing by itself.** `enqueue_candidates` only marks the
+  candidates Telegram confirmed free; the scheduler job `bot_factory.create`
+  drives the official managed-bot flow one operation at a time. It does not
+  register accounts, does not bypass FloodWait and does not bypass limits.
+- **Deep-link batches are owner-driven.** A `via_deeplink` batch is not
+  background-ticked; the owner creates the bot in @BotFather and the queue
+  settles. A cancelled queue never rolls back an already-created bot.
+- **Diagnostics/API carry queue state only.** Per-candidate payloads expose
+  `queue_state`, `attempts` and the mask — never a token, session or auth key.

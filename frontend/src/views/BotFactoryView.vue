@@ -192,6 +192,34 @@ async function bindToChannel() {
   )
 }
 
+const queueProgress = computed(() => dashboard.value?.queue ?? null)
+const queueBusy = computed(
+  () =>
+    !!queueProgress.value &&
+    (queueProgress.value.queued > 0 || queueProgress.value.running > 0),
+)
+
+const startQueue = () =>
+  withBatch(
+    () => api.factoryEnqueue(selectedId.value, !form.value.account_id),
+    'Операции поставлены в очередь. Программа выполнит их по одной — очередь переживёт перезапуск.',
+  )
+
+const cancelQueue = () =>
+  withBatch(
+    () => api.factoryCancel(selectedId.value),
+    'Очередь остановлена. Уже созданные боты сохранены.',
+  )
+
+const resumeQueue = () =>
+  withBatch(() => api.factoryResume(selectedId.value), 'Очередь снова запущена.')
+
+const retryCandidate = (id: string) =>
+  withBatch(() => api.factoryRetryCandidate(id), 'Операция снова в очереди.')
+
+const skipCandidate = (id: string) =>
+  withBatch(() => api.factorySkipCandidate(id), 'Операция пропущена.')
+
 async function removeBatch(id: string) {
   if (!confirm('Удалить пакет и его кандидатов? Уже созданные боты останутся в списке ботов.')) return
   busy.value = true
@@ -328,15 +356,41 @@ onMounted(load)
       </div>
       <div class="toolbar">
         <button :disabled="busy" @click="checkNames">Проверить имена</button>
-        <button class="primary" :disabled="busy" @click="createNative">Создать ботов</button>
+        <button :disabled="busy" @click="createNative">Создать ботов</button>
         <button :disabled="busy" @click="createDeepLinks">Создать по ссылкам</button>
         <button :disabled="busy" @click="fetchTokens">Получить токены</button>
         <button :disabled="busy || !form.channel_id" @click="bindToChannel">Подключить к каналу</button>
       </div>
+
+      <div class="card inline-note">
+        <b>Очередь создания.</b> Программа выполняет операции по одной через
+        планировщик, поэтому можно закрыть страницу, а при перезапуске очередь
+        продолжится. Уже созданные боты не откатываются.
+      </div>
+      <div class="toolbar">
+        <button class="primary" :disabled="busy" @click="startQueue">Запустить очередь</button>
+        <button v-if="queueBusy" class="danger" :disabled="busy" @click="cancelQueue">
+          Остановить очередь
+        </button>
+        <button v-else-if="detail.batch.queue_cancelled" :disabled="busy" @click="resumeQueue">
+          Продолжить очередь
+        </button>
+      </div>
+      <div v-if="queueProgress" class="muted">
+        Очередь: всего {{ queueProgress.total }} ·
+        в очереди {{ queueProgress.queued }} ·
+        выполняется {{ queueProgress.running }} ·
+        готово {{ queueProgress.success }} ·
+        с ошибкой {{ queueProgress.failed }} ·
+        пропущено {{ queueProgress.skipped }}
+        <span v-if="detail.batch.queue_cancelled"> · остановлена</span>
+      </div>
+
       <p class="muted">
         «Создать ботов» работает через официальный метод Telegram и требует
         подключённого аккаунта. «Создать по ссылкам» открывает t.me/newbot — бот
         создаётся вручную, токен потом запрашивается управляющим ботом.
+        «Запустить очередь» обрабатывает все свободные операции по одной.
       </p>
 
       <table>
@@ -360,11 +414,30 @@ onMounted(load)
             <td>
               <span class="status-dot" :class="STATUS_CLASS[c.creation_status] || 'status-unknown'"></span>
               {{ c.creation_status_label }}
+              <div class="muted">
+                Очередь: {{ c.queue_state_label }}
+                <span v-if="c.attempts"> · попыток: {{ c.attempts }}</span>
+              </div>
+              <div v-if="c.token_mask" class="muted">Токен: {{ c.token_mask }}</div>
               <div v-if="c.error" class="muted">{{ c.error }}</div>
             </td>
             <td>
               <div class="actions">
                 <button :disabled="busy" @click="regenerate(c.id)">Перегенерировать</button>
+                <button
+                  v-if="c.queue_state === 'failed' || c.queue_state === 'cancelled'"
+                  :disabled="busy"
+                  @click="retryCandidate(c.id)"
+                >
+                  Повторить
+                </button>
+                <button
+                  v-if="['pending', 'queued', 'failed'].includes(c.queue_state)"
+                  :disabled="busy"
+                  @click="skipCandidate(c.id)"
+                >
+                  Пропустить
+                </button>
                 <a v-if="c.deep_link" :href="c.deep_link" target="_blank" rel="noopener">
                   Открыть в Telegram
                 </a>

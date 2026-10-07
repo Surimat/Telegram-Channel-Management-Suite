@@ -2259,3 +2259,53 @@ consistency, the README release string and the meta-audit report version; these 
 the memory files and the release checklist. This is documentation/guard only — no
 code, API, schema or dependency change, and no new release (v1.6.1 stays the
 latest tag; these edits are `Unreleased` on `develop`).
+
+
+## D-109 — 2026-10-08 — Bot Factory batch is a durable creation queue (v1.7, additive) — LOCKED
+
+**Context.** v1.3 created a whole batch synchronously: one long request tried to
+create every candidate at once. On a weak PC or a slow Telegram link this is
+fragile — a tab close or a restart mid-batch left the owner unsure what had
+happened, and a single failure had no bounded retry path separate from the rest
+of the batch.
+
+**Decision.** The batch becomes a **durable creation queue** (`QueueState`:
+`pending → queued → running → success|failed`, plus terminal `skipped`/
+`cancelled`), advanced by the scheduler job `bot_factory.create`:
+1. `enqueue_candidates` marks candidates Telegram confirmed `available`/`ready`
+   (and not-yet-checked `generated` ones) as `queued`; `run_queue_once` performs
+   **one** creation operation per tick — the queue state lives in SQLite, so the
+   batch is **restart-resumable** through the scheduler's normal recovery.
+2. `queue_cancelled` stops the remaining work; **already-created bots are never
+   rolled back**. `retry_candidate` re-queues a failed/cancelled operation (with a
+   bounded attempt counter) and `skip_candidate` ends it without touching the rest.
+3. **Deep-link batches are not background-ticked**: the owner completes them by
+   hand in Telegram, so `_handle_bot_factory` only reschedules when the batch is
+   not `via_deeplink`. This avoids an infinite tick for work the suite cannot do.
+4. The queue only *prepares and drives* the official managed-bot flow. It never
+   registers accounts, never bypasses FloodWait and never bypasses limits.
+
+**Consequences.** New columns `bot_batches.queue_cancelled` and
+`bot_candidates.queue_state`/`attempts`. New API endpoints
+(`/batches/{id}/enqueue|cancel|resume`, `/candidates/{cid}/retry|skip`), the
+`bot_factory` capability requirement, a Diagnostics check, a Promotion Wizard
+step, a help topic and `BotFactoryView.vue` queue controls. Additive: an existing
+v1.6 database upgrades in place.
+
+## D-110 — 2026-10-08 — `token_mask` is display-only and derived without decryption — LOCKED
+
+**Context.** After token registration the UI wanted to show *which* managed-bot
+credential is stored, but the raw token is a secret that must never be returned,
+logged or exported. Decrypting the sealed token just to build a mask would put the
+plaintext in memory and risk a leak.
+
+**Decision.** Store a non-reversible `token_mask` (`1234…xyz`) computed by
+`mask_token` from the **numeric bot id** (a non-secret) plus the last four
+characters of the id string — never by decrypting the sealed token.
+`BotCandidate.token_mask` is the only token-derived field the API exposes, and it
+is empty until tokens are fetched. `register_tokens` still returns a count only;
+the raw token is written once through `BotService` and stays sealed.
+
+**Consequences.** The Diagnostics report and every per-candidate payload carry
+queue state, attempts and the mask — never a token, session or auth key (D-061).
+
