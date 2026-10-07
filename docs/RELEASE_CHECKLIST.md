@@ -78,15 +78,15 @@ queue driven by the scheduler job `bot_factory.create`.
 | Restart-resumable | ✅ | queue state persisted; `bot_factory.create` job recovered on start |
 | Token safety | ✅ | `token_mask` derived without decryption; raw token never returned/logged/exported |
 | Deep-link mode | ✅ | not background-ticked; owner finishes in Telegram |
-| Meta-audit engine (runtime) | ⬜ | regenerate with `PYTHONPATH=. python tests/meta_audit/engine.py` |
-| Tests (`pytest` / `ruff`) | ⬜ | full suite + ruff clean |
-| Frontend build | ⬜ | `vue-tsc --noEmit` + `npm run build` clean |
-| Docker build + smoke | ⬜ | container `/health` → `{"status":"ok","version":"1.7.0"}` |
-| Portable build/smoke | ⬜ | `scripts/build_portable.sh` → ZIP 1.7.0 |
-| Artifact scan | ⬜ | no `.session`/TDATA/DB/model in the ZIP |
-| Secret scan | ⬜ | no tokens/api_hash/session strings in the diff |
-| Git merge (`develop → main`) | ⬜ | reviewed PR `develop → main` |
-| Automated Release workflow + ZIP/`.sha256` | ⬜ | tag `v1.7.0` → Release workflow (D-060) |
+| Meta-audit engine (runtime) | ✅ | 25 total, 25 detected, 0 missed, **100.0%**, 0 false positives, 0 critical/high |
+| Tests (`pytest` / `ruff`) | ✅ | **854 passed**; ruff clean |
+| Frontend build | ✅ | `vue-tsc --noEmit` + `npm run build` clean |
+| Docker build + smoke | ✅ | `docker build`; container `/health` → `{"status":"ok","version":"1.7.0"}`; `/api/v1/consistency` → `overall: pass` |
+| Portable build/smoke | ✅ | Release workflow `37634439503` built the Windows portable ZIP (24 853 898 bytes) |
+| Artifact scan | ✅ | 3106 entries; no `.session`/TDATA/DB/model in the ZIP; runtime dirs empty |
+| Secret scan | ✅ | no tokens/api_hash/session strings in the diff |
+| Git merge (`develop → main`) | ✅ | reviewed PR #18 (`develop → main`, merge `48eecdc`) |
+| Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v1.7.0` → Release workflow (run `37634439503`, D-060); ZIP sha256 `a444bb55…e5af` |
 
 ### v1.6.1 (verification patch, 2026-10-07, D-107)
 
