@@ -87,8 +87,8 @@ Additive minor over v1.7.0: a single AI Gateway over many providers plus browser
 | Portable build/smoke | ✅ | Release workflow builds the Windows portable ZIP + `.sha256` |
 | Artifact scan | ✅ | no `.session`/TDATA/DB/model in the ZIP; runtime dirs empty |
 | Secret scan | ✅ | no tokens/api_hash/session strings in the diff |
-| Git merge (`develop → main`) | ✅ | reviewed `develop → main` PR |
-| Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v1.8.0` → Release workflow (D-060) |
+| Git merge (`develop → main`) | ✅ | reviewed PR #19 (`develop → main`, merge `d8c62c1`) |
+| Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v1.8.0` → Release workflow (run `37653661662`, D-060); ZIP 24 904 789 bytes, sha256 `9bb39e4b…d353c` |
 
 ### v1.7.0 (Bot Factory creation queue, 2026-10-08, D-109)
 

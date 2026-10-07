@@ -251,6 +251,9 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
   per-provider circuit breaker and automatic failover; keys sealed and write-only;
   the request journal stores metadata only. Honest availability, no account
   registration and no CAPTCHA/MFA/regional-block or Telegram-limit bypass.
+  Released via a reviewed `develop → main` PR #19 (merge `d8c62c1`), tag `v1.8.0`;
+  the Release workflow (run `37653661662`) attached the Windows portable ZIP
+  (24 904 789 bytes, sha256 `9bb39e4b…d353c`) + `.sha256`.
 - **v1.7.0 (2026-10-08):** the **Bot Factory** (v1.3) becomes a **durable creation
   queue** (D-109/D-110). A batch marks its free candidates and the scheduler job
   `bot_factory.create` creates them **one operation per tick**, so the batch is

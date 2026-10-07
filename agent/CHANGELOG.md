@@ -9,9 +9,11 @@ Dates are ISO-8601.
 
 **v1.8.0 — AI Gateway + Web Wrapper Hub (additive minor).** One access layer over
 many AI providers plus a browser-based "web wrapper" subsystem. Released via a
-reviewed `develop → main` PR; the Release workflow attaches the Windows portable
-ZIP + `.sha256`. Version strings read **1.8.0**. Additive only: no account
-registration and no CAPTCHA/MFA/regional-block or Telegram-limit bypass.
+reviewed `develop → main` PR #19 (merge `d8c62c1`), tag `v1.8.0`; the Release
+workflow (run `37653661662`) attached the Windows portable ZIP (24 904 789 bytes,
+sha256 `9bb39e4b…d353c`) + `.sha256`. Version strings read **1.8.0**. Additive
+only: no account registration and no CAPTCHA/MFA/regional-block or Telegram-limit
+bypass.
 
 ### Added
 - **AI Gateway domain (`backend/app/ai/gateway/`, D-111).** `types.py`
