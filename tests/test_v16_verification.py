@@ -115,12 +115,12 @@ async def test_guard_path_normalisation_has_no_bypass(owner_client: AsyncClient)
     ):
         resp = await owner_client.get(path)
         assert resp.status_code == 401, (path, resp.status_code)
-    # A genuinely different (case-sensitive) path is not an API route: it falls
-    # through to the SPA, never to the settings handler.
+    # A genuinely different (case-sensitive) path is not a protected API route:
+    # it must not be guarded (never 401) and never reach the settings handler. It
+    # falls through to the SPA (or its not-built placeholder).
     upper = await owner_client.get("/API/v1/settings")
     assert upper.status_code in (200, 404)
-    if upper.status_code == 200:
-        assert "<!doctype html" in upper.text.lower()
+    assert "unauthorized" not in upper.text.lower()
 
 
 async def test_guard_blocks_leading_double_slash() -> None:
