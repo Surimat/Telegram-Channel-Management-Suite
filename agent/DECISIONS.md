@@ -2309,3 +2309,73 @@ the raw token is written once through `BotService` and stays sealed.
 **Consequences.** The Diagnostics report and every per-candidate payload carry
 queue state, attempts and the mask — never a token, session or auth key (D-061).
 
+
+
+## D-111 — 2026-10-09 — One AI Gateway over many providers, with honest routing — LOCKED
+
+**Context.** The Suite already had an optional tiny classifier (rules + an
+optional GGUF LLM) but no shared way to reach real AI providers. Each future
+feature would otherwise wire its own vendor call, with its own key handling,
+retry and error story, and the UI could not explain what was available.
+
+**Decision.** Introduce a single **AI Gateway** (`backend/app/ai/gateway/`) that
+the rest of the Suite calls instead of a vendor:
+
+1. **Registry as the single extension point.** `registry.build_provider(config)`
+   maps a `ProviderConfig` to an `AIProvider`; adding a kind is one branch.
+   Kinds: `openai_compatible`, `openrouter`, `google`, `anthropic`, `deepseek`,
+   `ollama` (local), `web` (browser wrapper).
+2. **Router with reliability.** The router builds the eligible set (capability
+   match → strategy order → priority), retries transient failures with **bounded
+   backoff**, honours a **per-provider circuit breaker** and a **rate-limit
+   cooldown**, and **fails over** to the next provider. `describe()` returns the
+   planned order without executing. Nothing eligible → an honest `no_provider`
+   result, never a silent empty success.
+3. **Secrets stay sealed.** Provider keys are `seal_secret`-ed, registered with
+   the logging redaction filter, and write-only (`has_key` boolean). The
+   observability ring (`ai_gateway_requests`) stores **metadata only** — never
+   prompt or response text.
+4. **Honest availability.** A provider is `available` only after a real probe;
+   the browser runtime reports engine/Docker status rather than claiming success.
+
+**Consequences.** New tables `ai_providers` / `ai_route_settings` /
+`ai_gateway_requests` (migration `20261008_1200_b2c3d4e5f6a7`), the
+`ai_gateway` capability (requires an enabled `ai_provider`), a consistency anchor,
+i18n keys, the `/ai-gateway` UI and two help topics. Additive: an existing v1.7
+database upgrades in place and the rules/encoder path is unchanged.
+
+## D-112 — 2026-10-09 — Web wrappers use the owner's own session and never bypass a wall — LOCKED
+
+**Context.** A "web wrapper" turns a website's chat UI into an API-shaped
+provider, which is attractive for free access — but it sits next to a line the
+project will not cross: no bypassing of login, CAPTCHA, MFA, verification,
+regional blocks or Telegram limits, and no use of someone else's session.
+
+**Decision.** A wrapper is a declarative `WrapperDefinition` (URL, open steps,
+input/send/response selectors, extraction, login markers, version, cost) executed
+by `WebWrapperEngine` against the owner's **own** browser session (optional
+Playwright runtime, fake runtime for tests). On a login marker the engine returns
+`AUTH_REQUIRED` and **stops** — it never enters credentials, solves CAPTCHA or
+attempts MFA. When the browser runtime is unavailable the wrapper reports honest
+unavailability; it never claims a capability that was not probed. No selector
+lives in business logic, and no wrapper credential is returned or logged.
+
+**Consequences.** The `web` provider kind and the wrapper library/`/browser`
+status endpoints are additive and off by default (`ai_gateway_web_enabled`).
+Wrapper definitions are honest templates until a real probe verifies them.
+
+## D-113 — 2026-10-09 — Gateway costs and modalities are opt-in, never assumed — LOCKED
+
+**Context.** A gateway that silently picks a paid provider or a browser session
+would spend the owner's money or reach the network in a way they did not expect.
+
+**Decision.** Routing excludes **paid** providers unless `ai_gateway_allow_paid`
+is on, and excludes **web wrappers** unless `ai_gateway_web_enabled` is on. The
+strategy (`auto`, `free_first`, `cheapest`, `fastest`, `best_quality`, `manual`)
+is a stored preference; `manual` only uses an explicitly named provider. The
+use-case matrix reports availability per modality from the same evaluated state,
+so the UI cannot show a use-case as available when no provider satisfies it.
+
+**Consequences.** Safe defaults (paid off, web off) mean a fresh install never
+spends money or opens a browser. Settings are per-installation and ride the
+existing settings service; no new heavy infrastructure.

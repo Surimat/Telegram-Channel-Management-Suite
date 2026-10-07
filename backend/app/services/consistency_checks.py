@@ -69,6 +69,7 @@ CAPABILITY_SERVICE_ANCHORS: dict[str, tuple[str, str]] = {
         "class DonorDiscoveryService",
     ),
     "config_sync": ("services/config_sync_service.py", "class ConfigSyncService"),
+    "ai_gateway": ("services/ai_gateway_service.py", "class AiGatewayService"),
 }
 
 #: Config-sync providers that must exist: a real module and a fake transport for

@@ -589,3 +589,30 @@ One RU-first page for the local owner profile and configuration sync:
 A `Владелец` link sits at the bottom of the sidebar; the page is reached from the
 Promotion Wizard step "Настроить перенос настроек (необязательно)". Help topics
 `owner_auth` and `config_sync` explain both in beginner language.
+
+
+## 11g. Центр ИИ / AI Gateway page (`AiGatewayView.vue`, `/ai-gateway`, v1.8)
+
+One RU-first page that configures and observes the AI Gateway. Sidebar entry
+"Центр ИИ" (next to "Мини-ИИ"). Five tabs:
+
+- **Провайдеры** — a form to add a provider (name, type, model, base URL, key,
+  cost, priority, wrapper) and a table of configured providers. The key is
+  write-only: the table shows only `задан`/`—`. Each row has enable/disable and
+  delete; the status badge is honest (`Готов` / `Не проверен` / `Недоступен` /
+  `Нужен вход` / …) and never claims availability without a probe.
+- **Маршрутизация** — enable the gateway, pick a strategy (Автоматически / Сначала
+  бесплатные / Самые дешёвые / Самые быстрые / Лучшее качество / Только вручную),
+  allow paid providers, allow web wrappers; shows timeout, retries and history
+  limit.
+- **Web-обёртки** — the wrapper library, the browser engine and its Docker note,
+  and an explicit statement that a wrapper uses your own browser session and does
+  not bypass login, CAPTCHA or MFA.
+- **Проверка** — send a test request (optionally pinning a provider or strategy),
+  see success/failure, the provider used, latency, fallback and the attempt list;
+  plus the capability/use-case matrix per modality.
+- **Журнал** — the bounded request journal. Only metadata is stored (provider,
+  source, status, latency) — never the prompt text.
+
+Help topics `ai_gateway` and `ai_gateway_wrapper` explain the gateway and the
+wrapper concept in beginner language.

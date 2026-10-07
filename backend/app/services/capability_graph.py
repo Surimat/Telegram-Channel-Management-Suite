@@ -40,6 +40,7 @@ REQ_FFMPEG = "ffmpeg"
 REQ_OWNER_AUTH = "owner_auth"
 REQ_GOOGLE_DRIVE = "google_drive"
 REQ_MANAGER_BOT = "manager_bot"
+REQ_AI_PROVIDER = "ai_provider"
 
 ALL_REQUIREMENTS = (
     REQ_CHANNEL,
@@ -52,6 +53,7 @@ ALL_REQUIREMENTS = (
     REQ_OWNER_AUTH,
     REQ_GOOGLE_DRIVE,
     REQ_MANAGER_BOT,
+    REQ_AI_PROVIDER,
 )
 
 # --- Capability states ------------------------------------------------------
@@ -187,6 +189,23 @@ CAPABILITIES: tuple[Capability, ...] = (
         note_en=(
             "Moves settings to a new computer via an encrypted bundle. Session "
             "files and the database are never synced."
+        ),
+    ),
+    Capability(
+        key="ai_gateway",
+        title_ru="Шлюз ИИ (провайдеры и Web-обёртки)",
+        title_en="AI Gateway (providers and Web wrappers)",
+        requires=(REQ_AI_PROVIDER,),
+        note_ru=(
+            "Единый доступ к ИИ: официальные API, OpenAI-совместимые, бесплатные "
+            "провайдеры, локальные модели и Web UI через браузер вашей сессии. "
+            "Агрегатор автоматически переключается при сбое. Провайдеры могут "
+            "менять условия и доступность."
+        ),
+        note_en=(
+            "One access layer for AI: official APIs, OpenAI-compatible, free "
+            "providers, local models and Web UI through your own browser session. "
+            "Failover is automatic. Providers may change terms and availability."
         ),
     ),
 )
@@ -394,6 +413,14 @@ async def context_from_db(
     except Exception:  # pragma: no cover - defensive
         pass
 
+    try:
+        from backend.app.db.repositories.ai_gateway import AiProviderRepository
+
+        rows = await AiProviderRepository(session).list_all()
+        context[REQ_AI_PROVIDER] = any(r.enabled for r in rows)
+    except Exception:  # pragma: no cover - defensive
+        pass
+
     return context
 
 
@@ -401,6 +428,7 @@ __all__ = [
     "ALL_REQUIREMENTS",
     "CAPABILITIES",
     "CAPABILITIES_BY_KEY",
+    "REQ_AI_PROVIDER",
     "REQ_BOT_BINDING",
     "REQ_CHANNEL",
     "REQ_ENCODER_MODEL",

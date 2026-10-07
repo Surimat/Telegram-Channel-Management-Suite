@@ -4,6 +4,11 @@ Importing this package registers every model on ``Base.metadata``.
 """
 
 from backend.app.db.models.ai import AiMetric, AiRecord
+from backend.app.db.models.ai_gateway import (
+    AiGatewayRequest,
+    AiProviderRow,
+    AiRouteSetting,
+)
 from backend.app.db.models.audience import (
     AudienceSource,
     AudienceUser,
@@ -267,8 +272,11 @@ __all__ = [
     "UPDATE_UP_TO_DATE",
     "URGENT_PRIORITIES",
     "VALID_MODES",
+    "AiGatewayRequest",
     "AiMetric",
+    "AiProviderRow",
     "AiRecord",
+    "AiRouteSetting",
     "AudienceSource",
     "AudienceUser",
     "BackupDestination",

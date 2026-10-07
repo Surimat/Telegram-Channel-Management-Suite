@@ -609,3 +609,27 @@ probe lives on the Sessions page.
 - Docker: `docker compose -f docker/docker-compose.yml down`.
 
 Pending queue jobs are stored in the database and resumed on the next start.
+
+
+---
+
+## AI Gateway («Центр ИИ», v1.8)
+
+The **Центр ИИ** page (`/ai-gateway`) is the single place to configure AI access.
+It is optional and independent of the lightweight «Мини-ИИ» above.
+
+1. **Провайдеры** — press *Сохранить провайдера*. Pick a type:
+   - `OpenAI-совместимый API`, `OpenRouter`, `Google (Gemini)`, `Anthropic`,
+     `DeepSeek` — enter the model and the API key (write-only);
+   - `Локально (Ollama)` — enter the local base URL, no key needed;
+   - `Web UI обёртка` — set the wrapper id (e.g. `generic`); the wrapper drives
+     **your own** logged-in browser session.
+2. **Маршрутизация** — turn the gateway on, choose a strategy, and optionally
+   allow paid providers or web wrappers.
+3. **Проверка** — send a test request and see the provider used, latency and any
+   fallback.
+4. **Журнал** — recent requests (metadata only).
+
+Keys are stored sealed and are never shown again. Nothing is downloaded by
+default; the browser runtime for web wrappers is optional and reported honestly
+when unavailable. See `docs/SECURITY.md` §7k.

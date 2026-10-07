@@ -40,6 +40,9 @@ confirmation).
 | **Backup restore** | Wrong `APP_SECRET_KEY`, or the running process still holds the old DB | Restore the original key or re-enter the token; restart the app after restoring. See the table below |
 | **Network route (proxy) fails** | Wrong host/port/credentials, or the proxy is down | **Аккаунты → Сетевые маршруты**, press **«Проверить»**; fix or remove the route. A route never bypasses Telegram limits |
 | **Donor discovery finds nothing** | No account connected, topic too narrow, or hidden data | Connect an account; broaden keywords; candidates must be added explicitly. See below |
+| **AI Gateway shows «Нужна настройка»** | No provider is enabled, or all are unreachable | **Центр ИИ** → add and enable a provider; press **Проверка**. The gateway honestly reports `no_provider` rather than inventing an answer |
+| **Web wrapper says «Нужен вход»** | The site requires a login in your browser session | Open the site in your own browser, sign in, then retry. The wrapper never bypasses login/CAPTCHA/MFA |
+| **Provider key seems missing** | Keys are write-only and never shown again | Re-save the provider with the key if unsure; the table only shows `задан`/`—` |
 
 ---
 

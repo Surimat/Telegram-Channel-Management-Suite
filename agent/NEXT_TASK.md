@@ -3,25 +3,41 @@
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
-**Updated:** 2026-10-08
-**Status:** **v1.7.0 (Bot Factory creation queue) is on `develop`, ready for a
-reviewed `develop → main` release PR.** The Bot Factory batch is now a **durable
-creation queue** (D-109): the scheduler job `bot_factory.create` creates the free
-candidates **one operation per tick**, so a batch is restart-resumable and can be
-stopped/resumed; a failed candidate can be retried or skipped; already-created
-bots are never rolled back. A display-only `token_mask` (`1234…xyz`) is derived
-from the **non-secret numeric bot id** (D-110) — the raw token is never returned,
-logged or exported. Deep-link batches are not background-ticked. Additive: no
-account registration and no Telegram-limit bypass. Version strings read **1.7.0**;
-full suite green; `ruff` clean; frontend `vue-tsc` + `npm run build` clean.
+**Updated:** 2026-10-09
+**Status:** **v1.8.0 (AI Gateway + Web Wrapper Hub, D-111…D-113) is implemented on
+`develop`; release pending.** One access layer over many AI providers
+(OpenAI-compatible, OpenRouter, Google, Anthropic, DeepSeek, local Ollama) plus
+browser **web wrappers** that drive the owner's own logged-in session, with
+strategy-based routing, bounded retries, a per-provider circuit breaker and
+automatic failover. Keys are sealed and write-only; the request journal stores
+metadata only; the wrapper engine stops at a login wall. Additive only: no account
+registration and no CAPTCHA/MFA/regional-block or Telegram-limit bypass. New code:
+`backend/app/ai/gateway/*`, `services/ai_gateway_service.py`,
+`api/v1/ai_gateway.py`, models + repository + migration
+`20261008_1200_b2c3d4e5f6a7`, `AiGatewayView.vue` (`/ai-gateway`), the
+`ai_gateway` capability + consistency anchor, help topics and i18n keys.
+Version strings read **1.8.0**; full suite green; `ruff` clean; frontend
+`vue-tsc` + `npm run build` clean; meta-audit **27/27, 100%, 0 false positives**.
 
-**Latest released:** **v1.6.1** (verification patch) via a reviewed
+**Previous release:** **v1.7.0 (Bot Factory creation queue) is RELEASED** via a
+reviewed `develop → main` PR #18 (merge `48eecdc`), tag `v1.7.0`; the Release
+workflow (run `37634439503`) created the GitHub Release and attached the Windows
+portable ZIP (24 853 898 bytes, sha256 `a444bb55…e5af`) + `.sha256`. `main`
+HEAD = `48eecdc`; `develop` re-synced to `48eecdc`. The Bot Factory batch is now a
+**durable creation queue** (D-109): the scheduler job `bot_factory.create` creates
+the free candidates **one operation per tick**, so a batch is restart-resumable and
+can be stopped/resumed; a failed candidate can be retried or skipped;
+already-created bots are never rolled back. A display-only `token_mask`
+(`1234…xyz`) is derived from the **non-secret numeric bot id** (D-110). Deep-link
+batches are not background-ticked. Additive: no account registration and no
+Telegram-limit bypass.
+
+**Previous release:** **v1.6.1** (verification patch) via a reviewed
 `develop → main` PR #17 (merge `a38823d`), tag `v1.6.1`; the Release workflow (run
 `37601801598`) attached the Windows portable ZIP (24 846 601 bytes, sha256
-`8b6d7c18…f519`) + `.sha256`. `main` HEAD = `a38823d`. v1.6.1 is a patch over
-v1.6.0 (Owner Auth + Config Sync, D-105/D-106); it fixed the owner-guard
-path-normalisation weakness, the `config_sync` capability state and the Google
-Drive `/owner` UI wiring (D-107).
+`8b6d7c18…f519`) + `.sha256`. v1.6.1 is a patch over v1.6.0 (Owner Auth + Config
+Sync, D-105/D-106); it fixed the owner-guard path-normalisation weakness, the
+`config_sync` capability state and the Google Drive `/owner` UI wiring (D-107).
 
 The meta-audit remains a *runtime mutation engine* (D-102) and still detects
 **every** seeded defect: **25 total, 25 detected, 0 missed, 100.0%, 0 false
@@ -43,12 +59,56 @@ complete.
 
 ---
 
-## Active task: release v1.7.0 (Bot Factory creation queue)
+## Active task: release v1.8.0 (AI Gateway + Web Wrapper Hub)
 
-The v1.7.0 work is complete on `develop` and green. Task: open a reviewed
-`develop → main` PR, merge, tag `v1.7.0`, and let the Release workflow build the
-Windows portable ZIP + `.sha256`. After the merge, re-sync `develop` to the merge
-commit and record the facts here.
+The v1.8.0 code is complete on `develop`. Remaining work is **release only**:
+
+1. Ensure all gates are green (`pytest`, `ruff`, `vue-tsc`, `npm run build`,
+   meta-audit).
+2. Commit on `develop`, push (fast-forward, **no force**).
+3. Open a reviewed `develop → main` PR and merge it.
+4. Create annotated tag **`v1.8.0`** on the merged `main` commit; the **Release**
+   workflow builds the Windows portable ZIP + `.sha256` and attaches it (D-060).
+5. Re-sync `develop` to the merge commit and record the facts in
+   `agent/CURRENT_STATE.md` / `agent/NEXT_TASK.md` / `agent/CHANGELOG.md`.
+
+### What shipped (additive, v1.8.0)
+
+- **AI Gateway domain** (`backend/app/ai/gateway/`): types, errors, reliability
+  (bounded backoff + per-provider circuit breaker + rate-limit cooldown +
+  `HealthStore`), `AIProvider` protocol, `HttpTransport` (httpx + fake), `AIRouter`
+  (ordering, retry, failover, `describe()` dry-run), registry (single extension
+  point).
+- **Providers:** OpenAI-compatible, OpenRouter, Google, Anthropic, DeepSeek,
+  Ollama (local) and the `web` wrapper provider.
+- **Web wrappers:** `WrapperDefinition` (URL, selectors, extraction, login
+  markers) + `WebWrapperEngine` driving the owner's own browser session; returns
+  `AUTH_REQUIRED` and stops on a login wall. Optional Playwright runtime + fake.
+- **Persistence:** `ai_providers` / `ai_route_settings` / `ai_gateway_requests`
+  (+ repository), migration `20261008_1200_b2c3d4e5f6a7_v1_8_ai_gateway.py`.
+- **Service + API:** `services/ai_gateway_service.py`,
+  `api/v1/ai_gateway.py` (injected via `api/deps.py::get_ai_gateway_service`).
+- **UI:** `AiGatewayView.vue` (`/ai-gateway`, "Центр ИИ") + nav entry + two help
+  topics (`ai_gateway`, `ai_gateway_wrapper`).
+- **Guardrails:** `ai_gateway` capability + consistency anchor, i18n keys,
+  meta-audit mutations `V_gateway_capability_anchor` and
+  `W_frontend_unknown_gateway`.
+
+### Verification
+
+```bash
+python -m pytest                 # full suite green
+ruff check backend tests         # clean
+cd frontend && npx vue-tsc --noEmit && npm run build   # clean
+PYTHONPATH=. python tests/meta_audit/engine.py         # 27/27, 100%
+```
+
+## Previous release: v1.7.0 (Bot Factory creation queue)
+
+**v1.7.0 is RELEASED** via a reviewed `develop → main` PR #18 (merge `48eecdc`),
+tag `v1.7.0`; the Release workflow (run `37634439503`) created the GitHub Release
+and attached the Windows portable ZIP (24 853 898 bytes, sha256 `a444bb55…e5af`).
+`main` HEAD = `48eecdc`; `develop` re-synced to `48eecdc`.
 
 ### What shipped (additive)
 
@@ -64,16 +124,13 @@ commit and record the facts here.
   `bot_factory`, Diagnostics check, Promotion Wizard step, help topic and
   `BotFactoryView.vue` queue UI.
 
-### Verification for this release
+### Verification
 
 ```bash
-python -m pytest                 # full suite green expected
+python -m pytest                 # 854 passed
 ruff check backend tests         # clean
 cd frontend && npx vue-tsc --noEmit && npm run build   # clean
-PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_RESULT.json
 ```
-
-Then `develop → main` PR → merge → tag `v1.7.0` → Release workflow (D-060).
 
 ## Active task (previous): none — v1.6.1 released
 
