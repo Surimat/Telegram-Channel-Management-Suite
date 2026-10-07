@@ -96,6 +96,7 @@ _CHECK_TITLES = {
     "database": "База данных",
     "manager_bot": "Управляющий бот",
     "managed_bots": "Управляемые боты",
+    "bot_factory": "Фабрика ботов",
     "sessions": "Аккаунты Telegram",
     "channels": "Каналы",
     "bindings": "Подключения ботов к каналам",
@@ -167,6 +168,7 @@ class DiagnosticsService:
                 "manager_bot", lambda: self.system.manager_bot_db_check(self.session)
             ),
             await self._guarded("managed_bots", self._managed_bots_item),
+            await self._guarded("bot_factory", self._bot_factory_item),
             await self._guarded("owner_auth", self._owner_auth_item),
             await self._guarded("config_sync", self._config_sync_item),
             await self._guarded("sessions", self._sessions_item),
@@ -296,6 +298,47 @@ class DiagnosticsService:
             "Управляемые боты",
             STATUS_OK,
             f"Управляемых ботов готово: {count}.",
+            "",
+        )
+
+    async def _bot_factory_item(self):  # type: ignore[no-untyped-def]
+        from backend.app.db.repositories.bot_factory import (
+            BotBatchRepository,
+            BotCandidateRepository,
+        )
+        from backend.app.services.system_service import Check
+
+        batches, total = await BotBatchRepository(self.session).list_all(limit=100)
+        if total == 0:
+            return Check(
+                "bot_factory",
+                "Фабрика ботов",
+                STATUS_NOT_CONFIGURED,
+                "Пакеты ботов не создавались — это необязательно.",
+                "Чтобы подготовить несколько ботов сразу, откройте «Фабрика ботов».",
+            )
+        # Count not-yet-finished operations across the most recent batches.
+        queued = 0
+        failed = 0
+        for batch in batches:
+            counts = await BotCandidateRepository(self.session).count_by_queue_state(
+                batch.id
+            )
+            queued += counts.get("queued", 0) + counts.get("running", 0)
+            failed += counts.get("failed", 0)
+        if failed:
+            return Check(
+                "bot_factory",
+                "Фабрика ботов",
+                STATUS_WARNING,
+                f"Пакетов: {total}. Незавершённых операций: {queued}. С ошибкой: {failed}.",
+                "Откройте «Фабрика ботов» и повторите неудачные операции.",
+            )
+        return Check(
+            "bot_factory",
+            "Фабрика ботов",
+            STATUS_OK,
+            f"Пакетов: {total}. Незавершённых операций: {queued}.",
             "",
         )
 

@@ -15,6 +15,7 @@ from backend.app.db.models.bot_factory import (
     BOT_CREATE_LIMIT_NOTE,
     BatchStatus,
     CandidateStatus,
+    QueueState,
 )
 from backend.app.db.session import init_models, session_scope
 from backend.app.providers.errors import BotCreateLimitError
@@ -296,3 +297,165 @@ async def test_delete_batch_removes_candidates():
         await service.delete_batch(batch.id)
         with pytest.raises(BotFactoryError):
             await service.get_batch(batch.id)
+
+
+# --- creation queue (v1.7) ---------------------------------------------------
+async def test_enqueue_marks_free_candidates_queued():
+    await _seed_account()
+    provider = FakeSessionProvider(
+        bot_factory=FakeBotFactoryScenario(available=["mix_1_bot", "mix_3_bot"])
+    )
+    async with session_scope() as session:
+        service = _service(session, provider)
+        batch = await service.create_batch(prefix="Mix", count=3)
+        await service.check_availability(batch.id)
+        await service.enqueue_candidates(batch.id)
+        rows = await service.list_candidates(batch.id)
+        by_user = {r.suggested_username: r for r in rows}
+        assert by_user["mix_1_bot"].queue_state == QueueState.QUEUED.value
+        assert by_user["mix_3_bot"].queue_state == QueueState.QUEUED.value
+        # The occupied one is never queued (it is skipped during the check).
+        assert by_user["mix_2_bot"].queue_state != QueueState.QUEUED.value
+        progress = await service.queue_progress(batch.id)
+        assert progress["queued"] == 2
+
+
+async def test_run_queue_once_creates_one_bot_per_pass():
+    await _seed_account()
+    provider = FakeSessionProvider(
+        bot_factory=FakeBotFactoryScenario(available=["mix_1_bot", "mix_2_bot"])
+    )
+    async with session_scope() as session:
+        manager = await _manager(session).add_bot(
+            "111111:MANAGERTOKEN", kind=BotKind.MANAGER, title="Manager"
+        )
+        service = _service(session, provider)
+        batch = await service.create_batch(prefix="Mix", count=2, manager_bot_id=manager.id)
+        await service.check_availability(batch.id)
+        await service.enqueue_candidates(batch.id)
+
+        await service.run_queue_once(batch.id)
+        progress = await service.queue_progress(batch.id)
+        assert progress["success"] == 1
+        assert progress["queued"] == 1
+
+        # Drain the rest — the batch settles as completed.
+        await service.run_queue_once(batch.id)
+        await service.run_queue_once(batch.id)
+        progress = await service.queue_progress(batch.id)
+        assert progress["success"] == 2
+        assert progress["queued"] == 0
+        batch = await service.get_batch(batch.id)
+        assert batch.status is BatchStatus.COMPLETED
+
+
+async def test_retry_and_skip_candidate():
+    await _seed_account()
+    provider = FakeSessionProvider(
+        bot_factory=FakeBotFactoryScenario(
+            available=["mix_1_bot"], create_error=BotCreateLimitError()
+        )
+    )
+    async with session_scope() as session:
+        manager = await _manager(session).add_bot(
+            "222222:MANAGERTOKEN", kind=BotKind.MANAGER, title="Manager"
+        )
+        service = _service(session, provider)
+        batch = await service.create_batch(prefix="Mix", count=1, manager_bot_id=manager.id)
+        await service.check_availability(batch.id)
+        await service.enqueue_candidates(batch.id)
+        await service.run_queue_once(batch.id)
+        rows = await service.list_candidates(batch.id)
+        row = rows[0]
+        assert row.queue_state == QueueState.FAILED.value
+
+        # Retry re-queues the failed operation and bumps the attempt counter.
+        row = await service.retry_candidate(row.id)
+        assert row.queue_state == QueueState.QUEUED.value
+        assert row.creation_status is CandidateStatus.READY
+
+        # Skip ends it without touching the rest of the queue.
+        row = await service.skip_candidate(row.id)
+        assert row.queue_state == QueueState.SKIPPED.value
+        batch = await service.get_batch(batch.id)
+        assert batch.skipped_count == 1
+
+
+async def test_created_candidate_cannot_be_retried():
+    await _seed_account()
+    provider = FakeSessionProvider(
+        bot_factory=FakeBotFactoryScenario(available=["mix_1_bot"])
+    )
+    async with session_scope() as session:
+        manager = await _manager(session).add_bot(
+            "333333:MANAGERTOKEN", kind=BotKind.MANAGER, title="Manager"
+        )
+        service = _service(session, provider)
+        batch = await service.create_batch(prefix="Mix", count=1, manager_bot_id=manager.id)
+        rows = await service.list_candidates(batch.id)
+        await service.adopt_created(batch.id, "mix_1_bot", 4242)
+        with pytest.raises(BotFactoryError):
+            await service.retry_candidate(rows[0].id)
+
+
+async def test_cancel_and_resume_queue():
+    await _seed_account()
+    provider = FakeSessionProvider(
+        bot_factory=FakeBotFactoryScenario(available=["mix_1_bot", "mix_2_bot"])
+    )
+    async with session_scope() as session:
+        manager = await _manager(session).add_bot(
+            "444444:MANAGERTOKEN", kind=BotKind.MANAGER, title="Manager"
+        )
+        service = _service(session, provider)
+        batch = await service.create_batch(prefix="Mix", count=2, manager_bot_id=manager.id)
+        await service.check_availability(batch.id)
+        await service.enqueue_candidates(batch.id)
+
+        batch = await service.cancel_queue(batch.id)
+        assert batch.queue_cancelled is True
+        assert batch.status is BatchStatus.CANCELLED
+        # A cancelled queue is a no-op for the durable handler.
+        await service.run_queue_once(batch.id)
+        progress = await service.queue_progress(batch.id)
+        assert progress["success"] == 0
+
+        batch = await service.resume_queue(batch.id)
+        assert batch.queue_cancelled is False
+        progress = await service.queue_progress(batch.id)
+        assert progress["queued"] == 2
+
+
+async def test_token_mask_never_contains_full_token():
+    await _seed_account()
+    provider = FakeSessionProvider(
+        bot_factory=FakeBotFactoryScenario(available=["mix_1_bot"])
+    )
+    async with session_scope() as session:
+        manager = await _manager(session).add_bot(
+            "666666:MANAGERTOKEN", kind=BotKind.MANAGER, title="Manager"
+        )
+        service = _service(session, provider)
+        batch = await service.create_batch(prefix="Mix", count=1, manager_bot_id=manager.id)
+        await service.check_availability(batch.id)
+        await service.create_batch_bots(batch.id)
+        await service.register_tokens(batch.id)
+        rows = await service.list_candidates(batch.id)
+        assert rows[0].token_mask
+        # Only a head/tail shape is shown; the mask is derived from the numeric id,
+        # never from the sealed token (D-110).
+        assert "…" in rows[0].token_mask
+        assert rows[0].token_mask != str(rows[0].telegram_id)
+
+
+async def test_deeplink_queue_without_account_queues_hand_made_bots():
+    async with session_scope() as session:
+        service = _service(session)
+        manager = await _manager(session).add_bot(
+            "999111:MANAGERTOKEN", kind=BotKind.MANAGER, title="Manager"
+        )
+        batch = await service.create_batch(prefix="Mix", count=2, manager_bot_id=manager.id)
+        await service.create_batch_bots(batch.id, via_deeplink=True)
+        rows = await service.list_candidates(batch.id)
+        assert all(r.queue_state == QueueState.QUEUED.value for r in rows)
+        assert all(r.deep_link for r in rows)

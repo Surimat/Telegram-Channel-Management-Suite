@@ -197,6 +197,30 @@ def test_readme_states_the_current_release() -> None:
     assert f"`v{__version__}`" in readme
 
 
+def test_memory_files_state_the_current_release() -> None:
+    """CURRENT_STATE.md and NEXT_TASK.md must not advertise a stale version.
+
+    Both carry a one-line "Version string(s) ..." anchor for the *current* release
+    (the first such line); earlier historical lines legitimately name older
+    versions, so only the first occurrence is checked. It must name the shipped
+    version so a new agent resuming from these files is not misled.
+    """
+    for name in ("agent/CURRENT_STATE.md", "agent/NEXT_TASK.md"):
+        text = (REPO_ROOT / name).read_text(encoding="utf-8")
+        anchors = [ln for ln in text.splitlines() if "Version string" in ln]
+        assert anchors, f"{name} lost its version anchor line"
+        assert f"**{__version__}**" in anchors[0], (
+            f"{name} advertises a stale current version: {anchors[0]!r}"
+        )
+
+
+def test_release_checklist_covers_the_current_release() -> None:
+    checklist = (REPO_ROOT / "docs" / "RELEASE_CHECKLIST.md").read_text(encoding="utf-8")
+    assert f"### v{__version__} " in checklist, (
+        f"docs/RELEASE_CHECKLIST.md has no verification section for v{__version__}"
+    )
+
+
 def test_result_report_matches_version() -> None:
     committed = json.loads(report_path().read_text(encoding="utf-8"))
     assert committed["version"] == __version__

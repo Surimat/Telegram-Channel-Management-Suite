@@ -3,24 +3,29 @@
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
-**Updated:** 2026-10-07
-**Status:** **v1.6.0 (Owner Auth + Config Sync) is RELEASED** via a reviewed
-`develop → main` PR #16 (merge `39efc37`), tag `v1.6.0`; the Release workflow (run
-`37546399665`) created the GitHub Release and attached the Windows portable ZIP
-(24 846 043 bytes, sha256 `cf7968c7…61ae6`) + `.sha256`. `main` HEAD = `39efc37`;
-`develop` = `39efc37` (re-synced). A local owner
-profile (password/PIN, PBKDF2 verifier, signed session token) protects the panel,
-and a versioned **encrypted configuration bundle** moves settings to a new computer
-via a local folder or Google Drive (app-data scope) — never the DB, sessions or
-TDATA (D-105/D-106). Additive only; no account registration and no Telegram-limit
-bypass. Owner Auth is **local-first**: while no profile exists, the panel stays open
-exactly as before. Config Sync detects conflicts instead of overwriting.
+**Updated:** 2026-10-08
+**Status:** **v1.7.0 (Bot Factory creation queue) is on `develop`, ready for a
+reviewed `develop → main` release PR.** The Bot Factory batch is now a **durable
+creation queue** (D-109): the scheduler job `bot_factory.create` creates the free
+candidates **one operation per tick**, so a batch is restart-resumable and can be
+stopped/resumed; a failed candidate can be retried or skipped; already-created
+bots are never rolled back. A display-only `token_mask` (`1234…xyz`) is derived
+from the **non-secret numeric bot id** (D-110) — the raw token is never returned,
+logged or exported. Deep-link batches are not background-ticked. Additive: no
+account registration and no Telegram-limit bypass. Version strings read **1.7.0**;
+full suite green; `ruff` clean; frontend `vue-tsc` + `npm run build` clean.
+
+**Latest released:** **v1.6.1** (verification patch) via a reviewed
+`develop → main` PR #17 (merge `a38823d`), tag `v1.6.1`; the Release workflow (run
+`37601801598`) attached the Windows portable ZIP (24 846 601 bytes, sha256
+`8b6d7c18…f519`) + `.sha256`. `main` HEAD = `a38823d`. v1.6.1 is a patch over
+v1.6.0 (Owner Auth + Config Sync, D-105/D-106); it fixed the owner-guard
+path-normalisation weakness, the `config_sync` capability state and the Google
+Drive `/owner` UI wiring (D-107).
 
 The meta-audit remains a *runtime mutation engine* (D-102) and still detects
 **every** seeded defect: **25 total, 25 detected, 0 missed, 100.0%, 0 false
 positives, 0 critical/high misses** (`status: clean`); `KNOWN_GAP_IDS` is empty.
-Version strings read **1.6.0**; `ruff` clean; frontend `vue-tsc` + `npm run build`
-clean; the full suite is green (822 passed).
 
 Previous release: **v1.5.4** (auditor gaps N/O/P closed, D-104) via a reviewed
 `develop → main` PR #15 (merge `b219341`), tag `v1.5.4`; the Release workflow (run
@@ -38,7 +43,47 @@ complete.
 
 ---
 
-## Active task: v1.6.1 verification patch — ship it
+## Active task: release v1.7.0 (Bot Factory creation queue)
+
+The v1.7.0 work is complete on `develop` and green. Task: open a reviewed
+`develop → main` PR, merge, tag `v1.7.0`, and let the Release workflow build the
+Windows portable ZIP + `.sha256`. After the merge, re-sync `develop` to the merge
+commit and record the facts here.
+
+### What shipped (additive)
+
+- **Bot Factory durable creation queue (D-109).** `enqueue_candidates` /
+  `run_queue_once` / `queue_progress` / `retry_candidate` / `skip_candidate` /
+  `cancel_queue` / `resume_queue`; scheduler job `bot_factory.create` (one op per
+  tick, restart-resumable); deep-link batches are not background-ticked.
+- **API queue endpoints** under `/api/v1/bot-factory/*` plus a `queue` block on
+  the dashboard.
+- **`token_mask` (D-110).** Display-only, derived from the non-secret numeric bot
+  id; the raw token is never returned/logged/exported.
+- Migration `20261008_0900_a1b2c3d4e5f6_v1_7_bot_factory_queue.py`; capability
+  `bot_factory`, Diagnostics check, Promotion Wizard step, help topic and
+  `BotFactoryView.vue` queue UI.
+
+### Verification for this release
+
+```bash
+python -m pytest                 # full suite green expected
+ruff check backend tests         # clean
+cd frontend && npx vue-tsc --noEmit && npm run build   # clean
+PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_RESULT.json
+```
+
+Then `develop → main` PR → merge → tag `v1.7.0` → Release workflow (D-060).
+
+## Active task (previous): none — v1.6.1 released
+
+**v1.6.1 is RELEASED** via a reviewed `develop → main` PR #17 (merge `a38823d`),
+tag `v1.6.1`; the Release workflow (run `37601801598`) created the GitHub Release
+and attached the Windows portable ZIP (24 846 601 bytes, sha256 `8b6d7c18…f519`).
+`main` HEAD = `a38823d`; `develop` = `a38823d` (re-synced). Nothing is required to
+follow up. Do not add new features.
+
+
 
 The v1.6.0 Owner Auth + Config Sync slice was independently verified (D-107). Two
 defects and one unwired control were fixed, **additively and with no new features**:
@@ -65,9 +110,9 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # clean
 PYTHONPATH=. python tests/meta_audit/engine.py         # 25/25, 100%
 ```
 
-## Active task: none — v1.6.0 released (Owner Auth + Config Sync)
+## Active task: none — v1.6.1 released
 
-There is **no required next task**. v1.6.0 is released (PR #16, tag `v1.6.0`) and
+There is **no required next task**. v1.6.1 is released (PR #17, tag `v1.6.1`) and
 the meta-audit still reaches **100% (25/25, 0 false positives)**.
 
 1. **Optional follow-up (next cycle):** only if the owner asks — e.g. a remote

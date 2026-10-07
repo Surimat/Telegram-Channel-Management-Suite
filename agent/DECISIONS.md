@@ -2230,3 +2230,82 @@ middleware-level test (synthetic ASGI scope) proves a raw `//api/v1/settings`
 returns 401, and the capability test proves `config_sync` is never `partial`.
 Nothing here searches for, downloads or bulk-registers accounts, and nothing
 bypasses Telegram limits (D-006/D-070 stand).
+
+
+## D-108 — 2026-10-07 — Release docs must name the shipped version; guarded by tests (clean-checkout verification of v1.6.1) — LOCKED
+
+**Context.** A clean-checkout verification of the released tag `v1.6.1` (fresh
+clone → `git checkout v1.6.1` → fresh venv, not the author's working tree) passed
+every gate: `pytest` 843, `ruff` clean, `vue-tsc` + `npm run build` clean, Docker
+build + smoke (`/health` → `1.6.1`, migrations applied), portable build/smoke (ZIP
+1.6.1, app copy imports), meta-audit 25/25 (100%, 0 false positives), artifact scan
+clean. **No code defect was found.** The only problem was documentation drift:
+`agent/CURRENT_STATE.md` still read `Version string is **1.6.0**` / `main HEAD =
+39efc37`, and `agent/NEXT_TASK.md` still announced `v1.6.0 is released` with `822
+passed`; `docs/RELEASE_CHECKLIST.md` had no v1.6.1 section.
+
+**Decision.** The release-hygiene tests are extended so this specific drift cannot
+recur silently:
+1. `test_memory_files_state_the_current_release` asserts the **first** `Version
+   string…` anchor line in both `agent/CURRENT_STATE.md` and `agent/NEXT_TASK.md`
+   contains the shipped `__version__` (historical lines legitimately name older
+   versions, so only the current anchor is checked).
+2. `test_release_checklist_covers_the_current_release` asserts
+   `docs/RELEASE_CHECKLIST.md` has a `### vX.Y.Z ` verification section for the
+   shipped version.
+
+**Consequences.** `tests/test_meta_audit.py` already guarded the repo version
+consistency, the README release string and the meta-audit report version; these add
+the memory files and the release checklist. This is documentation/guard only — no
+code, API, schema or dependency change, and no new release (v1.6.1 stays the
+latest tag; these edits are `Unreleased` on `develop`).
+
+
+## D-109 — 2026-10-08 — Bot Factory batch is a durable creation queue (v1.7, additive) — LOCKED
+
+**Context.** v1.3 created a whole batch synchronously: one long request tried to
+create every candidate at once. On a weak PC or a slow Telegram link this is
+fragile — a tab close or a restart mid-batch left the owner unsure what had
+happened, and a single failure had no bounded retry path separate from the rest
+of the batch.
+
+**Decision.** The batch becomes a **durable creation queue** (`QueueState`:
+`pending → queued → running → success|failed`, plus terminal `skipped`/
+`cancelled`), advanced by the scheduler job `bot_factory.create`:
+1. `enqueue_candidates` marks candidates Telegram confirmed `available`/`ready`
+   (and not-yet-checked `generated` ones) as `queued`; `run_queue_once` performs
+   **one** creation operation per tick — the queue state lives in SQLite, so the
+   batch is **restart-resumable** through the scheduler's normal recovery.
+2. `queue_cancelled` stops the remaining work; **already-created bots are never
+   rolled back**. `retry_candidate` re-queues a failed/cancelled operation (with a
+   bounded attempt counter) and `skip_candidate` ends it without touching the rest.
+3. **Deep-link batches are not background-ticked**: the owner completes them by
+   hand in Telegram, so `_handle_bot_factory` only reschedules when the batch is
+   not `via_deeplink`. This avoids an infinite tick for work the suite cannot do.
+4. The queue only *prepares and drives* the official managed-bot flow. It never
+   registers accounts, never bypasses FloodWait and never bypasses limits.
+
+**Consequences.** New columns `bot_batches.queue_cancelled` and
+`bot_candidates.queue_state`/`attempts`. New API endpoints
+(`/batches/{id}/enqueue|cancel|resume`, `/candidates/{cid}/retry|skip`), the
+`bot_factory` capability requirement, a Diagnostics check, a Promotion Wizard
+step, a help topic and `BotFactoryView.vue` queue controls. Additive: an existing
+v1.6 database upgrades in place.
+
+## D-110 — 2026-10-08 — `token_mask` is display-only and derived without decryption — LOCKED
+
+**Context.** After token registration the UI wanted to show *which* managed-bot
+credential is stored, but the raw token is a secret that must never be returned,
+logged or exported. Decrypting the sealed token just to build a mask would put the
+plaintext in memory and risk a leak.
+
+**Decision.** Store a non-reversible `token_mask` (`1234…xyz`) computed by
+`mask_token` from the **numeric bot id** (a non-secret) plus the last four
+characters of the id string — never by decrypting the sealed token.
+`BotCandidate.token_mask` is the only token-derived field the API exposes, and it
+is empty until tokens are fetched. `register_tokens` still returns a count only;
+the raw token is written once through `BotService` and stays sealed.
+
+**Consequences.** The Diagnostics report and every per-candidate payload carry
+queue state, attempts and the mask — never a token, session or auth key (D-061).
+

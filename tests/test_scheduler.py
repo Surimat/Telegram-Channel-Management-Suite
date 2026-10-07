@@ -135,3 +135,46 @@ async def test_posting_tick_reschedules_itself() -> None:
     now_naive = utcnow().replace(tzinfo=None)
     delta = (scheduled_at.replace(tzinfo=None) - now_naive).total_seconds()
     assert 0 < delta <= POSTING_TICK_SECONDS + 5
+
+
+async def test_bot_factory_tick_drains_queue() -> None:
+    """The factory handler processes one queued candidate per tick (deep-link)."""
+    from backend.app.db.models.bot import BotKind
+    from backend.app.scheduler.handlers import _handle_bot_factory
+    from backend.app.services.bot_factory import BotFactoryService
+    from backend.app.services.bot_service import BotService
+
+    def _bot_factory(token, *, provider_name="auto", settings=None):  # type: ignore[no-untyped-def]
+        from backend.app.providers.fake_bot import FakeTelegramBotProvider
+
+        return FakeTelegramBotProvider(token)
+
+    async with session_scope() as session:
+        await BotService(session, provider_factory=_bot_factory).add_bot(
+            "123123:MANAGER", kind=BotKind.MANAGER, title="Manager"
+        )
+        service = BotFactoryService(session)
+        batch = await service.create_batch(prefix="Mix", count=1)
+        await service.enqueue_candidates(batch.id)
+        batch_id = batch.id
+
+    async with session_scope() as session:
+        job = await QueueService(session).enqueue(
+            kind="bot_factory.create",
+            payload={"batch_id": batch_id, "via_deeplink": True},
+        )
+        job_id = job.id
+
+    scheduler = Scheduler()
+    scheduler.register("bot_factory.create", _handle_bot_factory)
+    await scheduler._tick()
+
+    async with session_scope() as session:
+        done = await QueueService(session).get(job_id)
+        assert done is not None and done.status == JobStatus.DONE
+        # Deep-link work is completed by the owner, so the queue is not re-ticked.
+        pending, _total = await QueueService(session).repo.list(
+            kind="bot_factory.create"
+        )
+    next_ticks = [j for j in pending if j.id != job_id]
+    assert next_ticks == []

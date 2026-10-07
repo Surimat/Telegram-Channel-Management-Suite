@@ -447,6 +447,13 @@ A guided page that creates a set of worker bots for the owner's channels.
 - Creation is explicit: the owner creates the bot in the official @BotFather
   flow and the page **adopts** it. The page never registers Telegram accounts and
   never bypasses Telegram limits.
+- **Creation queue (v1.7).** «Запустить очередь» marks the free candidates and
+  lets the durable scheduler create them **one at a time**, so the batch survives
+  a restart and can be closed safely — already-created bots are never rolled
+  back. «Остановить очередь» / «Продолжить очередь» stop and restart it; a
+  failed candidate can be «Повторить» or «Пропустить». Each row shows its queue
+  state and attempt count, plus a display-only masked token (`1234…xyz`) once the
+  token is fetched — the token itself is never shown.
 - A created bot can be bound to a channel from here, following the same binding
   and capability rules as the Боты page. The managed-bot token is write-only and
   is never displayed.

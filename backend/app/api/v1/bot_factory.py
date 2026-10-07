@@ -26,11 +26,13 @@ from backend.app.api.schemas.bot_factory import (
     TokenRegisterOut,
 )
 from backend.app.services.bot_factory import (
+    BOT_FACTORY_JOB_KIND,
     NAME_TEMPLATES,
     USERNAME_TEMPLATES,
     BotFactoryError,
     BotFactoryService,
 )
+from backend.app.services.queue_service import QueueService
 
 router = APIRouter(prefix="/bot-factory", tags=["bot-factory"])
 
@@ -212,6 +214,87 @@ async def batch_dashboard(
     except BotFactoryError as exc:
         _raise(exc)
     return DashboardOut(**data)
+
+
+async def _detail(service: BotFactoryService, batch_id: str) -> BatchDetailOut:
+    batch = await service.get_batch(batch_id)
+    candidates = await service.list_candidates(batch_id)
+    return BatchDetailOut(
+        batch=BatchOut(**service.batch_to_dict(batch)),
+        candidates=[CandidateOut(**service.candidate_to_dict(c)) for c in candidates],
+    )
+
+
+@router.post("/batches/{batch_id}/enqueue", response_model=BatchDetailOut)
+async def enqueue_batch(
+    batch_id: str,
+    via_deeplink: bool = False,
+    service: BotFactoryService = Depends(get_bot_factory_service),
+) -> BatchDetailOut:
+    """Queue every free candidate and hand the work to the durable scheduler.
+
+    The queue is processed one operation per scheduler tick, so nothing blocks a
+    request and a restart resumes the queue (D-109). Nothing is created here.
+    """
+    try:
+        await service.enqueue_candidates(batch_id)
+        batch = await service.get_batch(batch_id)
+        progress = await service.queue_progress(batch_id)
+        if progress["queued"] > 0:
+            await QueueService(service.session).enqueue(
+                kind=BOT_FACTORY_JOB_KIND,
+                payload={"batch_id": batch.id, "via_deeplink": via_deeplink},
+                group_key=batch.id,
+                max_attempts=1,
+            )
+            await service.session.commit()
+        return await _detail(service, batch_id)
+    except BotFactoryError as exc:
+        _raise(exc)
+
+
+@router.post("/candidates/{candidate_id}/retry", response_model=CandidateOut)
+async def retry_candidate(
+    candidate_id: str, service: BotFactoryService = Depends(get_bot_factory_service)
+) -> CandidateOut:
+    try:
+        row = await service.retry_candidate(candidate_id)
+    except BotFactoryError as exc:
+        _raise(exc)
+    return CandidateOut(**service.candidate_to_dict(row))
+
+
+@router.post("/candidates/{candidate_id}/skip", response_model=CandidateOut)
+async def skip_candidate(
+    candidate_id: str, service: BotFactoryService = Depends(get_bot_factory_service)
+) -> CandidateOut:
+    try:
+        row = await service.skip_candidate(candidate_id)
+    except BotFactoryError as exc:
+        _raise(exc)
+    return CandidateOut(**service.candidate_to_dict(row))
+
+
+@router.post("/batches/{batch_id}/cancel", response_model=BatchDetailOut)
+async def cancel_batch(
+    batch_id: str, service: BotFactoryService = Depends(get_bot_factory_service)
+) -> BatchDetailOut:
+    try:
+        await service.cancel_queue(batch_id)
+        return await _detail(service, batch_id)
+    except BotFactoryError as exc:
+        _raise(exc)
+
+
+@router.post("/batches/{batch_id}/resume", response_model=BatchDetailOut)
+async def resume_batch(
+    batch_id: str, service: BotFactoryService = Depends(get_bot_factory_service)
+) -> BatchDetailOut:
+    try:
+        await service.resume_queue(batch_id)
+        return await _detail(service, batch_id)
+    except BotFactoryError as exc:
+        _raise(exc)
 
 
 __all__ = ["router"]

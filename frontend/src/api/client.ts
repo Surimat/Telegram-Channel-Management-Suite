@@ -1670,10 +1670,12 @@ export interface FactoryBatch {
   requested_count: number
   created_count: number
   failed_count: number
+  skipped_count: number
   status: string
   status_label: string
   manager_username: string
   channel_id: string
+  queue_cancelled: boolean
   limit_note: string
 }
 
@@ -1687,8 +1689,12 @@ export interface FactoryCandidate {
   username_message: string
   creation_status: string
   creation_status_label: string
+  queue_state: string
+  queue_state_label: string
+  attempts: number
   bot_id: string
   telegram_id: number | null
+  token_mask: string
   deep_link: string
   error: string
 }
@@ -1703,6 +1709,17 @@ export interface FactoryBatchList {
   total: number
 }
 
+export interface FactoryQueueProgress {
+  total: number
+  pending: number
+  queued: number
+  running: number
+  success: number
+  failed: number
+  skipped: number
+  cancelled: number
+}
+
 export interface FactoryDashboard {
   batch_id: string
   title: string
@@ -1711,7 +1728,10 @@ export interface FactoryDashboard {
   requested_count: number
   created_count: number
   failed_count: number
+  skipped_count: number
+  queue_cancelled: boolean
   counts: Record<string, number>
+  queue: FactoryQueueProgress
   manager_username: string
   channel_id: string
   limit_note: string
@@ -2109,6 +2129,27 @@ export const api = {
     }),
   factoryDashboard: (id: string) =>
     request<FactoryDashboard>(`/api/v1/bot-factory/batches/${id}/dashboard`),
+  factoryEnqueue: (id: string, viaDeeplink = false) =>
+    request<FactoryBatchDetail>(
+      `/api/v1/bot-factory/batches/${id}/enqueue?via_deeplink=${viaDeeplink}`,
+      { method: 'POST' },
+    ),
+  factoryCancel: (id: string) =>
+    request<FactoryBatchDetail>(`/api/v1/bot-factory/batches/${id}/cancel`, {
+      method: 'POST',
+    }),
+  factoryResume: (id: string) =>
+    request<FactoryBatchDetail>(`/api/v1/bot-factory/batches/${id}/resume`, {
+      method: 'POST',
+    }),
+  factoryRetryCandidate: (id: string) =>
+    request<FactoryCandidate>(`/api/v1/bot-factory/candidates/${id}/retry`, {
+      method: 'POST',
+    }),
+  factorySkipCandidate: (id: string) =>
+    request<FactoryCandidate>(`/api/v1/bot-factory/candidates/${id}/skip`, {
+      method: 'POST',
+    }),
 
   // LAN Mesh (v1.3)
   meshStatus: () => request<MeshStatus>('/api/v1/mesh/status'),

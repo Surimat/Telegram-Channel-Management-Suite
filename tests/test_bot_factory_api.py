@@ -133,3 +133,50 @@ async def test_delete_batch_over_api(factory_client: AsyncClient) -> None:
     assert resp.status_code == 204
     missing = await factory_client.get(f"/api/v1/bot-factory/batches/{batch_id}")
     assert missing.status_code == 404
+
+
+async def test_queue_lifecycle_over_api(factory_client: AsyncClient) -> None:
+    manager = await factory_client.post(
+        "/api/v1/bots", json={"token": "999999:MANAGER", "kind": "manager"}
+    )
+    manager_id = manager.json()["id"]
+    created = await factory_client.post(
+        "/api/v1/bot-factory/batches",
+        json={"prefix": "Mix", "count": 2, "manager_bot_id": manager_id},
+    )
+    batch_id = created.json()["batch"]["id"]
+    await factory_client.post(f"/api/v1/bot-factory/batches/{batch_id}/check")
+
+    enqueued = await factory_client.post(f"/api/v1/bot-factory/batches/{batch_id}/enqueue")
+    assert enqueued.status_code == 200, enqueued.text
+    states = [c["queue_state"] for c in enqueued.json()["candidates"]]
+    assert all(s == "queued" for s in states)
+    assert all("token" not in c for c in enqueued.json()["candidates"])
+
+    dashboard = await factory_client.get(
+        f"/api/v1/bot-factory/batches/{batch_id}/dashboard"
+    )
+    assert dashboard.json()["queue"]["queued"] == 2
+
+    cancelled = await factory_client.post(f"/api/v1/bot-factory/batches/{batch_id}/cancel")
+    assert cancelled.status_code == 200
+    assert cancelled.json()["batch"]["queue_cancelled"] is True
+
+    resumed = await factory_client.post(f"/api/v1/bot-factory/batches/{batch_id}/resume")
+    assert resumed.status_code == 200
+    assert resumed.json()["batch"]["queue_cancelled"] is False
+
+    candidate_id = resumed.json()["candidates"][0]["id"]
+    skipped = await factory_client.post(
+        f"/api/v1/bot-factory/candidates/{candidate_id}/skip"
+    )
+    assert skipped.status_code == 200
+    assert skipped.json()["queue_state"] == "skipped"
+
+    retried = await factory_client.post(
+        f"/api/v1/bot-factory/candidates/{candidate_id}/retry"
+    )
+    assert retried.status_code == 200
+    assert retried.json()["queue_state"] == "queued"
+    # The retry response never carries a token, only a mask field.
+    assert retried.json()["token_mask"] == ""

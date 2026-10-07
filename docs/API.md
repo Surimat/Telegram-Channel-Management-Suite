@@ -749,6 +749,18 @@ Telegram limits; a username is reported free only after a real Telegram check.
 | POST | `/api/v1/bot-factory/batches/{id}/candidates/{cid}/adopt` | adopt a bot the owner created in @BotFather |
 | POST | `/api/v1/bot-factory/batches/{id}/candidates/{cid}/bind` | bind a candidate's bot to a channel |
 | POST | `/api/v1/bot-factory/candidates/{cid}/tokens` | set the managed bot token (write-only; never returned) |
+| POST | `/api/v1/bot-factory/batches/{id}/enqueue` | queue free candidate(s) for one-at-a-time creation (durable, restart-resumable) |
+| POST | `/api/v1/bot-factory/candidates/{cid}/retry` | re-queue a failed/cancelled candidate operation |
+| POST | `/api/v1/bot-factory/candidates/{cid}/skip` | skip a queued candidate operation without touching the rest |
+| POST | `/api/v1/bot-factory/batches/{id}/cancel` | stop the batch's queue (already-created bots are kept) |
+| POST | `/api/v1/bot-factory/batches/{id}/resume` | restart a stopped batch queue |
+
+The **creation queue** (v1.7) runs through the durable scheduler job
+`bot_factory.create`: one creation operation per tick, so a batch survives a
+restart. Deep-link batches are not queued for background ticking — the owner
+finishes them by hand in Telegram. `token_mask` on a candidate is a
+non-reversible head/tail shape (`1234…xyz`) shown in the UI; the raw token is
+never returned by the API, never logged and never exported.
 
 ---
 

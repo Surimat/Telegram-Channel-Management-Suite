@@ -31,10 +31,12 @@ class BatchOut(BaseModel):
     requested_count: int
     created_count: int
     failed_count: int
+    skipped_count: int
     status: str
     status_label: str
     manager_username: str
     channel_id: str
+    queue_cancelled: bool
     limit_note: str
 
 
@@ -48,8 +50,12 @@ class CandidateOut(BaseModel):
     username_message: str
     creation_status: str
     creation_status_label: str
+    queue_state: str
+    queue_state_label: str
+    attempts: int
     bot_id: str
     telegram_id: int | None = None
+    token_mask: str
     deep_link: str
     error: str
 
@@ -64,6 +70,17 @@ class BatchListOut(BaseModel):
     total: int
 
 
+class QueueProgressOut(BaseModel):
+    total: int
+    pending: int
+    queued: int
+    running: int
+    success: int
+    failed: int
+    skipped: int
+    cancelled: int
+
+
 class DashboardOut(BaseModel):
     batch_id: str
     title: str
@@ -72,7 +89,10 @@ class DashboardOut(BaseModel):
     requested_count: int
     created_count: int
     failed_count: int
+    skipped_count: int
+    queue_cancelled: bool
     counts: dict[str, int]
+    queue: QueueProgressOut
     manager_username: str
     channel_id: str
     limit_note: str
@@ -119,6 +139,7 @@ __all__ = [
     "BindResultOut",
     "CandidateOut",
     "DashboardOut",
+    "QueueProgressOut",
     "TemplateOut",
     "TokenRegisterOut",
 ]

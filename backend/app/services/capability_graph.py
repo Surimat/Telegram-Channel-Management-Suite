@@ -39,6 +39,7 @@ REQ_ENCODER_MODEL = "encoder_model"
 REQ_FFMPEG = "ffmpeg"
 REQ_OWNER_AUTH = "owner_auth"
 REQ_GOOGLE_DRIVE = "google_drive"
+REQ_MANAGER_BOT = "manager_bot"
 
 ALL_REQUIREMENTS = (
     REQ_CHANNEL,
@@ -50,6 +51,7 @@ ALL_REQUIREMENTS = (
     REQ_FFMPEG,
     REQ_OWNER_AUTH,
     REQ_GOOGLE_DRIVE,
+    REQ_MANAGER_BOT,
 )
 
 # --- Capability states ------------------------------------------------------
@@ -150,6 +152,20 @@ CAPABILITIES: tuple[Capability, ...] = (
         title_ru="Мини-ИИ (русский)",
         title_en="Mini-AI (Russian)",
         requires=(REQ_ENCODER_MODEL,),
+    ),
+    Capability(
+        key="bot_factory",
+        title_ru="Фабрика ботов",
+        title_en="Bot Factory",
+        requires=(REQ_MANAGER_BOT,),
+        note_ru=(
+            "Готовит управляемых ботов пачкой через официальные способы Telegram. "
+            "Токены хранятся зашифрованными и никогда не показываются."
+        ),
+        note_en=(
+            "Prepares managed bots in bulk through official Telegram flows. "
+            "Tokens are stored encrypted and never shown."
+        ),
     ),
     Capability(
         key="donor_discovery",
@@ -363,6 +379,14 @@ async def context_from_db(
         pass
 
     try:
+        from backend.app.db.repositories.bots import BotRepository
+
+        manager = await BotRepository(session).get_manager()
+        context[REQ_MANAGER_BOT] = manager is not None
+    except Exception:  # pragma: no cover - defensive
+        pass
+
+    try:
         from backend.app.services.config_sync_service import ConfigSyncService
 
         sync_status = await ConfigSyncService(session).status()
@@ -382,6 +406,7 @@ __all__ = [
     "REQ_ENCODER_MODEL",
     "REQ_FFMPEG",
     "REQ_GOOGLE_DRIVE",
+    "REQ_MANAGER_BOT",
     "REQ_OWNER_AUTH",
     "REQ_PERMISSION",
     "REQ_POSTING_CAPABILITY",

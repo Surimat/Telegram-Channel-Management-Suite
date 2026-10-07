@@ -17,7 +17,7 @@ from __future__ import annotations
 import enum
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Enum, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -84,6 +84,44 @@ CANDIDATE_STATUS_TITLES = {
     CandidateStatus.CANCELLED: "Отменён",
 }
 
+
+class QueueState(enum.StrEnum):
+    """Durable-queue state of one creation operation (D-109, v1.7).
+
+    This is the granular ``QUEUED → RUNNING → SUCCESS|FAILED`` lifecycle of the
+    batch queue, kept separate from :class:`CandidateStatus` (the bot's own
+    creation state). ``SKIPPED`` and ``CANCELLED`` are terminal and never
+    retried. Stored as a plain string, not a DB enum: the state machine may grow
+    and a SQLite CHECK constraint cannot be extended by an ALTER.
+    """
+
+    PENDING = "pending"        # generated, not yet queued
+    QUEUED = "queued"          # waiting its turn in the batch
+    RUNNING = "running"        # the create call is in flight
+    SUCCESS = "success"
+    FAILED = "failed"          # retryable (unless attempts are exhausted)
+    SKIPPED = "skipped"        # the owner skipped this operation
+    CANCELLED = "cancelled"    # the owner cancelled the whole queue
+
+
+QUEUE_STATE_TITLES = {
+    QueueState.PENDING: "Ожидает",
+    QueueState.QUEUED: "В очереди",
+    QueueState.RUNNING: "Выполняется",
+    QueueState.SUCCESS: "Успех",
+    QueueState.FAILED: "Ошибка",
+    QueueState.SKIPPED: "Пропущен",
+    QueueState.CANCELLED: "Отменён",
+}
+
+#: Terminal queue states that a retry must not silently revive.
+TERMINAL_QUEUE_STATES = {
+    QueueState.SUCCESS,
+    QueueState.SKIPPED,
+    QueueState.CANCELLED,
+}
+
+
 #: Terminal candidate states (never re-created implicitly).
 TERMINAL_CANDIDATE_STATUSES = {
     CandidateStatus.TOKEN_IMPORTED,
@@ -119,6 +157,11 @@ class BotBatch(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     requested_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     failed_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    skipped_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    #: v1.7: the batch is now a durable creation *queue*. ``cancelled`` stops the
+    #: queue; already-created bots are never rolled back.
+    queue_cancelled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     status: Mapped[BatchStatus] = mapped_column(
         Enum(BatchStatus, name="bot_batch_status"),
@@ -162,6 +205,15 @@ class BotCandidate(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     deep_link: Mapped[str] = mapped_column(String(512), default="", nullable=False)
     error: Mapped[str] = mapped_column(Text, default="", nullable=False)
 
+    #: v1.7 creation-queue state (plain string, see :class:`QueueState`).
+    queue_state: Mapped[str] = mapped_column(
+        String(16), default=QueueState.PENDING.value, index=True, nullable=False
+    )
+    #: How many times a *creation* was attempted (drives "retry" honesty).
+    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    #: Display-only masked token (never the token itself; empty until fetched).
+    token_mask: Mapped[str] = mapped_column(String(32), default="", nullable=False)
+
     def __repr__(self) -> str:  # pragma: no cover - debugging aid
         return f"<BotCandidate {self.suggested_username!r} {self.creation_status}>"
 
@@ -170,9 +222,12 @@ __all__ = [
     "BATCH_STATUS_TITLES",
     "BOT_CREATE_LIMIT_NOTE",
     "CANDIDATE_STATUS_TITLES",
+    "QUEUE_STATE_TITLES",
     "TERMINAL_CANDIDATE_STATUSES",
+    "TERMINAL_QUEUE_STATES",
     "BatchStatus",
     "BotBatch",
     "BotCandidate",
     "CandidateStatus",
+    "QueueState",
 ]
