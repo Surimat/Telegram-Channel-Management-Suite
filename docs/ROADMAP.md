@@ -244,6 +244,19 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ## Release
 
+- **v1.7.0 (2026-10-08):** the **Bot Factory** (v1.3) becomes a **durable creation
+  queue** (D-109/D-110). A batch marks its free candidates and the scheduler job
+  `bot_factory.create` creates them **one operation per tick**, so the batch is
+  restart-resumable, can be stopped/resumed, and never rolls back an
+  already-created bot; a failed candidate can be retried or skipped. A
+  display-only `token_mask` (`1234…xyz`) is derived from the non-secret numeric
+  bot id — the raw managed-bot token is never returned, logged or exported.
+  Deep-link batches are not background-ticked (the owner finishes them in
+  Telegram). Additive only; no account registration and no Telegram-limit bypass.
+- **v1.6.1 (2026-10-07):** a verification patch over v1.6.0 (D-107) — owner-guard
+  path normalisation (a leading `//` can no longer skip the guard), the
+  `config_sync` capability reports `needs_setup` until a provider is connected,
+  and the Google Drive token step is wired into the `/owner` UI. No new features.
 - **v1.6.0 (2026-10-07):** an **Owner Auth + Config Sync** vertical slice (D-105/D-106).
   A **local owner profile** (password or PIN) protects the panel with a one-way
   PBKDF2 verifier and an HMAC-signed session token (`X-Owner-Token`; default-on
