@@ -61,6 +61,26 @@ async def gw_client() -> AsyncClient:
     app.dependency_overrides.clear()
 
 
+@pytest_asyncio.fixture
+async def gw_web_client() -> AsyncClient:
+    """Same as ``gw_client`` but with an *available* fake browser runtime."""
+    from backend.app.api.deps import get_ai_gateway_service
+    from backend.app.db.session import get_session, init_models
+    from backend.app.main import create_app
+
+    await init_models()
+    app = create_app()
+
+    def _override(session=Depends(get_session)):
+        return _make_service(session, browser_available=True)
+
+    app.dependency_overrides[get_ai_gateway_service] = _override
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+    app.dependency_overrides.clear()
+
+
 async def _add_provider(client: AsyncClient, **overrides) -> dict:
     payload = {
         "provider": "test-openai",
@@ -210,3 +230,75 @@ async def test_web_wrapper_provider_via_api(gw_client: AsyncClient) -> None:
     body = chat.json()
     # Browser is unavailable in the default service for this fixture.
     assert body["ok"] is False
+
+
+async def test_web_wrapper_serves_answer_when_browser_available(
+    gw_web_client: AsyncClient,
+) -> None:
+    """End-to-end: a web provider really answers through the API."""
+    await gw_web_client.post(
+        f"{BASE}/providers",
+        json={
+            "provider": "web:generic",
+            "kind": "web",
+            "wrapper_id": "generic",
+            "enabled": True,
+            "cost": "free",
+        },
+    )
+    chat = await gw_web_client.post(
+        f"{BASE}/chat", json={"text": "сделай пост", "provider": "web:generic"}
+    )
+    assert chat.status_code == 200
+    body = chat.json()
+    assert body["ok"] is True
+    assert body["text"] == "ответ обёртки"
+    assert body["provider_used"] == "web:generic"
+    assert body["source"] == "web"
+
+
+async def test_web_provider_pinned_name_routes_even_when_custom(
+    gw_web_client: AsyncClient,
+) -> None:
+    """A web provider configured under a custom name must still route by name."""
+    await gw_web_client.post(
+        f"{BASE}/providers",
+        json={
+            "provider": "my-web",
+            "kind": "web",
+            "wrapper_id": "generic",
+            "enabled": True,
+            "cost": "free",
+        },
+    )
+    chat = await gw_web_client.post(
+        f"{BASE}/chat", json={"text": "сделай пост", "provider": "my-web"}
+    )
+    body = chat.json()
+    assert body["ok"] is True
+    assert body["provider_used"] == "my-web"
+
+
+async def test_unknown_wrapper_provider_is_not_available(
+    gw_web_client: AsyncClient,
+) -> None:
+    """A provider with a wrapper id that does not exist must not be usable."""
+    resp = await gw_web_client.post(
+        f"{BASE}/providers",
+        json={
+            "provider": "ghost-web",
+            "kind": "web",
+            "wrapper_id": "does_not_exist",
+            "enabled": True,
+            "cost": "free",
+        },
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["enabled"] is True  # owner asked for enabled...
+    chat = await gw_web_client.post(
+        f"{BASE}/chat", json={"text": "hi", "provider": "ghost-web"}
+    )
+    chat_body = chat.json()
+    # ...but it can never serve: no wrapper definition exists.
+    assert chat_body["ok"] is False

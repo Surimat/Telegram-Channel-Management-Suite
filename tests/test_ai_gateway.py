@@ -297,3 +297,181 @@ async def test_wrapper_open_steps_are_executed() -> None:
     run = await engine.run(definition, _req())
     assert run.ok
     assert ("click", "#new-chat", "") in runtime.actions
+
+
+# ---------------------------------------------------------------------------
+# Independent verification (v1.8 audit): behavior, not just presence
+# ---------------------------------------------------------------------------
+class _CountingProvider(FakeProvider):
+    """Fails the first ``fail_times`` calls transiently, then succeeds."""
+
+    def __init__(self, *, fail_times: int = 1, status: str = STATUS_NETWORK_ERROR, **kw):
+        super().__init__(**kw)
+        self.fail_times = fail_times
+        self.status = status
+        self.attempts = 0
+
+    async def chat(self, request):  # type: ignore[override]
+        self.attempts += 1
+        if self.attempts <= self.fail_times:
+            from backend.app.ai.gateway.types import ChatResponse
+
+            return ChatResponse(
+                ok=False,
+                provider_used=self.name,
+                error="transient",
+                error_category=self.status,
+                status=self.status,
+            )
+        return await super().chat(request)
+
+
+async def test_response_level_transient_is_retried() -> None:
+    """A returned transient response (not an exception) must honour max_attempts."""
+    p = _CountingProvider(provider="flaky", reply="OK", fail_times=1)
+    router = AIRouter(max_attempts=3, retry_delays=[0.0, 0.0])
+    resp = await router.route(_req(), [p])
+    assert p.attempts == 2  # retried once, then succeeded
+    assert resp.ok and resp.text == "OK"
+
+
+async def test_retry_is_bounded_by_max_attempts() -> None:
+    p = _CountingProvider(provider="dead", fail_times=10)
+    router = AIRouter(max_attempts=2, retry_delays=[0.0])
+    resp = await router.route(_req(), [p])
+    assert p.attempts == 2  # never more than max_attempts
+    assert not resp.ok
+
+
+async def test_exception_transient_is_retried() -> None:
+    from backend.app.ai.gateway.errors import ProviderTimeoutError
+
+    class RaiseOnce(FakeProvider):
+        def __init__(self, **kw):
+            super().__init__(**kw)
+            self.attempts = 0
+
+        async def chat(self, request):  # type: ignore[override]
+            self.attempts += 1
+            if self.attempts == 1:
+                raise ProviderTimeoutError(provider=self.name)
+            return await super().chat(request)
+
+    p = RaiseOnce(provider="raisey", reply="OK")
+    router = AIRouter(max_attempts=3, retry_delays=[0.0, 0.0])
+    resp = await router.route(_req(), [p])
+    assert p.attempts == 2
+    assert resp.ok and resp.text == "OK"
+
+
+async def test_timeout_maps_to_network_error() -> None:
+    """A transport timeout becomes a network_error the router can fall back on."""
+    transport = FakeHttpTransport(
+        {"/chat/completions": HttpResponse(error="TimeoutError", timed_out=True)}
+    )
+    provider = OpenAICompatibleProvider(model="m", api_key="k", transport=transport)
+    resp = await provider.chat(_req())
+    assert not resp.ok
+    assert resp.status == STATUS_NETWORK_ERROR
+
+
+def _manual_req():
+    from backend.app.ai.gateway.router import STRATEGY_MANUAL
+
+    return _req(strategy=STRATEGY_MANUAL)
+
+
+async def test_failover_on_timeout_to_second_provider() -> None:
+    transport = FakeHttpTransport(
+        {"/chat/completions": HttpResponse(error="TimeoutError", timed_out=True)}
+    )
+    # priority forces the timeout provider to be tried first under manual strategy.
+    slow = OpenAICompatibleProvider(
+        provider="slow", model="m", api_key="k", transport=transport, priority=10
+    )
+    fast = FakeProvider(provider="fast", reply="F", priority=0)
+    router = AIRouter(retry_delays=[0.0], max_attempts=1)
+    resp = await router.route(_manual_req(), [slow, fast])
+    assert resp.ok and resp.provider_used == "fast"
+    assert resp.fallback_used is True
+    assert len(resp.attempts) == 2  # slow was actually attempted and failed
+
+
+async def test_failover_on_region_block_to_second_provider() -> None:
+    transport = FakeHttpTransport({"/chat/completions": HttpResponse(status=451)})
+    blocked = OpenAICompatibleProvider(
+        provider="blocked", model="m", api_key="k", transport=transport, priority=10
+    )
+    other = FakeProvider(provider="other", reply="O", priority=0)
+    router = AIRouter(retry_delays=[0.0], max_attempts=1)
+    resp = await router.route(_manual_req(), [blocked, other])
+    assert resp.ok and resp.provider_used == "other"
+    assert resp.fallback_used is True
+
+
+async def test_failover_on_rate_limit_to_second_provider() -> None:
+    transport = FakeHttpTransport({"/chat/completions": HttpResponse(status=429)})
+    limited = OpenAICompatibleProvider(
+        provider="limited", model="m", api_key="k", transport=transport, priority=10
+    )
+    other = FakeProvider(provider="other", reply="O", priority=0)
+    router = AIRouter(retry_delays=[0.0], max_attempts=1)
+    resp = await router.route(_manual_req(), [limited, other])
+    assert resp.ok and resp.provider_used == "other"
+    assert resp.fallback_used is True
+
+
+async def test_vision_requested_from_text_only_provider_is_not_served() -> None:
+    """A text-only provider must never be chosen for an image request."""
+    text_only = FakeProvider(provider="t", capabilities=Capability(text=True))
+    router = AIRouter(retry_delays=[0.0])
+    resp = await router.route(
+        _req(requires=Capability(text=True, image=True)), [text_only]
+    )
+    assert not resp.ok
+    assert resp.error_category == "no_provider"
+    assert text_only.calls == []  # never even called
+
+
+async def test_unknown_wrapper_is_never_available() -> None:
+    """A wrapper whose definition is missing must not report AVAILABLE."""
+    from backend.app.ai.gateway import registry as reg
+
+    runtime = FakeBrowserRuntime(queue=[PageSnapshot(response_text="x")])
+    cfg = reg.ProviderConfig(
+        provider="ghost", kind=reg.KIND_WEB, wrapper_id="nope", enabled=True
+    )
+    provider = reg.build_provider(cfg, browser_runtime=runtime)
+    assert not provider.availability().usable
+    assert "не найдено" in provider.availability().detail
+
+
+async def test_wrapper_identity_keeps_configured_name() -> None:
+    from backend.app.ai.gateway import registry as reg
+
+    runtime = FakeBrowserRuntime(queue=[PageSnapshot(response_text="x")])
+    cfg = reg.ProviderConfig(
+        provider="my-wrapper",
+        kind=reg.KIND_WEB,
+        wrapper_id="generic",
+        enabled=True,
+    )
+    provider = reg.build_provider(cfg, browser_runtime=runtime)
+    assert provider.name == "my-wrapper"
+    assert provider.availability().usable
+
+
+async def test_browser_crash_is_classified_not_raised() -> None:
+    """A mid-pipeline browser exception becomes a classified failure at the
+    provider boundary, so the router can move on instead of crashing."""
+    runtime = FakeBrowserRuntime(
+        queue=[PageSnapshot(url="http://x", title="Chat", text="box")],
+        fail_on="fill",
+    )
+    engine = WebWrapperEngine(runtime)
+    provider = GenericWebWrapperProvider(
+        definition=GENERIC_DEFINITION, engine=engine, enabled=True
+    )
+    resp = await provider.chat(_req())
+    assert not resp.ok
+    assert resp.error_category == "wrapper_selector"  # degraded, not a crash

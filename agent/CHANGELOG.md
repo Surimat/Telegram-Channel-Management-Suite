@@ -5,13 +5,62 @@ Dates are ISO-8601.
 
 ---
 
+## [1.8.1] — 2026-10-10
+
+**v1.8.1 — AI Gateway verification patch (additive, no new features).** An
+independent verification of the v1.8.0 AI Gateway + Web Wrapper Hub proved the
+infrastructure *works*, not merely that it exists, and fixed two confirmed
+defects plus one version drift. Version strings read **1.8.1**. Additive only: no
+account registration and no CAPTCHA/MFA/regional-block or Telegram-limit bypass.
+
+### Fixed
+- **`web` provider availability was inferred from a stored flag (D-112).** A
+  provider configured with `kind=web` and a `wrapper_id` that has **no** matching
+  `WrapperDefinition` was built from the generic fallback definition and, if the
+  owner had marked it enabled, reported `available`/usable — the UI and
+  `/status` counts would advertise a provider the router could not honestly run.
+  It is now forced `unavailable` with an explicit reason
+  (`определение обёртки «…» не найдено`).
+- **A `web` provider lost its configured name (D-111).** The engine always
+  exposed `web:<definition.id>`, so a provider pinned under a custom name
+  (`provider="my-web"`) could no longer be routed to by name. The wrapper now
+  keeps the **configured** name (`web:<id>` is only a fallback), and a missing
+  wrapper reports `unavailable` with its own reason instead of the generic
+  "Wrapper выключен владельцем".
+- **Router retry was a no-op for transient responses (D-111).** `AIRouter._attempt`
+  wrapped the call in `with_retry`, but a provider that *returns* a non-ok
+  `ChatResponse` with a transient status (a mapped HTTP 5xx/429/timeout) was
+  returned immediately — only *raised* `GatewayError`s were retried. Both paths
+  now retry, bounded by the configured retry budget, then fail over.
+- **Frontend lockfile version drift.** `frontend/package-lock.json` still read
+  `1.7.0` while the app, `package.json`, `pyproject.toml` and the docs read
+  `1.8.0`. Synced to the app version and covered by an assertion.
+
+### Added
+- **Independent gateway behaviour tests** (`tests/test_ai_gateway.py`,
+  `tests/test_ai_gateway_api.py`): response-level and exception-level transient
+  retries (bounded by `max_attempts`), timeout/region-block/rate-limit failover,
+  text-only provider never serving an image request, unknown-wrapper never
+  `available`, wrapper identity preserved, browser crash classified not raised,
+  and an end-to-end API test where the web wrapper really returns an answer.
+- **Runtime meta-audit coverage for the AI Gateway** (`tests/meta_audit/`):
+  mutations `X_gateway_capability_dependency`,
+  `Y_gateway_provider_orphan`, `Z_gateway_unwired_control` (capability-dependency
+  graph, orphan service class, unwired UI control). Kill rate is computed:
+  **30 total, 30 detected, 100.0%, 0 false positives**.
+- **Version-consistency test now checks the lockfile** (`test_repo_version_is_consistent`).
+
+---
+
 ## [1.8.0] — 2026-10-09
 
 **v1.8.0 — AI Gateway + Web Wrapper Hub (additive minor).** One access layer over
 many AI providers plus a browser-based "web wrapper" subsystem. Released via a
-reviewed `develop → main` PR; the Release workflow attaches the Windows portable
-ZIP + `.sha256`. Version strings read **1.8.0**. Additive only: no account
-registration and no CAPTCHA/MFA/regional-block or Telegram-limit bypass.
+reviewed `develop → main` PR #19 (merge `d8c62c1`), tag `v1.8.0`; the Release
+workflow (run `37653661662`) attached the Windows portable ZIP (24 904 789 bytes,
+sha256 `9bb39e4b…d353c`) + `.sha256`. Version strings read **1.8.0**. Additive
+only: no account registration and no CAPTCHA/MFA/regional-block or Telegram-limit
+bypass.
 
 ### Added
 - **AI Gateway domain (`backend/app/ai/gateway/`, D-111).** `types.py`

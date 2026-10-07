@@ -3,34 +3,48 @@
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
-**Updated:** 2026-10-09
-**Status:** **v1.8.0 (AI Gateway + Web Wrapper Hub, D-111…D-113) is implemented on
-`develop`; release pending.** One access layer over many AI providers
-(OpenAI-compatible, OpenRouter, Google, Anthropic, DeepSeek, local Ollama) plus
-browser **web wrappers** that drive the owner's own logged-in session, with
-strategy-based routing, bounded retries, a per-provider circuit breaker and
-automatic failover. Keys are sealed and write-only; the request journal stores
-metadata only; the wrapper engine stops at a login wall. Additive only: no account
-registration and no CAPTCHA/MFA/regional-block or Telegram-limit bypass. New code:
-`backend/app/ai/gateway/*`, `services/ai_gateway_service.py`,
-`api/v1/ai_gateway.py`, models + repository + migration
-`20261008_1200_b2c3d4e5f6a7`, `AiGatewayView.vue` (`/ai-gateway`), the
-`ai_gateway` capability + consistency anchor, help topics and i18n keys.
-Version strings read **1.8.0**; full suite green; `ruff` clean; frontend
-`vue-tsc` + `npm run build` clean; meta-audit **27/27, 100%, 0 false positives**.
+**Updated:** 2026-10-10
+**Status:** **v1.8.1 (AI Gateway verification patch, D-114) is prepared for release.**
+An independent verification of the v1.8.0 **AI Gateway + Web Wrapper Hub** proved
+it *works* (routing, retry, failover, wrapper engine, availability, secret
+safety), not merely that it compiles, and fixed two real defects plus a version
+drift — **no new features**. (1) A `web` provider whose `wrapper_id` has no
+matching `WrapperDefinition` was reported `available` and lost its configured
+name; it is now forced `unavailable` with an explicit reason and keeps its
+configured name so a pinned provider still routes by name. (2) `AIRouter._attempt`
+returned a transient *response* without retrying (only raised errors were
+retried); it now retries both, bounded by the retry budget, then fails over.
+(3) `frontend/package-lock.json` read `1.7.0` while the app read `1.8.0` — synced
+to the app version and locked by an assertion. New independent gateway behaviour
+tests (retry/failover/availability/identity/e2e web answer) and three runtime
+meta-audit cases (capability dependency, orphan provider class, unwired control).
+Additive only: no account registration and no CAPTCHA/MFA/regional-block or
+Telegram-limit bypass. Version strings read **1.8.1**; full suite green (909
+passed); `ruff` clean; frontend `vue-tsc` + `npm run build` clean; meta-audit
+**30/30, 100%, 0 false positives**.
+
+**Prior release:** **v1.8.0 (AI Gateway + Web Wrapper Hub, D-111…D-113) is
+RELEASED** via a reviewed `develop → main` PR #19 (merge `d8c62c1`), tag `v1.8.0`;
+the Release workflow (run `37653661662`) created the GitHub Release and attached
+the Windows portable ZIP (24 904 789 bytes, sha256 `9bb39e4b…d353c`) + `.sha256`.
+`main` HEAD = `d8c62c1`. One access layer over many AI
+providers (OpenAI-compatible, OpenRouter, Google, Anthropic, DeepSeek, local
+Ollama) plus browser **web wrappers** that drive the owner's own logged-in
+session, with strategy-based routing, bounded retries, a per-provider circuit
+breaker and automatic failover. Keys are sealed and write-only; the request
+journal stores metadata only; the wrapper engine stops at a login wall.
 
 **Previous release:** **v1.7.0 (Bot Factory creation queue) is RELEASED** via a
 reviewed `develop → main` PR #18 (merge `48eecdc`), tag `v1.7.0`; the Release
 workflow (run `37634439503`) created the GitHub Release and attached the Windows
-portable ZIP (24 853 898 bytes, sha256 `a444bb55…e5af`) + `.sha256`. `main`
-HEAD = `48eecdc`; `develop` re-synced to `48eecdc`. The Bot Factory batch is now a
-**durable creation queue** (D-109): the scheduler job `bot_factory.create` creates
-the free candidates **one operation per tick**, so a batch is restart-resumable and
-can be stopped/resumed; a failed candidate can be retried or skipped;
-already-created bots are never rolled back. A display-only `token_mask`
-(`1234…xyz`) is derived from the **non-secret numeric bot id** (D-110). Deep-link
-batches are not background-ticked. Additive: no account registration and no
-Telegram-limit bypass.
+portable ZIP (24 853 898 bytes, sha256 `a444bb55…e5af`) + `.sha256`. The Bot
+Factory batch is now a **durable creation queue** (D-109): the scheduler job
+`bot_factory.create` creates the free candidates **one operation per tick**, so a
+batch is restart-resumable and can be stopped/resumed; a failed candidate can be
+retried or skipped; already-created bots are never rolled back. A display-only
+`token_mask` (`1234…xyz`) is derived from the **non-secret numeric bot id**
+(D-110). Deep-link batches are not background-ticked. Additive: no account
+registration and no Telegram-limit bypass.
 
 **Previous release:** **v1.6.1** (verification patch) via a reviewed
 `develop → main` PR #17 (merge `a38823d`), tag `v1.6.1`; the Release workflow (run
@@ -59,18 +73,13 @@ complete.
 
 ---
 
-## Active task: release v1.8.0 (AI Gateway + Web Wrapper Hub)
+## Active task: none — v1.8.0 released
 
-The v1.8.0 code is complete on `develop`. Remaining work is **release only**:
-
-1. Ensure all gates are green (`pytest`, `ruff`, `vue-tsc`, `npm run build`,
-   meta-audit).
-2. Commit on `develop`, push (fast-forward, **no force**).
-3. Open a reviewed `develop → main` PR and merge it.
-4. Create annotated tag **`v1.8.0`** on the merged `main` commit; the **Release**
-   workflow builds the Windows portable ZIP + `.sha256` and attaches it (D-060).
-5. Re-sync `develop` to the merge commit and record the facts in
-   `agent/CURRENT_STATE.md` / `agent/NEXT_TASK.md` / `agent/CHANGELOG.md`.
+**v1.8.0 is RELEASED** via a reviewed `develop → main` PR #19 (merge `d8c62c1`),
+tag `v1.8.0`; the Release workflow (run `37653661662`) created the GitHub Release
+and attached the Windows portable ZIP (24 904 789 bytes, sha256 `9bb39e4b…d353c`)
++ `.sha256`. `main` HEAD = `d8c62c1`; `develop` re-synced to `d8c62c1`. Nothing is
+required to follow up. Do **not** add new large features.
 
 ### What shipped (additive, v1.8.0)
 

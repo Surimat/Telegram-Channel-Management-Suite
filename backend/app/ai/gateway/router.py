@@ -17,6 +17,7 @@ provider and, failing that, tells the user to check their own network access.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from collections.abc import Callable, Iterable
 
@@ -27,7 +28,6 @@ from backend.app.ai.gateway.reliability import (
     HealthStore,
     backoff_delays,
     is_transient,
-    with_retry,
 )
 from backend.app.ai.gateway.types import (
     STATUS_AUTH_REQUIRED,
@@ -238,49 +238,54 @@ class AIRouter:
         )
 
     async def _attempt(self, provider: AIProvider, request: ChatRequest) -> ChatResponse:
-        """Call one provider with retries; never raises for a normal failure."""
+        """Call one provider, retrying transient failures; never raises for a
+        normal failure.
 
-        async def once() -> ChatResponse:
-            return await self.limiter.run(
-                provider.name, lambda: provider.chat(request)
-            )  # type: ignore[return-value]
-
-        try:
-            if self._sleep is not None:
-                response = await with_retry(
-                    once,
-                    max_attempts=self.max_attempts,
-                    delays=self.retry_delays,
-                    sleep=self._sleep,  # type: ignore[arg-type]
+        A provider reports a transient failure two ways: it *raises* a
+        :class:`GatewayError` (transport-level), or it *returns* a non-ok
+        :class:`ChatResponse` whose status is transient (an HTTP 5xx/429 that the
+        adapter mapped to a response). Both must honour ``max_attempts`` — the
+        retry loop re-runs the call until a non-transient result or the budget is
+        spent.
+        """
+        sleeper = self._sleep or asyncio.sleep
+        last: ChatResponse | None = None
+        for attempt in range(1, self.max_attempts + 1):
+            try:
+                response = await self.limiter.run(
+                    provider.name, lambda: provider.chat(request)
                 )
-            else:
-                response = await with_retry(
-                    once,
-                    max_attempts=self.max_attempts,
-                    delays=self.retry_delays,
+            except GatewayError as exc:
+                response = ChatResponse(
+                    ok=False,
+                    provider_used=provider.name,
+                    error=exc.message,
+                    error_category=exc.category,
+                    request_id=request.correlation_id,
+                    status=_category_status(exc.category),
                 )
-        except GatewayError as exc:
-            return ChatResponse(
-                ok=False,
-                provider_used=provider.name,
-                error=exc.message,
-                error_category=exc.category,
-                request_id=request.correlation_id,
-                status=_category_status(exc.category),
+            except Exception as exc:
+                response = ChatResponse(
+                    ok=False,
+                    provider_used=provider.name,
+                    error=f"{type(exc).__name__}: {exc}",
+                    error_category="error",
+                    request_id=request.correlation_id,
+                    status=STATUS_NETWORK_ERROR,
+                )
+            last = response
+            if response.ok or not is_transient(response.status):
+                return response
+            if attempt >= self.max_attempts:
+                break
+            delay = (
+                self.retry_delays[attempt - 1]
+                if attempt - 1 < len(self.retry_delays)
+                else 0.0
             )
-        except Exception as exc:
-            return ChatResponse(
-                ok=False,
-                provider_used=provider.name,
-                error=f"{type(exc).__name__}: {exc}",
-                error_category="error",
-                request_id=request.correlation_id,
-                status=STATUS_NETWORK_ERROR,
-            )
-        # Only retry transient statuses; anything else returns immediately.
-        if response.ok or not is_transient(response.status):
-            return response
-        return response
+            await sleeper(delay)
+        assert last is not None
+        return last
 
     def describe(self, providers: list[AIProvider], request: ChatRequest) -> dict[str, object]:
         """Dry-run selection for the UI (no calls)."""
