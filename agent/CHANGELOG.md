@@ -5,11 +5,13 @@ Dates are ISO-8601.
 
 ---
 
-## [Unreleased]
+## [1.7.0] — 2026-10-08
 
 **v1.7.0 — Bot Factory becomes a durable creation queue (additive minor).**
-Version strings read **1.7.0**; no account registration and no Telegram-limit
-bypass.
+Released via a reviewed `develop → main` PR #18 (merge `48eecdc`), tag `v1.7.0`;
+the Release workflow (run `37634439503`) attached the Windows portable ZIP
+(24 853 898 bytes, sha256 `a444bb55…e5af`) + `.sha256`. Version strings read
+**1.7.0**; no account registration and no Telegram-limit bypass.
 
 ### Added
 - **Bot Factory creation queue (D-109).** A batch now marks its free candidates

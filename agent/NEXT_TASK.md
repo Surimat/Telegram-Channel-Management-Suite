@@ -4,24 +4,26 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-08
-**Status:** **v1.7.0 (Bot Factory creation queue) is on `develop`, ready for a
-reviewed `develop → main` release PR.** The Bot Factory batch is now a **durable
+**Status:** **v1.7.0 (Bot Factory creation queue) is RELEASED** via a reviewed
+`develop → main` PR #18 (merge `48eecdc`), tag `v1.7.0`; the Release workflow (run
+`37634439503`) created the GitHub Release and attached the Windows portable ZIP
+(24 853 898 bytes, sha256 `a444bb55…e5af`) + `.sha256`. `main` HEAD = `48eecdc`;
+`develop` = `48eecdc` (re-synced). The Bot Factory batch is now a **durable
 creation queue** (D-109): the scheduler job `bot_factory.create` creates the free
 candidates **one operation per tick**, so a batch is restart-resumable and can be
 stopped/resumed; a failed candidate can be retried or skipped; already-created
 bots are never rolled back. A display-only `token_mask` (`1234…xyz`) is derived
-from the **non-secret numeric bot id** (D-110) — the raw token is never returned,
-logged or exported. Deep-link batches are not background-ticked. Additive: no
-account registration and no Telegram-limit bypass. Version strings read **1.7.0**;
-full suite green; `ruff` clean; frontend `vue-tsc` + `npm run build` clean.
+from the **non-secret numeric bot id** (D-110). Deep-link batches are not
+background-ticked. Additive: no account registration and no Telegram-limit bypass.
+Version strings read **1.7.0**; `pytest` **854 passed**; `ruff` clean; frontend
+`vue-tsc` + `npm run build` clean; meta-audit **25/25, 100%, 0 false positives**.
 
-**Latest released:** **v1.6.1** (verification patch) via a reviewed
+**Previous release:** **v1.6.1** (verification patch) via a reviewed
 `develop → main` PR #17 (merge `a38823d`), tag `v1.6.1`; the Release workflow (run
 `37601801598`) attached the Windows portable ZIP (24 846 601 bytes, sha256
-`8b6d7c18…f519`) + `.sha256`. `main` HEAD = `a38823d`. v1.6.1 is a patch over
-v1.6.0 (Owner Auth + Config Sync, D-105/D-106); it fixed the owner-guard
-path-normalisation weakness, the `config_sync` capability state and the Google
-Drive `/owner` UI wiring (D-107).
+`8b6d7c18…f519`) + `.sha256`. v1.6.1 is a patch over v1.6.0 (Owner Auth + Config
+Sync, D-105/D-106); it fixed the owner-guard path-normalisation weakness, the
+`config_sync` capability state and the Google Drive `/owner` UI wiring (D-107).
 
 The meta-audit remains a *runtime mutation engine* (D-102) and still detects
 **every** seeded defect: **25 total, 25 detected, 0 missed, 100.0%, 0 false
@@ -43,12 +45,13 @@ complete.
 
 ---
 
-## Active task: release v1.7.0 (Bot Factory creation queue)
+## Active task: none — v1.7.0 released
 
-The v1.7.0 work is complete on `develop` and green. Task: open a reviewed
-`develop → main` PR, merge, tag `v1.7.0`, and let the Release workflow build the
-Windows portable ZIP + `.sha256`. After the merge, re-sync `develop` to the merge
-commit and record the facts here.
+**v1.7.0 is RELEASED** via a reviewed `develop → main` PR #18 (merge `48eecdc`),
+tag `v1.7.0`; the Release workflow (run `37634439503`) created the GitHub Release
+and attached the Windows portable ZIP (24 853 898 bytes, sha256 `a444bb55…e5af`).
+`main` HEAD = `48eecdc`; `develop` = `48eecdc` (re-synced). Nothing is required to
+follow up. Do **not** add new large features.
 
 ### What shipped (additive)
 
@@ -64,16 +67,13 @@ commit and record the facts here.
   `bot_factory`, Diagnostics check, Promotion Wizard step, help topic and
   `BotFactoryView.vue` queue UI.
 
-### Verification for this release
+### Verification
 
 ```bash
-python -m pytest                 # full suite green expected
+python -m pytest                 # 854 passed
 ruff check backend tests         # clean
 cd frontend && npx vue-tsc --noEmit && npm run build   # clean
-PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_RESULT.json
 ```
-
-Then `develop → main` PR → merge → tag `v1.7.0` → Release workflow (D-060).
 
 ## Active task (previous): none — v1.6.1 released
 
