@@ -135,15 +135,27 @@ def build_provider(
     if kind == KIND_WEB:
         definition = get_definition(config.wrapper_id or "generic")
         runtime = browser_runtime or PlaywrightBrowserRuntime()
-        if definition is None:
-            # Unknown wrapper id: a disabled, unavailable placeholder provider so
-            # the registry still yields a provider the auditor can inspect.
+        unknown_id = definition is None
+        if unknown_id:
+            # Unknown wrapper id: yield a placeholder the auditor can inspect, but
+            # never let it report AVAILABLE — a wrapper whose definition is missing
+            # cannot honestly run. It is forced disabled with an explicit reason.
             from backend.app.ai.gateway.wrappers.definition import GENERIC_DEFINITION
 
             definition = GENERIC_DEFINITION
         engine = WebWrapperEngine(runtime)
         return GenericWebWrapperProvider(
-            definition=definition, engine=engine, enabled=config.enabled
+            definition=definition,
+            engine=engine,
+            enabled=config.enabled and not unknown_id,
+            # Keep the configured identity so a pinned provider name still routes
+            # (the wrapper's ``web:<id>`` label is only a fallback).
+            configured_name=config.provider,
+            note=(
+                f"Определение обёртки «{config.wrapper_id}» не найдено."
+                if unknown_id
+                else ""
+            ),
         )
     # Default: generic OpenAI-compatible endpoint.
     return OpenAICompatibleProvider(

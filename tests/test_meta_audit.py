@@ -189,7 +189,14 @@ def test_repo_version_is_consistent() -> None:
 
     pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     package = json.loads((REPO_ROOT / "frontend" / "package.json").read_text(encoding="utf-8"))
+    lock = json.loads(
+        (REPO_ROOT / "frontend" / "package-lock.json").read_text(encoding="utf-8")
+    )
     assert __version__ == pyproject["project"]["version"] == package["version"]
+    # The lockfile carries the same version twice; a stale lock (1.7.0 while the
+    # app reads 1.8.0) is drift the docs used to claim did not exist.
+    assert lock["version"] == __version__
+    assert lock["packages"][""]["version"] == __version__
 
 
 def test_readme_states_the_current_release() -> None:
@@ -316,6 +323,44 @@ def test_control_without_behavior_mutation_is_detected_by_execution(tmp_path: Pa
     assert result.error is None
     assert result.detected is True, (
         "a frontend control without behaviour is no longer detected: "
+        f"{[f['id'] for f in result.actual_findings]}"
+    )
+
+
+def test_gateway_capability_dependency_mutation_is_detected(tmp_path: Path) -> None:
+    """A gateway depending on an unimplemented capability must fail the graph."""
+    from tests.meta_audit.engine import run_mutation
+
+    result = asyncio.run(
+        run_mutation(_mutation("X_gateway_capability_dependency"), tmp_path)
+    )
+    assert result.error is None
+    assert result.detected is True, (
+        "an AI Gateway dependency on an unimplemented capability is no longer "
+        f"detected: {[f['id'] for f in result.actual_findings]}"
+    )
+
+
+def test_gateway_provider_orphan_mutation_is_detected(tmp_path: Path) -> None:
+    """A gateway provider class nothing references must be flagged as dead."""
+    from tests.meta_audit.engine import run_mutation
+
+    result = asyncio.run(run_mutation(_mutation("Y_gateway_provider_orphan"), tmp_path))
+    assert result.error is None
+    assert result.detected is True, (
+        "a gateway provider without a caller is no longer detected: "
+        f"{[f['id'] for f in result.actual_findings]}"
+    )
+
+
+def test_gateway_unwired_control_mutation_is_detected(tmp_path: Path) -> None:
+    """An AI Gateway UI control with no handler must be flagged."""
+    from tests.meta_audit.engine import run_mutation
+
+    result = asyncio.run(run_mutation(_mutation("Z_gateway_unwired_control"), tmp_path))
+    assert result.error is None
+    assert result.detected is True, (
+        "an unwired AI Gateway control is no longer detected: "
         f"{[f['id'] for f in result.actual_findings]}"
     )
 

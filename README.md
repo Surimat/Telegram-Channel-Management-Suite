@@ -9,13 +9,20 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v1.8.0`.** It adds an **AI Gateway + Web Wrapper
-Hub**: one access layer over many AI providers (official/OpenAI-compatible APIs,
-free providers, local Ollama, and browser "web wrappers" that drive your own
-logged-in session) with strategy-based routing, bounded retries, a circuit
-breaker and automatic failover. Keys are sealed and write-only; the request
-journal stores metadata only, never prompt text; and the gateway never registers
-accounts or bypasses CAPTCHA/MFA/verification, regional blocks or Telegram limits.
+**Current stable release: `v1.8.1`.** It is a small **verification patch** over
+`v1.8.0`: it proves the **AI Gateway + Web Wrapper Hub** actually *works*, not just
+that it compiles. Two real defects were fixed — a `web` provider whose wrapper id
+does not exist reported `available` (and lost its configured name), and the
+router's retry was a no-op for transient **responses** (only raised errors were
+retried). It also syncs the frontend lockfile version (drift) and adds gateway
+coverage to the runtime meta-audit.
+`v1.8.0` adds the **AI Gateway + Web Wrapper Hub**: one access layer over many AI
+providers (official/OpenAI-compatible APIs, free providers, local Ollama, and
+browser "web wrappers" that drive your own logged-in session) with strategy-based
+routing, bounded retries, a circuit breaker and automatic failover. Keys are
+sealed and write-only; the request journal stores metadata only, never prompt
+text; and the gateway never registers accounts or bypasses
+CAPTCHA/MFA/verification, regional blocks or Telegram limits.
 **v1.7.0** turned the **Bot Factory** into a
 durable **creation queue**: a batch can create its worker bots **one at a time**
 through the scheduler, so it survives a restart and can be closed safely while
@@ -171,7 +178,15 @@ the language preference selectable in Settings) and the **Consistency Auditor**
 (cross-module drift detection surfaced in Diagnostics, with a failed check
 reported as an error instead of being silently skipped). It adds no account
 registration and no Telegram-limit bypass.
-**v1.8.0 (this release)** adds the **AI Gateway + Web Wrapper Hub**: one access
+**v1.8.1 (this release)** is a **verification patch** over the AI Gateway. It fixes
+two confirmed defects: (1) a `web` provider whose `wrapper_id` has no matching
+definition used to report `available` and lose its configured name — it is now
+honestly `unavailable` with a reason and keeps its name for pinned routing; (2) the
+router returned a transient failure without retrying — `AIRouter._attempt` now
+retries a returned transient response as well as a raised error, bounded by the
+retry budget. It also syncs the frontend lockfile version and extends the
+runtime meta-audit to gateway cases. No new features.
+**v1.8.0** adds the **AI Gateway + Web Wrapper Hub**: one access
 layer over many AI providers and a browser-based wrapper subsystem. The router
 orders eligible providers by capability and strategy, retries transient failures
 with bounded backoff, trips a per-provider circuit breaker and fails over

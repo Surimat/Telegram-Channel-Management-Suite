@@ -2379,3 +2379,37 @@ so the UI cannot show a use-case as available when no provider satisfies it.
 **Consequences.** Safe defaults (paid off, web off) mean a fresh install never
 spends money or opens a browser. Settings are per-installation and ride the
 existing settings service; no new heavy infrastructure.
+
+## D-114 — 2026-10-10 — Gateway availability and retries are proven by behaviour, not by flags — LOCKED
+
+**Context.** v1.8.0 shipped the AI Gateway and claimed "a provider/wrapper is
+`available` only after a real probe" and that transient failures are retried with
+bounded backoff. An independent verification found the code did not keep those
+promises on two paths: a `web` provider with a missing wrapper definition was
+still reported `available`, and `AIRouter._attempt` returned a transient
+*response* without retrying (only raised errors were retried).
+
+**Decision.** A gateway guarantee must be enforced in code and locked by a test:
+
+1. **Availability is computed, never read from a stored flag.** A provider or
+   wrapper is `available` only when `availability().usable` is true at evaluation
+   time. A `web` provider whose `wrapper_id` has no matching `WrapperDefinition`
+   is forced `unavailable` with the reason "определение обёртки … не найдено".
+   The `web:<id>` label is a fallback only — a configured provider keeps its
+   configured name so a pinned provider still routes by name.
+2. **Retries cover every transient failure shape.** A provider may fail
+   transiently by *raising* a `GatewayError` (transport) or by *returning* a
+   non-ok `ChatResponse` with a transient status (a mapped HTTP 5xx/429/timeout).
+   `AIRouter._attempt` retries both, bounded by the retry budget
+   (`ai_gateway_max_retries` / `retry_delays`), then fails over. No unbounded
+   retry, no infinite loop.
+3. **A raised browser exception is classified, not allowed to crash the gateway.**
+   A mid-pipeline wrapper error becomes a classified failure at the provider
+   boundary so the router can move on.
+4. **Version strings are consistent across all manifests** (app, `pyproject.toml`,
+   `package.json`, `package-lock.json`), asserted by `test_repo_version_is_consistent`.
+
+**Consequences.** These are locked invariants: the gateway meta-audit adds three
+cases (capability dependency, orphan provider class, unwired control) and the
+behaviour tests above fail if a future change re-introduces a decorative retry or
+a flag-based availability. No new features, no schema change, no new dependency.

@@ -3,8 +3,8 @@
 > Persistent project memory. **A new agent must be able to continue from this
 > file + git + code alone.** Update this after every major phase.
 
-**Last updated:** 2026-10-09
-**Current phase:** **v1.8.0 RELEASED (2026-10-09).** AI Gateway + Web Wrapper Hub (D-111…D-113) shipped via a reviewed `develop → main` PR #19 (merge `d8c62c1`), tag `v1.8.0`; the Release workflow (run `37653661662`) created the GitHub Release and attached the Windows portable ZIP (24 904 789 bytes, sha256 `9bb39e4b…d353c`) + `.sha256`. `main` HEAD = `d8c62c1`; `develop` = `5757f9b` (post-release memory commit on top of the release merge `d8c62c1`). One access layer over many AI providers (OpenAI-compatible, OpenRouter, Google, Anthropic, DeepSeek, local Ollama) plus browser **web wrappers** that drive the owner's own logged-in session. Strategy-based routing with bounded retries, a per-provider circuit breaker and automatic failover; provider keys are sealed and write-only; the request journal stores metadata only; the wrapper engine stops at a login wall. Additive only — no account registration and no CAPTCHA/MFA/regional-block or Telegram-limit bypass. Version strings read **1.8.0**; full suite green (889 passed); `ruff` clean; `vue-tsc` + `npm run build` clean; meta-audit **27/27, 100%, 0 false positives**.
+**Last updated:** 2026-10-10
+**Current phase:** **v1.8.1 (AI Gateway verification patch, D-114) ready for release.** An independent verification of the v1.8.0 **AI Gateway + Web Wrapper Hub** proved it *works* (not just compiles) and fixed two real defects plus a version drift — no new features. (1) A `web` provider whose `wrapper_id` has no matching `WrapperDefinition` was reported `available` and lost its configured name; it is now forced `unavailable` with an explicit reason and keeps its configured name so a pinned provider still routes. (2) `AIRouter._attempt` returned a transient *response* without retrying (only raised errors were retried); it now retries both, bounded by the retry budget. (3) `frontend/package-lock.json` read `1.7.0` while the app read `1.8.0` — synced + locked by an assertion. New independent gateway behaviour tests (retry/failover/availability/identity/e2e web answer) and three runtime meta-audit cases (capability dependency, orphan provider class, unwired control). Additive only — no account registration and no CAPTCHA/MFA/regional-block or Telegram-limit bypass. Version strings read **1.8.1**; full suite green (909 passed); `ruff` clean; `vue-tsc` + `npm run build` clean; meta-audit **30/30, 100%, 0 false positives**.
 **v1.7.0 RELEASED (2026-10-08).** Bot Factory creation queue (D-109/D-110) shipped via a reviewed `develop → main` PR #18 (merge `48eecdc`), tag `v1.7.0`; the Release workflow (run `37634439503`) created the GitHub Release and attached the Windows portable ZIP (24 853 898 bytes, sha256 `a444bb55…e5af`) + `.sha256`.
 **v1.6.1 (patch) is an independent verification of v1.6.0:** it fixes an owner-guard path-normalisation weakness (a leading `//` used to skip the guard while the router still matched it), corrects the `config_sync` capability so "owner ready, no provider" reports `needs_setup` (never a false `partial`), and wires the existing Google Drive token endpoint into `/owner` (D-107). No new features, no schema change. Version strings read **1.6.1**; full suite green (843 passed); `ruff` clean; `vue-tsc` + `npm run build` clean; meta-audit **25/25, 100%, 0 false positives**.
 **v1.6.0 (minor) adds an Owner Auth + Config Sync vertical slice (D-105/D-106):** a local owner profile (password/PIN) protects the panel with a PBKDF2 verifier and an HMAC-signed session token (`X-Owner-Token`, default-on middleware), and a **versioned encrypted configuration bundle** (canonical JSON → AES-256-GCM, secret denylist) moves settings to a new computer via a local folder or Google Drive (app-data scope) — never the DB, sessions or TDATA. Owner Auth is **local-first**: while no profile exists the panel stays open exactly as before; sync detects conflicts instead of overwriting silently. The `/owner` RU-first UI page, `/api/v1/owner/*` endpoints, `owner_auth`/`config_sync` help topics, Diagnostics checks and a Promotion Wizard step are wired in. Additive only; no account registration and no Telegram-limit bypass. That release read **1.6.0** with 822 tests; `ruff` clean; `vue-tsc` + `npm run build` clean; meta-audit **25/25, 100%, 0 false positives**.
@@ -17,8 +17,37 @@ Previous: **v1.4.0 Notification Center + Tray Agent + Editorial Workspace is rel
 Earlier: **v1.3.0 Bot Factory + LAN Mesh is released** — PR #9 (`develop → main`, merge `7788125`), tag `v1.3.0`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It adds the **Bot Factory** (D-077/D-078): plan a set of worker bots, check usernames with Telegram, create each bot through the official owner-confirmed @BotFather flow and adopt it, then bind it through the existing binding rules; and the **optional LAN Mesh / offline control plane** (D-079…D-082): deterministic identity, bounded broadcast discovery + manual peers, one-time-code pairing, deterministic coordinator election, fencing leases, a `mesh.tick` maintenance job and a guard so only the coordinator polls Telegram. Standalone (one computer) stays the default. New API (`/api/v1/bot-factory/*`, `/api/v1/mesh/*`), two RU-first UI pages (`/bot-factory`, `/mesh`) and offline tests. Pre-release hardening (D-083): pairing never persists/returns anything derived from a secret, and `/api/v1/mesh/ping` authenticates the shared secret; help topics `bot_factory` / `lan_mesh` added.
 Earlier: **v1.2.0 Content Studio is released** — PR #8 (`develop → main`, merge `ea6c161`), tag `v1.2.0`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It adds the v1.2 **content-studio foundation** (D-071…D-076): content sources (Telegram / RSS / Atom / manual) with deduplication, a deterministic explainable cleaner, usage-rights tracking + attribution, Telegram markup validation + a Telegram-like preview, inline button sets, per-source moderation (blocked keywords + quiet hours), multi-channel planning/calendar, publishing through a `PostingProvider` (bot by default; user account only in the expanded mode), durable auto-delete and first comments, and a bounded restart-safe posting tick (`content.posting`). Nothing is published without an explicit owner action; protected content keeps only its link (D-006/D-074); the AI narrows, it never picks emoji (D-033/D-076).
 Earlier: **v1.1.0 is released** — PR #7 (`develop → main`, merge commit `3438305`), tag `v1.1.0`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It carries the multi-format **Account Hub** importer (`.session`, `.session`+JSON, StringSession, optional TDATA; D-070), optional per-account **network routes (proxies)** (D-065), **donor discovery** (candidate proposals only, D-066), a **lightweight local encoder** classifier mode (D-067) with the optional **ruBERT-tiny2** embedding backend + install flow (D-068), and the bot-only/risk UX (D-069). The v1.0.5 **product slice** (D-064): bot↔channel **bindings** + channel **reaction capabilities**, session-free invite **Кампании** + explainable **donor quality**, **backup delivery destinations**, a resumable first-run **Setup Wizard**, and a conservative, off-by-default **auto-update**. `v1.0.0`–`v1.1.0` stay immutable (D-050).
-Version string is **1.8.0** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
-All gates pass: `pytest` **889 passed**, `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend, frontend and `meta-audit` (runtime mutation engine) gates.
+Version string is **1.8.1** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
+All gates pass: `pytest` **909 passed**, `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend, frontend and `meta-audit` (runtime mutation engine) gates.
+
+### v1.8.1 verification patch (2026-10-10, D-114)
+
+Independent verification of the v1.8.0 **AI Gateway + Web Wrapper Hub**; **no new
+features**. It proved the gateway *works* by behaviour (routing, retry, failover,
+wrapper engine, availability, secret safety), not by reading code, and fixed:
+
+1. **False availability (D-112).** A `web` provider whose `wrapper_id` has no
+   matching `WrapperDefinition` was built from the generic fallback and — if the
+   owner marked it enabled — reported `available`/usable. It is now forced
+   `unavailable` with `определение обёртки «…» не найдено`.
+2. **Lost wrapper identity (D-111).** `GenericWebWrapperProvider` always exposed
+   `web:<id>`, so a provider pinned under a custom name could not be routed to by
+   name. It now keeps the configured name (`web:<id>` is only a fallback).
+3. **Decorative retry (D-111).** `AIRouter._attempt` returned a transient
+   *response* without retrying; only raised `GatewayError`s were retried. It now
+   retries a returned transient response (and a raised error) bounded by the retry
+   budget, then fails over.
+4. **Lockfile version drift.** `frontend/package-lock.json` read `1.7.0`; synced
+   to `1.8.1` and asserted by `test_repo_version_is_consistent`.
+
+New tests: `tests/test_ai_gateway.py` (response/exception transient retries bounded
+by `max_attempts`, timeout/region-block/rate-limit failover, text-only provider
+never serving an image request, unknown wrapper never `available`, identity
+preserved, browser crash classified), `tests/test_ai_gateway_api.py` (e2e web
+answer, custom-name routing, unknown wrapper not usable), and three runtime
+meta-audit mutations (capability dependency, orphan provider class, unwired
+control). Gates: `pytest` **909 passed**, `ruff` clean, `vue-tsc` + `npm run
+build` clean, meta-audit **30/30, 100%, 0 false positives**.
 
 ### v1.6.1 released (2026-10-07)
 

@@ -1031,6 +1031,18 @@ browser.
   credential is returned.
 - Honest availability: a provider/wrapper is "available" only after a real probe;
   the browser runtime reports `Docker`/engine status rather than claiming success.
+- Availability is never inferred from a stored flag. A `web` provider whose
+  `wrapper_id` has no matching `WrapperDefinition` is forced `unavailable` with an
+  explicit reason ("определение обёртки … не найдено") instead of reporting
+  `available`; a web provider keeps its **configured** name, so a pinned provider
+  still routes by name (the `web:<id>` label is only a fallback). The
+  `ai_gateway_service.status()` counts `available_providers` from `availability()`,
+  so the UI cannot show a count the router would refuse to use.
+- Retries are real, not decorative. A provider can fail transiently either by
+  **raising** a `GatewayError` (transport) or by **returning** a non-ok response
+  with a transient status (a mapped HTTP 5xx/429/timeout). `AIRouter._attempt`
+  retries both, bounded by `ai_gateway_max_retries` (no unbounded retry), then
+  fails over to the next eligible provider.
 - Consistency: the `ai_gateway` capability is anchored to
   `services/ai_gateway_service.py` and requires an enabled `ai_provider`; the
   auditor and meta-audit both fail if the implementation anchor disappears.

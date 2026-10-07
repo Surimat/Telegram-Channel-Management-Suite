@@ -149,14 +149,19 @@ class GenericWebWrapperProvider:
         definition: WrapperDefinition,
         engine: WebWrapperEngine,
         enabled: bool = False,
+        configured_name: str = "",
+        note: str = "",
     ) -> None:
         self.definition = definition
         self.engine = engine
         self.enabled = enabled
         from backend.app.ai.gateway.types import ProviderInfo
 
+        # The configured provider name wins when present so a pinned provider
+        # still routes; ``web:<id>`` is only a fallback label.
+        name = configured_name or f"web:{definition.id}"
         self._info = ProviderInfo(
-            provider=f"web:{definition.id}",
+            provider=name,
             model=f"{definition.name} v{definition.version}",
             source=SourceKind.WEB,
             capabilities=definition.capabilities,
@@ -164,7 +169,7 @@ class GenericWebWrapperProvider:
             auth_required=definition.auth_mode not in ("", AUTH_NONE),
             cost=definition.cost,
             priority=definition.fallback_priority,
-            note=definition.note,
+            note=note or definition.note,
         )
 
     @property
@@ -179,9 +184,10 @@ class GenericWebWrapperProvider:
         from backend.app.ai.gateway.types import Availability
 
         if not self.enabled:
-            return Availability(
-                status="unavailable", detail="Wrapper выключен владельцем."
-            )
+            # Prefer an explicit reason (e.g. a missing wrapper definition) over
+            # the generic "disabled by owner" so the UI never misleads.
+            detail = self._info.note or "Wrapper выключен владельцем."
+            return Availability(status="unavailable", detail=detail)
         if not self.engine.available():
             return Availability(
                 status="unavailable", detail=self.engine.availability_detail()

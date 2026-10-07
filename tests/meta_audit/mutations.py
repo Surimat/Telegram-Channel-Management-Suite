@@ -390,6 +390,52 @@ STATIC_MUTATIONS: list[Mutation] = [
             "export const zzGhost = () => fetch('/api/v1/ghostgateway/x')\n",
         ),
     ),
+    # --- AI Gateway v1.8: capability / dead-code / control drift --------------
+    Mutation(
+        id="X_gateway_capability_dependency",
+        name="gateway_capability_depends_on_unimplemented",
+        expected_finding_id="capabilities.dep_unimplemented.ai_gateway.media_conversion",
+        expected_severity="error",
+        severity="high",
+        note=(
+            "The AI Gateway is made to depend on the unimplemented media_conversion "
+            "capability; the graph must fail instead of advertising a feature whose "
+            "dependency cannot work (D-099)."
+        ),
+        apply=lambda b: _set_requires("ai_gateway", ("media_conversion",)),
+    ),
+    Mutation(
+        id="Y_gateway_provider_orphan",
+        name="gateway_provider_without_caller",
+        expected_finding_id="dead.service.zz_gateway_provider.GatewayProviderZz",
+        expected_severity="info",
+        severity="medium",
+        note=(
+            "A gateway provider class that no module references is dead "
+            "functionality: registered in code, reachable by no scenario (O)."
+        ),
+        apply=lambda b: b.write(
+            "backend/app/services/zz_gateway_provider.py",
+            "class GatewayProviderZz:\n"
+            "    async def chat(self, request) -> object:\n"
+            "        return None\n",
+        ),
+    ),
+    Mutation(
+        id="Z_gateway_unwired_control",
+        name="gateway_control_without_handler",
+        expected_finding_id="frontend.control_unwired.zzGatewayGhost",
+        expected_severity="warning",
+        severity="medium",
+        note=(
+            "An AI Gateway UI control whose handler is never defined: the owner "
+            "clicks and nothing happens (P)."
+        ),
+        apply=lambda b: b.append(
+            "frontend/src/views/AiGatewayView.vue",
+            '\n<template><button @click="zzGatewayGhost">Пуск</button></template>\n',
+        ),
+    ),
 ]
 
 

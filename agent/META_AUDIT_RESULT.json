@@ -1,10 +1,10 @@
 {
-  "version": "1.8.0",
-  "baseline_sha": "63d5364f1c5fc5e451fc5824cf8b4a5b1278fde8",
-  "generated_at": "2026-10-07T16:04:05.589385+00:00",
+  "version": "1.8.1",
+  "baseline_sha": "2f39c0cb61007aabe9dffba5260c112169c7b96d",
+  "generated_at": "2026-10-07T23:17:49.059867+00:00",
   "result_source": "computed from runtime mutation executions",
-  "total": 27,
-  "detected": 27,
+  "total": 30,
+  "detected": 30,
   "missed": 0,
   "kill_rate": 100.0,
   "false_positives": 0,
@@ -2514,6 +2514,313 @@
       ],
       "severity": "medium",
       "note": "The frontend client calls an AI Gateway area the backend does not expose; the route would 404.",
+      "error": null
+    },
+    {
+      "id": "X_gateway_capability_dependency",
+      "name": "gateway_capability_depends_on_unimplemented",
+      "detected": true,
+      "expected": {
+        "finding_id": "capabilities.dep_unimplemented.ai_gateway.media_conversion",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "capabilities.unknown_req.ai_gateway.media_conversion",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
+          "id": "capabilities.no_anchor.ai_gateway",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
+          "id": "capabilities.dep_unimplemented.ai_gateway.media_conversion",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "high",
+      "note": "The AI Gateway is made to depend on the unimplemented media_conversion capability; the graph must fail instead of advertising a feature whose dependency cannot work (D-099).",
+      "error": null
+    },
+    {
+      "id": "Y_gateway_provider_orphan",
+      "name": "gateway_provider_without_caller",
+      "detected": true,
+      "expected": {
+        "finding_id": "dead.service.zz_gateway_provider.GatewayProviderZz",
+        "severity": "info"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "capabilities.no_anchor.ai_gateway",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.zz_gateway_provider.GatewayProviderZz",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "medium",
+      "note": "A gateway provider class that no module references is dead functionality: registered in code, reachable by no scenario (O).",
+      "error": null
+    },
+    {
+      "id": "Z_gateway_unwired_control",
+      "name": "gateway_control_without_handler",
+      "detected": true,
+      "expected": {
+        "finding_id": "frontend.control_unwired.zzGatewayGhost",
+        "severity": "warning"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "capabilities.no_anchor.ai_gateway",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
+          "id": "ux.hardcoded_string.views/AiGatewayView.vue:575",
+          "severity": "warning",
+          "category": "ux"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "frontend.control_unwired.zzGatewayGhost",
+          "severity": "warning",
+          "category": "frontend"
+        }
+      ],
+      "severity": "medium",
+      "note": "An AI Gateway UI control whose handler is never defined: the owner clicks and nothing happens (P).",
       "error": null
     },
     {

@@ -66,6 +66,27 @@ PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_R
 
 ## 6. Release verification (fill in per release)
 
+### v1.8.1 (AI Gateway verification patch, 2026-10-10, D-114)
+
+Patch over v1.8.0: proves the AI Gateway *works* by behaviour and fixes two real
+defects plus lockfile version drift. No new features, no schema change.
+
+| Gate | v1.8.1 | Notes |
+| --- | --- | --- |
+| Version consistency (`1.8.1` everywhere) | ⏳ | app / pyproject / frontend / **lock** (`test_repo_version_is_consistent` now checks the lock) |
+| False availability fixed | ⏳ | unknown `wrapper_id` → `unavailable` + reason; configured name preserved |
+| Retry no-op fixed | ⏳ | `AIRouter._attempt` retries a transient *response* as well as a raised error, bounded |
+| Gateway behaviour tests | ⏳ | `tests/test_ai_gateway.py` + `tests/test_ai_gateway_api.py` (retry/failover/availability/identity/e2e web answer) |
+| Meta-audit engine (runtime) | ⏳ | 30 total, 30 detected, 0 missed, **100.0%**, 0 false positives |
+| Tests (`pytest` / `ruff`) | ⏳ | full suite green (909 passed); ruff clean |
+| Frontend build | ⏳ | `vue-tsc --noEmit` + `npm run build` clean |
+| Docker build + smoke | ⏳ | `docker build`; container `/health` + `/api/v1/consistency` pass |
+| Portable build/smoke | ⏳ | Release workflow builds the Windows portable ZIP + `.sha256` |
+| Artifact scan | ⏳ | no `.session`/TDATA/DB/model in the ZIP; runtime dirs empty |
+| Secret scan | ⏳ | no tokens/api_hash/session strings in the diff |
+| Git merge (`develop → main`) | ⏳ | reviewed PR (`develop → main`) |
+| Automated Release workflow + ZIP/`.sha256` | ⏳ | tag `v1.8.1` → Release workflow (D-060) |
+
 ### v1.8.0 (AI Gateway + Web Wrapper Hub, 2026-10-09, D-111…D-113)
 
 Additive minor over v1.7.0: a single AI Gateway over many providers plus browser
