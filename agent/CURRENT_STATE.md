@@ -18,6 +18,15 @@ Earlier: **v1.1.0 is released** — PR #7 (`develop → main`, merge commit `343
 Version string is **1.6.0** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
 All gates pass: `pytest` **822 passed** (0 xfailed), `ruff` clean, `vue-tsc` + `npm run build` clean; **GitHub Actions CI** (D-053) enforces the backend, frontend and `meta-audit` (runtime mutation engine) gates.
 
+### v1.6.1 released (2026-10-07)
+
+Merged via a reviewed `develop → main` PR #17 (merge `a38823d`), tag `v1.6.1`;
+the Release workflow (run `37601801598`) created the GitHub Release and attached
+the Windows portable ZIP (24 846 601 bytes, sha256 `8b6d7c18…f519`) + `.sha256`.
+`main` HEAD = `a38823d`; `develop` = `a38823d` (re-synced). CI on `develop`
+(run `37598750525`) and the PR (run `37600256647`) both green across backend,
+frontend and meta-audit.
+
 ### v1.6.1 verification patch (2026-10-07, D-107)
 
 Independent verification of the v1.6.0 Owner Auth + Config Sync slice; **no new

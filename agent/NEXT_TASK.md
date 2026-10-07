@@ -38,7 +38,15 @@ complete.
 
 ---
 
-## Active task: v1.6.1 verification patch — ship it
+## Active task: none — v1.6.1 released
+
+**v1.6.1 is RELEASED** via a reviewed `develop → main` PR #17 (merge `a38823d`),
+tag `v1.6.1`; the Release workflow (run `37601801598`) created the GitHub Release
+and attached the Windows portable ZIP (24 846 601 bytes, sha256 `8b6d7c18…f519`).
+`main` HEAD = `a38823d`; `develop` = `a38823d` (re-synced). Nothing is required to
+follow up. Do not add new features.
+
+
 
 The v1.6.0 Owner Auth + Config Sync slice was independently verified (D-107). Two
 defects and one unwired control were fixed, **additively and with no new features**:
