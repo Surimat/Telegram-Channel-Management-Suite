@@ -884,7 +884,7 @@ auditor changes no runtime behaviour — it only reports).
 
 ---
 
-## 23. Owner Auth + Config Sync (v1.6.0, D-105/D-106)
+## 23. Owner Auth + Config Sync (v1.6.0, D-105/D-106; hardened in v1.6.1, D-107)
 
 v1.6 adds a **local owner identity** that protects the panel and a **versioned
 encrypted configuration bundle** that moves the owner's settings between their own
@@ -907,6 +907,10 @@ computers. Neither touches Telegram accounts, sessions or the database.
   is default-on for every `/api/` path outside a small allowlist; a new router
   cannot be added unguarded. A login issues an **HMAC-signed opaque token**
   (`X-Owner-Token`). Local-first: no profile (or protection off) → pass-through.
+  The guard **normalises the path before deciding** (v1.6.1, D-107): it collapses
+  redundant slashes, resolves dot segments and matches the allowlist by exact path
+  or segment boundary, so a doubled-slash spelling (`//api/v1/...`) can never skip
+  the guard while the router still matches it.
 - `api/v1/owner.py` + `api/schemas/owner.py` — `/api/v1/owner/*`.
 
 ### Config Sync (D-106)

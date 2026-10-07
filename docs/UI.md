@@ -534,7 +534,7 @@ Internal values must never reach the user raw: job kinds (`reaction.job`,
 `audience.scan`, `invite.batch`) and statuses (`pending`/`running`/…) are shown as
 plain Russian labels (see `QueueView.vue`), just like subsystem statuses.
 
-## What is available now (v1.5)
+## What is available now (v1.6)
 
 Two views explain capability state in plain language, both fed by the same
 evaluated **capability graph**:
@@ -543,8 +543,10 @@ evaluated **capability graph**:
   (`Доступно` / `Частично` / `Требует настройки` / `Недоступно` / `Не реализовано`)
   and, when a step is missing, exactly what is missing (e.g. "не хватает: Канал,
   Бот, привязанный к каналу"). `Не реализовано` marks a capability the product
-  describes but has not built yet (`config_sync`, `media_conversion`) — it can
-  never be shown as `Доступно`.
+  describes but has not built yet (`media_conversion`) — it can never be shown as
+  `Доступно`. As of v1.6 `config_sync` is implemented: it reports `Недоступно`
+  until an owner profile exists, `Требуется настройка` with a profile but no
+  provider, and `Доступно` once a provider is connected.
 - **Diagnostics → "Проверка целостности"** — the consistency report. It shows
   errors and warnings by default; low-confidence "к сведению" findings are hidden
   behind a checkbox so the page never looks alarming for no reason. Each finding

@@ -392,7 +392,7 @@ The Diagnostics report (`GET /api/v1/diagnostics/report`, D-061) is explicitly a
 - [ ] Telegram limit handling (FloodWait/privacy/admin) still respected.
 - [ ] Any new diagnostics field passes the redaction scan (D-061).
 
-## 7i. Owner Auth + Config Sync (v1.6, D-105/D-106)
+## 7i. Owner Auth + Config Sync (v1.6, D-105/D-106; guard hardened in v1.6.1, D-107)
 
 - **Passwords are never stored.** Only a slow PBKDF2-HMAC-SHA256 verifier
   (200k iterations) is persisted; `core/owner_security.py` is stdlib-only. The
@@ -402,6 +402,10 @@ The Diagnostics report (`GET /api/v1/diagnostics/report`, D-061) is explicitly a
   (never a password, never reversible to one). `OwnerGuardMiddleware` is default-on
   for every `/api/` path outside a small allowlist, so a new router cannot be added
   unguarded. It is local-first: no profile (or protection off) → pass-through.
+  The guard **normalises the path before deciding** (v1.6.1, D-107): redundant
+  slashes and dot segments are collapsed and the allowlist is matched by exact path
+  or segment boundary, so a `//api/v1/...` spelling cannot slip past the guard
+  while the router still matches it (verified with `curl --path-as-is`).
 - **Rate limiting.** 5 consecutive failures lock login for 15 minutes.
 - **The config bundle never carries secrets.** `FORBIDDEN_KEY_MARKERS` (password,
   token, api_hash, session, tdata, auth_key, verifier, …) plus `scan_for_secrets`

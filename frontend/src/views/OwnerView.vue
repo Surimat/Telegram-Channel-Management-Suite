@@ -28,7 +28,7 @@ const syncNotice = ref('')
 const syncError = ref('')
 const preview = ref<SyncRestorePreview | null>(null)
 const provider = ref('local')
-const showAdvanced = ref(false)
+const googleToken = ref('')
 
 const stateClass = computed(() => {
   if (!owner.status?.exists) return 'badge-muted'
@@ -186,10 +186,28 @@ async function googleConnect() {
     }
     window.open(auth.authorization_url, '_blank', 'noopener')
     syncNotice.value =
-      'Откройте ссылку, разрешите доступ и вставьте полученный токен ниже (дополнительно).'
-    showAdvanced.value = true
+      'Откройте ссылку, разрешите доступ и вставьте полученный токен в поле ниже.'
   } catch (e) {
     syncError.value = e instanceof Error ? e.message : 'Не удалось начать вход в Google.'
+  }
+}
+
+async function connectGoogle() {
+  if (!googleToken.value.trim()) {
+    syncError.value = 'Вставьте токен доступа Google, полученный после входа.'
+    return
+  }
+  syncBusy.value = true
+  syncError.value = ''
+  try {
+    sync.value = await api.syncGoogleConnect(googleToken.value.trim())
+    googleToken.value = ''
+    syncNotice.value = 'Google Drive подключён.'
+    await loadSync()
+  } catch (e) {
+    syncError.value = e instanceof Error ? e.message : 'Не удалось подключить Google Drive.'
+  } finally {
+    syncBusy.value = false
   }
 }
 
@@ -339,6 +357,15 @@ onMounted(async () => {
         <p class="muted">
           {{ sync?.appdata_scope_note }}
         </p>
+        <label class="field">
+          <span>Токен доступа Google (после входа в Google)</span>
+          <input v-model="googleToken" type="password" autocomplete="off" />
+        </label>
+        <div class="actions">
+          <button :disabled="syncBusy || !googleToken.trim()" @click="connectGoogle">
+            Сохранить токен Google
+          </button>
+        </div>
         <label class="field">
           <span>Пароль владельца (для шифрования пакета)</span>
           <input v-model="syncSecret" type="password" autocomplete="current-password" />

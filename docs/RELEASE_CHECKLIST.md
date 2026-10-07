@@ -78,7 +78,9 @@ PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_R
 | Meta-audit engine (runtime) | ✅ | 25 total, 25 detected, 0 missed, **100.0%**, 0 false positives, 0 critical/high |
 | Tests (`pytest` / `ruff`) | ✅ | 822 passed; ruff clean |
 | Frontend build | ✅ | `vue-tsc` + `npm run build` clean |
-| Artifact scan | ✅ | no `.session`/TDATA/DB/model in the ZIP; runtime dirs empty |
+| Git merge (`develop → main`) | ✅ | reviewed PR #16 (`develop → main`, merge `39efc37`) |
+| Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v1.6.0` → Release workflow (run `37546399665`, D-060) |
+| Artifact scan | ✅ | 3105 entries; no `.session`/TDATA/DB/model in the ZIP; runtime dirs empty |
 
 ### v1.5.4 (auditor gaps N + O + P closed, 2026-10-06)
 

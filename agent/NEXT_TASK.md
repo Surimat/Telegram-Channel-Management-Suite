@@ -4,7 +4,11 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-07
-**Status:** **v1.6.0 (Owner Auth + Config Sync) is being released.** A local owner
+**Status:** **v1.6.0 (Owner Auth + Config Sync) is RELEASED** via a reviewed
+`develop → main` PR #16 (merge `39efc37`), tag `v1.6.0`; the Release workflow (run
+`37546399665`) created the GitHub Release and attached the Windows portable ZIP
+(24 846 043 bytes, sha256 `cf7968c7…61ae6`) + `.sha256`. `main` HEAD = `39efc37`;
+`develop` = `39efc37` (re-synced). A local owner
 profile (password/PIN, PBKDF2 verifier, signed session token) protects the panel,
 and a versioned **encrypted configuration bundle** moves settings to a new computer
 via a local folder or Google Drive (app-data scope) — never the DB, sessions or
@@ -34,11 +38,37 @@ complete.
 
 ---
 
-## Active task: release v1.6.0 (Owner Auth + Config Sync)
+## Active task: v1.6.1 verification patch — ship it
 
-v1.6.0 is implemented, tested and documented (D-105/D-106). The remaining step is
-the release: commit on `develop`, push, open/merge the `develop → main` PR, tag
-`v1.6.0` and let the Release workflow attach the Windows portable ZIP.
+The v1.6.0 Owner Auth + Config Sync slice was independently verified (D-107). Two
+defects and one unwired control were fixed, **additively and with no new features**:
+
+1. **Owner guard path normalisation** — a leading `//` (`//api/v1/...`) skipped the
+   guard while the router still matched it; `is_protected` now normalises slashes
+   and dot segments and matches the allowlist by segment boundary. Verified on a
+   real server with `curl --path-as-is`.
+2. **`config_sync` capability** — dropped `minimal=(owner_auth,)`; it is
+   `needs_setup` (never `partial`) until a provider is connected.
+3. **Google Drive `/owner` UI** — added the missing token field + "save token"
+   button calling the existing `syncGoogleConnect` endpoint.
+
+Release as **v1.6.1** (patch) via a reviewed `develop → main` PR and tag; the
+Release workflow builds the Windows portable ZIP. After the merge, re-sync
+`develop` to the merge commit and record the facts here.
+
+### Verification for this patch
+
+```bash
+python -m pytest                 # 843 passed expected
+ruff check backend tests         # clean
+cd frontend && npx vue-tsc --noEmit && npm run build   # clean
+PYTHONPATH=. python tests/meta_audit/engine.py         # 25/25, 100%
+```
+
+## Active task: none — v1.6.0 released (Owner Auth + Config Sync)
+
+There is **no required next task**. v1.6.0 is released (PR #16, tag `v1.6.0`) and
+the meta-audit still reaches **100% (25/25, 0 false positives)**.
 
 1. **Optional follow-up (next cycle):** only if the owner asks — e.g. a remote
    job-dispatch + worker-execution loop over `MeshTransport`, a reliable
