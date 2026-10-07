@@ -2194,3 +2194,39 @@ password-derived key means even the provider (or Google) sees ciphertext.
 migration `20261007_1000_f8b2d3e5a7c9`; `/api/v1/owner/sync/*`; a `config_sync`
 help topic, a capability (`config_sync`) and a Promotion Wizard step. No Telegram
 session, TDATA or secret is ever included.
+
+
+## D-107 — 2026-10-07 — Owner guard normalises the request path; config_sync has no `minimal` set (v1.6.1) — LOCKED
+
+**Context.** An independent verification pass over the v1.6.0 Owner Auth + Config
+Sync slice (no new features) found two real defects and one unwired control:
+(a) `api/owner_guard.is_protected()` decided "is this an API path?" from the *raw*
+`request.url.path` with `startswith`, so a request whose path began with a doubled
+slash (`//api/v1/...`) was treated as a non-API path and skipped the guard, while
+the router still normalised and matched it. (b) The `config_sync` capability
+declared `minimal=(REQ_OWNER_AUTH,)`, so "owner ready but no provider connected"
+reported `partial` even though nothing could be synced — contradicting D-106's
+`needs_setup → available → error` states. (c) `OwnerView.vue` set
+`showAdvanced = true` but the flag was never read and no token input existed, so
+the existing `syncGoogleConnect` endpoint was unreachable from the UI.
+
+**Decision.**
+1. The guard **normalises before it decides**: it replaces backslashes, collapses
+   runs of `/`, resolves `.`/`..` (`posixpath.normpath`), and then tests the
+   `/api/` prefix. The allowlist is matched by **exact path or segment boundary**
+   (`/health` matches `/health` and `/health/x`, never `/healthcheck`). A path the
+   router cannot route still falls through to the SPA (never a false 401 on a
+   non-API path). This is pure hardening: no API, token or allowlist semantics
+   change, and the local-first default is unaffected.
+2. `config_sync` drops the `minimal` set: it is `needs_setup` until a provider is
+   connected, `available` when it is, `error` when it needs reconnection. A
+   capability that cannot actually perform its action must never report `partial`.
+3. The `/owner` Google Drive flow gets the missing token input + "save token"
+   button wired to the **existing** `POST /api/v1/owner/sync/google/connect`
+   endpoint. No new endpoint, no client secret in the bundle (D-106 stands).
+
+**Consequences.** `tests/test_v16_verification.py` locks both behaviours: a
+middleware-level test (synthetic ASGI scope) proves a raw `//api/v1/settings`
+returns 401, and the capability test proves `config_sync` is never `partial`.
+Nothing here searches for, downloads or bulk-registers accounts, and nothing
+bypasses Telegram limits (D-006/D-070 stand).

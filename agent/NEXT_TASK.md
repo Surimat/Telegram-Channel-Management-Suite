@@ -38,6 +38,33 @@ complete.
 
 ---
 
+## Active task: v1.6.1 verification patch — ship it
+
+The v1.6.0 Owner Auth + Config Sync slice was independently verified (D-107). Two
+defects and one unwired control were fixed, **additively and with no new features**:
+
+1. **Owner guard path normalisation** — a leading `//` (`//api/v1/...`) skipped the
+   guard while the router still matched it; `is_protected` now normalises slashes
+   and dot segments and matches the allowlist by segment boundary. Verified on a
+   real server with `curl --path-as-is`.
+2. **`config_sync` capability** — dropped `minimal=(owner_auth,)`; it is
+   `needs_setup` (never `partial`) until a provider is connected.
+3. **Google Drive `/owner` UI** — added the missing token field + "save token"
+   button calling the existing `syncGoogleConnect` endpoint.
+
+Release as **v1.6.1** (patch) via a reviewed `develop → main` PR and tag; the
+Release workflow builds the Windows portable ZIP. After the merge, re-sync
+`develop` to the merge commit and record the facts here.
+
+### Verification for this patch
+
+```bash
+python -m pytest                 # 843 passed expected
+ruff check backend tests         # clean
+cd frontend && npx vue-tsc --noEmit && npm run build   # clean
+PYTHONPATH=. python tests/meta_audit/engine.py         # 25/25, 100%
+```
+
 ## Active task: none — v1.6.0 released (Owner Auth + Config Sync)
 
 There is **no required next task**. v1.6.0 is released (PR #16, tag `v1.6.0`) and

@@ -5,6 +5,48 @@ Dates are ISO-8601.
 
 ---
 
+## [1.6.1] — 2026-10-07
+
+**Patch: independent verification of v1.6.0 Owner Auth + Config Sync.** Fixes a
+path-normalisation weakness in the owner guard and a capability-state
+overstatement; wires the Google Drive token step in the `/owner` UI. Additive and
+behaviour-preserving for the local-first default.
+
+### Fixed
+- **Owner guard path normalisation (security hardening, D-107).** `is_protected`
+  compared the raw request path with a prefix test, so a leading doubled slash
+  (`//api/v1/...`) was treated as a non-API path and skipped the guard while the
+  router still matched it. The guard now collapses redundant slashes, resolves dot
+  segments, and matches the allowlist by exact path or segment boundary
+  (`/health` but not `/healthcheck`). Verified on a real uvicorn server with
+  `curl --path-as-is`: `//api/v1/settings` etc. now return **401**, while
+  allowlisted paths and valid-token access are unchanged.
+- **`config_sync` capability state (D-107).** The capability declared
+  `minimal=(owner_auth,)`, so "owner ready but no provider connected" reported
+  `partial`. Per D-106 the states are `needs_setup` / `available` / `error`; the
+  `minimal` set was removed so it now reports `needs_setup` (never a false
+  `partial`). `docs/UI.md` updated accordingly.
+- **Google Drive connect flow (`/owner` UI).** `showAdvanced` was set but never
+  used and no token input existed, so `syncGoogleConnect` could never be called.
+  Added a token field and a "Сохранить токен Google" button wired to the existing
+  endpoint (no new API).
+
+### Added
+- `tests/test_v16_verification.py` — independent negative/security tests for
+  Owner Auth (no-token 401, foreign-token 401, no alternative-endpoint bypass,
+  middleware-level leading-`//` rejection), the encrypted bundle (wrong-key,
+  tamper, truncation, schema-version, secret exclusion), the Google Drive
+  app-data scope, conflict detection/refusal, the local provider, capability
+  states, diagnostics secret-freedom, and RU/EN translation. No network, no real
+  accounts, no real secrets.
+
+### Notes
+- No new features; no schema change; no new dependency. `pytest` **843 passed**,
+  `ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit **25/25, 100%,
+  0 false positives**.
+
+---
+
 ## [1.6.0] — 2026-10-07
 
 **Owner Auth + Config Sync vertical slice.** A local owner profile protects the

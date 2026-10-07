@@ -164,7 +164,6 @@ CAPABILITIES: tuple[Capability, ...] = (
         title_ru="Синхронизация конфигурации",
         title_en="Configuration sync",
         requires=(REQ_OWNER_AUTH, REQ_GOOGLE_DRIVE),
-        minimal=(REQ_OWNER_AUTH,),
         note_ru=(
             "Переносит настройки на новый компьютер через зашифрованный файл. "
             "Файлы сессий и база данных не синхронизируются."

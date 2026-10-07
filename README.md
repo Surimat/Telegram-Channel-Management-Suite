@@ -9,7 +9,9 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v1.6.0`.** It adds an **Owner Auth + Config Sync**
+**Current stable release: `v1.6.1`.** It is an independent verification patch of
+v1.6.0 (owner-guard path normalisation, `config_sync` state, Google Drive UI).
+**v1.6.0** adds an **Owner Auth + Config Sync**
 vertical slice: a **local owner profile** (password or PIN) that protects the
 panel with a one-way PBKDF2 verifier and a signed session token, and an
 **encrypted configuration bundle** that moves your settings to a new computer
@@ -149,7 +151,13 @@ the language preference selectable in Settings) and the **Consistency Auditor**
 (cross-module drift detection surfaced in Diagnostics, with a failed check
 reported as an error instead of being silently skipped). It adds no account
 registration and no Telegram-limit bypass.
-**v1.6.0 (this release)** adds **Owner Auth + Config Sync**: a local owner
+**v1.6.1 (this release)** is a verification patch over v1.6.0: the owner guard
+now normalises the request path before deciding whether a path is protected (a
+leading `//` can no longer skip the guard while the router still matches it), the
+`config_sync` capability reports `needs_setup` until a provider is connected
+(never a false `partial`), and the `/owner` Google Drive flow has the missing
+token field wired to the existing connect endpoint. No new features.
+**v1.6.0** adds **Owner Auth + Config Sync**: a local owner
 profile (password/PIN) that protects the panel, and an **encrypted settings
 bundle** that carries your configuration to a new computer via Google Drive
 (app-data scope) or a local folder — never the database, sessions or TDATA. It is

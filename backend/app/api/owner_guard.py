@@ -16,6 +16,9 @@ anything outside the allowlist.
 
 from __future__ import annotations
 
+import posixpath
+import re
+
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
@@ -58,11 +61,34 @@ def verify_token(token: str, owner_id: str) -> bool:
     return constant_time_compare(token, expected)
 
 
+def _normalize_path(path: str) -> str:
+    """Collapse redundant slashes/segments so the guard sees the routed path.
+
+    The guard compares ``request.url.path`` while the router matches the same raw
+    path. A doubled slash (``//api/v1/...``) or a ``/./`` segment must not change
+    which branch of the check runs: normalize first so the guard can never be
+    tricked into treating an API path as a non-API one.
+    """
+    if "\\" in path:
+        path = path.replace("\\", "/")
+    # POSIX ``normpath`` keeps a leading ``//`` as a special case; collapse runs
+    # of slashes first so ``//api/...`` normalizes like ``/api/...``.
+    collapsed = re.sub(r"/+", "/", path)
+    normalized = posixpath.normpath(collapsed)
+    return normalized if normalized.startswith("/") else f"/{normalized}"
+
+
+def _matches_allowlist(path: str) -> bool:
+    """Exact match or a real child path (``/health`` but not ``/healthcheck``)."""
+    return any(path == prefix or path.startswith(prefix + "/") for prefix in ALLOWLIST_PREFIXES)
+
+
 def is_protected(path: str) -> bool:
     """True when ``path`` requires an owner token (i.e. not allowlisted)."""
-    if not path.startswith("/api/"):
+    normalized = _normalize_path(path)
+    if not normalized.startswith("/api/"):
         return False
-    return not any(path.startswith(prefix) for prefix in ALLOWLIST_PREFIXES)
+    return not _matches_allowlist(normalized)
 
 
 class OwnerGuardMiddleware(BaseHTTPMiddleware):

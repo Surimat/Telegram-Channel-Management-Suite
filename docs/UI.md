@@ -545,8 +545,8 @@ evaluated **capability graph**:
   Бот, привязанный к каналу"). `Не реализовано` marks a capability the product
   describes but has not built yet (`media_conversion`) — it can never be shown as
   `Доступно`. As of v1.6 `config_sync` is implemented: it reports `Недоступно`
-  until an owner profile exists, `Частично` with a profile but no provider, and
-  `Доступно` once a provider is connected.
+  until an owner profile exists, `Требуется настройка` with a profile but no
+  provider, and `Доступно` once a provider is connected.
 - **Diagnostics → "Проверка целостности"** — the consistency report. It shows
   errors and warnings by default; low-confidence "к сведению" findings are hidden
   behind a checkbox so the page never looks alarming for no reason. Each finding
