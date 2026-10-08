@@ -9,9 +9,18 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v1.8.2`.** It is a small **verification patch** over
-`v1.8.1`: it proves the **Web Wrapper Hub** on practical scenarios (with no
-external site, account or key) and fixes a real structured-extraction defect the
+**Current stable release: `v1.9.0`.** It is **Content Operations 2.0** — the
+existing **Content Studio** is extended (not duplicated) into a single pipeline:
+`source → gather → clean → mini-AI → moderation → publish → comment/delete`.
+It adds reusable **AI profiles** (the prompt as data), a lightweight local
+mini-AI that returns a **category/intent** (never an emoji), human moderation
+states, declarative **automation rules** (`SOURCE + CONDITION → ACTION`, not a
+script engine) and secret-free **pipeline analytics**. An AI failure never
+destroys material — the item moves to `needs_review` with a clear note. No new
+account registration and no Telegram-limit bypass.
+`v1.8.2` was a small **verification patch** over
+`v1.8.1`: it proved the **Web Wrapper Hub** on practical scenarios (with no
+external site, account or key) and fixed a real structured-extraction defect the
 real browser runtime had. A deterministic local fixture site exercises the whole
 pipeline; the genuine Chromium path is covered by an optional (skipping) test.
 `v1.8.1` was a verification patch over
@@ -183,14 +192,26 @@ the language preference selectable in Settings) and the **Consistency Auditor**
 (cross-module drift detection surfaced in Diagnostics, with a failed check
 reported as an error instead of being silently skipped). It adds no account
 registration and no Telegram-limit bypass.
-**v1.8.2 (this release)** is a **verification patch** over the Web Wrapper Hub. It
-verifies the wrapper pipeline on practical scenarios using a **deterministic local
+**v1.9.0 (this release)** is **Content Operations 2.0**, extending the existing
+Content Studio into one pipeline instead of a second studio. It adds **AI
+profiles** (reusable prompt/instructions/language/tone/max-length/provider-policy
+as data), a **lightweight local mini-AI** classifier that returns only a
+**category** (donation/news/funny/sad/angry/cute/support/announcement/neutral) and
+an **intent** (support/sympathy/joy/humor/anger/surprise/love/neutral) — it never
+picks an emoji — **human moderation states** (`needs_review`/approved/rejected),
+declarative **automation rules** and secret-free **pipeline analytics** (metadata
+only, never text or keys). If the AI Gateway has no provider, processing moves the
+item to `needs_review` with `ai_status=ai_unavailable` and a clear note — the
+material is never lost. Publication now tracks `comment_status` and
+`delete_status` independently, so a lost comment never marks the post failed.
+**v1.8.2** was a **verification patch** over the Web Wrapper Hub. It
+verified the wrapper pipeline on practical scenarios using a **deterministic local
 fixture site** (real HTTP + HTML parsing) — open a page, find text, extract
 structure, search/navigate, the normalized response and failover — with **no
-external site, account, key or AI credential**, and it fixes a real defect the
+external site, account, key or AI credential**, and it fixed a real defect the
 genuine Chromium runtime had: structured extraction of a container (`li`/`tr`)
-returned no link. It also aligns the structured-extraction selector's attributes
-(`extract_attrs`) and corrects the diagnostics key (`wrappers`). No new features.
+returned no link. It also aligned the structured-extraction selector's attributes
+(`extract_attrs`) and corrected the diagnostics key (`wrappers`). No new features.
 **v1.8.1** was a **verification patch** over the AI Gateway. It fixes
 two confirmed defects: (1) a `web` provider whose `wrapper_id` has no matching
 definition used to report `available` and lose its configured name — it is now

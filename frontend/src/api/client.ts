@@ -1448,6 +1448,12 @@ export interface ContentItem {
   rights_warning: string
   held: boolean
   moderation_note: string
+  original_text: string
+  ai_status: string
+  ai_category: string
+  ai_intent: string
+  ai_profile: string
+  ai_note: string
   created_at: string
   updated_at: string
 }
@@ -1521,6 +1527,9 @@ export interface ContentPublication {
   error: string
   attempts: number
   mode: string
+  profile_key: string
+  comment_status: string
+  delete_status: string
 }
 
 export interface ContentPlan {
@@ -1589,6 +1598,63 @@ export interface ContentModeration {
   quiet_hours_start: number
   quiet_hours_end: number
   quiet_hours_tz: string
+}
+
+// --- Content Operations 2.0 (v1.9) -----------------------------------------
+export interface AiProfile {
+  id: string
+  key: string
+  title: string
+  language: string
+  tone: string
+  max_length: number
+  system_instructions: string
+  provider_policy: string
+  actions: string[]
+  enabled: boolean
+  builtin: boolean
+  description: string
+}
+
+export interface AutomationRule {
+  id: string
+  name: string
+  enabled: boolean
+  source_kind: string
+  condition: Record<string, unknown>
+  actions: string[]
+  action_titles: string[]
+  profile_key: string
+  priority: number
+  description: string
+}
+
+export interface PipelineRecord {
+  id: string
+  item_id: string
+  publication_id: string
+  stage: string
+  status: string
+  source_kind: string
+  channel_id: string
+  provider: string
+  model: string
+  fallback_used: boolean
+  latency_ms: number
+  attempts: number
+  detail: string
+  occurred_at: string
+}
+
+export interface PipelineAnalytics {
+  stage_counts: Record<string, number>
+  ai_provider_counts: Record<string, number>
+  ai_fallback: number
+  ai_failed: number
+  comment_posted: number
+  comment_failed: number
+  delete_failed: number
+  recent: PipelineRecord[]
 }
 
 // --- LAN Mesh (v1.3) ---------------------------------------------------------
@@ -2949,7 +3015,7 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ rows }),
     }),
-  planContent: (id: string, payload: { targets: { channel_id: string; scheduled_at?: string; text_override?: string }[]; mode?: string }) =>
+  planContent: (id: string, payload: { targets: { channel_id: string; scheduled_at?: string; text_override?: string; profile_key?: string; ai_instructions?: string }[]; mode?: string }) =>
     request<ContentPlan>(`/api/v1/content/items/${id}/plan`, { method: 'POST', body: JSON.stringify(payload) }),
   contentPublications: (id: string) =>
     request<ContentPlan>(`/api/v1/content/items/${id}/publications`),
@@ -2974,6 +3040,50 @@ export const api = {
       '/api/v1/content/tick',
       { method: 'POST' },
     ),
+
+  // v1.9: Content Operations pipeline (profiles, AI, moderation, rules).
+  aiProfiles: () => request<AiProfile[]>('/api/v1/content/ai-profiles'),
+  createAiProfile: (payload: Partial<AiProfile> & { key: string }) =>
+    request<AiProfile>('/api/v1/content/ai-profiles', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateAiProfile: (id: string, payload: Partial<AiProfile>) =>
+    request<AiProfile>(`/api/v1/content/ai-profiles/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  deleteAiProfile: (id: string) =>
+    request<null>(`/api/v1/content/ai-profiles/${id}`, { method: 'DELETE' }),
+  classifyContentItem: (id: string) =>
+    request<ContentItem>(`/api/v1/content/items/${id}/ai/classify`, { method: 'POST' }),
+  processContentItem: (id: string, profileKey: string) =>
+    request<ContentItem>(`/api/v1/content/items/${id}/ai/process`, {
+      method: 'POST',
+      body: JSON.stringify({ profile_key: profileKey }),
+    }),
+  moderateContentItem: (id: string, decision: string, note = '') =>
+    request<ContentItem>(`/api/v1/content/items/${id}/moderate`, {
+      method: 'POST',
+      body: JSON.stringify({ decision, note }),
+    }),
+  applyContentRules: (id: string) =>
+    request<ContentItem>(`/api/v1/content/items/${id}/apply-rules`, { method: 'POST' }),
+  automationRules: () => request<AutomationRule[]>('/api/v1/content/automation-rules'),
+  createAutomationRule: (payload: Partial<AutomationRule>) =>
+    request<AutomationRule>('/api/v1/content/automation-rules', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateAutomationRule: (id: string, payload: Partial<AutomationRule>) =>
+    request<AutomationRule>(`/api/v1/content/automation-rules/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  deleteAutomationRule: (id: string) =>
+    request<null>(`/api/v1/content/automation-rules/${id}`, { method: 'DELETE' }),
+  pipelineAnalytics: (limit = 50) =>
+    request<PipelineAnalytics>(`/api/v1/content/pipeline/analytics?limit=${limit}`),
 
   // Editorial Workspace (v1.4)
   editorialRooms: () => request<EditorialRoomList>('/api/v1/editorial/rooms'),

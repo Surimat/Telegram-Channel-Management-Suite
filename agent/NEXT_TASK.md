@@ -4,17 +4,15 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-11
-**Status:** **v1.8.2 RELEASE CANDIDATE.** A practical-verification pass over the
-v1.8.1 **Web Wrapper Hub** (D-115) exercised the real
-engine→provider→router pipeline on deterministic scenarios and fixed a **real
-defect in the genuine Playwright runtime**: `extract()` read `href` from the
-matched node itself, so extracting a container (`li.link`, `tr.row`) returned
-empty links (only visible when the real browser ran). Additive only — no external
-site, account, key or AI credential is used anywhere in the tests, and there is
-no account registration and no CAPTCHA/MFA/regional-block or Telegram-limit
-bypass.
+**Status:** **v1.9.0 Content Operations 2.0 is IMPLEMENTED and ready for release.** The existing **Content Studio** is extended (not duplicated) into a single pipeline: `source → gather → clean → mini-AI → moderation → publish → comment/delete`. It adds reusable **AI profiles** (prompt/instructions/language/tone/max-length/provider-policy/actions as data), a **lightweight local mini-AI** classifier (category + intent, never an emoji), **human moderation** states, declarative **automation rules** (`SOURCE + CONDITION → ACTION`, a fixed field allow-list, not a script engine) and **secret-free pipeline analytics**. An AI failure never loses material: the item moves to `needs_review` with `ai_status=ai_unavailable` and a clear note. Publication tracks `comment_status` and `delete_status` independently. Version string is **1.9.0**. Additive only — no account registration and no Telegram-limit bypass.
 
-Version string is **1.8.2** (release candidate) across `backend/app/__init__.py`,
+Released via a reviewed `develop → main` PR #21 (merge `8542d4c`), tag `v1.8.2`;
+the Release workflow (run `37747125558`) created the GitHub Release and attached
+the Windows portable ZIP (**24 906 383 bytes**, sha256
+`f0c6984d…f619`) + `.sha256`. `main` HEAD = `8542d4c`; `develop` is ahead of `main` only by
+documentation/memory-sync commits. Nothing is required to follow up. Do **not** add new large features.
+
+Version string is **1.9.0** across `backend/app/__init__.py`,
 `pyproject.toml`, `frontend/package.json` + lock.
 
 ### What this change does (D-115, additive)
@@ -36,20 +34,22 @@ Version string is **1.8.2** (release candidate) across `backend/app/__init__.py`
   gains `extract_attrs` (default `("href",)`); engine passes attrs through; the
   `diagnostics()` `"wrapers"` typo is corrected to `"wrappers"`.
 
-### Next step
+### No active task
 
-Run the full quality gate and release **v1.8.2** (patch) via a reviewed
-`develop → main` PR + tag (do not push to `main`):
+**v1.8.2 is RELEASED and verified — there is no pending task.** Do **not** add new
+large features. The quality gate was run and passed before the release:
 
 ```bash
-python -m pytest                 # must stay green
-ruff check backend tests         # must stay clean
-cd frontend && npx vue-tsc --noEmit && npm run build
-PYTHONPATH=. python tests/meta_audit/engine.py
+python -m pytest                                  # 943 passed
+ruff check backend tests                          # clean
+cd frontend && npx vue-tsc --noEmit && npm run build   # clean
+PYTHONPATH=. python tests/meta_audit/engine.py    # 30/30, 0 false positives
 ```
 
-After the merge, re-sync `develop` to the merge commit and record the facts here
-(PR number, tag, Release-workflow run, ZIP size + sha256).
+The only commits on `develop` after the release are **documentation/memory-only**
+(`ab2c120` release facts, `acf9de4` Docker smoke, and this memory-sync commit), so
+`develop` is ahead of `main` with **no code change**. For the next release (only when the owner asks):
+branch from `develop`, then a reviewed `develop → main` PR + tag.
 
 **Prior release:** **v1.8.1 (AI Gateway verification patch, D-114) is RELEASED**
 via a reviewed `develop → main` PR #20 (merge `bc8382b`), tag `v1.8.1`; the
@@ -124,9 +124,9 @@ complete.
 
 ---
 
-## Active task: none — v1.8.0 released
+## Legacy notes: v1.8.0 release (historical — superseded by v1.8.2 at the top)
 
-**v1.8.0 is RELEASED** via a reviewed `develop → main` PR #19 (merge `d8c62c1`),
+**v1.8.0 was RELEASED** via a reviewed `develop → main` PR #19 (merge `d8c62c1`),
 tag `v1.8.0`; the Release workflow (run `37653661662`) created the GitHub Release
 and attached the Windows portable ZIP (24 904 789 bytes, sha256 `9bb39e4b…d353c`)
 + `.sha256`. `main` HEAD = `d8c62c1`; `develop` re-synced to `d8c62c1`. Nothing is

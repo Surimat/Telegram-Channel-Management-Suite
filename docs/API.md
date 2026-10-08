@@ -728,6 +728,50 @@ and add attribution; protected content keeps only its link.
 
 ---
 
+## Content Operations 2.0 (v1.9)
+
+Extends Content Studio into a **single pipeline** —
+`source → gather → clean → mini-AI → moderation → publish → comment/delete` —
+without a second studio and without breaking the v1.2 routes. Everything is
+additive; every new column has a server default.
+
+**AI profiles** hold the prompt as *data* (instructions, language, tone, max
+length, provider policy, actions) so a prompt is never hardcoded. **Automation
+rules** are declarative `SOURCE + CONDITION → ACTION` — deliberately not a
+script engine: the condition vocabulary is a fixed field allow-list and actions
+are a fixed allow-list of pipeline steps. **Pipeline records** are append-only
+metadata (no text, no keys).
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/content/ai-profiles` | list profiles (built-ins first) |
+| POST | `/api/v1/content/ai-profiles` | create a profile (unknown actions dropped) |
+| PATCH | `/api/v1/content/ai-profiles/{id}` | update a profile |
+| DELETE | `/api/v1/content/ai-profiles/{id}` | delete a profile (built-ins are protected → 400) |
+| POST | `/api/v1/content/items/{id}/ai/classify` | local encoder classification (advisory category + intent) |
+| POST | `/api/v1/content/items/{id}/ai/process` | apply a profile through the AI Gateway (failover; never loses the item) |
+| POST | `/api/v1/content/items/{id}/moderate` | human decision `approve`/`reject`/`review` |
+| GET | `/api/v1/content/automation-rules` | list rules |
+| POST | `/api/v1/content/automation-rules` | create a rule (non-empty actions required) |
+| PATCH | `/api/v1/content/automation-rules/{id}` | update a rule |
+| DELETE | `/api/v1/content/automation-rules/{id}` | delete a rule |
+| POST | `/api/v1/content/items/{id}/apply-rules` | apply the first matching rule to an item |
+| GET | `/api/v1/content/pipeline/analytics` | per-stage counts + recent metadata records |
+
+**Item AI fields:** `original_text`, `ai_status` (`none`/`ok`/`ai_unavailable`/
+`error`), `ai_category`, `ai_intent`, `ai_profile`, `ai_note`. `plan` accepts a
+per-target `profile_key`. **Publication** now carries `profile_key`,
+`comment_status` and `delete_status` independently, so a lost comment or delete
+never marks the post `failed`.
+
+**Honesty:** processing without a provider moves the item to `needs_review` with
+`ai_status = ai_unavailable` and a clear note — the material is never destroyed.
+The mini-AI never selects an emoji; it only returns a category/intent that the
+reaction engine then intersects with the channel's available reactions (D-033 /
+D-116).
+
+---
+
 ## Bot Factory (v1.3)
 
 Create a set of worker bots for the owner and bind them to the owner's own

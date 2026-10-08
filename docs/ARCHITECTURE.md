@@ -1087,3 +1087,61 @@ records through `BrowserRuntime.extract(selector, attrs=...)` and both runtimes
 implement it. A structured extraction with no matching node reports
 `wrapper_selector` rather than inventing data; a *text* extraction with no match
 honestly falls back to the page text.
+
+---
+
+## 26. Content Operations 2.0 (v1.9.0, D-116)
+
+Content Operations 2.0 extends the existing **Content Studio** (section 16) into
+one pipeline — `source -> gather -> clean -> mini-AI -> moderation -> publish ->
+comment/delete` — instead of a second studio. It is additive: every new column
+carries a server default and the existing `/api/v1/content/*` routes are
+unchanged, so an existing v1.8 database upgrades in place.
+
+### 26.1 Layers
+
+- **Data** (`db/models/content_ops.py`): `AiProfile` (the prompt as data),
+  `AutomationRule` (declarative `SOURCE + CONDITION -> ACTION`) and
+  `ContentOperation` (append-only pipeline metadata, no text/keys). Additive
+  columns on `content_items` (`original_text`, `ai_status`, `ai_category`,
+  `ai_intent`, `ai_profile`, `ai_note`) and on `publications` (`profile_key`,
+  `ai_instructions`, `comment_status`, `delete_status`).
+- **Repositories** (`db/repositories/content_ops.py`): `AiProfileRepository`,
+  `AutomationRuleRepository`, `ContentOperationRepository`.
+- **Services**: `services/ai_profiles.py` (`AiProfileService`: CRUD, built-in
+  seed, action validation), `services/automation_rules.py`
+  (`AutomationRuleService`: fixed condition vocabulary, first-match selection),
+  `services/content_pipeline.py` (`ContentPipelineService`: classify / process /
+  moderate / apply-rules / analytics/audit).
+- **API** (`api/v1/content.py`, `api/schemas/content.py`): the v1.9 routes; all
+  additive under the same prefix.
+
+### 26.2 The mini-AI classifies, it never chooses (D-116)
+
+`classify` uses the local encoder path (`AiService`) and returns only a
+**category** (`donation`/`news`/`funny`/`sad`/`angry`/`cute`/`support`/
+`announcement`/`neutral`) and an **intent** (`support`/`sympathy`/`joy`/`humor`/
+`anger`/`surprise`/`love`/`neutral`). The category is advisory: it is stored in
+`ai_category`/`ai_intent` and never picks an emoji or a reaction. The reaction
+engine intersects the profile's allowed reactions with the channel's
+actually-available ones (D-033).
+
+`process` runs the profile's allow-listed actions through the **AI Gateway**
+(section 25) with failover. If no provider is live, the item is moved to
+`NEEDS_REVIEW` with `ai_status = ai_unavailable` and a plain note, and the
+original text is preserved — the material is never dropped.
+
+### 26.3 Rules are declarative, not a script engine
+
+A rule's condition is a fixed field allow-list (`contains`/`not_contains`/
+`min_length`/`max_length`/`language`) and its actions are a fixed allow-list of
+pipeline steps. There is no expression language, no `eval` and no arbitrary
+code; an unknown action is dropped rather than executed.
+
+### 26.4 Analytics and honesty
+
+`GET /api/v1/content/pipeline/analytics` returns per-stage counts, AI
+provider/fallback/failure counts and recent metadata records (stage, status,
+provider, model, latency, attempts, detail) — never prompt text, keys or audience
+data. Comment and auto-delete are tracked by `comment_status`/`delete_status` so
+a lost step never marks a publication `failed`.

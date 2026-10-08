@@ -622,3 +622,24 @@ nothing the result is an explicit error, never made-up data.
 
 Help topics `ai_gateway` and `ai_gateway_wrapper` explain the gateway and the
 wrapper concept in beginner language.
+
+## 11h. Content Operations 2.0 in the Content Studio (`ContentStudioView.vue`, v1.9)
+
+The v1.9 work does **not** add a second page — it extends the existing Content
+Studio with one new tab, «ИИ и правила»:
+
+- **Профили ИИ** — list of AI profiles (`key`, title, language, tone, max
+  length, actions, provider policy). Built-ins are marked and cannot be deleted.
+- **Правила автоматизации** — list of declarative rules with their condition and
+  action titles, so the owner can see exactly what a rule does.
+- **Аналитика конвейера** — per-stage counts, AI provider/fallback/failure
+  counts and recent metadata records.
+
+Per item, the studio shows the mini-AI state (`ai_status`, category, intent,
+note) and a human moderation control («Подходит» / «Отклонить» / «На проверку»),
+plus a «Классифицировать» and «Применить профиль» action. The mini-AI never
+selects an emoji — it only narrows; the reaction profile decides.
+
+The «ИИ и правила» tab links to the new `content_operations` help topic, which
+explains in plain Russian why the pipeline exists and what the mini-AI can and
+cannot do.
