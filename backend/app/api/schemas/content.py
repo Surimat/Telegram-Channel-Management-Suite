@@ -82,6 +82,12 @@ class ContentItemOut(BaseModel):
     rights_warning: str = ""
     held: bool = False
     moderation_note: str = ""
+    original_text: str = ""
+    ai_status: str = "none"
+    ai_category: str = ""
+    ai_intent: str = ""
+    ai_profile: str = ""
+    ai_note: str = ""
     created_at: str
     updated_at: str
 
@@ -171,6 +177,8 @@ class TargetIn(BaseModel):
     channel_id: str
     scheduled_at: str | None = None
     text_override: str = ""
+    profile_key: str = ""
+    ai_instructions: str = ""
 
 
 class PlanIn(BaseModel):
@@ -192,6 +200,9 @@ class PublicationOut(BaseModel):
     error: str = ""
     attempts: int = 0
     mode: str = ""
+    profile_key: str = ""
+    comment_status: str = ""
+    delete_status: str = ""
 
 
 class PlanOut(BaseModel):
@@ -299,8 +310,134 @@ class TickOut(BaseModel):
     due: int
 
 
+# --- Content Operations 2.0 (v1.9) -----------------------------------------
+
+
+class AiProfileOut(BaseModel):
+    id: str
+    key: str
+    title: str
+    language: str
+    tone: str
+    max_length: int
+    system_instructions: str
+    provider_policy: str
+    actions: list[str]
+    enabled: bool
+    builtin: bool
+    description: str
+
+
+class AiProfileIn(BaseModel):
+    key: str
+    title: str = ""
+    language: str = "ru"
+    tone: str = "neutral"
+    max_length: int = 0
+    system_instructions: str = ""
+    provider_policy: str = "auto"
+    actions: list[str] = Field(default_factory=list)
+    description: str = ""
+
+
+class AiProfileUpdateIn(BaseModel):
+    title: str | None = None
+    language: str | None = None
+    tone: str | None = None
+    max_length: int | None = None
+    system_instructions: str | None = None
+    provider_policy: str | None = None
+    actions: list[str] | None = None
+    enabled: bool | None = None
+    description: str | None = None
+
+
+class AiProcessIn(BaseModel):
+    """Apply an AI profile to an item (or classify only)."""
+
+    profile_key: str = ""
+    classify_only: bool = False
+
+
+class ModerationDecisionIn(BaseModel):
+    """A human moderation decision: approve | reject | review."""
+
+    decision: str
+    note: str = ""
+
+
+class AutomationRuleOut(BaseModel):
+    id: str
+    name: str
+    enabled: bool
+    source_kind: str
+    condition: dict[str, object]
+    actions: list[str]
+    action_titles: list[str]
+    profile_key: str
+    priority: int
+    description: str
+
+
+class AutomationRuleIn(BaseModel):
+    name: str = ""
+    source_kind: str = ""
+    condition: dict[str, object] = Field(default_factory=dict)
+    actions: list[str] = Field(default_factory=list)
+    profile_key: str = ""
+    priority: int = 0
+    description: str = ""
+    enabled: bool = True
+
+
+class AutomationRuleUpdateIn(BaseModel):
+    name: str | None = None
+    source_kind: str | None = None
+    condition: dict[str, object] | None = None
+    actions: list[str] | None = None
+    profile_key: str | None = None
+    priority: int | None = None
+    description: str | None = None
+    enabled: bool | None = None
+
+
+class PipelineRecordOut(BaseModel):
+    id: str
+    item_id: str
+    publication_id: str
+    stage: str
+    status: str
+    source_kind: str
+    channel_id: str
+    provider: str
+    model: str
+    fallback_used: bool
+    latency_ms: int
+    attempts: int
+    detail: str
+    occurred_at: str
+
+
+class PipelineAnalyticsOut(BaseModel):
+    stage_counts: dict[str, int]
+    ai_provider_counts: dict[str, int]
+    ai_fallback: int
+    ai_failed: int
+    comment_posted: int
+    comment_failed: int
+    delete_failed: int
+    recent: list[PipelineRecordOut]
+
+
 __all__ = [
+    "AiProcessIn",
+    "AiProfileIn",
+    "AiProfileOut",
+    "AiProfileUpdateIn",
     "ApplyCleanIn",
+    "AutomationRuleIn",
+    "AutomationRuleOut",
+    "AutomationRuleUpdateIn",
     "ButtonIn",
     "ButtonSetIn",
     "ButtonSetOut",
@@ -316,8 +453,11 @@ __all__ = [
     "ContentSourceListOut",
     "ContentSourceOut",
     "GrabOut",
+    "ModerationDecisionIn",
     "ModerationIn",
     "ModerationOut",
+    "PipelineAnalyticsOut",
+    "PipelineRecordOut",
     "PlanIn",
     "PlanOut",
     "PreviewButtonOut",

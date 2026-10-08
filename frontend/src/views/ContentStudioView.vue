@@ -14,10 +14,13 @@ import {
   type ContentValidation,
   type GrabResult,
   type RightsInfo,
+  type AiProfile,
+  type AutomationRule,
+  type PipelineAnalytics,
 } from '@/api/client'
 import InfoHint from '@/components/InfoHint.vue'
 
-const tab = ref<'overview' | 'sources' | 'items' | 'calendar'>('overview')
+const tab = ref<'overview' | 'sources' | 'items' | 'calendar' | 'ai'>('overview')
 const loading = ref(true)
 const error = ref('')
 const notice = ref('')
@@ -49,6 +52,28 @@ const publications = ref<ContentPublication[]>([])
 const planChannel = ref('')
 const planWhen = ref('')
 const planBusy = ref(false)
+
+// Content Operations 2.0 (v1.9): AI profiles, rules, analytics, per-target profile.
+const aiProfiles = ref<AiProfile[]>([])
+const rules = ref<AutomationRule[]>([])
+const analytics = ref<PipelineAnalytics | null>(null)
+const planProfile = ref('')
+const aiBusy = ref(false)
+const ruleForm = ref({
+  name: '',
+  source_kind: 'manual',
+  contains: '',
+  min_length: 0,
+  actions: ['rewrite'] as string[],
+  profile_key: '',
+})
+
+const AI_STATUS_TITLES: Record<string, string> = {
+  none: 'ИИ не применялся',
+  ok: 'ИИ обработал',
+  ai_unavailable: 'ИИ недоступен — нужна проверка',
+  error: 'Ошибка ИИ',
+}
 
 const KIND_TITLES: Record<string, string> = {
   telegram: 'Telegram-канал',
@@ -250,6 +275,7 @@ async function plan() {
         {
           channel_id: planChannel.value,
           ...(planWhen.value ? { scheduled_at: new Date(planWhen.value).toISOString() } : {}),
+          ...(planProfile.value ? { profile_key: planProfile.value } : {}),
         },
       ],
     }
@@ -295,6 +321,118 @@ async function refreshPublications() {
   await Promise.all([loadItems(), loadCalendar()])
 }
 
+async function classifyItem() {
+  if (!selected.value) return
+  aiBusy.value = true
+  try {
+    selected.value = await api.classifyContentItem(selected.value.id)
+    notice.value = 'Мини-ИИ определил категорию и намерение (подсказка).'
+    await loadItems()
+  } catch (e) {
+    error.value = friendly(e, 'Не удалось выполнить анализ.')
+  } finally {
+    aiBusy.value = false
+  }
+}
+
+async function processItem() {
+  if (!selected.value) return
+  aiBusy.value = true
+  try {
+    selected.value = await api.processContentItem(selected.value.id, planProfile.value)
+    if (selected.value.ai_status === 'ok') {
+      notice.value = 'Материал обработан ИИ. Проверьте текст и одобрите его.'
+    } else {
+      notice.value = 'ИИ недоступен — материал отправлен на ручную проверку. Он не потерян.'
+    }
+    await loadItems()
+  } catch (e) {
+    error.value = friendly(e, 'Не удалось обработать материал.')
+  } finally {
+    aiBusy.value = false
+  }
+}
+
+async function moderate(decision: 'approve' | 'reject' | 'review') {
+  if (!selected.value) return
+  try {
+    selected.value = await api.moderateContentItem(selected.value.id, decision)
+    notice.value =
+      decision === 'approve'
+        ? 'Материал одобрен — его можно публиковать.'
+        : decision === 'reject'
+          ? 'Материал отклонён.'
+          : 'Материал отправлен на проверку.'
+    await loadItems()
+  } catch (e) {
+    error.value = friendly(e, 'Не удалось сохранить решение.')
+  }
+}
+
+async function applyRules() {
+  if (!selected.value) return
+  try {
+    selected.value = await api.applyContentRules(selected.value.id)
+    notice.value = 'Правила применены (если совпало условие).'
+    await loadItems()
+  } catch (e) {
+    error.value = friendly(e, 'Не удалось применить правила.')
+  }
+}
+
+async function loadAiSection() {
+  try {
+    const [profiles, ruleList, stats] = await Promise.all([
+      api.aiProfiles(),
+      api.automationRules(),
+      api.pipelineAnalytics(),
+    ])
+    aiProfiles.value = profiles
+    rules.value = ruleList
+    analytics.value = stats
+  } catch (e) {
+    error.value = friendly(e, 'Не удалось загрузить раздел ИИ.')
+  }
+}
+
+async function createRule() {
+  const actions = ruleForm.value.actions.length ? ruleForm.value.actions : ['review']
+  const condition: Record<string, unknown> = {}
+  if (ruleForm.value.contains.trim()) condition.contains = [ruleForm.value.contains.trim()]
+  if (ruleForm.value.min_length > 0) condition.min_length = ruleForm.value.min_length
+  try {
+    await api.createAutomationRule({
+      name: ruleForm.value.name || 'Правило',
+      source_kind: ruleForm.value.source_kind,
+      condition,
+      actions,
+      profile_key: ruleForm.value.profile_key,
+    })
+    ruleForm.value = {
+      name: '',
+      source_kind: 'manual',
+      contains: '',
+      min_length: 0,
+      actions: ['rewrite'],
+      profile_key: '',
+    }
+    notice.value = 'Правило добавлено.'
+    await loadAiSection()
+  } catch (e) {
+    error.value = friendly(e, 'Не удалось добавить правило.')
+  }
+}
+
+async function removeRule(rule: AutomationRule) {
+  if (!confirm(`Удалить правило «${rule.name}»?`)) return
+  try {
+    await api.deleteAutomationRule(rule.id)
+    await loadAiSection()
+  } catch (e) {
+    error.value = friendly(e, 'Не удалось удалить правило.')
+  }
+}
+
 const selectedText = computed(() =>
   selected.value ? selected.value.cleaned_text || selected.value.text : '',
 )
@@ -321,6 +459,12 @@ onMounted(async () => {
       <button :class="{ primary: tab === 'sources' }" @click="tab = 'sources'">Источники</button>
       <button :class="{ primary: tab === 'items' }" @click="tab = 'items'">Материалы</button>
       <button :class="{ primary: tab === 'calendar' }" @click="tab = 'calendar'">Календарь</button>
+      <button
+        :class="{ primary: tab === 'ai' }"
+        @click="tab = 'ai'; loadAiSection()"
+      >
+        ИИ и правила
+      </button>
     </div>
 
     <div v-if="loading" class="card">Загрузка…</div>
@@ -497,6 +641,38 @@ onMounted(async () => {
         <h4>Текст</h4>
         <div class="inline-note">{{ selectedText }}</div>
 
+        <h4>Мини-ИИ и модерация</h4>
+        <p class="muted">
+          Мини-ИИ подсказывает категорию и намерение и никогда не выбирает эмодзи
+          сам. Обработка идёт через уже настроенный центр «AI». Если ИИ недоступен,
+          материал не теряется — он уходит на ручную проверку.
+        </p>
+        <p class="muted">
+          Состояние: <span class="badge badge-muted">{{ AI_STATUS_TITLES[selected.ai_status] || selected.ai_status }}</span>
+          <span v-if="selected.ai_category"> · категория: {{ selected.ai_category }}</span>
+          <span v-if="selected.ai_intent"> · намерение: {{ selected.ai_intent }}</span>
+        </p>
+        <p v-if="selected.ai_note" class="muted">{{ selected.ai_note }}</p>
+        <div class="toolbar">
+          <button :disabled="aiBusy" @click="classifyItem">Определить категорию</button>
+          <label class="field inline-field">
+            <span>Профиль ИИ</span>
+            <select v-model="planProfile">
+              <option value="">— без профиля (переписать) —</option>
+              <option v-for="p in aiProfiles" :key="p.id" :value="p.key">
+                {{ p.title }}
+              </option>
+            </select>
+          </label>
+          <button :disabled="aiBusy" @click="processItem">Обработать ИИ</button>
+          <button @click="applyRules">Применить правила</button>
+        </div>
+        <div class="toolbar">
+          <button class="primary" @click="moderate('approve')">Одобрить</button>
+          <button @click="moderate('review')">На проверку</button>
+          <button class="danger" @click="moderate('reject')">Отклонить</button>
+        </div>
+
         <div class="toolbar">
           <button @click="previewClean">Показать очистку</button>
           <button @click="applyClean">Применить очистку</button>
@@ -619,6 +795,123 @@ onMounted(async () => {
             </tr>
           </tbody>
         </table>
+      </div>
+    </template>
+
+    <!-- AI & rules (v1.9) -->
+    <template v-else-if="tab === 'ai'">
+      <div class="card">
+        <h3>Профили ИИ <InfoHint topic="content_operations" /></h3>
+        <p class="muted">
+          Профиль задаёт стиль, язык, тон, длину и действия — переписать, сделать
+          резюме, придумать заголовок и т. д. Профили можно менять без правки кода.
+        </p>
+        <table v-if="aiProfiles.length">
+          <thead>
+            <tr><th>Профиль</th><th>Тон</th><th>Длина</th><th>Действия</th><th></th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="p in aiProfiles" :key="p.id">
+              <td>
+                {{ p.title }}
+                <span v-if="p.builtin" class="badge badge-muted">встроенный</span>
+              </td>
+              <td class="muted">{{ p.tone }}</td>
+              <td class="muted">{{ p.max_length || '—' }}</td>
+              <td class="muted">{{ p.actions.join(', ') || '—' }}</td>
+              <td>
+                <span class="badge" :class="p.enabled ? 'ok' : 'badge-muted'">
+                  {{ p.enabled ? 'включён' : 'выключен' }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-else class="empty">Профили загружаются…</div>
+      </div>
+
+      <div class="card">
+        <h3>Правила автоматизации</h3>
+        <p class="muted">
+          Правило помогает: источник + условие → действие. Это не скрипт — доступны
+          только поля условия и список действий.
+        </p>
+        <table v-if="rules.length">
+          <thead>
+            <tr><th>Правило</th><th>Источник</th><th>Условие</th><th>Действия</th><th></th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="r in rules" :key="r.id">
+              <td>{{ r.name }}</td>
+              <td class="muted">{{ r.source_kind || 'любой' }}</td>
+              <td class="muted">{{ JSON.stringify(r.condition) }}</td>
+              <td class="muted">{{ r.action_titles.join(', ') }}</td>
+              <td class="actions">
+                <span class="badge" :class="r.enabled ? 'ok' : 'badge-muted'">
+                  {{ r.enabled ? 'включено' : 'выключено' }}
+                </span>
+                <button class="danger" @click="removeRule(r)">Удалить</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-else class="empty">Правил пока нет.</div>
+
+        <h4>Добавить правило</h4>
+        <label class="field">
+          <span>Название</span>
+          <input v-model="ruleForm.name" placeholder="Например: Донаты в проверку" />
+        </label>
+        <label class="field">
+          <span>Источник</span>
+          <select v-model="ruleForm.source_kind">
+            <option value="">Любой</option>
+            <option value="manual">Вручную</option>
+            <option value="rss">RSS</option>
+            <option value="atom">Atom</option>
+            <option value="telegram">Telegram</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Содержит слово (необязательно)</span>
+          <input v-model="ruleForm.contains" placeholder="донат" />
+        </label>
+        <label class="field">
+          <span>Минимальная длина (необязательно)</span>
+          <input v-model.number="ruleForm.min_length" type="number" min="0" />
+        </label>
+        <label class="field">
+          <span>Профиль ИИ (необязательно)</span>
+          <select v-model="ruleForm.profile_key">
+            <option value="">— без профиля —</option>
+            <option v-for="p in aiProfiles" :key="p.id" :value="p.key">{{ p.title }}</option>
+          </select>
+        </label>
+        <button class="primary" @click="createRule">Добавить правило</button>
+      </div>
+
+      <div v-if="analytics" class="card">
+        <h3>Аналитика конвейера</h3>
+        <p class="muted">
+          Каждый шаг (сбор, очистка, ИИ, модерация, публикация, комментарий, удаление)
+          записывается без текстов и ключей.
+        </p>
+        <table>
+          <thead><tr><th>Шаг</th><th>Записей</th></tr></thead>
+          <tbody>
+            <tr v-for="(count, stage) in analytics.stage_counts" :key="stage">
+              <td>{{ stage }}</td>
+              <td>{{ count }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="muted">
+          Резервный провайдер: {{ analytics.ai_fallback }} ·
+          Ошибок ИИ: {{ analytics.ai_failed }} ·
+          Комментарии отправлены: {{ analytics.comment_posted }} ·
+          Комментарии не удались: {{ analytics.comment_failed }} ·
+          Ошибки удаления: {{ analytics.delete_failed }}
+        </p>
       </div>
     </template>
   </div>

@@ -46,6 +46,7 @@ from backend.app.db.repositories.content import (
     MediaAssetRepository,
     PublicationRepository,
 )
+from backend.app.db.repositories.content_ops import ContentOperationRepository
 from backend.app.providers.posting_base import PostingProvider, PostRequest
 from backend.app.providers.types import InlineButton, OutgoingMedia
 from backend.app.services.content_markup import (
@@ -65,6 +66,12 @@ POSTING_JOB_KIND = "content.posting"
 COMMENT_PLANNED = "planned"
 COMMENT_SENT = "sent"
 COMMENT_FAILED = "failed"
+
+#: Publication-level comment outcomes (Content Operations 2.0, D-116). Tracked
+#: separately from the post so a lost comment never marks the post as failed.
+COMMENT_NOT_PLANNED = "post"
+COMMENT_POSTED = "comment_posted"
+COMMENT_NOT_SUPPORTED = "comment_not_supported"
 
 _BUTTON_ACTIONS = frozenset({"url", "callback", "webapp", "copy"})
 
@@ -90,11 +97,18 @@ class PublishOutcome:
 
 @dataclass(slots=True)
 class TargetSpec:
-    """One planned target channel (from the API)."""
+    """One planned target channel (from the API).
+
+    Each target may carry its own text override, AI profile and instructions so
+    one source item can be published to several channels in different ways
+    (Content Operations 2.0, requirement 6).
+    """
 
     channel_id: str
     scheduled_at: datetime | None = None
     text_override: str = ""
+    profile_key: str = ""
+    ai_instructions: str = ""
 
 
 def _parse_json(raw: str, default: object) -> object:
@@ -102,6 +116,30 @@ def _parse_json(raw: str, default: object) -> object:
         return json.loads(raw or "")
     except (ValueError, TypeError):
         return default
+
+
+def _operation(
+    *,
+    stage: str,
+    status: str,
+    item_id: str = "",
+    publication_id: str = "",
+    channel_id: str = "",
+    detail: str = "",
+):
+    """Build a secret-free pipeline record (analytics/audit, requirement 11)."""
+    from backend.app.db.base import utcnow
+    from backend.app.db.models.content_ops import ContentOperation
+
+    return ContentOperation(
+        item_id=item_id,
+        publication_id=publication_id,
+        stage=stage,
+        status=status,
+        channel_id=channel_id,
+        detail=detail,
+        occurred_at=utcnow(),
+    )
 
 
 def _buttons_from(raw: object) -> list[list[InlineButton]]:
@@ -163,6 +201,7 @@ class PostingService:
         self.buttons = ButtonSetRepository(session)
         self.comments = CommentPlanRepository(session)
         self.channels = ChannelRepository(session)
+        self.operations = ContentOperationRepository(session)
         self.events = EventsService(session)
         self._resolve_bot = resolve_bot_provider
         self._resolve_user = resolve_user_provider
@@ -259,6 +298,8 @@ class PostingService:
             pub.channel_username = channel.username or channel.reference
             pub.telegram_channel_id = channel.telegram_id
             pub.text_override = target.text_override
+            pub.profile_key = target.profile_key
+            pub.ai_instructions = target.ai_instructions
             pub.idempotency_key = f"{item_id}:{channel.id}"
             pub.scheduled_at = target.scheduled_at
             pub.status = (
@@ -276,6 +317,16 @@ class PostingService:
                 ContentItemStatus.SCHEDULED
                 if any(p.scheduled_at for p in created)
                 else ContentItemStatus.READY
+            )
+        for pub in created:
+            await self.operations.add(
+                _operation(
+                    stage="schedule",
+                    status=pub.status.value,
+                    item_id=item_id,
+                    publication_id=pub.id,
+                    channel_id=pub.channel_id,
+                )
             )
         await self.session.flush()
         await self.events.info(
@@ -426,6 +477,17 @@ class PostingService:
                 explanation=note,
                 operation="publish",
             )
+            await self.operations.add(
+                _operation(
+                    stage="publish",
+                    status=pub.status.value,
+                    item_id=item.id,
+                    publication_id=pub.id,
+                    channel_id=pub.channel_id,
+                    detail=note,
+                )
+            )
+            # A lost comment must never make the post itself fail (D-116).
             await self._after_publish(item, pub, provider, mode)
         else:
             pub.status = PublicationStatus.FAILED
@@ -436,6 +498,16 @@ class PostingService:
                     + " Связь прервалась: сообщение могло быть доставлено. "
                     "Проверьте канал перед повтором."
                 )
+            await self.operations.add(
+                _operation(
+                    stage="publish",
+                    status="failed",
+                    item_id=item.id,
+                    publication_id=pub.id,
+                    channel_id=pub.channel_id,
+                    detail=result.message,
+                )
+            )
             await self.events.record(
                 level="error",
                 module=MODULE,
@@ -464,14 +536,26 @@ class PostingService:
     ) -> None:
         # Auto-delete is durable: the tick loop deletes when due.
         if pub.delete_at is None and pub.channel_id:
-            pass
+            pub.delete_status = ""
         # First comment into the linked discussion group (if planned + enabled).
         plan = await self.comments.for_publication(pub.id)
         if plan is None or not plan.enabled or not plan.text:
+            pub.comment_status = COMMENT_NOT_PLANNED
             return
         if mode != "bot":
             plan.status = COMMENT_FAILED
             plan.error = "Комментарии доступны только через бота канала."
+            pub.comment_status = COMMENT_NOT_SUPPORTED
+            await self.operations.add(
+                _operation(
+                    stage="comment",
+                    status=COMMENT_NOT_SUPPORTED,
+                    item_id=pub.item_id,
+                    publication_id=pub.id,
+                    channel_id=pub.channel_id,
+                    detail="только через бота канала",
+                )
+            )
             return
         message_ids = _parse_json(pub.telegram_message_ids, [])
         if not message_ids:
@@ -485,6 +569,7 @@ class PostingService:
             plan.telegram_message_id = None
             plan.discussion_chat_id = None
             plan.error = f"due:{due.isoformat()}"
+            pub.comment_status = COMMENT_PLANNED
 
     async def _send_comment(
         self,
@@ -504,9 +589,30 @@ class PostingService:
             plan.status = COMMENT_SENT
             plan.telegram_message_id = result.message_ids[0] if result.message_ids else None
             plan.error = ""
+            pub.comment_status = COMMENT_POSTED
+            await self.operations.add(
+                _operation(
+                    stage="comment",
+                    status=COMMENT_POSTED,
+                    item_id=pub.item_id,
+                    publication_id=pub.id,
+                    channel_id=pub.channel_id,
+                )
+            )
         else:
             plan.status = COMMENT_FAILED
             plan.error = result.message
+            pub.comment_status = COMMENT_FAILED
+            await self.operations.add(
+                _operation(
+                    stage="comment",
+                    status=COMMENT_FAILED,
+                    item_id=pub.item_id,
+                    publication_id=pub.id,
+                    channel_id=pub.channel_id,
+                    detail=result.message,
+                )
+            )
 
     async def retry(self, publication_id: str) -> PublishOutcome:
         return await self.publish(publication_id, force=True)
@@ -540,7 +646,30 @@ class PostingService:
             if result.ok:
                 pub.deleted_at = utcnow()
                 pub.status = PublicationStatus.CANCELLED
+                pub.delete_status = "deleted"
                 deleted += 1
+                await self.operations.add(
+                    _operation(
+                        stage="delete",
+                        status="deleted",
+                        item_id=pub.item_id,
+                        publication_id=pub.id,
+                        channel_id=pub.channel_id,
+                    )
+                )
+            else:
+                # A delete error must never corrupt the publication history.
+                pub.delete_status = "delete_failed"
+                await self.operations.add(
+                    _operation(
+                        stage="delete",
+                        status="delete_failed",
+                        item_id=pub.item_id,
+                        publication_id=pub.id,
+                        channel_id=pub.channel_id,
+                        detail=result.message,
+                    )
+                )
 
         for plan in await self.comments.due(now):
             pub = await self.publications.get(plan.publication_id)
@@ -708,7 +837,10 @@ def _media_kind(raw: str) -> str:
 
 __all__ = [
     "COMMENT_FAILED",
+    "COMMENT_NOT_PLANNED",
+    "COMMENT_NOT_SUPPORTED",
     "COMMENT_PLANNED",
+    "COMMENT_POSTED",
     "COMMENT_SENT",
     "MODULE",
     "POSTING_JOB_KIND",

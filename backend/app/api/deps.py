@@ -17,8 +17,10 @@ from backend.app.mesh.service import MeshService
 from backend.app.miniapp.service import MiniAppService
 from backend.app.providers.registry import build_bot_provider, build_session_provider
 from backend.app.services.ai_gateway_service import AiGatewayService
+from backend.app.services.ai_profiles import AiProfileService
 from backend.app.services.analytics_service import AnalyticsService
 from backend.app.services.audience_service import AudienceService
+from backend.app.services.automation_rules import AutomationRuleService
 from backend.app.services.backup_service import BackupService
 from backend.app.services.binding_service import BindingService
 from backend.app.services.bot_factory import BotFactoryService
@@ -27,6 +29,7 @@ from backend.app.services.campaign_service import CampaignService
 from backend.app.services.capability_service import CapabilityService
 from backend.app.services.channel_service import ChannelService
 from backend.app.services.consistency import ConsistencyAuditor
+from backend.app.services.content_pipeline import ContentPipelineService
 from backend.app.services.content_service import ContentError, ContentService
 from backend.app.services.destination_service import DestinationService
 from backend.app.services.diagnostics_service import DiagnosticsService
@@ -297,6 +300,27 @@ async def get_content_service(
         return await service.provider_for_with_proxy(account)
 
     return ContentService(session, resolve_provider=_resolve)
+
+
+def get_ai_profile_service(
+    session: AsyncSession = Depends(get_session),
+) -> AiProfileService:
+    """Reusable AI profiles service (Content Operations 2.0)."""
+    return AiProfileService(session)
+
+
+def get_automation_rule_service(
+    session: AsyncSession = Depends(get_session),
+) -> AutomationRuleService:
+    """Declarative automation rules service (Content Operations 2.0)."""
+    return AutomationRuleService(session)
+
+
+def get_content_pipeline_service(
+    session: AsyncSession = Depends(get_session),
+) -> ContentPipelineService:
+    """Content Operations pipeline (classification, AI processing, moderation)."""
+    return ContentPipelineService(session)
 
 
 async def get_posting_service(

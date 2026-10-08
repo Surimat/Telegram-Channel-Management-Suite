@@ -68,6 +68,7 @@ from backend.app.db.models.config_sync import (
     SyncProviderKind,
 )
 from backend.app.db.models.content import (
+    MODERATION_STATES,
     ButtonSet,
     CommentPlan,
     ContentItem,
@@ -79,6 +80,12 @@ from backend.app.db.models.content import (
     Publication,
     PublicationStatus,
     RightsStatus,
+)
+from backend.app.db.models.content_ops import (
+    STAGES,
+    AiProfile,
+    AutomationRule,
+    ContentOperation,
 )
 from backend.app.db.models.donor import (
     CONFIDENCE_HIGH,
@@ -226,6 +233,7 @@ __all__ = [
     "FUNCTION_TITLES",
     "KIND_TITLES",
     "METHOD_TITLES",
+    "MODERATION_STATES",
     "MODE_AUTO",
     "MODE_MANUAL",
     "MODE_SEMI_AUTO",
@@ -257,6 +265,7 @@ __all__ = [
     "SOURCE_TELEGRAM",
     "SOURCE_TITLES",
     "SOURCE_WEB",
+    "STAGES",
     "STATE_TITLES",
     "STATUS_TITLES",
     "TERMINAL_CANDIDATE_STATUSES",
@@ -274,11 +283,13 @@ __all__ = [
     "VALID_MODES",
     "AiGatewayRequest",
     "AiMetric",
+    "AiProfile",
     "AiProviderRow",
     "AiRecord",
     "AiRouteSetting",
     "AudienceSource",
     "AudienceUser",
+    "AutomationRule",
     "BackupDestination",
     "BatchStatus",
     "BindingRole",
@@ -301,6 +312,7 @@ __all__ = [
     "ConfigSyncState",
     "ContentItem",
     "ContentItemStatus",
+    "ContentOperation",
     "ContentSource",
     "ContentSourceKind",
     "ContentSourceStatus",

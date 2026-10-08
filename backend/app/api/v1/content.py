@@ -12,10 +12,23 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Query
 
-from backend.app.api.deps import get_content_service, get_posting_service
+from backend.app.api.deps import (
+    get_ai_profile_service,
+    get_automation_rule_service,
+    get_content_pipeline_service,
+    get_content_service,
+    get_posting_service,
+)
 from backend.app.api.errors import ApiError
 from backend.app.api.schemas.content import (
+    AiProcessIn,
+    AiProfileIn,
+    AiProfileOut,
+    AiProfileUpdateIn,
     ApplyCleanIn,
+    AutomationRuleIn,
+    AutomationRuleOut,
+    AutomationRuleUpdateIn,
     ButtonSetIn,
     ButtonSetOut,
     CalendarOut,
@@ -28,8 +41,11 @@ from backend.app.api.schemas.content import (
     ContentSourceListOut,
     ContentSourceOut,
     GrabOut,
+    ModerationDecisionIn,
     ModerationIn,
     ModerationOut,
+    PipelineAnalyticsOut,
+    PipelineRecordOut,
     PlanIn,
     PlanOut,
     PreviewOut,
@@ -138,6 +154,9 @@ def _publication_out(pub: object) -> PublicationOut:
         telegram_message_ids=ids,
         error=str(getattr(pub, "error", "")),
         attempts=int(getattr(pub, "attempts", 0) or 0),
+        profile_key=str(getattr(pub, "profile_key", "")),
+        comment_status=str(getattr(pub, "comment_status", "")),
+        delete_status=str(getattr(pub, "delete_status", "")),
     )
 
 
@@ -193,6 +212,12 @@ def _item_out(service: ContentService, item: ContentItem) -> ContentItemOut:
         rights_warning=service.rights_warning(item),
         held=item.held,
         moderation_note=item.moderation_note,
+        original_text=item.original_text,
+        ai_status=item.ai_status,
+        ai_category=item.ai_category,
+        ai_intent=item.ai_intent,
+        ai_profile=item.ai_profile,
+        ai_note=item.ai_note,
         created_at=item.created_at.isoformat(),
         updated_at=item.updated_at.isoformat(),
     )
@@ -512,6 +537,8 @@ async def plan_item(
             channel_id=t.channel_id,
             scheduled_at=_parse_dt(t.scheduled_at),
             text_override=t.text_override,
+            profile_key=t.profile_key,
+            ai_instructions=t.ai_instructions,
         )
         for t in payload.targets
     ]
@@ -696,6 +723,255 @@ def _buttons_rows(raw: str) -> list[list[dict[str, object]]]:
         if isinstance(row, list):
             out.append([v for v in row if isinstance(v, dict)])
     return out
+
+
+# --- Content Operations 2.0 (v1.9) -----------------------------------------
+
+
+def _profile_out(service, profile) -> AiProfileOut:  # type: ignore[no-untyped-def]
+    return AiProfileOut(
+        id=profile.id,
+        key=profile.key,
+        title=profile.title,
+        language=profile.language,
+        tone=profile.tone,
+        max_length=profile.max_length,
+        system_instructions=profile.system_instructions,
+        provider_policy=profile.provider_policy,
+        actions=service.actions_of(profile),
+        enabled=profile.enabled,
+        builtin=profile.builtin,
+        description=profile.description,
+    )
+
+
+def _rule_out(service, rule) -> AutomationRuleOut:  # type: ignore[no-untyped-def]
+    from backend.app.services.automation_rules import describe_actions
+
+    actions = service.actions_of(rule)
+    return AutomationRuleOut(
+        id=rule.id,
+        name=rule.name,
+        enabled=rule.enabled,
+        source_kind=rule.source_kind,
+        condition=service.condition_of(rule),
+        actions=actions,
+        action_titles=describe_actions(actions),
+        profile_key=rule.profile_key,
+        priority=rule.priority,
+        description=rule.description,
+    )
+
+
+@router.get("/ai-profiles", response_model=list[AiProfileOut])
+async def list_ai_profiles(
+    service=Depends(get_ai_profile_service),  # type: ignore[assignment]
+) -> list[AiProfileOut]:
+    return [_profile_out(service, p) for p in await service.list_profiles()]
+
+
+@router.post("/ai-profiles", response_model=AiProfileOut, status_code=201)
+async def create_ai_profile(
+    payload: AiProfileIn,
+    service=Depends(get_ai_profile_service),  # type: ignore[assignment]
+) -> AiProfileOut:
+    from backend.app.services.ai_profiles import ProfileError
+
+    try:
+        profile = await service.create(**payload.model_dump())
+    except ProfileError as exc:
+        raise ApiError(exc.status_code, exc.message, exc.how_to_fix) from exc
+    return _profile_out(service, profile)
+
+
+@router.patch("/ai-profiles/{profile_id}", response_model=AiProfileOut)
+async def update_ai_profile(
+    profile_id: str,
+    payload: AiProfileUpdateIn,
+    service=Depends(get_ai_profile_service),  # type: ignore[assignment]
+) -> AiProfileOut:
+    from backend.app.services.ai_profiles import ProfileError
+
+    try:
+        profile = await service.update(profile_id, **payload.model_dump(exclude_unset=True))
+    except ProfileError as exc:
+        raise ApiError(exc.status_code, exc.message, exc.how_to_fix) from exc
+    return _profile_out(service, profile)
+
+
+@router.delete("/ai-profiles/{profile_id}", status_code=204)
+async def delete_ai_profile(
+    profile_id: str,
+    service=Depends(get_ai_profile_service),  # type: ignore[assignment]
+) -> None:
+    from backend.app.services.ai_profiles import ProfileError
+
+    try:
+        await service.delete(profile_id)
+    except ProfileError as exc:
+        raise ApiError(exc.status_code, exc.message, exc.how_to_fix) from exc
+
+
+@router.post("/items/{item_id}/ai/classify", response_model=ContentItemOut)
+async def classify_item(
+    item_id: str,
+    service=Depends(get_content_pipeline_service),  # type: ignore[assignment]
+    content: ContentService = Depends(get_content_service),
+) -> ContentItemOut:
+    from backend.app.services.content_pipeline import PipelineError
+
+    try:
+        item = await service.classify(item_id)
+    except PipelineError as exc:
+        raise ApiError(exc.status_code, exc.message, exc.how_to_fix) from exc
+    return _item_out(content, item)
+
+
+@router.post("/items/{item_id}/ai/process", response_model=ContentItemOut)
+async def process_item(
+    item_id: str,
+    payload: AiProcessIn,
+    service=Depends(get_content_pipeline_service),  # type: ignore[assignment]
+    content: ContentService = Depends(get_content_service),
+) -> ContentItemOut:
+    from backend.app.services.content_pipeline import PipelineError
+
+    try:
+        if payload.classify_only:
+            item = await service.classify(item_id)
+        else:
+            item = await service.process(item_id, profile_key=payload.profile_key)
+    except PipelineError as exc:
+        raise ApiError(exc.status_code, exc.message, exc.how_to_fix) from exc
+    return _item_out(content, item)
+
+
+@router.post("/items/{item_id}/moderate", response_model=ContentItemOut)
+async def moderate_item(
+    item_id: str,
+    payload: ModerationDecisionIn,
+    service=Depends(get_content_pipeline_service),  # type: ignore[assignment]
+    content: ContentService = Depends(get_content_service),
+) -> ContentItemOut:
+    from backend.app.services.content_pipeline import PipelineError
+
+    try:
+        item = await service.moderate(item_id, decision=payload.decision, note=payload.note)
+    except PipelineError as exc:
+        raise ApiError(exc.status_code, exc.message, exc.how_to_fix) from exc
+    return _item_out(content, item)
+
+
+@router.get("/automation-rules", response_model=list[AutomationRuleOut])
+async def list_automation_rules(
+    service=Depends(get_automation_rule_service),  # type: ignore[assignment]
+) -> list[AutomationRuleOut]:
+    return [_rule_out(service, r) for r in await service.list_rules()]
+
+
+@router.post("/automation-rules", response_model=AutomationRuleOut, status_code=201)
+async def create_automation_rule(
+    payload: AutomationRuleIn,
+    service=Depends(get_automation_rule_service),  # type: ignore[assignment]
+) -> AutomationRuleOut:
+    from backend.app.services.automation_rules import RuleError
+
+    try:
+        rule = await service.create(**payload.model_dump())
+    except RuleError as exc:
+        raise ApiError(exc.status_code, exc.message, exc.how_to_fix) from exc
+    return _rule_out(service, rule)
+
+
+@router.patch("/automation-rules/{rule_id}", response_model=AutomationRuleOut)
+async def update_automation_rule(
+    rule_id: str,
+    payload: AutomationRuleUpdateIn,
+    service=Depends(get_automation_rule_service),  # type: ignore[assignment]
+) -> AutomationRuleOut:
+    from backend.app.services.automation_rules import RuleError
+
+    try:
+        rule = await service.update(rule_id, **payload.model_dump(exclude_unset=True))
+    except RuleError as exc:
+        raise ApiError(exc.status_code, exc.message, exc.how_to_fix) from exc
+    return _rule_out(service, rule)
+
+
+@router.delete("/automation-rules/{rule_id}", status_code=204)
+async def delete_automation_rule(
+    rule_id: str,
+    service=Depends(get_automation_rule_service),  # type: ignore[assignment]
+) -> None:
+    from backend.app.services.automation_rules import RuleError
+
+    try:
+        await service.delete(rule_id)
+    except RuleError as exc:
+        raise ApiError(exc.status_code, exc.message, exc.how_to_fix) from exc
+
+
+@router.post("/items/{item_id}/apply-rules", response_model=ContentItemOut)
+async def apply_rules(
+    item_id: str,
+    service=Depends(get_content_pipeline_service),  # type: ignore[assignment]
+    content: ContentService = Depends(get_content_service),
+) -> ContentItemOut:
+    from backend.app.services.content_pipeline import PipelineError
+
+    try:
+        item = await service._require_item(item_id)
+        source = await content.sources.get(item.source_id)
+        source_kind = source.kind.value if source else ""
+        await service.apply_rule_actions(item_id, source_kind=source_kind)
+    except PipelineError as exc:
+        raise ApiError(exc.status_code, exc.message, exc.how_to_fix) from exc
+    return _item_out(content, await service._require_item(item_id))
+
+
+@router.get("/pipeline/analytics", response_model=PipelineAnalyticsOut)
+async def pipeline_analytics(
+    limit: int = Query(default=50, ge=1, le=500),
+    service=Depends(get_content_pipeline_service),  # type: ignore[assignment]
+) -> PipelineAnalyticsOut:
+    operations = service.operations
+    stage_counts = await operations.stage_counts()
+    ai_statuses = await operations.status_counts_for_stage("ai")
+    comment_statuses = await operations.status_counts_for_stage("comment")
+    delete_statuses = await operations.status_counts_for_stage("delete")
+    recent = await operations.list_recent(limit)
+    provider_counts: dict[str, int] = {}
+    for op in recent:
+        if op.stage == "ai" and op.provider:
+            provider_counts[op.provider] = provider_counts.get(op.provider, 0) + 1
+    return PipelineAnalyticsOut(
+        stage_counts=stage_counts,
+        ai_provider_counts=provider_counts,
+        ai_fallback=sum(1 for op in recent if op.stage == "ai" and op.fallback_used),
+        ai_failed=ai_statuses.get("ai_unavailable", 0) + ai_statuses.get("error", 0),
+        comment_posted=comment_statuses.get("comment_posted", 0),
+        comment_failed=comment_statuses.get("comment_failed", 0),
+        delete_failed=delete_statuses.get("delete_failed", 0),
+        recent=[
+            PipelineRecordOut(
+                id=op.id,
+                item_id=op.item_id,
+                publication_id=op.publication_id,
+                stage=op.stage,
+                status=op.status,
+                source_kind=op.source_kind,
+                channel_id=op.channel_id,
+                provider=op.provider,
+                model=op.model,
+                fallback_used=op.fallback_used,
+                latency_ms=op.latency_ms,
+                attempts=op.attempts,
+                detail=op.detail,
+                occurred_at=op.occurred_at.isoformat() if op.occurred_at else "",
+            )
+            for op in recent
+        ],
+    )
 
 
 __all__ = ["router"]

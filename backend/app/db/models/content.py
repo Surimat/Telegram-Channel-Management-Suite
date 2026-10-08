@@ -76,7 +76,13 @@ RIGHTS_TITLES = {
 
 
 class ContentItemStatus(enum.StrEnum):
-    """Lifecycle of a content item (docs/UI.md)."""
+    """Lifecycle of a content item (docs/UI.md).
+
+    Content Operations 2.0 (v1.9) adds explicit human-moderation states
+    (``AI_PROCESSED``/``NEEDS_REVIEW``/``APPROVED``/``REJECTED``) between the
+    draft and the scheduled/published states. The original values are kept
+    unchanged so an existing database keeps working.
+    """
 
     IMPORTED = "imported"    # grabbed, not touched yet
     DRAFT = "draft"          # being edited
@@ -86,6 +92,11 @@ class ContentItemStatus(enum.StrEnum):
     PUBLISHED = "published"
     FAILED = "failed"
     ARCHIVED = "archived"
+    # --- Content Operations 2.0 moderation states (additive) ---
+    AI_PROCESSED = "ai_processed"  # AI ran; awaiting a human decision
+    NEEDS_REVIEW = "needs_review"  # flagged for a human (AI unavailable or rule)
+    APPROVED = "approved"          # a human approved it for scheduling
+    REJECTED = "rejected"          # a human rejected it
 
 
 STATUS_TITLES = {
@@ -97,7 +108,19 @@ STATUS_TITLES = {
     ContentItemStatus.PUBLISHED: "Опубликовано",
     ContentItemStatus.FAILED: "Ошибка",
     ContentItemStatus.ARCHIVED: "В архиве",
+    ContentItemStatus.AI_PROCESSED: "Обработано ИИ",
+    ContentItemStatus.NEEDS_REVIEW: "Нужна проверка",
+    ContentItemStatus.APPROVED: "Одобрено",
+    ContentItemStatus.REJECTED: "Отклонено",
 }
+
+#: The moderation states a human works with (the "Needs Review" flow).
+MODERATION_STATES = (
+    ContentItemStatus.AI_PROCESSED,
+    ContentItemStatus.NEEDS_REVIEW,
+    ContentItemStatus.APPROVED,
+    ContentItemStatus.REJECTED,
+)
 
 #: Workflow modes (docs: Manual / Semi-auto / Auto). Manual is the default.
 MODE_MANUAL = "manual"
@@ -209,6 +232,20 @@ class ContentItem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     #: Reason a fetched item was auto-moderated (kept for transparency).
     moderation_note: Mapped[str] = mapped_column(Text, default="", nullable=False)
 
+    # --- Content Operations 2.0 AI processing (additive) ---
+    #: Origin text before AI processing, so the human can see "what changed".
+    original_text: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    #: AI processing outcome: none|ok|ai_unavailable|error (content_ops).
+    ai_status: Mapped[str] = mapped_column(String(16), default="none", nullable=False)
+    #: Category the AI assigned (donation/news/... — advisory, never emoji).
+    ai_category: Mapped[str] = mapped_column(String(32), default="", nullable=False)
+    #: Intent the AI assigned (support/joy/... — advisory).
+    ai_intent: Mapped[str] = mapped_column(String(32), default="", nullable=False)
+    #: Applied profile key (empty when none).
+    ai_profile: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+    #: Short, secret-free explanation of the AI outcome (why / which provider).
+    ai_note: Mapped[str] = mapped_column(Text, default="", nullable=False)
+
     def __repr__(self) -> str:  # pragma: no cover - debugging aid
         return f"<ContentItem id={self.id} status={self.status}>"
 
@@ -276,6 +313,19 @@ class Publication(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     delete_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # type: ignore[valid-type]
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # type: ignore[valid-type]
 
+    # --- Content Operations 2.0 per-target AI overrides (additive) ---
+    #: Applied AI profile key for this target (empty = item default).
+    profile_key: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+    #: Per-target AI instructions override (never secret).
+    ai_instructions: Mapped[str] = mapped_column(Text, default="", nullable=False)
+
+    #: First-comment outcome, tracked independently of the post: post|posted|
+    #: comment_posted|comment_failed|comment_not_supported (a lost comment never
+    #: makes the publication itself failed).
+    comment_status: Mapped[str] = mapped_column(String(24), default="", nullable=False)
+    #: Auto-delete outcome: "" (not due) | deleted | delete_failed.
+    delete_status: Mapped[str] = mapped_column(String(24), default="", nullable=False)
+
     def __repr__(self) -> str:  # pragma: no cover - debugging aid
         return f"<Publication item={self.item_id} channel={self.channel_id} status={self.status}>"
 
@@ -312,6 +362,7 @@ class CommentPlan(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 
 __all__ = [
+    "MODERATION_STATES",
     "MODE_AUTO",
     "MODE_MANUAL",
     "MODE_SEMI_AUTO",
