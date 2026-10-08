@@ -244,7 +244,7 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ## Release
 
-- **v1.9.0 (2026-10-12):** **Content Operations 2.0** (D-116) — the existing
+- **v1.9.0 (2026-10-08):** **Content Operations 2.0** (D-116) — the existing
   Content Studio is extended into one pipeline (`source → gather → clean →
   mini-AI → moderation → publish → comment/delete`) instead of a second studio.
   Adds reusable **AI profiles** (prompt as data), a **mini-AI** classifier
@@ -252,7 +252,7 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
   **automation rules** and **secret-free pipeline analytics**. Additive migration
   `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py`. Released via a
   reviewed `develop → main` PR, tag `v1.9.0`.
-- **v1.8.2 (2026-10-11):** a **Web Wrapper Hub practical-verification patch**
+- **v1.8.2 (2026-10-08):** a **Web Wrapper Hub practical-verification patch**
   (D-115). It exercises the wrapper pipeline end to end on a deterministic
   **local fixture site** (real HTTP + HTML; index/search, article, extract, login
   and 500 pages) with **no external site, account, key or AI credential**, and
@@ -264,14 +264,14 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
   `develop ‚Üí main` PR #21 (merge `8542d4c`), tag `v1.8.2`; the Release workflow
   (run `37747125558`) attached the Windows portable ZIP (24 906 383 bytes, sha256
   `f0c6984d‚Ä¶f619`) + `.sha256`.
-- **v1.8.1 (2026-10-10):** an **AI Gateway verification patch** (D-114) over
+- **v1.8.1 (2026-10-07):** an **AI Gateway verification patch** (D-114) over
   v1.8.0. It proves the gateway *works* by behaviour and fixes two real defects ‚Äî
   a `web` provider whose wrapper id does not exist reported `available` (and lost
   its configured name), and `AIRouter._attempt` returned a transient *response*
   without retrying ‚Äî plus frontend lockfile version drift. No new features. The
   Release workflow (run `37705225761`) attached the Windows portable ZIP
   (24 905 404 bytes, sha256 `0ec6aca1‚Ä¶a9d4`) + `.sha256`.
-- **v1.8.0 (2026-10-09):** the **AI Gateway + Web Wrapper Hub** (D-111‚Ä¶D-113) ‚Äî
+- **v1.8.0 (2026-10-07):** the **AI Gateway + Web Wrapper Hub** (D-111‚Ä¶D-113) ‚Äî
   one access layer over many AI providers (OpenAI-compatible, OpenRouter, Google,
   Anthropic, DeepSeek, local Ollama) plus browser **web wrappers** that drive the
   owner's own logged-in session. Strategy-based routing, bounded retries, a

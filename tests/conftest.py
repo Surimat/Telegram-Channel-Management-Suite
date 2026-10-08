@@ -16,6 +16,7 @@ from httpx import ASGITransport, AsyncClient
 
 os.environ.setdefault("TCMS_ROOT", str(Path(__file__).resolve().parents[1]))
 
+
 @pytest.fixture(autouse=True)
 def _isolated_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """Point the app at temporary data/sessions/logs and a temp DB."""

@@ -3,36 +3,46 @@
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
-**Updated:** 2026-10-12
-**Status:** **v1.9.0 Content Operations 2.0 is RELEASED (2026-10-12).** The existing **Content Studio** is extended (not duplicated) into a single pipeline: `source → gather → clean → mini-AI → moderation → publish → comment/delete`. It adds reusable **AI profiles** (prompt/instructions/language/tone/max-length/provider-policy/actions as data), a **lightweight local mini-AI** classifier (category + intent, never an emoji), **human moderation** states, declarative **automation rules** (`SOURCE + CONDITION → ACTION`, a fixed field allow-list, not a script engine) and **secret-free pipeline analytics**. An AI failure never loses material: the item moves to `needs_review` with `ai_status=ai_unavailable` and a clear note. Publication tracks `comment_status` and `delete_status` independently. Version string is **1.9.0**. Additive only — no account registration and no Telegram-limit bypass.
+**Updated:** 2026-10-08
+**Status:** **v1.9.0 Content Operations 2.0 is RELEASED (2026-10-08).** The existing **Content Studio** is extended (not duplicated) into a single pipeline: `source → gather → clean → mini-AI → moderation → publish → comment/delete`. It adds reusable **AI profiles** (prompt/instructions/language/tone/max-length/provider-policy/actions as data), a **lightweight local mini-AI** classifier (category + intent, never an emoji), **human moderation** states, declarative **automation rules** (`SOURCE + CONDITION → ACTION`, a fixed field allow-list, not a script engine) and **secret-free pipeline analytics**. An AI failure never loses material: the item moves to `needs_review` with `ai_status=ai_unavailable` and a clear note. Publication tracks `comment_status` and `delete_status` independently. Version string is **1.9.0**. Additive only — no account registration and no Telegram-limit bypass.
 
 Released via a reviewed `develop → main` PR #22 (merge `997999e`), tag `v1.9.0`;
 the Release workflow (run `37775533451`) created the GitHub Release and attached
 the Windows portable ZIP (**24 929 020 bytes**, sha256
-`3227988c…d2ac`) + `.sha256`. `main` HEAD = `997999e`; `develop` HEAD = `a638eb8`.
+`3227988c…d2ac`) + `.sha256`. `main` HEAD = `997999e`; `develop` HEAD = `bbe59ac`.
 Release ZIP scan: no `.session`/TDATA/DB/model.
 
 Version string is **1.9.0** across `backend/app/__init__.py`,
 `pyproject.toml`, `frontend/package.json` + lock.
 
-### What this change does (D-115, additive)
+### What this change does (D-116, additive)
 
-- **Local deterministic fixture** (`tests/support/web_fixtures.py`): `FixtureSite`
-  (a `127.0.0.1` HTTP server serving index + search form, article, extract page,
-  login page and a 500 page) and `FixtureBrowserRuntime` (real HTTP GET + a small
-  CSS-subset HTML matcher — not a browser).
-- **Benchmark** (`tests/web_wrapper_bench.py`): 7 scenarios over the real
-  pipeline; writes `agent/WEB_WRAPPER_BENCHMARK.json` (7/7).
-- **Verification tests:** `tests/test_web_wrapper_verification.py` (scenarios +
-  login-not-bypassed + HTTP error + strict structured extraction + artifact/secret
-  checks), `tests/test_ai_gateway_verification.py` (capability-matrix honesty,
-  regional failover narration, secret safety).
-- **Real browser layer** (`tests/test_web_wrapper_playwright_integration.py`):
-  genuine headless Chromium; **skips** when Playwright/Chromium is absent (CI
-  without a browser stays green). No startup dependency.
-- **Fixes:** runtime `extract()` prefers a nested `<a>`; `WrapperDefinition`
-  gains `extract_attrs` (default `("href",)`); engine passes attrs through; the
-  `diagnostics()` `"wrapers"` typo is corrected to `"wrappers"`.
+- **AI profiles (as data).** `ai_profiles` table + `AiProfileService`
+  (`services/ai_profiles.py`): key, title, language, tone, max length, system
+  instructions, provider policy and a validated list of pipeline actions. Built-in
+  profiles are seeded and protected from deletion.
+- **Automation rules (declarative, not a script engine).**
+  `automation_rules` table + `AutomationRuleService`
+  (`services/automation_rules.py`): `SOURCE + CONDITION → ACTION` over a fixed
+  condition field allow-list and a fixed action allow-list; an unknown action is
+  dropped, never executed.
+- **Single pipeline service.** `services/content_pipeline.py`
+  (`ContentPipelineService`): `classify` (local encoder, advisory), `process`
+  (apply a profile through the AI Gateway with failover), `moderate` (human
+  approve/reject/review), apply matching rule actions, and secret-free pipeline
+  analytics/audit records.
+- **Pipeline records.** `content_operations` table — append-only metadata per
+  stage; stores no text, keys or credentials.
+- **Independent comment/delete tracking.** `publications` gains `profile_key`,
+  `ai_instructions`, `comment_status`, `delete_status`.
+- **API (`/api/v1/content/*`, all additive):** `ai-profiles` CRUD,
+  `/items/{id}/ai/classify`, `/items/{id}/ai/process`, `/items/{id}/moderate`,
+  `automation-rules` CRUD, `/items/{id}/apply-rules`, `/pipeline/analytics`.
+- **UI.** A new «ИИ и правила» tab in `ContentStudioView.vue` plus per-item
+  mini-AI/moderation controls and a `content_operations` help topic.
+- **Migration.** `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py`
+  (revises `b2c3d4e5f6a7`); every new column carries a server default, so an
+  existing v1.8 database upgrades in place.
 
 ### No active task
 
@@ -40,15 +50,15 @@ Version string is **1.9.0** across `backend/app/__init__.py`,
 large features. The quality gate was run and passed before the release:
 
 ```bash
-python -m pytest                                  # 954 passed
+python -m pytest                                  # 946 passed, 8 skipped
 ruff check backend tests                          # clean
 cd frontend && npx vue-tsc --noEmit && npm run build   # clean
 PYTHONPATH=. python tests/meta_audit/engine.py    # 30/30, 0 false positives
 ```
 
-The only commits on `develop` after the release are **documentation/memory-only**
-(`ab2c120` release facts, `acf9de4` Docker smoke, and this memory-sync commit), so
-`develop` is ahead of `main` with **no code change**. For the next release (only when the owner asks):
+The only commit on `develop` after the release is **documentation/memory-only**
+(`bbe59ac` release facts), so `develop` is one commit ahead of `main` with **no
+code change**. For the next release (only when the owner asks):
 branch from `develop`, then a reviewed `develop → main` PR + tag.
 
 **Prior release:** **v1.8.1 (AI Gateway verification patch, D-114) is RELEASED**
@@ -214,7 +224,7 @@ defects and one unwired control were fixed, **additively and with no new feature
 3. **Google Drive `/owner` UI** — added the missing token field + "save token"
    button calling the existing `syncGoogleConnect` endpoint.
 
-Release as **v1.6.1** (patch) via a reviewed `develop → main` PR and tag; the
+Released as **v1.6.1** (patch) via a reviewed `develop → main` PR and tag; the
 Release workflow builds the Windows portable ZIP. After the merge, re-sync
 `develop` to the merge commit and record the facts here.
 

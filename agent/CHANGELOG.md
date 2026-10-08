@@ -5,7 +5,7 @@ Dates are ISO-8601.
 
 ---
 
-## [1.9.0] — 2026-10-12
+## [1.9.0] — 2026-10-08
 
 **v1.9.0 — Content Operations 2.0 (additive).** The existing **Content Studio**
 (v1.2) is extended into **one pipeline** —
@@ -18,7 +18,7 @@ account registration and no Telegram-limit bypass. Version strings read **1.9.0*
 `v1.9.0`; the Release workflow (run `37775533451`) created the GitHub Release and
 attached the Windows portable ZIP (24 929 020 bytes, sha256
 `3227988c…d2ac`) + `.sha256`. Release ZIP scan: no `.session`/TDATA/DB/model.
-Gates: full suite green (**954 passed**), `ruff` clean, `vue-tsc` + `npm run
+Gates: full suite green (**946 passed, 8 skipped**), `ruff` clean, `vue-tsc` + `npm run
 build` clean, meta-audit 30/30 (0 missed, 0 false positives).
 
 ### Added
@@ -71,7 +71,7 @@ build` clean, meta-audit 30/30 (0 missed, 0 false positives).
 
 ---
 
-## [1.8.2] — 2026-10-11
+## [1.8.2] — 2026-10-08
 
 **v1.8.2 — Web Wrapper Hub practical-verification patch (additive, no new
 features).** The v1.8.1 wrapper work is now verified on practical scenarios and
@@ -83,7 +83,7 @@ local fixture site with no account, key or AI credential.
 Released via a reviewed `develop → main` PR #21 (merge `8542d4c`), tag `v1.8.2`;
 the Release workflow (run `37747125558`) created the GitHub Release and attached
 the Windows portable ZIP (24 906 383 bytes, sha256 `f0c6984d…f619`) + `.sha256`.
-Gates: full suite green (**943 passed**), `ruff` clean, `vue-tsc` + `npm run
+Gates: full suite green (**935 passed, 8 skipped**), `ruff` clean, `vue-tsc` + `npm run
 build` clean, meta-audit 30/30 (0 missed, 0 false positives).
 
 ### Fixed
@@ -131,14 +131,14 @@ build` clean, meta-audit 30/30 (0 missed, 0 false positives).
   than the shipped one (it reproduces the old "announces v1.8.0 as latest" drift),
   and `test_changelog_leads_with_the_current_release` keeps the CHANGELOG head
   current. `docs/ROADMAP.md` gained the v1.8.2 release facts.
-- **Gates after the sync:** `pytest` **945 passed** (943 at release + 2 guards),
+- **Gates after the sync:** `pytest` **937 passed, 8 skipped** (935 at release + 2 guards),
   `ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit **30/30** (0 missed,
   0 false positives). No production file changed — only `agent/*`, `docs/*` and
   the test suite.
 
 ---
 
-## [1.8.1] — 2026-10-10
+## [1.8.1] — 2026-10-07
 
 **v1.8.1 — AI Gateway verification patch (additive, no new features).** An
 independent verification of the v1.8.0 AI Gateway + Web Wrapper Hub proved the
@@ -185,7 +185,7 @@ account registration and no CAPTCHA/MFA/regional-block or Telegram-limit bypass.
 
 ---
 
-## [1.8.0] — 2026-10-09
+## [1.8.0] — 2026-10-07
 
 **v1.8.0 — AI Gateway + Web Wrapper Hub (additive minor).** One access layer over
 many AI providers plus a browser-based "web wrapper" subsystem. Released via a

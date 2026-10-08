@@ -2261,7 +2261,7 @@ code, API, schema or dependency change, and no new release (v1.6.1 stays the
 latest tag; these edits are `Unreleased` on `develop`).
 
 
-## D-109 — 2026-10-08 — Bot Factory batch is a durable creation queue (v1.7, additive) — LOCKED
+## D-109 — 2026-10-07 — Bot Factory batch is a durable creation queue (v1.7, additive) — LOCKED
 
 **Context.** v1.3 created a whole batch synchronously: one long request tried to
 create every candidate at once. On a weak PC or a slow Telegram link this is
@@ -2292,7 +2292,7 @@ of the batch.
 step, a help topic and `BotFactoryView.vue` queue controls. Additive: an existing
 v1.6 database upgrades in place.
 
-## D-110 — 2026-10-08 — `token_mask` is display-only and derived without decryption — LOCKED
+## D-110 — 2026-10-07 — `token_mask` is display-only and derived without decryption — LOCKED
 
 **Context.** After token registration the UI wanted to show *which* managed-bot
 credential is stored, but the raw token is a secret that must never be returned,
@@ -2311,7 +2311,7 @@ queue state, attempts and the mask — never a token, session or auth key (D-061
 
 
 
-## D-111 — 2026-10-09 — One AI Gateway over many providers, with honest routing — LOCKED
+## D-111 — 2026-10-07 — One AI Gateway over many providers, with honest routing — LOCKED
 
 **Context.** The Suite already had an optional tiny classifier (rules + an
 optional GGUF LLM) but no shared way to reach real AI providers. Each future
@@ -2344,7 +2344,7 @@ the rest of the Suite calls instead of a vendor:
 i18n keys, the `/ai-gateway` UI and two help topics. Additive: an existing v1.7
 database upgrades in place and the rules/encoder path is unchanged.
 
-## D-112 — 2026-10-09 — Web wrappers use the owner's own session and never bypass a wall — LOCKED
+## D-112 — 2026-10-07 — Web wrappers use the owner's own session and never bypass a wall — LOCKED
 
 **Context.** A "web wrapper" turns a website's chat UI into an API-shaped
 provider, which is attractive for free access — but it sits next to a line the
@@ -2364,7 +2364,7 @@ lives in business logic, and no wrapper credential is returned or logged.
 status endpoints are additive and off by default (`ai_gateway_web_enabled`).
 Wrapper definitions are honest templates until a real probe verifies them.
 
-## D-113 — 2026-10-09 — Gateway costs and modalities are opt-in, never assumed — LOCKED
+## D-113 — 2026-10-07 — Gateway costs and modalities are opt-in, never assumed — LOCKED
 
 **Context.** A gateway that silently picks a paid provider or a browser session
 would spend the owner's money or reach the network in a way they did not expect.
@@ -2380,7 +2380,7 @@ so the UI cannot show a use-case as available when no provider satisfies it.
 spends money or opens a browser. Settings are per-installation and ride the
 existing settings service; no new heavy infrastructure.
 
-## D-114 — 2026-10-10 — Gateway availability and retries are proven by behaviour, not by flags — LOCKED
+## D-114 — 2026-10-07 — Gateway availability and retries are proven by behaviour, not by flags — LOCKED
 
 **Context.** v1.8.0 shipped the AI Gateway and claimed "a provider/wrapper is
 `available` only after a real probe" and that transient failures are retried with
@@ -2416,7 +2416,7 @@ a flag-based availability. No new features, no schema change, no new dependency.
 
 ---
 
-## D-115 — 2026-10-11 — The wrapper pipeline is verified on practical scenarios, not by compiles — LOCKED
+## D-115 — 2026-10-08 — The wrapper pipeline is verified on practical scenarios, not by compiles — LOCKED
 
 **Context.** After v1.8.1 the Web Wrapper Hub was "architecturally implemented"
 but had not been exercised on *practical* scenarios end to end. A verification
@@ -2465,7 +2465,7 @@ documentation/memory-only commits (`ab2c120`, `acf9de4`, …) with no code chang
 
 ---
 
-## D-116 — 2026-10-12 — Content Operations 2.0 extends the one studio; the mini-AI classifies, it never chooses — LOCKED
+## D-116 — 2026-10-08 — Content Operations 2.0 extends the one studio; the mini-AI classifies, it never chooses — LOCKED
 
 **Context.** The product brief for the v1.9 cycle asks for a *single* content
 pipeline — `source -> gather -> clean -> mini-AI -> moderation -> publish ->
@@ -2508,7 +2508,7 @@ AI pick an emoji.
    (`comment_status`, `delete_status`) so a lost step never marks a publication
    `failed`.
 
-**Consequences.** The full suite is **954 passed**; `ruff` clean; `vue-tsc` +
+**Consequences.** The full suite is **946 passed, 8 skipped**; `ruff` clean; `vue-tsc` +
 `npm run build` clean; meta-audit **30/30 (0 missed, 0 false positives)**. New
 tests in `tests/test_content_operations.py` cover profiles, moderation, rule
 matching and analytics against a temporary SQLite DB with no real accounts,

@@ -66,7 +66,7 @@ PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_R
 
 ## 6. Release verification (fill in per release)
 
-### v1.9.0 (Content Operations 2.0, 2026-10-12, D-116)
+### v1.9.0 (Content Operations 2.0, 2026-10-08, D-116)
 
 Minor over v1.8.2: extends the existing Content Studio into one pipeline
 (`source → gather → clean → mini-AI → moderation → publish → comment/delete`)
@@ -85,7 +85,7 @@ Telegram-limit bypass.
 | Independent comment/delete status | ✅ | `publications.comment_status` / `delete_status` |
 | Secret-free pipeline analytics | ✅ | `content_operations` stores metadata only (no text/keys) |
 | Migration (additive) | ✅ | `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py` revises `b2c3d4e5f6a7` |
-| Tests (`pytest` / `ruff`) | ✅ | full suite **954 passed**; ruff clean |
+| Tests (`pytest` / `ruff`) | ✅ | full suite **946 passed, 8 skipped**; ruff clean |
 | Frontend build | ✅ | `vue-tsc --noEmit` + `npm run build` clean |
 | Meta-audit engine (runtime) | ✅ | 30 total, 30 detected, 0 missed, 0 false positives |
 | Docker build + smoke | ✅ | image builds; `/health` reports `1.9.0`; `/api/v1/consistency` passes |
@@ -95,7 +95,7 @@ Telegram-limit bypass.
 | Git merge (`develop → main`) | ✅ | reviewed `develop → main` PR |
 | Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v1.9.0` (D-060) |
 
-### v1.8.2 (Web Wrapper Hub practical verification, 2026-10-11, D-115)
+### v1.8.2 (Web Wrapper Hub practical verification, 2026-10-08, D-115)
 
 Patch over v1.8.1: verifies the Web Wrapper Hub on practical scenarios with no
 external site/account/key/AI credential and fixes a real structured-extraction
@@ -120,7 +120,7 @@ defect in the genuine Playwright runtime. No new features, no schema change.
 | Git merge (`develop → main`) | ✅ | reviewed PR #21 (`develop → main`, merge `8542d4c`) |
 | Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v1.8.2` → Release workflow (run `37747125558`, D-060); ZIP 24 906 383 bytes, sha256 `f0c6984d…f619` |
 
-### v1.8.1 (AI Gateway verification patch, 2026-10-10, D-114)
+### v1.8.1 (AI Gateway verification patch, 2026-10-07, D-114)
 
 Patch over v1.8.0: proves the AI Gateway *works* by behaviour and fixes two real
 defects plus lockfile version drift. No new features, no schema change.
@@ -141,7 +141,7 @@ defects plus lockfile version drift. No new features, no schema change.
 | Git merge (`develop → main`) | ✅ | reviewed PR #20 (`develop → main`, merge `bc8382b`) |
 | Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v1.8.1` → Release workflow (run `37705225761`, D-060); ZIP 24 905 404 bytes, sha256 `0ec6aca1…a9d4` |
 
-### v1.8.0 (AI Gateway + Web Wrapper Hub, 2026-10-09, D-111…D-113)
+### v1.8.0 (AI Gateway + Web Wrapper Hub, 2026-10-07, D-111…D-113)
 
 Additive minor over v1.7.0: a single AI Gateway over many providers plus browser
 "web wrappers" that drive the owner's own logged-in session.

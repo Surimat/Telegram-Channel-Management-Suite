@@ -19,6 +19,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -508,3 +511,266 @@ def test_committed_report_records_all_gaps_as_detected() -> None:
     assert committed["high_misses"] == 0
     assert committed["missed"] == 0
     assert committed["kill_rate"] == 100.0
+
+
+# ---------------------------------------------------------------------------
+# 6. Post-release hygiene: no stale release facts left behind
+# ---------------------------------------------------------------------------
+#: ``(file, regex)`` pairs for release-version headings. The value captured by
+#: group 1 must be the version the repository currently ships. These are the
+#: exact spots a release has historically left stale (the CHANGELOG header, the
+#: release-verification sections and the roadmap history), so the guard pins
+#: them to the shipped version instead of trusting a manual edit.
+_VERSION_HEADINGS = (
+    ("agent/CHANGELOG.md", r"^## \[([0-9]+\.[0-9]+\.[0-9]+)\]"),
+    ("docs/RELEASE_CHECKLIST.md", r"^### v([0-9]+\.[0-9]+\.[0-9]+) "),
+    ("docs/ROADMAP.md", r"^- \*\*v([0-9]+\.[0-9]+\.[0-9]+) \("),
+)
+
+#: Version strings written into the release-verification sections. A release
+#: bumps the app version, so a stale ``**NNN passed**`` here is drift.
+_TEST_COUNT_RE = re.compile(r"(\d+) passed(?:, (\d+) skipped)?")
+_CHANGELOG_PASSED_RE = re.compile(r"full suite green \(\*\*(\d+) passed")
+
+
+def test_versioned_docs_lead_with_the_shipped_release() -> None:
+    """Every versioned doc heading must lead with the shipped version.
+
+    Reproduces the drift this repository kept hitting: the CHANGELOG, the release
+    checklist and the roadmap named an older (or, worse, an invented future)
+    release as the newest one. Only the *first* heading in each file is checked;
+    the rest are history.
+    """
+    for name, pattern in _VERSION_HEADINGS:
+        text = (REPO_ROOT / name).read_text(encoding="utf-8")
+        match = re.search(pattern, text, flags=re.MULTILINE)
+        assert match is not None, f"{name} lost its versioned heading"
+        assert match.group(1) == __version__, (
+            f"{name} leads with v{match.group(1)}; expected v{__version__}"
+        )
+
+
+def test_release_docs_do_not_claim_an_unreleased_version() -> None:
+    """No release doc may name a version newer than the shipped one.
+
+    A future version cannot exist yet, so any such claim is a fabricated date or
+    version — the same class of error as the wrong v1.9.0 release date.
+    """
+    current = tuple(int(p) for p in __version__.split("."))
+    offenders: list[str] = []
+    for name in (
+        "README.md",
+        "agent/CHANGELOG.md",
+        "agent/CURRENT_STATE.md",
+        "agent/NEXT_TASK.md",
+        "agent/DECISIONS.md",
+        "docs/RELEASE_CHECKLIST.md",
+        "docs/ROADMAP.md",
+    ):
+        text = (REPO_ROOT / name).read_text(encoding="utf-8")
+        for match in re.finditer(r"v(\d+)\.(\d+)\.(\d+)", text):
+            version = tuple(int(g) for g in match.groups())
+            if version > current:
+                offenders.append(f"{name}: v{match.group(0)[1:]}")
+    assert not offenders, "release docs name an unreleased version:\n" + "\n".join(
+        sorted(set(offenders))
+    )
+
+
+def test_release_docs_do_not_claim_a_future_date() -> None:
+    """No release doc may name a calendar date in the future.
+
+    Release dates must come from git/GitHub, not be invented. v1.9.0 was once
+    documented as released on 2026-10-12 while the tag and GitHub Release are
+    dated 2026-10-08; this guard makes a future date impossible to commit.
+    """
+    import datetime
+
+    today = datetime.datetime.now(datetime.UTC).date()
+    offenders: list[str] = []
+    for name in (
+        "README.md",
+        "agent/CHANGELOG.md",
+        "agent/CURRENT_STATE.md",
+        "agent/NEXT_TASK.md",
+        "agent/DECISIONS.md",
+        "docs/RELEASE_CHECKLIST.md",
+        "docs/ROADMAP.md",
+    ):
+        text = (REPO_ROOT / name).read_text(encoding="utf-8")
+        for match in re.finditer(r"\b(20\d\d)-(\d\d)-(\d\d)\b", text):
+            try:
+                date = datetime.date(*(int(g) for g in match.groups()))
+            except ValueError:
+                continue
+            if date > today:
+                offenders.append(f"{name}: {date.isoformat()}")
+    assert not offenders, "release docs name a future date:\n" + "\n".join(
+        sorted(set(offenders))
+    )
+
+
+def _git_output(*args: str) -> str | None:
+    """Return stdout of a git command, or None if git cannot answer.
+
+    Absent (shallow / tagless) history is treated as "cannot verify", never as a
+    failure, so the guard never turns missing git data into a false alarm.
+    """
+    try:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return result.stdout.strip()
+
+
+def _passed_counts(text: str) -> list[int]:
+    return [int(m.group(1)) for m in _TEST_COUNT_RE.finditer(text)]
+
+
+_FULL_SUITE_SIZE: int | None = None
+
+
+def _full_suite_size() -> int:
+    """Return the number of tests in the whole suite (collected in a subprocess).
+
+    Collecting the entire suite (rather than the currently-running selection)
+    means the documented full-suite count is checked against the real full-suite
+    size even when a subset (e.g. the CI ``meta-audit`` job) is running.
+    """
+    global _FULL_SUITE_SIZE
+    if _FULL_SUITE_SIZE is None:
+        # ``-o addopts=`` drops the repo's ``-q`` so pytest prints its
+        # "N tests collected" summary instead of the per-file listing.
+        result = subprocess.run(
+            [sys.executable, "-m", "pytest", "--collect-only", "-o", "addopts=", "-q"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        )
+        match = re.search(r"(\d+) tests? collected", result.stdout)
+        assert match is not None, (
+            "could not determine the full-suite test count:\n" + result.stdout[-2000:]
+        )
+        _FULL_SUITE_SIZE = int(match.group(1))
+    return _FULL_SUITE_SIZE
+
+
+def test_memory_files_do_not_claim_a_stale_test_count() -> None:
+    """The documented full-suite count must not exceed the suite's own size.
+
+    No doc may claim more tests passed than the suite actually contains. This is
+    the sound half of the count guard (a count can only be *proven* wrong when it
+    exceeds reality); the staleness half is
+    :func:`test_documented_test_count_grows_across_releases`.
+    """
+    collected_count = _full_suite_size()
+    offenders: list[str] = []
+    for name in ("README.md", "agent/CHANGELOG.md", "agent/CURRENT_STATE.md"):
+        text = (REPO_ROOT / name).read_text(encoding="utf-8")
+        for match in _TEST_COUNT_RE.finditer(text):
+            passed = int(match.group(1))
+            skipped = int(match.group(2) or 0)
+            if passed + skipped > collected_count:
+                offenders.append(
+                    f"{name}: claims {passed} passed (+{skipped} skipped) "
+                    f"> {collected_count} tests"
+                )
+    assert not offenders, "documented test count exceeds the real suite:\n" + "\n".join(
+        sorted(set(offenders))
+    )
+
+
+def test_documented_test_count_grows_across_releases() -> None:
+    """Each release's documented pass count must exceed the previous release's.
+
+    The suite only ever grows, so a release that leaves the previous release's
+    number in place (the classic copy-paste staleness) is caught here without a
+    fragile tolerance: the current section's count must be strictly greater than
+    the one below it. It also fails if the current section loses its count line.
+    """
+    text = (REPO_ROOT / "agent" / "CHANGELOG.md").read_text(encoding="utf-8")
+    sections = list(re.finditer(r"^## \[([0-9.]+)\]", text, flags=re.MULTILINE))
+    assert sections, "agent/CHANGELOG.md has no versioned sections"
+    assert sections[0].group(1) == __version__, (
+        f"CHANGELOG leads with {sections[0].group(1)}; expected {__version__}"
+    )
+
+    def _count(section: re.Match[str]) -> int | None:
+        index = sections.index(section)
+        end = sections[index + 1].start() if index + 1 < len(sections) else len(text)
+        match = _CHANGELOG_PASSED_RE.search(text[section.end(): end])
+        return int(match.group(1)) if match else None
+
+    current_count = _count(sections[0])
+    assert current_count is not None, (
+        f"CHANGELOG section [{__version__}] lost its test-count line"
+    )
+    previous_count = next(
+        (count for section in sections[1:] if (count := _count(section)) is not None),
+        None,
+    )
+    if previous_count is not None:
+        assert current_count > previous_count, (
+            f"CHANGELOG documents {current_count} passed for v{__version__} but the "
+            f"previous release already documented {previous_count} — a stale count "
+            "left in place"
+        )
+
+
+def test_release_checklist_leads_with_the_shipped_release() -> None:
+    """The newest verification section in the checklist must be the shipped one."""
+    checklist = (REPO_ROOT / "docs" / "RELEASE_CHECKLIST.md").read_text(encoding="utf-8")
+    match = re.search(r"^### v([0-9]+\.[0-9]+\.[0-9]+) ", checklist, flags=re.MULTILINE)
+    assert match is not None, "docs/RELEASE_CHECKLIST.md has no versioned section"
+    assert match.group(1) == __version__, (
+        f"docs/RELEASE_CHECKLIST.md leads with v{match.group(1)}; expected v{__version__}"
+    )
+
+
+def test_next_task_has_no_completed_release_step() -> None:
+    """NEXT_TASK.md must not still ask for an already-shipped release.
+
+    Historically it kept a "Next step: release vX.Y.Z" (and "Release as vX.Y.Z")
+    section for a version that had already shipped. This guard fails if the file
+    asks to release the *current* version again, or instructs a release while
+    also declaring that same version released.
+    """
+    text = (REPO_ROOT / "agent" / "NEXT_TASK.md").read_text(encoding="utf-8")
+    current = __version__
+    unreleased = re.compile(
+        r"(?:Next step|Release as|Next task)[^\n]{0,80}?v" + re.escape(current)
+    )
+    match = unreleased.search(text)
+    assert match is None, (
+        f"agent/NEXT_TASK.md still asks to release the shipped v{current}: "
+        f"{match.group(0)!r}"
+    )
+    if re.search(r"v" + re.escape(current) + r"[^\n]{0,40}\bRELEASED\b", text):
+        assert not re.search(
+            r"(?:Next step|Release as|Next task)[^\n]{0,80}?release", text
+        ), "agent/NEXT_TASK.md declares the current release but still asks to release"
+
+
+def test_next_task_release_anchors_match_git() -> None:
+    """NEXT_TASK's stated ``main`` HEAD and tag must match the real repository.
+
+    This catches a stale SHA left after the branch moved on. If git cannot answer
+    (shallow clone), the check is skipped rather than failing.
+    """
+    text = (REPO_ROOT / "agent" / "NEXT_TASK.md").read_text(encoding="utf-8")
+    head = _git_output("rev-parse", "--short", "main")
+    tag = _git_output("describe", "--tags", "--exact-match", "main")
+    if head is None or tag is None:  # pragma: no cover - shallow clone
+        pytest.skip("git cannot resolve main/tag in this checkout")
+    if tag != f"v{__version__}":  # pragma: no cover - pre-release branch state
+        pytest.skip(f"main is not tagged v{__version__} (tag={tag!r})")
+    assert f"`main` HEAD = `{head}`" in text, (
+        f"agent/NEXT_TASK.md does not state the real main HEAD {head}"
+    )
+    assert tag in text, f"agent/NEXT_TASK.md does not name the current tag {tag}"
