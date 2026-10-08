@@ -84,8 +84,8 @@ defect in the genuine Playwright runtime. No new features, no schema change.
 | Meta-audit engine (runtime) | ✅ | regenerated; 0 missed, 0 false positives |
 | Tests (`pytest` / `ruff`) | ✅ | full suite green; ruff clean |
 | Frontend build | ✅ | `vue-tsc --noEmit` + `npm run build` clean |
-| Docker build + smoke | ✅ | container `/health` + `/api/v1/consistency` pass (local Docker unavailable in the build sandbox) |
-| Portable build/smoke | ✅ | Release workflow builds the Windows portable ZIP + `.sha256` (D-060) |
+| Docker build + smoke | ✅ | `docker build -f docker/Dockerfile -t tcms:v1.8.2 .` succeeded; container `/health` → `{"status":"ok","version":"1.8.2"}`; `/api/v1/consistency` → `overall: pass` (0 error/warning); SPA `/` → 200 |
+| Portable build/smoke | ✅ | Release workflow built the Windows portable ZIP (24 906 383 bytes) + `.sha256`; ZIP artifact scanned (no `.session`/TDATA/DB/model; only library code + placeholder `.env.example`) |
 | Artifact scan | ✅ | no `.session`/TDATA/DB/model in the ZIP; runtime dirs empty |
 | Secret scan | ✅ | no tokens/api_hash/session strings/cookies in the diff or tracked tree |
 | Git merge (`develop → main`) | ✅ | reviewed PR #21 (`develop → main`, merge `8542d4c`) |
