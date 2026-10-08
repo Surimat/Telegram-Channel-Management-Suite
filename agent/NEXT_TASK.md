@@ -3,14 +3,14 @@
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
-**Updated:** 2026-10-11
-**Status:** **v1.9.0 Content Operations 2.0 is IMPLEMENTED and ready for release.** The existing **Content Studio** is extended (not duplicated) into a single pipeline: `source → gather → clean → mini-AI → moderation → publish → comment/delete`. It adds reusable **AI profiles** (prompt/instructions/language/tone/max-length/provider-policy/actions as data), a **lightweight local mini-AI** classifier (category + intent, never an emoji), **human moderation** states, declarative **automation rules** (`SOURCE + CONDITION → ACTION`, a fixed field allow-list, not a script engine) and **secret-free pipeline analytics**. An AI failure never loses material: the item moves to `needs_review` with `ai_status=ai_unavailable` and a clear note. Publication tracks `comment_status` and `delete_status` independently. Version string is **1.9.0**. Additive only — no account registration and no Telegram-limit bypass.
+**Updated:** 2026-10-12
+**Status:** **v1.9.0 Content Operations 2.0 is RELEASED (2026-10-12).** The existing **Content Studio** is extended (not duplicated) into a single pipeline: `source → gather → clean → mini-AI → moderation → publish → comment/delete`. It adds reusable **AI profiles** (prompt/instructions/language/tone/max-length/provider-policy/actions as data), a **lightweight local mini-AI** classifier (category + intent, never an emoji), **human moderation** states, declarative **automation rules** (`SOURCE + CONDITION → ACTION`, a fixed field allow-list, not a script engine) and **secret-free pipeline analytics**. An AI failure never loses material: the item moves to `needs_review` with `ai_status=ai_unavailable` and a clear note. Publication tracks `comment_status` and `delete_status` independently. Version string is **1.9.0**. Additive only — no account registration and no Telegram-limit bypass.
 
-Released via a reviewed `develop → main` PR #21 (merge `8542d4c`), tag `v1.8.2`;
-the Release workflow (run `37747125558`) created the GitHub Release and attached
-the Windows portable ZIP (**24 906 383 bytes**, sha256
-`f0c6984d…f619`) + `.sha256`. `main` HEAD = `8542d4c`; `develop` is ahead of `main` only by
-documentation/memory-sync commits. Nothing is required to follow up. Do **not** add new large features.
+Released via a reviewed `develop → main` PR #22 (merge `997999e`), tag `v1.9.0`;
+the Release workflow (run `37775533451`) created the GitHub Release and attached
+the Windows portable ZIP (**24 929 020 bytes**, sha256
+`3227988c…d2ac`) + `.sha256`. `main` HEAD = `997999e`; `develop` HEAD = `a638eb8`.
+Release ZIP scan: no `.session`/TDATA/DB/model.
 
 Version string is **1.9.0** across `backend/app/__init__.py`,
 `pyproject.toml`, `frontend/package.json` + lock.
@@ -36,11 +36,11 @@ Version string is **1.9.0** across `backend/app/__init__.py`,
 
 ### No active task
 
-**v1.8.2 is RELEASED and verified — there is no pending task.** Do **not** add new
+**v1.9.0 is RELEASED and verified — there is no pending task.** Do **not** add new
 large features. The quality gate was run and passed before the release:
 
 ```bash
-python -m pytest                                  # 943 passed
+python -m pytest                                  # 954 passed
 ruff check backend tests                          # clean
 cd frontend && npx vue-tsc --noEmit && npm run build   # clean
 PYTHONPATH=. python tests/meta_audit/engine.py    # 30/30, 0 false positives

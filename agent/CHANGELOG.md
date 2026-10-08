@@ -14,6 +14,13 @@ instead of a second, parallel studio. Everything is additive: every new column
 carries a server default, so an existing v1.8 database upgrades in place. No new
 account registration and no Telegram-limit bypass. Version strings read **1.9.0**.
 
+**Released** via a reviewed `develop → main` PR #22 (merge `997999e`), tag
+`v1.9.0`; the Release workflow (run `37775533451`) created the GitHub Release and
+attached the Windows portable ZIP (24 929 020 bytes, sha256
+`3227988c…d2ac`) + `.sha256`. Release ZIP scan: no `.session`/TDATA/DB/model.
+Gates: full suite green (**954 passed**), `ruff` clean, `vue-tsc` + `npm run
+build` clean, meta-audit 30/30 (0 missed, 0 false positives).
+
 ### Added
 - **AI profiles (as data).** `ai_profiles` table + `AiProfileService`
   (`services/ai_profiles.py`): key, title, language, tone, max length, system
