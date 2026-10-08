@@ -3,8 +3,13 @@
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
-**Updated:** 2026-10-10
-**Status:** **v1.8.1 (AI Gateway verification patch, D-114) is prepared for release.**
+**Updated:** 2026-10-08
+**Status:** **v1.8.1 (AI Gateway verification patch, D-114) is RELEASED** via a
+reviewed `develop → main` PR #20 (merge `bc8382b`), tag `v1.8.1`; the Release
+workflow (run `37705225761`) created the GitHub Release and attached the Windows
+portable ZIP (24 905 404 bytes, sha256 `0ec6aca1…a9d4`) + `.sha256`. `main` HEAD =
+`bc8382b`; `develop` re-synced to `bc8382b`. Nothing is required to follow up. Do
+**not** add new large features.
 An independent verification of the v1.8.0 **AI Gateway + Web Wrapper Hub** proved
 it *works* (routing, retry, failover, wrapper engine, availability, secret
 safety), not merely that it compiles, and fixed two real defects plus a version
