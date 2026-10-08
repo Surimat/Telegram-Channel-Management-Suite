@@ -2459,6 +2459,6 @@ dependency and no schema change.
 GitHub Release and attached the Windows portable ZIP (24 906 383 bytes, sha256
 `f0c6984d…f619`) + `.sha256`. Gates: full suite green (**943 passed**), `ruff`
 clean, `vue-tsc` + `npm run build` clean, meta-audit 30/30 (0 missed, 0 false
-positives). `main` HEAD = `8542d4c`; `develop` is 2 documentation/memory-only
-commits ahead (`ab2c120`, `acf9de4`) with no code change.
+positives). `main` HEAD = `8542d4c`; `develop` is ahead of `main` only by
+documentation/memory-only commits (`ab2c120`, `acf9de4`, …) with no code change.
 

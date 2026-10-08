@@ -17,8 +17,8 @@ bypass.
 Released via a reviewed `develop → main` PR #21 (merge `8542d4c`), tag `v1.8.2`;
 the Release workflow (run `37747125558`) created the GitHub Release and attached
 the Windows portable ZIP (**24 906 383 bytes**, sha256
-`f0c6984d…f619`) + `.sha256`. `main` HEAD = `8542d4c`; `develop` re-synced to
-`8542d4c`. Nothing is required to follow up. Do **not** add new large features.
+`f0c6984d…f619`) + `.sha256`. `main` HEAD = `8542d4c`; `develop` is ahead of `main` only by
+documentation/memory-sync commits. Nothing is required to follow up. Do **not** add new large features.
 
 Version string is **1.8.2** across `backend/app/__init__.py`,
 `pyproject.toml`, `frontend/package.json` + lock.
@@ -55,8 +55,8 @@ PYTHONPATH=. python tests/meta_audit/engine.py    # 30/30, 0 false positives
 ```
 
 The only commits on `develop` after the release are **documentation/memory-only**
-(`ab2c120` release facts, `acf9de4` Docker smoke), so `develop` is 2 commits ahead
-of `main` with **no code change**. For the next release (only when the owner asks):
+(`ab2c120` release facts, `acf9de4` Docker smoke, and this memory-sync commit), so
+`develop` is ahead of `main` with **no code change**. For the next release (only when the owner asks):
 branch from `develop`, then a reviewed `develop → main` PR + tag.
 
 **Prior release:** **v1.8.1 (AI Gateway verification patch, D-114) is RELEASED**

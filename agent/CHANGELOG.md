@@ -58,7 +58,7 @@ build` clean, meta-audit 30/30 (0 missed, 0 false positives).
   `main`) and carried a stale v1.6.1-era "Repository status" line;
   `agent/NEXT_TASK.md` still had a "Next step: release v1.8.2" section for an
   already-shipped release. Both now state the actual git state (latest release
-  v1.8.2, `main` HEAD `8542d4c`, `develop` HEAD `acf9de4`, latest tag `v1.8.2`)
+  v1.8.2, `main` HEAD `8542d4c`, `develop` ahead only by memory-sync commits, latest tag `v1.8.2`)
   and that the two post-release commits are documentation/memory only.
 - **Guard test added.** `tests/test_meta_audit.py::test_memory_files_have_no_stale_current_version`
   fails if `CURRENT_STATE.md`/`NEXT_TASK.md` state a current-release version other
