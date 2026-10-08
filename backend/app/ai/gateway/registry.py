@@ -144,6 +144,13 @@ def build_provider(
 
             definition = GENERIC_DEFINITION
         engine = WebWrapperEngine(runtime)
+        # A wrapper can also carry files when its definition declares an upload
+        # selector; the capability is derived from the definition, never claimed.
+        capabilities = definition.capabilities
+        if definition.attach_file_selector and not capabilities.file:
+            from dataclasses import replace
+
+            capabilities = replace(capabilities, file=True)
         return GenericWebWrapperProvider(
             definition=definition,
             engine=engine,
@@ -151,6 +158,7 @@ def build_provider(
             # Keep the configured identity so a pinned provider name still routes
             # (the wrapper's ``web:<id>`` label is only a fallback).
             configured_name=config.provider,
+            capabilities=capabilities,
             note=(
                 f"Определение обёртки «{config.wrapper_id}» не найдено."
                 if unknown_id

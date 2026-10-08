@@ -170,6 +170,15 @@ class ContentSource(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     last_fetch: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # type: ignore[valid-type]
     last_fetch_new: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
+    # --- v2.0 Target Language (additive) ---
+    #: Language the source is written in. ``auto`` = detect from the text.
+    source_language: Mapped[str] = mapped_column(String(8), default="auto", nullable=False)
+    #: Language posts from this source should be published in. ``auto`` = inherit
+    #: the next level (channel → global default).
+    target_language: Mapped[str] = mapped_column(String(8), default="auto", nullable=False)
+    #: When True (default) the source language is detected instead of assumed.
+    auto_detect: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
     #: Auto-moderation (v1.2): drop a fetched item before it reaches the drafts.
     #: A JSON list of lowercase keywords; an empty list disables the filter.
     blocked_keywords: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
@@ -223,6 +232,12 @@ class ContentItem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     content_hash: Mapped[str] = mapped_column(String(64), default="", index=True, nullable=False)
 
     language: Mapped[str] = mapped_column(String(8), default="ru", nullable=False)
+    #: Detected/declared source language (v2.0). ``language`` keeps the legacy
+    #: meaning (the language the item is written in); this mirrors it for the
+    #: new language stage and is filled by detection when unknown.
+    source_language: Mapped[str] = mapped_column(String(8), default="auto", nullable=False)
+    #: Target language for this item (v2.0). Empty = inherit source/channel/global.
+    target_language: Mapped[str] = mapped_column(String(8), default="", nullable=False)
     note: Mapped[str] = mapped_column(Text, default="", nullable=False)
     scheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # type: ignore[valid-type]
 
@@ -318,6 +333,9 @@ class Publication(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     profile_key: Mapped[str] = mapped_column(String(64), default="", nullable=False)
     #: Per-target AI instructions override (never secret).
     ai_instructions: Mapped[str] = mapped_column(Text, default="", nullable=False)
+
+    #: Per-publication target language override (v2.0). Empty = inherit.
+    target_language: Mapped[str] = mapped_column(String(8), default="", nullable=False)
 
     #: First-comment outcome, tracked independently of the post: post|posted|
     #: comment_posted|comment_failed|comment_not_supported (a lost comment never

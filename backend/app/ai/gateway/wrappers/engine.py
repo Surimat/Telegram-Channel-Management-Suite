@@ -28,6 +28,7 @@ from backend.app.ai.gateway.errors import (
 )
 from backend.app.ai.gateway.types import (
     AUTH_NONE,
+    MODALITY_FILE,
     MODALITY_IMAGE,
     STATUS_AVAILABLE,
     ChatRequest,
@@ -114,15 +115,19 @@ class WebWrapperEngine:
                     login_required=True,
                     detail="Сайт требует входа. Войдите в своей браузерной сессии.",
                 )
-            if request.modality() == MODALITY_IMAGE and definition.attach_selector:
-                # Attach the first image the caller provided (owner's own data).
-                for msg in request.messages:
-                    for att in msg.attachments:
-                        if att.kind == MODALITY_IMAGE and att.reference:
-                            await self.runtime.fill(
-                                definition.attach_selector, att.reference
-                            )
-                            break
+            # Attach the caller's own files: images via ``attach_selector``, other
+            # files via ``attach_file_selector``. Nothing is fetched from a third
+            # party; only the owner's provided data is uploaded (v2.0 multimodal).
+            for msg in request.messages:
+                for att in msg.attachments:
+                    if not att.reference:
+                        continue
+                    if att.kind == MODALITY_IMAGE and definition.attach_selector:
+                        await self.runtime.fill(definition.attach_selector, att.reference)
+                    elif att.kind == MODALITY_FILE and definition.attach_file_selector:
+                        await self.runtime.fill(
+                            definition.attach_file_selector, att.reference
+                        )
             if definition.input_selector:
                 snap = await self.runtime.fill(definition.input_selector, prompt)
             if definition.send_selector:
@@ -179,6 +184,7 @@ class GenericWebWrapperProvider:
         engine: WebWrapperEngine,
         enabled: bool = False,
         configured_name: str = "",
+        capabilities: object | None = None,
         note: str = "",
     ) -> None:
         self.definition = definition
@@ -193,7 +199,7 @@ class GenericWebWrapperProvider:
             provider=name,
             model=f"{definition.name} v{definition.version}",
             source=SourceKind.WEB,
-            capabilities=definition.capabilities,
+            capabilities=capabilities or definition.capabilities,
             auth_mode=definition.auth_mode or AUTH_NONE,
             auth_required=definition.auth_mode not in ("", AUTH_NONE),
             cost=definition.cost,

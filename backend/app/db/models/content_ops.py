@@ -99,12 +99,14 @@ class ContentOperation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         return f"<ContentOperation stage={self.stage!r} status={self.status!r}>"
 
 
-#: Pipeline stages, in order. Used by the consistency auditor and analytics.
+#: Pipeline stages, in order (v2.0 adds ``language`` and ``translate``).
 STAGES = (
     "gather",
     "clean",
     "dedup",
+    "language",
     "ai",
+    "translate",
     "moderation",
     "schedule",
     "publish",

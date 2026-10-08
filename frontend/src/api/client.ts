@@ -991,6 +991,7 @@ export interface Channel {
   verification_hint: string
   participants_count: number | null
   last_verified_at: string | null
+  target_language: string
   note: string
   created_at: string
   updated_at: string
@@ -1401,6 +1402,9 @@ export interface ContentSource {
   quiet_hours_start: number
   quiet_hours_end: number
   quiet_hours_tz: string
+  source_language: string
+  target_language: string
+  auto_detect: boolean
 }
 
 export interface ContentSourceList {
@@ -1443,6 +1447,8 @@ export interface ContentItem {
   protected: boolean
   content_hash: string
   language: string
+  source_language: string
+  target_language: string
   note: string
   scheduled_at: string
   rights_warning: string
@@ -1528,6 +1534,7 @@ export interface ContentPublication {
   attempts: number
   mode: string
   profile_key: string
+  target_language: string
   comment_status: string
   delete_status: string
 }
@@ -1598,6 +1605,30 @@ export interface ContentModeration {
   quiet_hours_start: number
   quiet_hours_end: number
   quiet_hours_tz: string
+  source_language: string
+  target_language: string
+  auto_detect: boolean
+}
+
+// --- Target Language (v2.0) -------------------------------------------------
+export interface LanguageOption {
+  code: string
+  title: string
+}
+
+export interface LanguageCatalog {
+  languages: LanguageOption[]
+  default: string
+}
+
+export interface LanguageResult {
+  item_id: string
+  source_language: string
+  target_language: string
+  translated: boolean
+  provider?: string
+  model?: string
+  detail?: string
 }
 
 // --- Content Operations 2.0 (v1.9) -----------------------------------------
@@ -2758,6 +2789,7 @@ export const api = {
     kind?: string
     make_default?: boolean
     note?: string
+    target_language?: string
   }) => request<Channel>('/api/v1/channels', { method: 'POST', body: JSON.stringify(payload) }),
   updateChannel: (id: string, payload: Record<string, unknown>) =>
     request<Channel>(`/api/v1/channels/${id}`, {
@@ -2965,6 +2997,9 @@ export const api = {
     enabled?: boolean
     channel_id?: string
     account_id?: string
+    source_language?: string
+    target_language?: string
+    auto_detect?: boolean
   }) => request<ContentSource>('/api/v1/content/sources', { method: 'POST', body: JSON.stringify(payload) }),
   removeContentSource: (id: string) =>
     request<null>(`/api/v1/content/sources/${id}`, { method: 'DELETE' }),
@@ -3015,7 +3050,7 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ rows }),
     }),
-  planContent: (id: string, payload: { targets: { channel_id: string; scheduled_at?: string; text_override?: string; profile_key?: string; ai_instructions?: string }[]; mode?: string }) =>
+  planContent: (id: string, payload: { targets: { channel_id: string; scheduled_at?: string; text_override?: string; profile_key?: string; ai_instructions?: string; target_language?: string }[]; mode?: string }) =>
     request<ContentPlan>(`/api/v1/content/items/${id}/plan`, { method: 'POST', body: JSON.stringify(payload) }),
   contentPublications: (id: string) =>
     request<ContentPlan>(`/api/v1/content/items/${id}/publications`),
@@ -3084,6 +3119,16 @@ export const api = {
     request<null>(`/api/v1/content/automation-rules/${id}`, { method: 'DELETE' }),
   pipelineAnalytics: (limit = 50) =>
     request<PipelineAnalytics>(`/api/v1/content/pipeline/analytics?limit=${limit}`),
+
+  // v2.0: Target Language (detect + protected translation).
+  contentLanguages: () => request<LanguageCatalog>('/api/v1/content/languages'),
+  detectContentLanguage: (id: string) =>
+    request<LanguageResult>(`/api/v1/content/items/${id}/language`, { method: 'POST' }),
+  translateContentItem: (id: string, targetLanguage: string, strategy = '') =>
+    request<LanguageResult>(`/api/v1/content/items/${id}/translate`, {
+      method: 'POST',
+      body: JSON.stringify({ target_language: targetLanguage, strategy }),
+    }),
 
   // Editorial Workspace (v1.4)
   editorialRooms: () => request<EditorialRoomList>('/api/v1/editorial/rooms'),

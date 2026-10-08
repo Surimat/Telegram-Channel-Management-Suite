@@ -49,6 +49,8 @@ class WrapperDefinition:
     response_take_last: bool = True
     #: Set when the wrapper can also send an image (upload input selector).
     attach_selector: str = ""
+    #: Set when the wrapper can also send a file (upload input selector).
+    attach_file_selector: str = ""
     extraction: str = "text"
     #: Attribute names to read for each structured record (extraction="structured").
     extract_attrs: tuple[str, ...] = ("href",)
@@ -97,11 +99,63 @@ GENERIC_DEFINITION = WrapperDefinition(
     ),
 )
 
+#: v2.0: free web-UI backup templates. They are honest templates — disabled and
+#: unverified until the owner enables them and a probe succeeds on the live site.
+#: They drive the owner's own logged-in browser session and never bypass a login
+#: wall, CAPTCHA/MFA, a regional block or any rate limit.
+_CHATGPT_DEFINITION = WrapperDefinition(
+    id="chatgpt",
+    name="ChatGPT (web UI)",
+    website="https://chatgpt.com/",
+    capabilities=Capability(text=True, image=True, verified=False),
+    auth_mode=AUTH_BROWSER_SESSION,
+    input_selector="#prompt-textarea, textarea[data-id]",
+    send_selector="button[data-testid='send-button']",
+    response_selector="[data-message-author-role='assistant']",
+    response_take_last=True,
+    attach_selector="input[type='file']",
+    attach_file_selector="input[type='file']",
+    login_markers=("log in", "войти", "sign up"),
+    version="1",
+    enabled=False,
+    fallback_priority=60,
+    cost="free",
+    note=(
+        "Резервный бесплатный путь через вашу браузерную сессию ChatGPT. "
+        "Селекторы могут меняться — обновляйте определение при изменении сайта."
+    ),
+)
+
+_GEMINI_DEFINITION = WrapperDefinition(
+    id="gemini",
+    name="Google Gemini (web UI)",
+    website="https://gemini.google.com/app",
+    capabilities=Capability(text=True, image=True, verified=False),
+    auth_mode=AUTH_BROWSER_SESSION,
+    input_selector="rich-textarea [contenteditable='true'], .ql-editor",
+    send_selector="button.send-button",
+    response_selector="message-content, .model-response-text",
+    response_take_last=True,
+    attach_selector="input[type='file']",
+    attach_file_selector="input[type='file']",
+    login_markers=("sign in", "войти"),
+    version="1",
+    enabled=False,
+    fallback_priority=65,
+    cost="free",
+    note=(
+        "Резервный бесплатный путь через вашу браузерную сессию Google Gemini. "
+        "Требуется вход владельца; ничего не обходится автоматически."
+    ),
+)
+
 #: Shipped definitions (all disabled by default; enabling requires the owner and
 #: the browser runtime). They are honest templates, not working integrations
 #: until a probe verifies them on the live site.
 LIBRARY: tuple[WrapperDefinition, ...] = (
     GENERIC_DEFINITION,
+    _CHATGPT_DEFINITION,
+    _GEMINI_DEFINITION,
 )
 
 

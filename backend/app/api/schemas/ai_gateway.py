@@ -95,6 +95,15 @@ class RouteUpdateIn(BaseModel):
     value: object
 
 
+class AttachmentIn(BaseModel):
+    """A caller-owned image/file reference (v2.0 multimodal). Never a secret."""
+
+    kind: str = "image"
+    reference: str = ""
+    mime: str = ""
+    filename: str = ""
+
+
 class ChatIn(BaseModel):
     text: str = ""
     system: str = ""
@@ -104,6 +113,7 @@ class ChatIn(BaseModel):
     timeout_seconds: float = 0.0
     structured: bool = False
     modality: str = "text"
+    attachments: list[AttachmentIn] = Field(default_factory=list)
 
 
 class AttemptOut(BaseModel):

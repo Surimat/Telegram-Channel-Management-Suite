@@ -16,6 +16,7 @@ import {
   type RightsInfo,
   type AiProfile,
   type AutomationRule,
+  type LanguageOption,
   type PipelineAnalytics,
 } from '@/api/client'
 import InfoHint from '@/components/InfoHint.vue'
@@ -40,6 +41,9 @@ const form = ref({
   reference: '',
   title: '',
   channel_id: '',
+  source_language: 'auto',
+  target_language: 'auto',
+  auto_detect: true,
 })
 
 // Item workspace
@@ -59,6 +63,11 @@ const rules = ref<AutomationRule[]>([])
 const analytics = ref<PipelineAnalytics | null>(null)
 const planProfile = ref('')
 const aiBusy = ref(false)
+
+// Target Language (v2.0): source detection + protected translation.
+const languages = ref<LanguageOption[]>([])
+const translateTarget = ref('')
+const languageBusy = ref(false)
 const ruleForm = ref({
   name: '',
   source_kind: 'manual',
@@ -122,6 +131,11 @@ async function load() {
   } catch {
     channels.value = []
   }
+  try {
+    languages.value = (await api.contentLanguages()).languages
+  } catch {
+    languages.value = []
+  }
 }
 
 async function loadItems() {
@@ -151,8 +165,19 @@ async function submitAdd() {
       reference: form.value.reference,
       title: form.value.title,
       channel_id: form.value.channel_id,
+      source_language: form.value.source_language,
+      target_language: form.value.target_language,
+      auto_detect: form.value.auto_detect,
     })
-    form.value = { kind: 'manual', reference: '', title: '', channel_id: '' }
+    form.value = {
+      kind: 'manual',
+      reference: '',
+      title: '',
+      channel_id: '',
+      source_language: 'auto',
+      target_language: 'auto',
+      auto_detect: true,
+    }
     showAdd.value = false
     notice.value = 'Источник добавлен. Нажмите «Собрать материалы», чтобы забрать контент.'
     await load()
@@ -276,6 +301,7 @@ async function plan() {
           channel_id: planChannel.value,
           ...(planWhen.value ? { scheduled_at: new Date(planWhen.value).toISOString() } : {}),
           ...(planProfile.value ? { profile_key: planProfile.value } : {}),
+          ...(translateTarget.value ? { target_language: translateTarget.value } : {}),
         },
       ],
     }
@@ -350,6 +376,42 @@ async function processItem() {
     error.value = friendly(e, 'Не удалось обработать материал.')
   } finally {
     aiBusy.value = false
+  }
+}
+
+async function detectLanguage() {
+  if (!selected.value) return
+  languageBusy.value = true
+  try {
+    const result = await api.detectContentLanguage(selected.value.id)
+    selected.value.source_language = result.source_language
+    selected.value.target_language = result.target_language
+    notice.value = `Язык источника: ${result.source_language} → цель: ${result.target_language}.`
+    await loadItems()
+  } catch (e) {
+    error.value = friendly(e, 'Не удалось определить язык.')
+  } finally {
+    languageBusy.value = false
+  }
+}
+
+async function translateItem() {
+  if (!selected.value) return
+  languageBusy.value = true
+  try {
+    const result = await api.translateContentItem(
+      selected.value.id,
+      translateTarget.value || selected.value.target_language || 'ru',
+    )
+    selected.value = await api.contentItem(selected.value.id)
+    notice.value = result.translated
+      ? 'Материал переведён (ссылки и упоминания сохранены).'
+      : result.detail || 'Перевод не требуется.'
+    await loadItems()
+  } catch (e) {
+    error.value = friendly(e, 'Не удалось перевести материал.')
+  } finally {
+    languageBusy.value = false
   }
 }
 
@@ -564,6 +626,26 @@ onMounted(async () => {
             </option>
           </select>
         </label>
+        <div class="toolbar">
+          <label class="field inline-field">
+            <span>Язык источника</span>
+            <select v-model="form.source_language">
+              <option value="auto">Определять автоматически</option>
+              <option v-for="l in languages" :key="l.code" :value="l.code">{{ l.title }}</option>
+            </select>
+          </label>
+          <label class="field inline-field">
+            <span>Переводить на</span>
+            <select v-model="form.target_language">
+              <option value="auto">Как у канала (или не переводить)</option>
+              <option v-for="l in languages" :key="l.code" :value="l.code">{{ l.title }}</option>
+            </select>
+          </label>
+          <label class="field inline-field checkbox">
+            <input v-model="form.auto_detect" type="checkbox" />
+            <span>Определять язык автоматически</span>
+          </label>
+        </div>
         <button class="primary" :disabled="addBusy || !form.reference" @click="submitAdd">
           Добавить
         </button>
@@ -673,6 +755,31 @@ onMounted(async () => {
           <button class="danger" @click="moderate('reject')">Отклонить</button>
         </div>
 
+        <h4>Язык и перевод</h4>
+        <p class="muted">
+          Язык источника определяется автоматически (или задаётся у источника).
+          Перевод идёт через настроенный центр «AI» и сохраняет ссылки, упоминания
+          и разметку. Если перевод недоступен, материал не теряется — он остаётся
+          на ручной проверке.
+        </p>
+        <p class="muted">
+          Источник: {{ selected.source_language || '—' }} · цель:
+          {{ selected.target_language || '—' }}
+        </p>
+        <div class="toolbar">
+          <button :disabled="languageBusy" @click="detectLanguage">Определить язык</button>
+          <label class="field inline-field">
+            <span>Перевести на</span>
+            <select v-model="translateTarget">
+              <option value="">— как у источника/канала —</option>
+              <option v-for="l in languages" :key="l.code" :value="l.code">
+                {{ l.title }}
+              </option>
+            </select>
+          </label>
+          <button :disabled="languageBusy" @click="translateItem">Перевести</button>
+        </div>
+
         <div class="toolbar">
           <button @click="previewClean">Показать очистку</button>
           <button @click="applyClean">Применить очистку</button>
@@ -720,6 +827,13 @@ onMounted(async () => {
             <option v-for="c in channels" :key="c.id" :value="c.id">
               {{ c.title || c.reference }}
             </option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Язык публикации (необязательно)</span>
+          <select v-model="translateTarget">
+            <option value="">— как у источника/канала —</option>
+            <option v-for="l in languages" :key="l.code" :value="l.code">{{ l.title }}</option>
           </select>
         </label>
         <label class="field">

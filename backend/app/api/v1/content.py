@@ -41,6 +41,8 @@ from backend.app.api.schemas.content import (
     ContentSourceListOut,
     ContentSourceOut,
     GrabOut,
+    LanguageCatalogOut,
+    LanguageOut,
     ModerationDecisionIn,
     ModerationIn,
     ModerationOut,
@@ -56,6 +58,7 @@ from backend.app.api.schemas.content import (
     RightsOut,
     ScheduleIn,
     TickOut,
+    TranslateIn,
     ValidationOut,
 )
 from backend.app.db.models.content import (
@@ -132,6 +135,9 @@ def _source_out(source: ContentSource) -> ContentSourceOut:
         quiet_hours_start=source.quiet_hours_start,
         quiet_hours_end=source.quiet_hours_end,
         quiet_hours_tz=source.quiet_hours_tz,
+        source_language=source.source_language,
+        target_language=source.target_language,
+        auto_detect=source.auto_detect,
     )
 
 
@@ -155,6 +161,7 @@ def _publication_out(pub: object) -> PublicationOut:
         error=str(getattr(pub, "error", "")),
         attempts=int(getattr(pub, "attempts", 0) or 0),
         profile_key=str(getattr(pub, "profile_key", "")),
+        target_language=str(getattr(pub, "target_language", "")),
         comment_status=str(getattr(pub, "comment_status", "")),
         delete_status=str(getattr(pub, "delete_status", "")),
     )
@@ -207,6 +214,8 @@ def _item_out(service: ContentService, item: ContentItem) -> ContentItemOut:
         protected=item.protected,
         content_hash=item.content_hash,
         language=item.language,
+        source_language=item.source_language,
+        target_language=item.target_language,
         note=item.note,
         scheduled_at=item.scheduled_at.isoformat() if item.scheduled_at else "",
         rights_warning=service.rights_warning(item),
@@ -264,6 +273,9 @@ async def create_source(
             enabled=payload.enabled,
             channel_id=payload.channel_id,
             account_id=payload.account_id,
+            source_language=payload.source_language,
+            target_language=payload.target_language,
+            auto_detect=payload.auto_detect,
         )
     except ContentError as exc:
         _raise(exc)
@@ -481,6 +493,9 @@ async def get_moderation(
         quiet_hours_start=source.quiet_hours_start,
         quiet_hours_end=source.quiet_hours_end,
         quiet_hours_tz=source.quiet_hours_tz,
+        source_language=source.source_language,
+        target_language=source.target_language,
+        auto_detect=source.auto_detect,
     )
 
 
@@ -498,6 +513,9 @@ async def set_moderation(
             quiet_hours_start=payload.quiet_hours_start,
             quiet_hours_end=payload.quiet_hours_end,
             quiet_hours_tz=payload.quiet_hours_tz,
+            source_language=payload.source_language,
+            target_language=payload.target_language,
+            auto_detect=payload.auto_detect,
         )
     except ContentError as exc:
         _raise(exc)
@@ -508,6 +526,9 @@ async def set_moderation(
         quiet_hours_start=source.quiet_hours_start,
         quiet_hours_end=source.quiet_hours_end,
         quiet_hours_tz=source.quiet_hours_tz,
+        source_language=source.source_language,
+        target_language=source.target_language,
+        auto_detect=source.auto_detect,
     )
 
 
@@ -539,6 +560,7 @@ async def plan_item(
             text_override=t.text_override,
             profile_key=t.profile_key,
             ai_instructions=t.ai_instructions,
+            target_language=t.target_language,
         )
         for t in payload.targets
     ]
@@ -860,6 +882,67 @@ async def moderate_item(
     except PipelineError as exc:
         raise ApiError(exc.status_code, exc.message, exc.how_to_fix) from exc
     return _item_out(content, item)
+
+
+@router.get("/languages", response_model=LanguageCatalogOut)
+async def language_catalog() -> LanguageCatalogOut:
+    """The languages the UI may offer for source/target selection (v2.0)."""
+    from backend.app.services.content_language import (
+        DEFAULT_LANGUAGE,
+        LANGUAGE_TITLES,
+        SUPPORTED_LANGUAGES,
+    )
+
+    items = [{"code": "auto", "title": LANGUAGE_TITLES["auto"]}]
+    items += [{"code": code, "title": LANGUAGE_TITLES[code]} for code in SUPPORTED_LANGUAGES]
+    return LanguageCatalogOut(languages=items, default=DEFAULT_LANGUAGE)
+
+
+@router.post("/items/{item_id}/language", response_model=LanguageOut)
+async def detect_item_language(
+    item_id: str,
+    service=Depends(get_content_pipeline_service),  # type: ignore[assignment]
+) -> LanguageOut:
+    """Detect the source language and resolve the target for an item (v2.0)."""
+    from backend.app.services.content_pipeline import PipelineError
+
+    try:
+        item = await service.detect_language(item_id)
+    except PipelineError as exc:
+        raise ApiError(exc.status_code, exc.message, exc.how_to_fix) from exc
+    return LanguageOut(
+        item_id=item.id,
+        source_language=item.source_language,
+        target_language=item.target_language,
+        translated=False,
+    )
+
+
+@router.post("/items/{item_id}/translate", response_model=LanguageOut)
+async def translate_item(
+    item_id: str,
+    payload: TranslateIn,
+    service=Depends(get_content_pipeline_service),  # type: ignore[assignment]
+) -> LanguageOut:
+    """Translate an item through the AI Gateway if the languages differ (v2.0)."""
+    from backend.app.services.content_pipeline import PipelineError
+
+    try:
+        item = await service.translate(
+            item_id, target_language=payload.target_language, strategy=payload.strategy
+        )
+    except PipelineError as exc:
+        raise ApiError(exc.status_code, exc.message, exc.how_to_fix) from exc
+    outcome = service.last_language_outcome
+    return LanguageOut(
+        item_id=item.id,
+        source_language=item.source_language,
+        target_language=item.target_language,
+        translated=bool(getattr(outcome, "translated", False)),
+        provider=str(getattr(outcome, "provider", "")),
+        model=str(getattr(outcome, "model", "")),
+        detail=str(getattr(outcome, "detail", "")),
+    )
 
 
 @router.get("/automation-rules", response_model=list[AutomationRuleOut])

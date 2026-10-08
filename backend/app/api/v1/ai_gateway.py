@@ -194,13 +194,33 @@ async def update_route_settings(
 
 @router.post("/chat", response_model=ChatOut)
 async def gateway_chat(payload: ChatIn, service: GatewayDep) -> ChatOut:
-    from backend.app.ai.gateway.types import ChatMessage
+    from backend.app.ai.gateway.types import (
+        MODALITY_FILE,
+        MODALITY_IMAGE,
+        Attachment,
+        ChatMessage,
+    )
 
     messages = []
     if payload.system:
         messages.append(ChatMessage(role="system", content=payload.system))
-    messages.append(ChatMessage(role="user", content=payload.text))
-    requires = Capability(text=True, image=payload.modality == "image")
+    attachments = [
+        Attachment(
+            kind=MODALITY_FILE if a.kind == "file" else MODALITY_IMAGE,
+            reference=a.reference,
+            mime=a.mime,
+            filename=a.filename,
+        )
+        for a in payload.attachments
+        if a.reference
+    ]
+    messages.append(ChatMessage(role="user", content=payload.text, attachments=attachments))
+    has_file = any(a.kind == MODALITY_FILE for a in attachments)
+    requires = Capability(
+        text=True,
+        image=payload.modality == "image",
+        file=has_file or payload.modality == "file",
+    )
     request = ChatRequest(
         messages=messages,
         requires=requires,

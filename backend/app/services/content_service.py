@@ -172,6 +172,9 @@ class ContentService:
         enabled: bool = True,
         channel_id: str = "",
         account_id: str = "",
+        source_language: str = "auto",
+        target_language: str = "auto",
+        auto_detect: bool = True,
     ) -> ContentSource:
         try:
             kind_enum = ContentSourceKind(kind)
@@ -186,6 +189,8 @@ class ContentService:
         existing = await self.sources.find_by_reference(reference)
         if existing is not None:
             return existing
+        from backend.app.services.content_language import normalize_language
+
         source = ContentSource(
             kind=kind_enum,
             reference=reference,
@@ -193,6 +198,9 @@ class ContentService:
             enabled=enabled,
             channel_id=channel_id,
             account_id=account_id,
+            source_language=normalize_language(source_language),
+            target_language=normalize_language(target_language),
+            auto_detect=auto_detect,
         )
         await self.sources.add(source)
         await self.events.info(
@@ -379,11 +387,22 @@ class ContentService:
         quiet_hours_start: int | None = None,
         quiet_hours_end: int | None = None,
         quiet_hours_tz: str | None = None,
+        source_language: str | None = None,
+        target_language: str | None = None,
+        auto_detect: bool | None = None,
     ) -> ContentSource:
-        """Update auto-moderation rules for a source (v1.2)."""
+        """Update auto-moderation + language rules for a source (v1.2/v2.0)."""
+        from backend.app.services.content_language import normalize_language
+
         source = await self.sources.get(source_id)
         if source is None:
             raise ContentError("Источник не найден.", status_code=404)
+        if source_language is not None:
+            source.source_language = normalize_language(source_language)
+        if target_language is not None:
+            source.target_language = normalize_language(target_language)
+        if auto_detect is not None:
+            source.auto_detect = bool(auto_detect)
         if blocked_keywords is not None:
             cleaned = sorted({k.strip().lower() for k in blocked_keywords if k.strip()})
             source.blocked_keywords = json.dumps(cleaned, ensure_ascii=False)
@@ -444,6 +463,10 @@ class ContentService:
             item.content_hash = content_hash(item.text)
         if "note" in fields and fields["note"] is not None:
             item.note = str(fields["note"])
+        if fields.get("target_language"):
+            from backend.app.services.content_language import normalize_language
+
+            item.target_language = normalize_language(str(fields["target_language"]))
         if fields.get("status"):
             try:
                 item.status = ContentItemStatus(str(fields["status"]))

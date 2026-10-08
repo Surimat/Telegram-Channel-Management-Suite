@@ -8,6 +8,7 @@ import {
   type Capability,
   type Channel,
   type ChannelSummary,
+  type LanguageOption,
   type UserSession,
 } from '@/api/client'
 import InfoHint from '@/components/InfoHint.vue'
@@ -26,9 +27,10 @@ const bindForm = ref<Record<string, string>>({})
 
 const showAdd = ref(false)
 const addBusy = ref(false)
-const form = ref({ reference: '', title: '', make_default: false, note: '' })
+const form = ref({ reference: '', title: '', make_default: false, note: '', target_language: 'auto' })
 
 const verifyAccount = ref('')
+const languages = ref<LanguageOption[]>([])
 
 const MODULE_LABELS: Record<string, string> = {
   reactions: 'Реакции',
@@ -80,6 +82,11 @@ async function load(silent = false) {
     summary.value = sum
     accounts.value = sess
     if (!verifyAccount.value && sess.length) verifyAccount.value = sess[0].id
+    try {
+      languages.value = (await api.contentLanguages()).languages
+    } catch {
+      languages.value = []
+    }
     try {
       const [bind, botList] = await Promise.all([api.bindings(), api.bots()])
       bindings.value = bind.items
@@ -180,9 +187,10 @@ async function submitAdd() {
       title: form.value.title,
       make_default: form.value.make_default,
       note: form.value.note,
+      target_language: form.value.target_language,
     })
     notice.value = 'Канал добавлен. Теперь проверьте его кнопкой «Проверить».'
-    form.value = { reference: '', title: '', make_default: false, note: '' }
+    form.value = { reference: '', title: '', make_default: false, note: '', target_language: 'auto' }
     showAdd.value = false
     await load(true)
   } catch (e) {
@@ -225,6 +233,9 @@ const toggleModule = (c: Channel, key: string) =>
   withChannel(c.id, () =>
     api.setChannelModules(c.id, { ...c.modules, [key]: !c.modules[key] }),
   )
+
+const setTargetLanguage = (c: Channel) =>
+  withChannel(c.id, () => api.updateChannel(c.id, { target_language: c.target_language }))
 
 function remove(c: Channel) {
   if (!confirm(`Удалить канал «${c.title || c.reference}» из списка? Данные модулей останутся.`))
@@ -298,6 +309,13 @@ onMounted(() => load())
         <span>Заметка (необязательно)</span>
         <input v-model="form.note" placeholder="Например: основной новостной канал" />
       </label>
+      <label class="field">
+        <span>Язык публикаций (необязательно)</span>
+        <select v-model="form.target_language">
+          <option value="auto">Не переводить</option>
+          <option v-for="l in languages" :key="l.code" :value="l.code">{{ l.title }}</option>
+        </select>
+      </label>
       <label class="toggle-row">
         <input v-model="form.make_default" type="checkbox" />
         <span>Сделать основным каналом</span>
@@ -352,6 +370,17 @@ onMounted(() => load())
               <span v-if="c.telegram_id"> · ID {{ c.telegram_id }}</span>
             </div>
             <div v-if="c.note" class="muted">{{ c.note }}</div>
+            <label class="field inline-field">
+              <span>Язык публикаций</span>
+              <select
+                v-model="c.target_language"
+                :disabled="busyId === c.id"
+                @change="setTargetLanguage(c)"
+              >
+                <option value="auto">Не переводить</option>
+                <option v-for="l in languages" :key="l.code" :value="l.code">{{ l.title }}</option>
+              </select>
+            </label>
           </td>
           <td>{{ KIND_LABELS[c.kind] ?? c.kind }}</td>
           <td>

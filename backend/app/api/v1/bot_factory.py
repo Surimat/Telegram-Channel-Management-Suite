@@ -19,6 +19,7 @@ from backend.app.api.schemas.bot_factory import (
     BatchListOut,
     BatchOut,
     BindIn,
+    BindManyIn,
     BindResultOut,
     CandidateOut,
     DashboardOut,
@@ -199,6 +200,22 @@ async def bind_created(
     try:
         results = await service.bind_created(
             batch_id, payload.channel_id, function=payload.function
+        )
+    except BotFactoryError as exc:
+        _raise(exc)
+    return [BindResultOut(**r) for r in results]
+
+
+@router.post("/batches/{batch_id}/bind-many", response_model=list[BindResultOut])
+async def bind_created_many(
+    batch_id: str,
+    payload: BindManyIn,
+    service: BotFactoryService = Depends(get_bot_factory_service),
+) -> list[BindResultOut]:
+    """Connect every created bot of a batch to several channels (v2.0)."""
+    try:
+        results = await service.bind_created_many(
+            batch_id, payload.channel_ids, function=payload.function
         )
     except BotFactoryError as exc:
         _raise(exc)
