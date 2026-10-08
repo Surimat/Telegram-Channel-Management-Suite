@@ -5,6 +5,65 @@ Dates are ISO-8601.
 
 ---
 
+## [1.9.0] — 2026-10-12
+
+**v1.9.0 — Content Operations 2.0 (additive).** The existing **Content Studio**
+(v1.2) is extended into **one pipeline** —
+`source → gather → clean → mini-AI → moderation → publish → comment/delete` —
+instead of a second, parallel studio. Everything is additive: every new column
+carries a server default, so an existing v1.8 database upgrades in place. No new
+account registration and no Telegram-limit bypass. Version strings read **1.9.0**.
+
+### Added
+- **AI profiles (as data).** `ai_profiles` table + `AiProfileService`
+  (`services/ai_profiles.py`): key, title, language, tone, max length, system
+  instructions, provider policy and a validated list of pipeline actions. Built-in
+  profiles are seeded and protected from deletion. Prompts live here, never
+  hardcoded in business logic.
+- **Automation rules (declarative, not a script engine).**
+  `automation_rules` table + `AutomationRuleService`
+  (`services/automation_rules.py`): `SOURCE + CONDITION → ACTION` where the
+  condition vocabulary is a fixed field allow-list (`contains`, `not_contains`,
+  `min_length`, `max_length`, `language`) and actions are a fixed allow-list of
+  pipeline steps. An unknown action is dropped, never executed.
+- **Single pipeline service.** `services/content_pipeline.py`
+  (`ContentPipelineService`): `classify` (local encoder, advisory), `process`
+  (apply a profile through the **AI Gateway** with failover), `moderate` (human
+  `approve`/`reject`/`review`), apply matching rule actions, and secret-free
+  pipeline analytics/audit records.
+- **Pipeline records.** `content_operations` table — append-only metadata per
+  stage (gather/ai/moderation/schedule/publish/comment/delete). Stores **no**
+  text, keys or credentials.
+- **Independent comment/delete tracking.** `publications` gains `profile_key`,
+  `ai_instructions`, `comment_status`, `delete_status`, so a lost first comment or
+  auto-delete no longer marks the publication `failed`.
+- **API (`/api/v1/content/*`, all additive):** `GET/POST /ai-profiles`,
+  `PATCH/DELETE /ai-profiles/{id}`, `POST /items/{id}/ai/classify`,
+  `POST /items/{id}/ai/process`, `POST /items/{id}/moderate`,
+  `GET/POST /automation-rules`, `PATCH/DELETE /automation-rules/{id}`,
+  `POST /items/{id}/apply-rules`, `GET /pipeline/analytics`.
+- **UI.** A new «ИИ и правила» tab in `ContentStudioView.vue` (profiles list,
+  rules list, pipeline analytics) plus per-item mini-AI/moderation controls and a
+  new `content_operations` help topic.
+- **Docs.** README, `docs/ARCHITECTURE.md`, `docs/API.md`, `docs/UI.md`,
+  `docs/RELEASE_CHECKLIST.md` describe the pipeline (D-116).
+
+### Migration
+- `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py` (revises
+  `b2c3d4e5f6a7`): adds the `ai_profiles`, `automation_rules` and
+  `content_operations` tables; additive columns on `content_items`
+  (`original_text`, `ai_status`, `ai_category`, `ai_intent`, `ai_profile`,
+  `ai_note`) and `publications` (`profile_key`, `ai_instructions`,
+  `comment_status`, `delete_status`). SQLite uses batch mode automatically.
+
+### Tests
+- `tests/test_content_operations.py` — 9 tests over the full pipeline
+  (profiles CRUD, protected built-ins, classify, moderation, rule matching,
+  analytics) against a temporary SQLite DB with manual/public sources only — no
+  real accounts, credentials, SMS or account-registration flow.
+
+---
+
 ## [1.8.2] — 2026-10-11
 
 **v1.8.2 — Web Wrapper Hub practical-verification patch (additive, no new

@@ -2462,3 +2462,59 @@ clean, `vue-tsc` + `npm run build` clean, meta-audit 30/30 (0 missed, 0 false
 positives). `main` HEAD = `8542d4c`; `develop` is ahead of `main` only by
 documentation/memory-only commits (`ab2c120`, `acf9de4`, …) with no code change.
 
+
+---
+
+## D-116 — 2026-10-12 — Content Operations 2.0 extends the one studio; the mini-AI classifies, it never chooses — LOCKED
+
+**Context.** The product brief for the v1.9 cycle asks for a *single* content
+pipeline — `source -> gather -> clean -> mini-AI -> moderation -> publish ->
+comment/delete` — with reusable AI profiles, human moderation, declarative
+automation rules and analytics. The risk is a second, parallel "Content Studio"
+that forks behaviour and drifts. A second risk is pretending a small encoder
+model (ruBERT-tiny2 class) can *generate* exact structured output, or letting an
+AI pick an emoji.
+
+**Decision.**
+
+1. **One studio, additive only.** The v1.9 work extends the existing Content
+   Studio (`ContentStudioView.vue`, `/api/v1/content/*`, `content_items`). No
+   second studio, no parallel route tree, no duplicated posting path. Every schema
+   change is an additive column/table with a server default, so an existing v1.8
+   database upgrades in place (`20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py`).
+2. **The prompt is data, not code.** `AiProfile` (key/title/language/tone/
+   max-length/instructions/provider-policy/actions) is a row, not a constant.
+   Built-in profiles are seeded and **delete-protected**; the action list is
+   validated against a fixed allow-list, so an unknown action is dropped, never
+   executed.
+3. **Rules are declarative, not a script engine.** `AutomationRule` matches on a
+   fixed condition vocabulary (`contains`/`not_contains`/`min_length`/`max_length`/
+   `language`) and performs a fixed allow-list of pipeline actions. There is no
+   `eval`, no arbitrary code and no expression language.
+4. **The mini-AI classifies; it never chooses.** `ContentPipelineService.classify`
+   returns only a **category** and an **intent** (advisory, `ai_status`). It never
+   selects an emoji or a reaction: the reaction engine intersects the profile's
+   allowed reactions with the channel's actually-available ones (D-033). The model
+   is an **encoder** used with prototype/nearest-prototype labels over a small
+   seeded Russian example set — it is not treated as a generative LLM and is never
+   asked to emit JSON.
+5. **An AI failure never loses material.** If the gateway has no live provider,
+   `process` moves the item to `NEEDS_REVIEW` with `ai_status = ai_unavailable`
+   and a plain note; the original text is preserved in `original_text`. No silent
+   drop, no fabricated output.
+6. **Analytics are metadata only.** `content_operations` records stage/status/
+   provider/model/latency/attempts/detail — never prompt text, keys, tokens or
+   audience data. Comment and auto-delete are tracked independently
+   (`comment_status`, `delete_status`) so a lost step never marks a publication
+   `failed`.
+
+**Consequences.** The full suite is **954 passed**; `ruff` clean; `vue-tsc` +
+`npm run build` clean; meta-audit **30/30 (0 missed, 0 false positives)**. New
+tests in `tests/test_content_operations.py` cover profiles, moderation, rule
+matching and analytics against a temporary SQLite DB with no real accounts,
+credentials, SMS or registration flow. A future change that adds a second studio,
+hardcodes prompts, lets the AI pick an emoji, or destroys material on AI failure
+fails these decisions.
+
+**Release.** Shipped as **v1.9.0** via a reviewed `develop -> main` PR (D-060),
+tag `v1.9.0`; the Release workflow attaches the Windows portable ZIP + `.sha256`.

@@ -66,6 +66,35 @@ PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_R
 
 ## 6. Release verification (fill in per release)
 
+### v1.9.0 (Content Operations 2.0, 2026-10-12, D-116)
+
+Minor over v1.8.2: extends the existing Content Studio into one pipeline
+(`source → gather → clean → mini-AI → moderation → publish → comment/delete`)
+with AI profiles, human moderation, declarative automation rules and secret-free
+pipeline analytics. Additive migration; no account registration and no
+Telegram-limit bypass.
+
+| Gate | v1.9.0 | Notes |
+| --- | --- | --- |
+| Version consistency (`1.9.0` everywhere) | ✅ | app / pyproject / frontend / lock (`test_repo_version_is_consistent`) |
+| Single pipeline (no second studio) | ✅ | `services/content_pipeline.py`; all routes additive under `/api/v1/content/*` |
+| AI profiles as data | ✅ | `ai_profiles` table + `AiProfileService`; built-ins seeded and delete-protected |
+| Declarative automation rules | ✅ | fixed condition field allow-list + action allow-list; unknown actions dropped |
+| Mini-AI is an encoder, not a generator | ✅ | returns category/intent only; never selects an emoji (D-033/D-116) |
+| AI failure never loses material | ✅ | item → `needs_review`, `ai_status=ai_unavailable`, clear note |
+| Independent comment/delete status | ✅ | `publications.comment_status` / `delete_status` |
+| Secret-free pipeline analytics | ✅ | `content_operations` stores metadata only (no text/keys) |
+| Migration (additive) | ✅ | `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py` revises `b2c3d4e5f6a7` |
+| Tests (`pytest` / `ruff`) | ✅ | full suite **954 passed**; ruff clean |
+| Frontend build | ✅ | `vue-tsc --noEmit` + `npm run build` clean |
+| Meta-audit engine (runtime) | ✅ | 30 total, 30 detected, 0 missed, 0 false positives |
+| Docker build + smoke | ✅ | image builds; `/health` reports `1.9.0`; `/api/v1/consistency` passes |
+| Portable build/smoke | ✅ | Release workflow builds the Windows portable ZIP + `.sha256` |
+| Artifact scan | ✅ | no `.session`/TDATA/DB/model in the ZIP |
+| Secret scan | ✅ | no tokens/api_hash/session strings/cookies in the diff or tracked tree |
+| Git merge (`develop → main`) | ✅ | reviewed `develop → main` PR |
+| Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v1.9.0` (D-060) |
+
 ### v1.8.2 (Web Wrapper Hub practical verification, 2026-10-11, D-115)
 
 Patch over v1.8.1: verifies the Web Wrapper Hub on practical scenarios with no
