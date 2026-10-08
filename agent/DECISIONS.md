@@ -2413,3 +2413,44 @@ still reported `available`, and `AIRouter._attempt` returned a transient
 cases (capability dependency, orphan provider class, unwired control) and the
 behaviour tests above fail if a future change re-introduces a decorative retry or
 a flag-based availability. No new features, no schema change, no new dependency.
+
+---
+
+## D-115 — 2026-10-11 — The wrapper pipeline is verified on practical scenarios, not by compiles — LOCKED
+
+**Context.** After v1.8.1 the Web Wrapper Hub was "architecturally implemented"
+but had not been exercised on *practical* scenarios end to end. A verification
+pass over the real engine→provider→router pipeline found that the **genuine**
+Playwright runtime's `extract()` read `href` from the matched node itself, so
+extracting a container (`li.link`, `tr.row`) returned empty links — a real defect
+visible only when the real browser ran.
+
+**Decision.**
+
+1. **The wrapper pipeline is verified with a deterministic local fixture.** A
+   local `127.0.0.1` HTTP server (`tests/support/web_fixtures.py::FixtureSite`)
+   serves fixed HTML and `FixtureBrowserRuntime` performs a **real HTTP GET** and
+   parses the returned HTML. Tests, the benchmark and CI use it — no external
+   site, account, key or AI credential, and no browser binary required.
+2. **The genuine browser layer is verified too, but optional.** A real headless
+   Chromium test (`tests/test_web_wrapper_playwright_integration.py`) runs the
+   same scenarios and **skips** when Playwright/Chromium is absent, so CI without
+   a browser stays green. Playwright is never imported at startup; the browser is
+   optional and reports honest unavailability when missing.
+3. **Structured extraction is configurable and strict.** `WrapperDefinition`
+   carries `extraction="structured"` + `extract_attrs` (default `("href",)`); the
+   engine calls `BrowserRuntime.extract(selector, attrs=...)`. Extraction prefers
+   a nested `<a>` for the link. A structured extraction with **no** matching node
+   reports `wrapper_selector` — never fabricated data. A *text* extraction with no
+   match honestly returns the page text.
+4. **Honesty is itself tested.** Login pages are detected and **not** bypassed; a
+   transport failure is surfaced; the capability matrix never offers a text-only
+   provider for image or structured cases; `diagnostics()` / `wrapper_library()` /
+   `ProviderView` contain no key value, cookie, profile path or session string.
+
+**Consequences.** `PYTHONPATH=. python tests/web_wrapper_bench.py` reports 7/7 and
+writes `agent/WEB_WRAPPER_BENCHMARK.json`; the CI-safe pytest modules assert the
+same scenarios and the failure paths. Any future change that re-breaks real link
+extraction or fabricates structured data fails these tests. No new runtime
+dependency and no schema change.
+

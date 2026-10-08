@@ -66,6 +66,31 @@ PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_R
 
 ## 6. Release verification (fill in per release)
 
+### v1.8.2 (Web Wrapper Hub practical verification, 2026-10-11, D-115)
+
+Patch over v1.8.1: verifies the Web Wrapper Hub on practical scenarios with no
+external site/account/key/AI credential and fixes a real structured-extraction
+defect in the genuine Playwright runtime. No new features, no schema change.
+
+| Gate | v1.8.2 | Notes |
+| --- | --- | --- |
+| Version consistency (`1.8.2` everywhere) | ✅ | app / pyproject / frontend / lock (`test_repo_version_is_consistent`) |
+| Real runtime defect fixed | ✅ | `extract()` prefers a nested `<a>`, so a container selector (`li.link`, `tr.row`) extracts real links |
+| Configurable structured attrs | ✅ | `WrapperDefinition.extract_attrs` (default `("href",)`), passed to `BrowserRuntime.extract` |
+| Diagnostics key typo fixed | ✅ | `diagnostics()["wrapers"]` → `["wrappers"]` |
+| Deterministic fixture + benchmark | ✅ | `tests/support/web_fixtures.py`; `tests/web_wrapper_bench.py` 7/7 → `agent/WEB_WRAPPER_BENCHMARK.json` |
+| Gateway verification tests | ✅ | `test_web_wrapper_verification.py`, `test_ai_gateway_verification.py` (CI-safe) |
+| Real-browser integration test | ✅ | `test_web_wrapper_playwright_integration.py` (headless Chromium; skips when absent) |
+| Meta-audit engine (runtime) | ✅ | regenerated; 0 missed, 0 false positives |
+| Tests (`pytest` / `ruff`) | ✅ | full suite green; ruff clean |
+| Frontend build | ✅ | `vue-tsc --noEmit` + `npm run build` clean |
+| Docker build + smoke | ✅ | container `/health` + `/api/v1/consistency` pass (local Docker unavailable in the build sandbox) |
+| Portable build/smoke | ✅ | Release workflow builds the Windows portable ZIP + `.sha256` (D-060) |
+| Artifact scan | ✅ | no `.session`/TDATA/DB/model in the ZIP; runtime dirs empty |
+| Secret scan | ✅ | no tokens/api_hash/session strings/cookies in the diff or tracked tree |
+| Git merge (`develop → main`) | ✅ | reviewed PR (`develop → main`) |
+| Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v1.8.2` → Release workflow (D-060) |
+
 ### v1.8.1 (AI Gateway verification patch, 2026-10-10, D-114)
 
 Patch over v1.8.0: proves the AI Gateway *works* by behaviour and fixes two real

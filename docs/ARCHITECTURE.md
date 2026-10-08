@@ -1052,3 +1052,38 @@ browser.
 `AiGatewayView.vue` (`/ai-gateway`, "Центр ИИ") with tabs for providers, routing,
 web wrappers, testing and the observability journal; a nav entry in `App.vue`; and
 two help topics (`ai_gateway`, `ai_gateway_wrapper`).
+
+### 25.6 Practical verification (v1.8.2, D-115)
+
+The gateway is verified on practical scenarios, **not** just "it compiles", and
+without any external site, account, key or AI credential:
+
+- `tests/support/web_fixtures.py` — `FixtureSite` (a local `127.0.0.1` HTTP server
+  serving deterministic HTML: index + search form, article, extract page, login
+  page, 500 page) and `FixtureBrowserRuntime`, a browser-runtime implementation
+  that performs a **real HTTP GET** and parses the returned HTML with a small
+  CSS-subset matcher. It is not a browser; it makes the wrapper pipeline
+  deterministic in CI.
+- `tests/web_wrapper_bench.py` — a benchmark that runs 7 scenarios over the real
+  engine→provider→router pipeline (open a page, find text, extract structure,
+  search/navigate, normalized response, transient→fallback failover, free-first
+  ordering) and writes `agent/WEB_WRAPPER_BENCHMARK.json`.
+- `tests/test_web_wrapper_verification.py` — the same scenarios plus failure
+  classification (login detected and **not** bypassed, HTTP error surfaced,
+  structured extraction strict on a missing selector) and artifact-integrity /
+  secret checks.
+- `tests/test_web_wrapper_playwright_integration.py` — the **genuine** browser
+  layer: it drives real headless Chromium via Playwright against the fixture site
+  and skips when Playwright/Chromium is absent, so CI without a browser stays
+  green. It proved the real runtime's structured extraction reads nested links.
+- `tests/test_ai_gateway_verification.py` — capability-matrix honesty (text-only
+  providers are not offered for image or structured cases), regional-block
+  failover narration, and secret-safety (no key value, cookie, profile or session
+  string in `diagnostics()`/`wrapper_library()`/`ProviderView`).
+
+Structured extraction is configured by `WrapperDefinition.extraction =
+"structured"` plus `extract_attrs` (default `("href",)`); the engine reads
+records through `BrowserRuntime.extract(selector, attrs=...)` and both runtimes
+implement it. A structured extraction with no matching node reports
+`wrapper_selector` rather than inventing data; a *text* extraction with no match
+honestly falls back to the page text.

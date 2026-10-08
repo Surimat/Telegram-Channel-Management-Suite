@@ -633,3 +633,21 @@ It is optional and independent of the lightweight «Мини-ИИ» above.
 Keys are stored sealed and are never shown again. Nothing is downloaded by
 default; the browser runtime for web wrappers is optional and reported honestly
 when unavailable. See `docs/SECURITY.md` §7k.
+
+### Verifying web wrappers without touching the network
+
+The wrapper pipeline can be exercised end to end against a **local fixture site**
+— no external site, account or key, and no browser binary required:
+
+```bash
+PYTHONPATH=. python tests/web_wrapper_bench.py      # 7/7 scenarios → agent/WEB_WRAPPER_BENCHMARK.json
+python -m pytest tests/test_web_wrapper_verification.py tests/test_ai_gateway_verification.py -q
+```
+
+The genuine Chromium path is optional; install Playwright only if you want it
+(never needed for the app itself):
+
+```bash
+pip install playwright && playwright install chromium
+python -m pytest tests/test_web_wrapper_playwright_integration.py -q   # skips if absent
+```

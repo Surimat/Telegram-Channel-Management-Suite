@@ -3,13 +3,59 @@
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
-**Updated:** 2026-10-08
-**Status:** **v1.8.1 (AI Gateway verification patch, D-114) is RELEASED** via a
-reviewed `develop → main` PR #20 (merge `bc8382b`), tag `v1.8.1`; the Release
-workflow (run `37705225761`) created the GitHub Release and attached the Windows
-portable ZIP (24 905 404 bytes, sha256 `0ec6aca1…a9d4`) + `.sha256`. `main` HEAD =
-`bc8382b`; `develop` re-synced to `bc8382b`. Nothing is required to follow up. Do
-**not** add new large features.
+**Updated:** 2026-10-11
+**Status:** **v1.8.2 RELEASE CANDIDATE.** A practical-verification pass over the
+v1.8.1 **Web Wrapper Hub** (D-115) exercised the real
+engine→provider→router pipeline on deterministic scenarios and fixed a **real
+defect in the genuine Playwright runtime**: `extract()` read `href` from the
+matched node itself, so extracting a container (`li.link`, `tr.row`) returned
+empty links (only visible when the real browser ran). Additive only — no external
+site, account, key or AI credential is used anywhere in the tests, and there is
+no account registration and no CAPTCHA/MFA/regional-block or Telegram-limit
+bypass.
+
+Version string is **1.8.2** (release candidate) across `backend/app/__init__.py`,
+`pyproject.toml`, `frontend/package.json` + lock.
+
+### What this change does (D-115, additive)
+
+- **Local deterministic fixture** (`tests/support/web_fixtures.py`): `FixtureSite`
+  (a `127.0.0.1` HTTP server serving index + search form, article, extract page,
+  login page and a 500 page) and `FixtureBrowserRuntime` (real HTTP GET + a small
+  CSS-subset HTML matcher — not a browser).
+- **Benchmark** (`tests/web_wrapper_bench.py`): 7 scenarios over the real
+  pipeline; writes `agent/WEB_WRAPPER_BENCHMARK.json` (7/7).
+- **Verification tests:** `tests/test_web_wrapper_verification.py` (scenarios +
+  login-not-bypassed + HTTP error + strict structured extraction + artifact/secret
+  checks), `tests/test_ai_gateway_verification.py` (capability-matrix honesty,
+  regional failover narration, secret safety).
+- **Real browser layer** (`tests/test_web_wrapper_playwright_integration.py`):
+  genuine headless Chromium; **skips** when Playwright/Chromium is absent (CI
+  without a browser stays green). No startup dependency.
+- **Fixes:** runtime `extract()` prefers a nested `<a>`; `WrapperDefinition`
+  gains `extract_attrs` (default `("href",)`); engine passes attrs through; the
+  `diagnostics()` `"wrapers"` typo is corrected to `"wrappers"`.
+
+### Next step
+
+Run the full quality gate and release **v1.8.2** (patch) via a reviewed
+`develop → main` PR + tag (do not push to `main`):
+
+```bash
+python -m pytest                 # must stay green
+ruff check backend tests         # must stay clean
+cd frontend && npx vue-tsc --noEmit && npm run build
+PYTHONPATH=. python tests/meta_audit/engine.py
+```
+
+After the merge, re-sync `develop` to the merge commit and record the facts here
+(PR number, tag, Release-workflow run, ZIP size + sha256).
+
+**Prior release:** **v1.8.1 (AI Gateway verification patch, D-114) is RELEASED**
+via a reviewed `develop → main` PR #20 (merge `bc8382b`), tag `v1.8.1`; the
+Release workflow (run `37705225761`) created the GitHub Release and attached the
+Windows portable ZIP (24 905 404 bytes, sha256 `0ec6aca1…a9d4`) + `.sha256`.
+`main` HEAD = `bc8382b`; `develop` re-synced to `bc8382b`.
 An independent verification of the v1.8.0 **AI Gateway + Web Wrapper Hub** proved
 it *works* (routing, retry, failover, wrapper engine, availability, secret
 safety), not merely that it compiles, and fixed two real defects plus a version

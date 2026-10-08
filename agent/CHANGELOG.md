@@ -5,6 +5,49 @@ Dates are ISO-8601.
 
 ---
 
+## [1.8.2] — 2026-10-11
+
+**v1.8.2 — Web Wrapper Hub practical-verification patch (additive, no new
+features).** The v1.8.1 wrapper work is now verified on practical scenarios and
+one real defect in the genuine browser runtime was fixed. Version strings read
+**1.8.2**. Additive only: no account registration, no external site and no
+CAPTCHA/MFA/regional-block or Telegram-limit bypass. All tests run against a
+local fixture site with no account, key or AI credential.
+
+### Fixed
+- **Structured extraction of a container returned no link (D-115).** The
+  Playwright runtime's `extract()` read `href` from the matched node itself, so a
+  selector matching a container (`li.link`, `tr.row`) produced empty `href`s. It
+  now prefers a nested `<a>` when present, so real link lists and table rows
+  extract correctly. Proven by the real-Chromium integration test.
+- **Structured extraction could not choose attributes.** `WrapperDefinition` now
+  carries `extract_attrs` (default `("href",)`) and the engine passes it to
+  `BrowserRuntime.extract(selector, attrs=...)`; both runtimes honour it.
+- **Diagnostics key typo.** `diagnostics()["wrapers"]` → `["wrappers"]`.
+
+### Added
+- **Deterministic web fixture** (`tests/support/web_fixtures.py`): a local
+  `127.0.0.1` HTTP server (`FixtureSite`) serving index + search form, article,
+  extract page, login page and a 500 page, plus `FixtureBrowserRuntime`, a
+  real-HTTP + HTML-parsing browser-runtime implementation (not a browser).
+- **Web-wrapper benchmark** (`tests/web_wrapper_bench.py`): 7 scenarios over the
+  real engine→provider→router pipeline; writes `agent/WEB_WRAPPER_BENCHMARK.json`.
+- **Verification tests:** `tests/test_web_wrapper_verification.py` (scenarios +
+  failure classification + artifact/secret checks),
+  `tests/test_web_wrapper_playwright_integration.py` (genuine headless Chromium;
+  skips when Playwright/Chromium is absent) and
+  `tests/test_ai_gateway_verification.py` (capability-matrix honesty, regional
+  failover narration, secret safety).
+
+### Notes
+- Text extraction with an unmatched selector honestly falls back to page text;
+  *structured* extraction with an unmatched selector reports `wrapper_selector`
+  (never fabricated data).
+- No schema change, no new runtime dependency (Playwright stays optional and is
+  not imported at startup).
+
+---
+
 ## [1.8.1] — 2026-10-10
 
 **v1.8.1 — AI Gateway verification patch (additive, no new features).** An

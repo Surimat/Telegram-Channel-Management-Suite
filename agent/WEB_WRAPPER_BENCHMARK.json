@@ -1,0 +1,95 @@
+{
+  "generated_at": "2026-10-08T07:29:05Z",
+  "runtime": "fixture-http (real HTTP + real HTML)",
+  "external_network": false,
+  "scenarios_total": 7,
+  "scenarios_passed": 7,
+  "scenarios_failed": 0,
+  "success_rate": 100.0,
+  "results": [
+    {
+      "name": "open_page",
+      "description": "Открыть страницу и прочитать заголовок",
+      "success": true,
+      "latency_ms": 146,
+      "timeout": false,
+      "extraction_correct": false,
+      "provider_used": "web:fixture",
+      "fallback_used": false,
+      "browser_errors": [],
+      "detail": "title/text present"
+    },
+    {
+      "name": "find_text",
+      "description": "Найти текст на странице",
+      "success": true,
+      "latency_ms": 8,
+      "timeout": false,
+      "extraction_correct": false,
+      "provider_used": "web:fixture",
+      "fallback_used": false,
+      "browser_errors": [],
+      "detail": "phrase found"
+    },
+    {
+      "name": "extract_data",
+      "description": "Извлечь структурированные данные",
+      "success": true,
+      "latency_ms": 7,
+      "timeout": false,
+      "extraction_correct": true,
+      "provider_used": "web:fixture",
+      "fallback_used": false,
+      "browser_errors": [],
+      "detail": "2 items"
+    },
+    {
+      "name": "search_nav",
+      "description": "Поиск и навигация",
+      "success": true,
+      "latency_ms": 14,
+      "timeout": false,
+      "extraction_correct": false,
+      "provider_used": "web:fixture",
+      "fallback_used": false,
+      "browser_errors": [],
+      "detail": "results read"
+    },
+    {
+      "name": "normalized_response",
+      "description": "Единый нормализованный ответ через роутер",
+      "success": true,
+      "latency_ms": 8,
+      "timeout": false,
+      "extraction_correct": false,
+      "provider_used": "web:fixture",
+      "fallback_used": false,
+      "browser_errors": [],
+      "detail": "ok=True provider=web:fixture source=web status=available"
+    },
+    {
+      "name": "failover_transient",
+      "description": "Провайдер падает (transient) → отвечает резервный",
+      "success": true,
+      "latency_ms": 0,
+      "timeout": false,
+      "extraction_correct": false,
+      "provider_used": "api-good",
+      "fallback_used": true,
+      "browser_errors": [],
+      "detail": "provider=api-good fallback=True attempts=2"
+    },
+    {
+      "name": "free_first_order",
+      "description": "Free-first: сначала бесплатный/локальный",
+      "success": true,
+      "latency_ms": 0,
+      "timeout": false,
+      "extraction_correct": false,
+      "provider_used": "free-local",
+      "fallback_used": false,
+      "browser_errors": [],
+      "detail": "order=['free-local', 'paid-api'] used=free-local"
+    }
+  ]
+}

@@ -37,6 +37,19 @@ from backend.app.ai.gateway.types import (
 from backend.app.ai.gateway.wrappers.definition import WrapperDefinition
 
 
+def _items_to_text(items: list[dict[str, object]]) -> str:
+    """Flatten structured records into a normalized text block (deterministic)."""
+    lines: list[str] = []
+    for item in items:
+        text = str(item.get("text", "")).strip()
+        href = str(item.get("href", "")).strip()
+        if href and href not in text:
+            lines.append(f"{text} — {href}" if text else href)
+        elif text:
+            lines.append(text)
+    return "\n".join(lines)
+
+
 @dataclass(slots=True)
 class WrapperRun:
     """The outcome of one wrapper execution, before it becomes a ChatResponse."""
@@ -46,6 +59,8 @@ class WrapperRun:
     login_required: bool = False
     selector_error: bool = False
     detail: str = ""
+    #: Structured records when the definition asks for ``extraction="structured"``.
+    items: list[dict[str, object]] | None = None
 
 
 class WebWrapperEngine:
@@ -114,6 +129,20 @@ class WebWrapperEngine:
                 snap = await self.runtime.click(definition.send_selector)
             elif definition.input_selector:
                 snap = await self.runtime.press(definition.input_selector, "Enter")
+            if definition.extraction == "structured" and definition.response_selector:
+                # Read structured records (links/rows/cards) the owner asked for.
+                snap = await self.runtime.extract(
+                    definition.response_selector, attrs=definition.extract_attrs
+                )
+                items = list(snap.items)
+                text = _items_to_text(items)
+                if not items:
+                    return WrapperRun(
+                        ok=False,
+                        selector_error=True,
+                        detail="Не удалось прочитать структуру (селектор не найден).",
+                    )
+                return WrapperRun(ok=True, text=text, items=items)
             if definition.response_selector:
                 snap = await self.runtime.read(
                     definition.response_selector,
@@ -222,6 +251,12 @@ class GenericWebWrapperProvider:
                 status="auth_required" if exc.category == "auth_required" else "unavailable",
             )
         if run.ok:
+            structured = None
+            if run.items is not None:
+                structured = {
+                    "kind": "extraction",
+                    "items": run.items,
+                }
             return ChatResponse(
                 ok=True,
                 text=run.text,
@@ -230,6 +265,7 @@ class GenericWebWrapperProvider:
                 source=SourceKind.WEB,
                 request_id=request.correlation_id,
                 status=STATUS_AVAILABLE,
+                structured=structured,
             )
         if run.login_required:
             return ChatResponse(
