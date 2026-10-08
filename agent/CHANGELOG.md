@@ -52,6 +52,24 @@ build` clean, meta-audit 30/30 (0 missed, 0 false positives).
 - No schema change, no new runtime dependency (Playwright stays optional and is
   not imported at startup).
 
+### Post-release (memory / documentation only — no code change)
+- **Persistent-memory drift fixed.** `agent/CURRENT_STATE.md` still recorded
+  `develop = 8542d4c` (it is `acf9de4`, two documentation-only commits ahead of
+  `main`) and carried a stale v1.6.1-era "Repository status" line;
+  `agent/NEXT_TASK.md` still had a "Next step: release v1.8.2" section for an
+  already-shipped release. Both now state the actual git state (latest release
+  v1.8.2, `main` HEAD `8542d4c`, `develop` HEAD `acf9de4`, latest tag `v1.8.2`)
+  and that the two post-release commits are documentation/memory only.
+- **Guard test added.** `tests/test_meta_audit.py::test_memory_files_have_no_stale_current_version`
+  fails if `CURRENT_STATE.md`/`NEXT_TASK.md` state a current-release version other
+  than the shipped one (it reproduces the old "announces v1.8.0 as latest" drift),
+  and `test_changelog_leads_with_the_current_release` keeps the CHANGELOG head
+  current. `docs/ROADMAP.md` gained the v1.8.2 release facts.
+- **Gates after the sync:** `pytest` **945 passed** (943 at release + 2 guards),
+  `ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit **30/30** (0 missed,
+  0 false positives). No production file changed — only `agent/*`, `docs/*` and
+  the test suite.
+
 ---
 
 ## [1.8.1] — 2026-10-10

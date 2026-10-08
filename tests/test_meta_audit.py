@@ -233,6 +233,97 @@ def test_result_report_matches_version() -> None:
     assert committed["version"] == __version__
 
 
+#: Lines that *assert the current release* (as opposed to narrating history).
+#: Each entry is ``(file, required_prefix, window)``: the first line in the file
+#: whose stripped text starts with the prefix must name the shipped version
+#: within the first ``window`` characters. These are exactly the lines a resuming
+#: agent reads first, so a stale version here is the dangerous drift.
+_CURRENT_ANCHORS = (
+    ("agent/CURRENT_STATE.md", "**Current phase:**", 220),
+    ("agent/CURRENT_STATE.md", "**Factual git state:**", 130),
+    ("agent/NEXT_TASK.md", "**Status:**", 220),
+)
+
+#: Mid-line phrases that assert the current release. A line carrying one of these
+#: must not name a *different* version, unless the line is explicitly narrating
+#: history (it also contains one of ``_HISTORY_MARKERS``). This catches stale
+#: "… Latest release: vX.Y.Z" / "**Repository status:** … vX.Y.Z" lines while
+#: leaving "README.md still said …" drift notes alone.
+_MIDLINE_CLAIMS = ("Latest release:", "**Repository status:")
+_HISTORY_MARKERS = (
+    "history",
+    "historical",
+    "said",
+    "still",
+    "superseded",
+    "legacy",
+    "Earlier",
+    "Previous",
+    "previous",
+)
+
+
+def test_memory_files_have_no_stale_current_version() -> None:
+    """Guard CURRENT_STATE/NEXT_TASK against stale *current release* facts.
+
+    A new agent resumes from these files, so the lines that claim to describe
+    the *current* state must name the shipped version — not an older one and not
+    an invented future one. Historical release lines (``**v1.8.1 RELEASED`` …)
+    and explicit drift notes ("README.md still said …") are exempt: they narrate
+    the past on purpose. This reproduces the regression these files hit before —
+    advertising ``v1.8.0`` as the latest release while ``v1.8.2`` was shipped.
+    """
+    import re
+
+    current = f"v{__version__}"
+    parsed = tuple(int(p) for p in __version__.split("."))
+    failures: list[str] = []
+
+    def _versions(line: str) -> list[tuple[int, int, int]]:
+        return [
+            tuple(int(g) for g in m.groups())
+            for m in re.finditer(r"v(\d+)\.(\d+)\.(\d+)", line)
+        ]
+
+    for name in ("agent/CURRENT_STATE.md", "agent/NEXT_TASK.md"):
+        lines = (REPO_ROOT / name).read_text(encoding="utf-8").splitlines()
+        for prefix, window in ((p, w) for f, p, w in _CURRENT_ANCHORS if f == name):
+            match = next((ln for ln in lines if ln.strip().startswith(prefix)), None)
+            if match is None:
+                failures.append(f"{name}: missing current-release anchor {prefix!r}")
+                continue
+            if current not in match[:window]:
+                failures.append(
+                    f"{name}: {prefix!r} line does not name {current} within {window} chars"
+                )
+            if any(v > parsed for v in _versions(match[:window])):
+                failures.append(f"{name}: {prefix!r} line claims an unreleased version")
+        for lineno, line in enumerate(lines, start=1):
+            if not any(claim in line for claim in _MIDLINE_CLAIMS):
+                continue
+            if any(marker in line for marker in _HISTORY_MARKERS):
+                continue
+            named = _versions(line)
+            if named and not any(v == parsed for v in named):
+                failures.append(
+                    f"{name}:{lineno} asserts a stale current release: {line[:140]!r}"
+                )
+
+    assert not failures, "stale current-release facts in memory files:\n" + "\n".join(failures)
+
+
+def test_changelog_leads_with_the_current_release() -> None:
+    """CHANGELOG's newest section must be the shipped version (not a stale one)."""
+    import re
+
+    changelog = (REPO_ROOT / "agent" / "CHANGELOG.md").read_text(encoding="utf-8")
+    heading = re.search(r"^## \[([0-9.]+)\]", changelog, flags=re.MULTILINE)
+    assert heading is not None, "agent/CHANGELOG.md has no versioned section"
+    assert heading.group(1) == __version__, (
+        f"agent/CHANGELOG.md leads with {heading.group(1)}; expected {__version__}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # 5. Capability dependency actually blocks availability (not just a static warn)
 # ---------------------------------------------------------------------------

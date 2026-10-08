@@ -252,7 +252,10 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
   from the matched node itself, so a container selector (`li.link`, `tr.row`)
   returned empty links. Adds `WrapperDefinition.extract_attrs`, a 7/7 benchmark
   (`agent/WEB_WRAPPER_BENCHMARK.json`) and a skipping real-Chromium test. No new
-  features, no schema change, no new runtime dependency.
+  features, no schema change, no new runtime dependency. Released via a reviewed
+  `develop → main` PR #21 (merge `8542d4c`), tag `v1.8.2`; the Release workflow
+  (run `37747125558`) attached the Windows portable ZIP (24 906 383 bytes, sha256
+  `f0c6984d…f619`) + `.sha256`.
 - **v1.8.1 (2026-10-10):** an **AI Gateway verification patch** (D-114) over
   v1.8.0. It proves the gateway *works* by behaviour and fixes two real defects —
   a `web` provider whose wrapper id does not exist reported `available` (and lost

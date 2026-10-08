@@ -42,20 +42,22 @@ Version string is **1.8.2** across `backend/app/__init__.py`,
   gains `extract_attrs` (default `("href",)`); engine passes attrs through; the
   `diagnostics()` `"wrapers"` typo is corrected to `"wrappers"`.
 
-### Next step
+### No active task
 
-Run the full quality gate and release **v1.8.2** (patch) via a reviewed
-`develop → main` PR + tag (do not push to `main`):
+**v1.8.2 is RELEASED and verified — there is no pending task.** Do **not** add new
+large features. The quality gate was run and passed before the release:
 
 ```bash
-python -m pytest                 # must stay green
-ruff check backend tests         # must stay clean
-cd frontend && npx vue-tsc --noEmit && npm run build
-PYTHONPATH=. python tests/meta_audit/engine.py
+python -m pytest                                  # 943 passed
+ruff check backend tests                          # clean
+cd frontend && npx vue-tsc --noEmit && npm run build   # clean
+PYTHONPATH=. python tests/meta_audit/engine.py    # 30/30, 0 false positives
 ```
 
-After the merge, re-sync `develop` to the merge commit and record the facts here
-(PR number, tag, Release-workflow run, ZIP size + sha256).
+The only commits on `develop` after the release are **documentation/memory-only**
+(`ab2c120` release facts, `acf9de4` Docker smoke), so `develop` is 2 commits ahead
+of `main` with **no code change**. For the next release (only when the owner asks):
+branch from `develop`, then a reviewed `develop → main` PR + tag.
 
 **Prior release:** **v1.8.1 (AI Gateway verification patch, D-114) is RELEASED**
 via a reviewed `develop → main` PR #20 (merge `bc8382b`), tag `v1.8.1`; the
@@ -130,9 +132,9 @@ complete.
 
 ---
 
-## Active task: none — v1.8.0 released
+## Legacy notes: v1.8.0 release (historical — superseded by v1.8.2 at the top)
 
-**v1.8.0 is RELEASED** via a reviewed `develop → main` PR #19 (merge `d8c62c1`),
+**v1.8.0 was RELEASED** via a reviewed `develop → main` PR #19 (merge `d8c62c1`),
 tag `v1.8.0`; the Release workflow (run `37653661662`) created the GitHub Release
 and attached the Windows portable ZIP (24 904 789 bytes, sha256 `9bb39e4b…d353c`)
 + `.sha256`. `main` HEAD = `d8c62c1`; `develop` re-synced to `d8c62c1`. Nothing is
