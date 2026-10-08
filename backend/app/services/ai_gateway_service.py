@@ -585,7 +585,7 @@ class AiGatewayService:
                 "runtime": runtime.name,
                 "available": bool(runtime.available),
             },
-            "wrapers": len(LIBRARY),
+            "wrappers": len(LIBRARY),
             "fallback": "enabled",
         }
 

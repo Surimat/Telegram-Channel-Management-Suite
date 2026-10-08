@@ -464,3 +464,11 @@ The Diagnostics report (`GET /api/v1/diagnostics/report`, D-061) is explicitly a
 - **No paid spend by accident.** Paid providers are excluded from routing unless
   `ai_gateway_allow_paid` is on; web wrappers are excluded unless
   `ai_gateway_web_enabled` is on.
+- **The browser stays optional and never leaks page credentials (v1.8.2, D-115).**
+  Playwright is imported lazily and never at startup; the runtime reports honest
+  unavailability when it or Chromium is missing. Structured extraction returns
+  only the page fields the owner asked for (`tag`/`text`/`href`/requested
+  attributes) — never cookies, headers, a profile path or a session string. The
+  gateway `diagnostics()`, `wrapper_library()` and `ProviderView` are asserted by
+  tests to contain none of `api_key`, `api_hash`, `password`, `session_string`,
+  `auth_key` or a bearer value.

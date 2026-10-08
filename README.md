@@ -9,7 +9,12 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v1.8.1`.** It is a small **verification patch** over
+**Current stable release: `v1.8.2`.** It is a small **verification patch** over
+`v1.8.1`: it proves the **Web Wrapper Hub** on practical scenarios (with no
+external site, account or key) and fixes a real structured-extraction defect the
+real browser runtime had. A deterministic local fixture site exercises the whole
+pipeline; the genuine Chromium path is covered by an optional (skipping) test.
+`v1.8.1` was a verification patch over
 `v1.8.0`: it proves the **AI Gateway + Web Wrapper Hub** actually *works*, not just
 that it compiles. Two real defects were fixed — a `web` provider whose wrapper id
 does not exist reported `available` (and lost its configured name), and the
@@ -178,7 +183,15 @@ the language preference selectable in Settings) and the **Consistency Auditor**
 (cross-module drift detection surfaced in Diagnostics, with a failed check
 reported as an error instead of being silently skipped). It adds no account
 registration and no Telegram-limit bypass.
-**v1.8.1 (this release)** is a **verification patch** over the AI Gateway. It fixes
+**v1.8.2 (this release)** is a **verification patch** over the Web Wrapper Hub. It
+verifies the wrapper pipeline on practical scenarios using a **deterministic local
+fixture site** (real HTTP + HTML parsing) — open a page, find text, extract
+structure, search/navigate, the normalized response and failover — with **no
+external site, account, key or AI credential**, and it fixes a real defect the
+genuine Chromium runtime had: structured extraction of a container (`li`/`tr`)
+returned no link. It also aligns the structured-extraction selector's attributes
+(`extract_attrs`) and corrects the diagnostics key (`wrappers`). No new features.
+**v1.8.1** was a **verification patch** over the AI Gateway. It fixes
 two confirmed defects: (1) a `web` provider whose `wrapper_id` has no matching
 definition used to report `available` and lose its configured name — it is now
 honestly `unavailable` with a reason and keeps its name for pinned routing; (2) the

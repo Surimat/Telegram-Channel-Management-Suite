@@ -50,6 +50,8 @@ class WrapperDefinition:
     #: Set when the wrapper can also send an image (upload input selector).
     attach_selector: str = ""
     extraction: str = "text"
+    #: Attribute names to read for each structured record (extraction="structured").
+    extract_attrs: tuple[str, ...] = ("href",)
     #: Markers that indicate the site is asking for a login.
     login_markers: tuple[str, ...] = ()
     version: str = "1"

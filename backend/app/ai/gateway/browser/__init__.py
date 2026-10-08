@@ -28,6 +28,9 @@ class PageSnapshot:
     text: str = ""
     #: The last matching response node's text, when a selector was given.
     response_text: str = ""
+    #: Structured records read by :meth:`BrowserRuntime.extract` (tag/text/href/
+    #: attributes). It is page content the owner asked for, never a credential.
+    items: list[dict[str, object]] = field(default_factory=list)
     login_detected: bool = False
     error: str = ""
 
@@ -65,6 +68,12 @@ class BrowserRuntime(Protocol):
         ...
 
     async def read(self, selector: str, *, take_last: bool = True) -> PageSnapshot:
+        ...
+
+    async def extract(
+        self, selector: str, *, attrs: tuple[str, ...] = ("href",)
+    ) -> PageSnapshot:
+        """Read structured records (tag/text/href/attributes) from all matches."""
         ...
 
     async def close(self) -> None:
@@ -155,6 +164,34 @@ class PlaywrightBrowserRuntime:
         snap.response_text = text
         return snap
 
+    async def extract(
+        self, selector: str, *, attrs: tuple[str, ...] = ("href",)
+    ) -> PageSnapshot:
+        page = await self._ensure_page()
+        wanted = list(attrs or ())
+        items = await page.eval_on_selector_all(
+            selector,
+            """(nodes, attrs) => nodes.map((n) => {
+                const link = n.querySelector('a');
+                const src = link || n;
+                const rec = {
+                    tag: src.tagName ? src.tagName.toLowerCase() : '',
+                    text: (src.innerText || src.textContent || '').trim(),
+                    href: src.getAttribute('href') || '',
+                    attributes: {},
+                };
+                for (const a of attrs) {
+                    const v = n.getAttribute(a);
+                    if (v !== null) rec.attributes[a] = v;
+                }
+                return rec;
+            })""",
+            wanted,
+        )
+        snap = await self._snapshot(page)
+        snap.items = list(items or [])
+        return snap
+
     async def _snapshot(self, page) -> PageSnapshot:
         try:
             text = await page.inner_text("body")
@@ -236,6 +273,13 @@ class FakeBrowserRuntime:
     async def read(self, selector: str, *, take_last: bool = True) -> PageSnapshot:
         self.actions.append(("read", selector, "last" if take_last else "first"))
         self._maybe_fail("read")
+        return self._next()
+
+    async def extract(
+        self, selector: str, *, attrs: tuple[str, ...] = ("href",)
+    ) -> PageSnapshot:
+        self.actions.append(("extract", selector, ",".join(attrs)))
+        self._maybe_fail("extract")
         return self._next()
 
     async def close(self) -> None:

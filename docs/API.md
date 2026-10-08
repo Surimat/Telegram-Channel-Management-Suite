@@ -938,6 +938,27 @@ pretending to work. A consistency anchor (`services/ai_gateway_service.py`) and
 capability requirement (`ai_provider`) guard against advertising the gateway with
 nothing behind it.
 
+A definition with `extraction="structured"` and `extract_attrs` (default
+`("href",)`) reads records through `BrowserRuntime.extract(selector, attrs=...)`
+and returns them on `ChatResponse.structured` (`{"kind": "extraction", "items":
+[…]}`), each item carrying `tag`, `text`, `href` and the requested `attributes`.
+Structured extraction is strict: no matching node → `wrapper_selector`, never
+fabricated data. A *text* extraction with no match honestly returns the page text.
+
+### Practical verification (v1.8.2, D-115)
+
+The wrapper pipeline is exercised on practical scenarios with no external site,
+account or credential, using a local fixture HTTP server:
+
+```bash
+PYTHONPATH=. python tests/web_wrapper_bench.py                  # 7/7 scenarios
+python -m pytest tests/test_web_wrapper_verification.py \
+                 tests/test_ai_gateway_verification.py -q      # CI-safe
+# optional real Chromium layer (skips when Playwright/Chromium is absent):
+pip install playwright && playwright install chromium
+python -m pytest tests/test_web_wrapper_playwright_integration.py -q
+```
+
 ---
 
 ## Versioning

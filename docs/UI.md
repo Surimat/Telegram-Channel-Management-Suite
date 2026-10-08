@@ -610,9 +610,15 @@ One RU-first page that configures and observes the AI Gateway. Sidebar entry
   not bypass login, CAPTCHA or MFA.
 - **Проверка** — send a test request (optionally pinning a provider or strategy),
   see success/failure, the provider used, latency, fallback and the attempt list;
-  plus the capability/use-case matrix per modality.
+  plus the capability/use-case matrix per modality. The matrix is honest: a
+  text-only provider is never shown against image or structured cases.
 - **Журнал** — the bounded request journal. Only metadata is stored (provider,
   source, status, latency) — never the prompt text.
+
+Structured extraction (`extraction="structured"`) reads records (links, rows,
+cards) from the page and returns them on the response, so a wrapper can act as a
+data source as well as a chat endpoint. When the configured selector matches
+nothing the result is an explicit error, never made-up data.
 
 Help topics `ai_gateway` and `ai_gateway_wrapper` explain the gateway and the
 wrapper concept in beginner language.
