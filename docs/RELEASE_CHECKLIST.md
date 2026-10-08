@@ -88,8 +88,8 @@ defect in the genuine Playwright runtime. No new features, no schema change.
 | Portable build/smoke | ✅ | Release workflow builds the Windows portable ZIP + `.sha256` (D-060) |
 | Artifact scan | ✅ | no `.session`/TDATA/DB/model in the ZIP; runtime dirs empty |
 | Secret scan | ✅ | no tokens/api_hash/session strings/cookies in the diff or tracked tree |
-| Git merge (`develop → main`) | ✅ | reviewed PR (`develop → main`) |
-| Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v1.8.2` → Release workflow (D-060) |
+| Git merge (`develop → main`) | ✅ | reviewed PR #21 (`develop → main`, merge `8542d4c`) |
+| Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v1.8.2` → Release workflow (run `37747125558`, D-060); ZIP 24 906 383 bytes, sha256 `f0c6984d…f619` |
 
 ### v1.8.1 (AI Gateway verification patch, 2026-10-10, D-114)
 

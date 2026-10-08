@@ -2454,3 +2454,10 @@ same scenarios and the failure paths. Any future change that re-breaks real link
 extraction or fabricates structured data fails these tests. No new runtime
 dependency and no schema change.
 
+**Release.** Shipped as **v1.8.2** via a reviewed `develop → main` PR #21 (merge
+`8542d4c`), tag `v1.8.2`; the Release workflow (run `37747125558`) created the
+GitHub Release and attached the Windows portable ZIP (24 906 383 bytes, sha256
+`f0c6984d…f619`) + `.sha256`. Gates: full suite green (**943 passed**), `ruff`
+clean, `vue-tsc` + `npm run build` clean, meta-audit 30/30 (0 missed, 0 false
+positives). `main` HEAD = `8542d4c`; `develop` re-synced to `8542d4c`.
+

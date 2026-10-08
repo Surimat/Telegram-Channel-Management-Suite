@@ -4,7 +4,7 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-11
-**Status:** **v1.8.2 RELEASE CANDIDATE.** A practical-verification pass over the
+**Status:** **v1.8.2 is RELEASED.** A practical-verification pass over the
 v1.8.1 **Web Wrapper Hub** (D-115) exercised the real
 engine→provider→router pipeline on deterministic scenarios and fixed a **real
 defect in the genuine Playwright runtime**: `extract()` read `href` from the
@@ -14,7 +14,13 @@ site, account, key or AI credential is used anywhere in the tests, and there is
 no account registration and no CAPTCHA/MFA/regional-block or Telegram-limit
 bypass.
 
-Version string is **1.8.2** (release candidate) across `backend/app/__init__.py`,
+Released via a reviewed `develop → main` PR #21 (merge `8542d4c`), tag `v1.8.2`;
+the Release workflow (run `37747125558`) created the GitHub Release and attached
+the Windows portable ZIP (**24 906 383 bytes**, sha256
+`f0c6984d…f619`) + `.sha256`. `main` HEAD = `8542d4c`; `develop` re-synced to
+`8542d4c`. Nothing is required to follow up. Do **not** add new large features.
+
+Version string is **1.8.2** across `backend/app/__init__.py`,
 `pyproject.toml`, `frontend/package.json` + lock.
 
 ### What this change does (D-115, additive)

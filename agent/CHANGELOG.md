@@ -14,6 +14,12 @@ one real defect in the genuine browser runtime was fixed. Version strings read
 CAPTCHA/MFA/regional-block or Telegram-limit bypass. All tests run against a
 local fixture site with no account, key or AI credential.
 
+Released via a reviewed `develop → main` PR #21 (merge `8542d4c`), tag `v1.8.2`;
+the Release workflow (run `37747125558`) created the GitHub Release and attached
+the Windows portable ZIP (24 906 383 bytes, sha256 `f0c6984d…f619`) + `.sha256`.
+Gates: full suite green (**943 passed**), `ruff` clean, `vue-tsc` + `npm run
+build` clean, meta-audit 30/30 (0 missed, 0 false positives).
+
 ### Fixed
 - **Structured extraction of a container returned no link (D-115).** The
   Playwright runtime's `extract()` read `href` from the matched node itself, so a
