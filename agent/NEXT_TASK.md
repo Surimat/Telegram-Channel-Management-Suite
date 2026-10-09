@@ -9,7 +9,7 @@
 Released via a reviewed `develop → main` PR #22 (merge `997999e`), tag `v1.9.0`;
 the Release workflow (run `37775533451`) created the GitHub Release and attached
 the Windows portable ZIP (**24 929 020 bytes**, sha256
-`3227988c…d2ac`) + `.sha256`. `main` HEAD = `997999e`; `develop` HEAD = `bbe59ac`.
+`3227988c…d2ac`) + `.sha256`. `main` HEAD = `997999e`; `develop` HEAD = `aa4935a`.
 Release ZIP scan: no `.session`/TDATA/DB/model.
 
 Version string is **1.9.0** across `backend/app/__init__.py`,
@@ -44,16 +44,35 @@ Version string is **1.9.0** across `backend/app/__init__.py`,
   (revises `b2c3d4e5f6a7`); every new column carries a server default, so an
   existing v1.8 database upgrades in place.
 
-### Active task — v2.0 cycle (owner-approved priorities, unreleased)
+### Active task — Priority 2: Mass Bot-to-Channel Onboarding (v2.0 cycle, unreleased)
 
-Work sequentially in separately verifiable stages (**Этапы**); do **not** invent
-new directions and do **not** revisit implemented work. Priorities live in
-`docs/ROADMAP.md` (§ "v2.0 cycle"):
+The v2.0 cycle runs the owner-approved priorities **sequentially** in separately
+verifiable stages (**Этапы**); do **not** invent new directions and do **not**
+revisit implemented work. Priorities live in `docs/ROADMAP.md`
+(§ "v2.0 cycle"). Priority 1 is complete and merged into `develop`; the active
+work is now **Priority 2**.
 
-1. **Web Wrappers + free multimodal AI providers — MAIN.**
-   - **Stage 1 — free-first providers + honest capabilities: implemented on
-     `develop`, unreleased.** `PollinationsProvider` (keyless free text),
-     `Llm7Provider` (second keyless free text, llm7.io), `PollinationsImageProvider`
+**Mass Bot-to-Channel Onboarding (Priority 2) — the active task. Not started.**
+Turn bot→channel binding from a one-at-a-time action into a bounded, restart-safe
+**batch** flow, mirroring the Bot Factory creation queue (D-109) and the existing
+binding rules (D-047…D-049, D-064): select many already-created worker bots and
+one or more target channels, then bind/promote them **one operation per scheduler
+tick** so the run is restart-resumable, stoppable, and reports per-pair progress
+(bound / already-bound / permission-denied / FloodWait-retry). Reuse the existing
+`/api/v1/bindings` path and the permission probe — do not add a second binding
+mechanism. **Honesty:** capacity/permission checks are real Telegram calls; never
+bypass privacy, admin or FloodWait limits (D-006/D-065/D-070). Before coding,
+record a decision (D-120) describing the queue shape, the restart-resumable
+tick, and the honest failure states. Add additive tests + a runtime meta-audit
+mutation; keep the full gate green. No release is cut from this cycle until the
+owner asks (D-060).
+
+### Завершённые этапы v2.0 (implemented on `develop`, unreleased)
+
+1. **Web Wrappers + free multimodal AI providers — MAIN (Priority 1) — COMPLETE.**
+   - **Stage 1 — free-first providers + honest capabilities: implemented,
+     unreleased.** `PollinationsProvider` (keyless free text), `Llm7Provider`
+     (second keyless free text, llm7.io), `PollinationsImageProvider`
      (`pollinations_image`, keyless free image *generation*, off by default), the
      model-capability catalog (`ai/gateway/catalog.py`), idempotent provisioning
      (`ai/gateway/provisioning.py`, `POST /provision`) and the browser preflight
@@ -69,14 +88,13 @@ new directions and do **not** revisit implemented work. Priorities live in
      image-understanding endpoint is claimed; the confirmed free multimodal path
      is image *generation*. Never bypass a challenge or bundle an unverified key;
      re-check only when a real keyless vision endpoint is confirmed.
-2. **Mass connection of created bots to channels.** Planned (not started).
-3. **Complete Content Operations with target-language translation.** Implemented
-   on `develop` (`backend/app/services/content_language.py`, migration
-   `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`,
-   `tests/test_target_language.py`), unreleased.
+3. **Complete Content Operations with target-language translation — COMPLETE
+   (unreleased).** Implemented on `develop` (`backend/app/services/content_language.py`,
+   migration `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`,
+   `tests/test_target_language.py`).
 
-No release is cut from this cycle until the owner asks (D-060). When the owner
-asks: branch from `develop`, then a reviewed `develop → main` PR + tag.
+When the owner asks for a release: branch from `develop`, then a reviewed
+`develop → main` PR + tag.
 
 ### Завершённая задача — v1.9.0 RELEASED
 
