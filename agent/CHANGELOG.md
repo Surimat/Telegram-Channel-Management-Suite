@@ -5,6 +5,38 @@ Dates are ISO-8601.
 
 ---
 
+## Unreleased (develop)
+
+**v2.0 completion-gate hardening + memory reconciliation (no release, D-060).**
+No production behaviour changes; the owner has not asked for a release.
+
+- **Integration coverage added:** `tests/test_content_pipeline_e2e.py` (end-to-end
+  publish → moderation → plan → run, comment/auto-delete outcomes, restart
+  idempotency) and `tests/test_bot_onboarding_e2e.py` (batch onboarding with
+  official start-channel links, permission-ready vs missing-permission, queue
+  resume, retry, binding verification).
+- **CI:** a separate `browser-tests` job (Playwright + Chromium, "must not skip")
+  was added to `.github/workflows/ci.yml`, so CI is now backend / meta-audit /
+  frontend / browser-tests.
+- **Windows hidden console:** `tests/test_windows_hidden_console.py` verifies the
+  no-console launch without a real Windows host — the supervisor's
+  `CREATE_NO_WINDOW` + `STARTF_USESHOWWINDOW`/`SW_HIDE` spawn flags, the VBScript
+  autostart launcher (`Run(..., 0, …)`), and `portable/run.bat`'s preference for
+  the windowless `pythonw.exe` + `start /b`.
+- **Memory de-staleness:** `docs/ARCHITECTURE.md`'s "current meta-audit" prose
+  read **25 mutations / 5 controls / 25 total** while the generated report and the
+  registry are at **32 / 8 / 32**; corrected here.
+- **Regression guard:** `test_architecture_doc_meta_audit_counts_match_report`
+  pins that prose to the committed report and the mutation registry. It joins the
+  existing release-hygiene guards (`tests/test_meta_audit.py` §6) that already
+  block a stale current version, latest tag, latest release, test count, and an
+  already-completed task left in `NEXT_TASK.md`.
+
+Gates: `pytest` green, `ruff` clean, `vue-tsc` + `npm run build` clean,
+meta-audit 32/32 (0 missed, 0 false positives).
+
+---
+
 ## [1.9.0] — 2026-10-08
 
 **v1.9.0 — Content Operations 2.0 (additive).** The existing **Content Studio**

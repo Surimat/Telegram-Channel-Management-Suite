@@ -845,8 +845,8 @@ itself honestly instead of each surface re-deriving the same state.
   actually produced. The copy is discarded — nothing is written to the working
   tree (asserted by a test and by a CI leak check). `SuiteResult` derives
   `detected`/`missed`/`kill_rate`/`false_positives`/`critical_misses`/`high_misses`
-  from those records and `verify()` asserts the arithmetic. There are 25 mutations
-  and 5 negative controls (a clean/correct tree must not produce a mutation
+  from those records and `verify()` asserts the arithmetic. There are 32 mutations
+  and 8 negative controls (a clean/correct tree must not produce a mutation
   finding). Removing a detector flips its mutation to `missed` and lowers the rate;
   adding a mutation changes `total` — both proven by tests. `tests/test_meta_audit.py`
   covers the silent-failure guard (a raising check becomes
@@ -854,7 +854,7 @@ itself honestly instead of each surface re-deriving the same state.
   `audit.source_unavailable.<name>` info) and the runtime checks.
   `agent/META_AUDIT_RESULT.json` is a **generated** artifact
   (`result_source: "computed from runtime mutation executions"`), uploaded by the
-  CI job `meta-audit`. Current run: **25 total, 25 detected, 0 missed, kill rate
+  CI job `meta-audit`. Current run: **32 total, 32 detected, 0 missed, kill rate
   100.0%, 0 false positives, 0 critical misses, 0 high misses** (`status: clean`);
   `KNOWN_GAP_IDS` is empty - every recorded gap has been closed
   (D-099/D-100/D-102/D-103/D-104).

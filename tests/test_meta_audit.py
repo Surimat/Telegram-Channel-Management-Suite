@@ -236,6 +236,40 @@ def test_result_report_matches_version() -> None:
     assert committed["version"] == __version__
 
 
+def test_architecture_doc_meta_audit_counts_match_report() -> None:
+    """docs/ARCHITECTURE.md's current meta-audit counts must match reality.
+
+    The architecture doc narrates the *current* mutation engine ("There are N
+    mutations and M negative controls" / "Current run: N total, N detected, …").
+    A release that adds mutations bumps the report but used to leave this prose
+    stale (it still read 25/25/5 while the report and code were at 32/32/8).
+    This guard pins the prose to the committed report and the mutation registry.
+    """
+    from tests.meta_audit import mutations
+
+    report = json.loads(report_path().read_text(encoding="utf-8"))
+    architecture = (REPO_ROOT / "docs" / "ARCHITECTURE.md").read_text(encoding="utf-8")
+
+    total = report["total"]
+    mutations_declared = len(mutations.MUTATIONS)
+    controls_declared = len(mutations.NEGATIVE_CONTROLS)
+
+    assert total == mutations_declared == len(report["mutations"]), (
+        "the generated report and the mutation registry disagree on the count"
+    )
+    assert f"There are {mutations_declared} mutations" in architecture, (
+        f"docs/ARCHITECTURE.md does not state the real mutation count "
+        f"({mutations_declared})"
+    )
+    assert f"and {controls_declared} negative controls" in architecture, (
+        f"docs/ARCHITECTURE.md does not state the real negative-control count "
+        f"({controls_declared})"
+    )
+    assert f"Current run: **{total} total, {total} detected" in architecture, (
+        f"docs/ARCHITECTURE.md current-run line is stale (expected {total}/{total})"
+    )
+
+
 #: Lines that *assert the current release* (as opposed to narrating history).
 #: Each entry is ``(file, required_prefix, window)``: the first line in the file
 #: whose stripped text starts with the prefix must name the shipped version

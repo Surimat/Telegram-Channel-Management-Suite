@@ -44,15 +44,25 @@ Version string is **1.9.0** across `backend/app/__init__.py`,
   (revises `b2c3d4e5f6a7`); every new column carries a server default, so an
   existing v1.8 database upgrades in place.
 
-### Active task — none (v2.0 priorities implemented on `develop`, unreleased)
+### Active task — none (v2.0 completion gates green on `develop`, unreleased)
 
 The v2.0 cycle runs the owner-approved priorities **sequentially** in separately
 verifiable stages (**Этапы**); do **not** invent new directions and do **not**
 revisit implemented work. Priorities live in `docs/ROADMAP.md`
-(§ "v2.0 cycle"). All three priorities are now implemented on `develop` and
-unreleased, so there is **no required next task**. Cut a release only when the
-owner asks (D-060): branch from `develop`, then a reviewed `develop → main` PR +
-tag.
+(§ "v2.0 cycle"). All three priorities are implemented on `develop` and
+unreleased, and the remaining completion gates are now covered by tests (see
+below), so there is **no required next task**. Cut a release only when the owner
+asks (D-060): branch from `develop`, then a reviewed `develop → main` PR + tag.
+
+**Completion gates added this cycle (on `develop`, unreleased):**
+`tests/test_content_pipeline_e2e.py` and `tests/test_bot_onboarding_e2e.py`
+(end-to-end integration), a separate `browser-tests` CI job (Playwright +
+Chromium, must not skip), and `tests/test_windows_hidden_console.py` (the
+no-console Windows launch, verified without a real Windows host). A post-v1.9.0
+memory reconciliation corrected stale facts and added release-hygiene guards in
+`tests/test_meta_audit.py` §6; the current meta-audit prose in
+`docs/ARCHITECTURE.md` was corrected (32 mutations / 8 controls) and is now
+guarded by `test_architecture_doc_meta_audit_counts_match_report`.
 
 **Priority 2 — Mass Bot-to-Channel Onboarding (D-120) — implemented on `develop`,
 unreleased.**
