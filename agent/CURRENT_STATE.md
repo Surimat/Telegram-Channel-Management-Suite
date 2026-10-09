@@ -3,16 +3,16 @@
 > Persistent project memory. **A new agent must be able to continue from this
 > file + git + code alone.** Update this after every major phase.
 
-**Last updated:** 2026-10-12
-**Current phase:** **v1.9.0 Content Operations 2.0 (D-116) — implemented, ready for release.** The existing Content Studio (v1.2) is extended — not duplicated — into a single pipeline: `source → gather → clean → mini-AI → moderation → publish → comment/delete`. New additive tables `ai_profiles` (reusable AI profiles: prompt instructions/language/tone/max-length/provider-policy/actions as data), `automation_rules` (declarative `SOURCE + CONDITION → ACTION`, a fixed field allow-list, not a script engine) and `content_operations` (secret-free append-only pipeline analytics/audit). Additive columns on `content_items` (`original_text`, `ai_status`, `ai_category`, `ai_intent`, `ai_profile`, `ai_note`) and on `publications` (`profile_key`, `ai_instructions`, independent `comment_status`/`delete_status`). Services: `services/ai_profiles.py` (AiProfileService), `services/content_pipeline.py` (ContentPipelineService: classify/process/moderate/apply_rule_actions/analytics), `services/automation_rules.py` (AutomationRuleService). API: `/api/v1/content/ai-profiles`, `/items/{id}/ai/classify`, `/items/{id}/ai/process`, `/items/{id}/moderate`, `/automation-rules`, `/items/{id}/apply-rules`, `/pipeline/analytics`. The mini-AI returns only a category/intent (never an emoji); an AI failure moves the item to `needs_review` with `ai_status=ai_unavailable` and a clear note — material is never lost. Migration `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py` (revises `b2c3d4e5f6a7`). UI: a new «ИИ и правила» tab in `ContentStudioView.vue` (profiles, rules, pipeline analytics) plus per-item mini-AI/moderation controls. Additive only — no new account registration and no Telegram-limit bypass. Version string is **1.9.0**.
-**v1.8.2 RELEASED (2026-10-11) — Web Wrapper Hub practical verification (D-115).** The v1.8.1 wrapper work was "architecturally implemented" but not exercised on practical scenarios end to end. A verification pass over the real engine→provider→router pipeline found a **real defect in the genuine Playwright runtime**: `extract()` read `href` from the matched node itself, so extracting a container (`li.link`, `tr.row`) returned empty links (only visible when the real browser ran). Fixed: extraction now prefers a nested `<a>`; `WrapperDefinition.extract_attrs` configures which attributes are read; the `diagnostics()` `"wrapers"` typo is fixed to `"wrappers"`. Added a deterministic **local fixture site** (`tests/support/web_fixtures.py`), a **benchmark** (`tests/web_wrapper_bench.py`, 7/7), CI-safe verification tests and an optional real-Chromium test (skips when Playwright/Chromium is absent). Released via reviewed PR #21 (merge `8542d4c`), tag `v1.8.2`; Release workflow run `37747125558`, ZIP 24 906 383 bytes, sha256 `f0c6984d…f619`. No schema change.
+**Last updated:** 2026-10-09
+**Current phase:** **v2.0.0 — the three agreed v2.0 stages (AI Gateway + free multimodal providers, Target Language, mass bot-to-channel onboarding, Content Operations 2.0, hidden windowless launch) — RELEASED (2026-10-09).** Shipped via a reviewed `develop → main` PR; tag `v2.0.0`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). Release ZIP scan: no `.session`/TDATA/DB/model. Additive migrations `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py`, `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`, `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`. Version strings read **2.0.0** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
+**v1.8.2 RELEASED (2026-10-08) — Web Wrapper Hub practical verification (D-115).** The v1.8.1 wrapper work was "architecturally implemented" but not exercised on practical scenarios end to end. A verification pass over the real engine→provider→router pipeline found a **real defect in the genuine Playwright runtime**: `extract()` read `href` from the matched node itself, so extracting a container (`li.link`, `tr.row`) returned empty links (only visible when the real browser ran). Fixed: extraction now prefers a nested `<a>`; `WrapperDefinition.extract_attrs` configures which attributes are read; the `diagnostics()` `"wrapers"` typo is fixed to `"wrappers"`. Added a deterministic **local fixture site** (`tests/support/web_fixtures.py`), a **benchmark** (`tests/web_wrapper_bench.py`, 7/7), CI-safe verification tests and an optional real-Chromium test (skips when Playwright/Chromium is absent). Released via reviewed PR #21 (merge `8542d4c`), tag `v1.8.2`; Release workflow run `37747125558`, ZIP 24 906 383 bytes, sha256 `f0c6984d…f619`. No schema change.
 **v1.8.1 RELEASED (2026-10-08).** AI Gateway verification patch (D-114) shipped via a reviewed `develop ‚Üí main` PR #20 (merge `bc8382b`), tag `v1.8.1`; the Release workflow (run `37705225761`) created the GitHub Release and attached the Windows portable ZIP (24 905 404 bytes, sha256 `0ec6aca1‚Ä¶a9d4`) + `.sha256`. An independent verification of the v1.8.0 **AI Gateway + Web Wrapper Hub** proved it *works* (not just compiles) and fixed two real defects plus a version drift ‚Äî no new features. (1) A `web` provider whose `wrapper_id` has no matching `WrapperDefinition` was reported `available` and lost its configured name; it is now forced `unavailable` with an explicit reason and keeps its configured name so a pinned provider still routes. (2) `AIRouter._attempt` returned a transient *response* without retrying (only raised errors were retried); it now retries both, bounded by the retry budget. (3) `frontend/package-lock.json` read `1.7.0` while the app read `1.8.0` ‚Äî synced + locked by an assertion. New independent gateway behaviour tests (retry/failover/availability/identity/e2e web answer) and three runtime meta-audit cases (capability dependency, orphan provider class, unwired control). Additive only ‚Äî no account registration and no CAPTCHA/MFA/regional-block or Telegram-limit bypass. Version strings read **1.8.1**; full suite green (909 passed); `ruff` clean; `vue-tsc` + `npm run build` clean; meta-audit **30/30, 100%, 0 false positives**.
 **v1.7.0 RELEASED (2026-10-08).** Bot Factory creation queue (D-109/D-110) shipped via a reviewed `develop ‚Üí main` PR #18 (merge `48eecdc`), tag `v1.7.0`; the Release workflow (run `37634439503`) created the GitHub Release and attached the Windows portable ZIP (24 853 898 bytes, sha256 `a444bb55‚Ä¶e5af`) + `.sha256`.
 **v1.6.1 (patch) is an independent verification of v1.6.0:** it fixes an owner-guard path-normalisation weakness (a leading `//` used to skip the guard while the router still matched it), corrects the `config_sync` capability so "owner ready, no provider" reports `needs_setup` (never a false `partial`), and wires the existing Google Drive token endpoint into `/owner` (D-107). No new features, no schema change. Version strings read **1.6.1**; full suite green (843 passed); `ruff` clean; `vue-tsc` + `npm run build` clean; meta-audit **25/25, 100%, 0 false positives**.
 **v1.6.0 (minor) adds an Owner Auth + Config Sync vertical slice (D-105/D-106):** a local owner profile (password/PIN) protects the panel with a PBKDF2 verifier and an HMAC-signed session token (`X-Owner-Token`, default-on middleware), and a **versioned encrypted configuration bundle** (canonical JSON ‚Üí AES-256-GCM, secret denylist) moves settings to a new computer via a local folder or Google Drive (app-data scope) ‚Äî never the DB, sessions or TDATA. Owner Auth is **local-first**: while no profile exists the panel stays open exactly as before; sync detects conflicts instead of overwriting silently. The `/owner` RU-first UI page, `/api/v1/owner/*` endpoints, `owner_auth`/`config_sync` help topics, Diagnostics checks and a Promotion Wizard step are wired in. Additive only; no account registration and no Telegram-limit bypass. That release read **1.6.0** with 822 tests; `ruff` clean; `vue-tsc` + `npm run build` clean; meta-audit **25/25, 100%, 0 false positives**.
 **v1.5.4 (patch) closed the last three Consistency Auditor gaps N, O and P (D-104); the meta-audit is a *runtime mutation engine* (D-102) and now reaches 100%.** The kill rate is **computed from real executions**: `tests/meta_audit/engine.py` builds an isolated copy of `backend/app`, `frontend/src`, `migrations/versions`, `docs` in a temp dir (or a fresh temp DB for runtime checks), injects one seeded defect, runs the **real** auditor, semantically matches the finding it actually produced (exact id or a family prefix; an unrelated finding is never a detection), and records ``detected`` / ``missed``. `agent/META_AUDIT_RESULT.json` is a **generated** artifact: it carries `result_source: "computed from runtime mutation executions"`, `generated_at`, `baseline_sha`, per-mutation `{id, detected, expected, actual_findings, severity}`, and derived totals. Arithmetic (`detected + missed == total`, `kill_rate == detected/total*100`, `critical_misses`/`high_misses` from the records) is asserted by `SuiteResult.verify()` in `pytest` and CI ‚Äî no hardcoded `25`/`25`/`100.0` in logic. There are **25** mutations and **8 negative controls** (a clean/correct tree must not produce a mutation finding). Removing a detector flips its mutation to `missed` and lowers the kill rate automatically (proven for F, M, N, O, P and Q); adding a mutation changes `total` automatically (proven by `test_new_mutation_changes_total_without_code_edits`). Current computed result: **25 total, 25 detected, 0 missed, kill rate 100.0%, 0 false positives, 0 critical misses, 0 high misses** (`status: clean`). Five static detectors closed the gaps: `check_write_only_settings` (M), `check_channel_registry_usage` (Q), `check_unused_model_columns` (N ‚Äî an ORM column no module reads/writes, info), `check_orphan_service_classes` (O ‚Äî a public service class no module references, info) and `check_frontend_unwired_controls` (P ‚Äî an `@click`/`@change`/`@submit` handler that is undefined or has an empty body, warning). `KNOWN_GAP_IDS` is now **empty**. CI job `meta-audit` runs the engine, the tests, and a working-tree leak assertion; it does **not** compare against a hardcoded percentage.
 **v1.5.4 released** via a reviewed `develop ‚Üí main` PR #15 (merge `b219341`), tag `v1.5.4`; the Release workflow (run `37522394131`) created the GitHub Release and attached the Windows portable ZIP (24 807 288 bytes, sha256 `ff01f787‚Ä¶dc67a`) + `.sha256`. It is a patch over v1.5.3: it closes the last three auditor gaps (N, O, P) with static detectors, so the meta-audit reaches 100%.
-**Factual git state:** v1.9.0 Content Operations 2.0 is implemented on `develop` (`dbec4b1` + the v1.9 code/migration/tests). `main` HEAD = `8542d4c` (= `origin/main`, the latest released tag `v1.8.2`). Version strings read **1.9.0** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock. Latest released release: v1.8.2 ‚Äî reviewed `develop ‚Üí main` PR #21 (merge `8542d4c`), tag `v1.8.2`; the Release workflow (run `37747125558`) created the GitHub Release and attached the Windows portable ZIP (24 906 383 bytes, sha256 `f0c6984d‚Ä¶f619`) + `.sha256`. Previous release: v1.8.1 ‚Äî PR #20 (merge `bc8382b`), tag `v1.8.1`, Release workflow run `37705225761`, ZIP 24 905 404 bytes, sha256 `0ec6aca1‚Ä¶a9d4`. Before that v1.8.0 ‚Äî PR #19 (merge `d8c62c1`), tag `v1.8.0`, Release workflow run `37653661662`, ZIP 24 904 789 bytes, sha256 `9bb39e4b‚Ä¶d353c`. Release ZIP scan: no `.session`/TDATA/DB/model; only placeholder `.env.example` and certifi's `cacert.pem` in the bundled runtime.
+**Factual git state:** v2.0.0 is released. `main` HEAD = `TBDMAIN` (= `origin/main`, tag `v2.0.0`). `develop` HEAD = `TBDDEV` (re-synced to `main`). Version strings read **2.0.0** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock. Latest release: v2.0.0 — tag `v2.0.0`, Release workflow run `TBDDH`, Windows portable ZIP `TBDZIP` + `.sha256`. Previous release: v1.9.0 — PR #22 (merge `997999e`), tag `v1.9.0`, Release workflow run `37775533451`, ZIP 24 929 020 bytes, sha256 `3227988c…d2ac`.
 Previous: **v1.5.1 forensic-audit fixes are released** ‚Äî reviewed `develop ‚Üí main` PR #12 (merge `f41ebc8`), tag `v1.5.1`; the Release workflow (run `37453582161`) created the GitHub Release and attached the Windows portable ZIP (24 796 203 bytes, sha256 `b46f9333‚Ä¶68dee`) + `.sha256` (D-060). It fixes five confirmed discrepancies found by an independent audit of v1.5.0 (D-095‚Ä¶D-098): a capability with no implementation can never report `available` (`config_sync`/`media_conversion` ‚Üí `not_implemented`, guarded by a CI check); a consistency check that raises is an `error` finding, never silently skipped; the stored `language` preference is actually consumed (capability graph + a Settings RU/EN selector); source-comparison checks report `audit.source_unavailable` as `info` when the runtime image has no frontend/docs source (so Docker `/api/v1/consistency` is `pass`); and `README.md` version drift. Version strings read **1.5.1**. Suite **731 passed**; `ruff` clean; `vue-tsc` + `npm run build` clean; Docker smoke clean; artifact/secret scan clean.
 Previous: **v1.5.0 Capability graph + i18n + Consistency Auditor is released** ‚Äî reviewed `develop ‚Üí main` PR #11 (merge `ad24bc6`), tag `v1.5.0`; the Release workflow (run `37442056281`) created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It adds (D-092‚Ä¶D-094): It adds three small, additive cross-cutting layers: a machine-readable **capability graph** (`services/capability_graph.py`, `GET /api/v1/capability-graph`, embedded in the Promotion Wizard's `WizardState.capabilities` and shown on the Dashboard as "–ß—Ç–æ —É–∂–µ –¥–æ—Å—Ç—É–ø–Ω–æ"); a bilingual RU/EN **i18n catalog** (`core/i18n.py`) with a stored `language` preference on `/api/v1/help/prefs`; and a **Consistency Auditor** (`services/consistency_checks.py` static + `services/consistency.py` runtime, `GET /api/v1/consistency`, Diagnostics "–ü—Ä–æ–≤–µ—Ä–∫–∞ —Ü–µ–ª–æ—Å—Ç–Ω–æ—Å—Ç–∏" panel) whose static checks run in `pytest` so cross-module drift fails a PR. Version strings read **1.5.0**. Suite **726 passed**; `ruff` clean; `vue-tsc` + `npm run build` clean; Docker smoke clean; artifact/secret scan clean.
 Previous: **v1.4.0 Notification Center + Tray Agent + Editorial Workspace is released** ‚Äî reviewed `develop ‚Üí main` PR #10 (merge `306672e`), tag `v1.4.0`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It adds the **Notification Center** (D-084‚Ä¶D-086): a durable, queryable history of important events with categories, priorities, per-category routing (owner DM / notification group / Windows toast), quiet hours that postpone only non-urgent messages, anti-spam aggregation, a dashboard and a history API/UI; the **TCMS Tray Agent** (D-087/D-088): a light Windows supervisor that starts the backend hidden, waits for `/health` (never a fixed sleep), restarts a crashed backend with a bounded backoff (5/hour), offers optional Startup-folder autostart (no admin) and writes only a secret-free `data/tray.json` snapshot surfaced in Diagnostics; and the **Editorial Workspace** (D-089‚Ä¶D-091): a linked Telegram forum supergroup where the owner, editors and moderators work the same publication queue as the Web UI (honest, verified bot rights; roles by numeric Telegram id; optimistic-version moves; a full audit trail; publishing reuses the Content Studio posting path). None of these features register accounts or bypass Telegram limits.
@@ -20,7 +20,7 @@ Earlier: **v1.3.0 Bot Factory + LAN Mesh is released** ‚Äî PR #9 (`develop �
 Earlier: **v1.2.0 Content Studio is released** ‚Äî PR #8 (`develop ‚Üí main`, merge `ea6c161`), tag `v1.2.0`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It adds the v1.2 **content-studio foundation** (D-071‚Ä¶D-076): content sources (Telegram / RSS / Atom / manual) with deduplication, a deterministic explainable cleaner, usage-rights tracking + attribution, Telegram markup validation + a Telegram-like preview, inline button sets, per-source moderation (blocked keywords + quiet hours), multi-channel planning/calendar, publishing through a `PostingProvider` (bot by default; user account only in the expanded mode), durable auto-delete and first comments, and a bounded restart-safe posting tick (`content.posting`). Nothing is published without an explicit owner action; protected content keeps only its link (D-006/D-074); the AI narrows, it never picks emoji (D-033/D-076).
 Earlier: **v1.1.0 is released** ‚Äî PR #7 (`develop ‚Üí main`, merge commit `3438305`), tag `v1.1.0`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It carries the multi-format **Account Hub** importer (`.session`, `.session`+JSON, StringSession, optional TDATA; D-070), optional per-account **network routes (proxies)** (D-065), **donor discovery** (candidate proposals only, D-066), a **lightweight local encoder** classifier mode (D-067) with the optional **ruBERT-tiny2** embedding backend + install flow (D-068), and the bot-only/risk UX (D-069). The v1.0.5 **product slice** (D-064): bot‚Üîchannel **bindings** + channel **reaction capabilities**, session-free invite **–ö–∞–º–ø–∞–Ω–∏–∏** + explainable **donor quality**, **backup delivery destinations**, a resumable first-run **Setup Wizard**, and a conservative, off-by-default **auto-update**. `v1.0.0`‚Äì`v1.1.0` stay immutable (D-050).
 Version string is **1.9.0** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
-All gates pass: `pytest` **954 passed** (945 before this phase + 9 new v1.9 pipeline tests), `ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit **30/30 (0 missed, 0 false positives)**; **GitHub Actions CI** (D-053) enforces the backend, frontend and `meta-audit` (runtime mutation engine) gates.
+All gates pass: `pytest` **946 passed, 8 skipped** (937 before this phase + 9 new v1.9 pipeline tests), `ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit **32/32 (0 missed, 0 false positives)**; **GitHub Actions CI** (D-053) enforces the backend, frontend, `browser-tests` (Playwright + Chromium) and `meta-audit` (runtime mutation engine) gates. Post-v1.9.0 on `develop` (unreleased): end-to-end integration tests (`tests/test_content_pipeline_e2e.py`, `tests/test_bot_onboarding_e2e.py`), a Windows hidden-console test (`tests/test_windows_hidden_console.py`) and release-hygiene guards in `tests/test_meta_audit.py` §6.
 
 ### v1.8.1 RELEASED (2026-10-08, D-114)
 
@@ -241,7 +241,7 @@ Evidence: `pytest` **731 passed** (was 726; +5 audit tests), `ruff` clean,
 `config_sync`/`media_conversion` as `not_implemented`, the EN preference returns
 EN capability labels end-to-end, and the Docker `/api/v1/consistency` report is
 `pass` (5 info, 0 error).
-**Repository status (historical snapshot, v1.5.4 era):** at that time `main` was the released tag `v1.6.1` and `develop` was the release-facts commit `b8ee5ca`; every GitHub Release carries the Windows portable ZIP + `.sha256` (built by CI, D-060). **This line is history only — the current latest release is v1.8.2 (see the top of this file); `main` HEAD = `8542d4c`, latest tag = `v1.8.2`, and `develop` differs only by documentation/memory commits.**
+**Repository status (historical snapshot, v1.5.4 era):** at that time `main` was the released tag `v1.6.1` and `develop` was the release-facts commit `b8ee5ca`; every GitHub Release carries the Windows portable ZIP + `.sha256` (built by CI, D-060). **This line is history only — the current latest release is v1.9.0 (see the top of this file); `main` HEAD = `997999e`, latest tag = `v1.9.0`, and `develop` differs only by documentation/memory commits.**
 **Branch:** develop (working branch); main is released and updated only via pull request.
 **Latest work (D-104 + D-103 + D-102):** `backend/app/services/consistency_checks.py` gained five static detectors ‚Äî `check_write_only_settings` (gap M), `check_channel_registry_usage` (gap Q), `check_unused_model_columns` (gap N), `check_orphan_service_classes` (gap O) and `check_frontend_unwired_controls` (gap P); `backend/app/services/consistency.py` `_known_setting_keys()` made honest; `tests/meta_audit/engine.py` (sandbox, `run_mutation`, `run_suite`, `SuiteResult` derived totals, `write_report`, `regression_against`, CLI), `tests/meta_audit/mutations.py` (25 mutations + 8 negative controls, `KNOWN_GAP_IDS` = ‚àÖ), `tests/test_consistency_mutations.py` (per-mutation runtime classification + detector-removal + new-mutation + isolation proofs), `tests/test_meta_audit.py` (silent-failure guard, runtime drift, generated-report provenance/arithmetic, closed-gap M/N/O/P/Q regression), `.github/workflows/ci.yml` (`meta-audit` job runs the engine + tests + leak assertion), regenerated `agent/META_AUDIT_RESULT.json` (25 total, 25 detected, 0 missed, 100.0%, 0 critical/high). The declarative `_DETECTABLE`/`_MISSED` lists and the `strict=True` xfail gap tests were removed.
 **Previous work (v1.5.1 forensic-audit fixes ‚Äî released):** `services/capability_graph.py` (`implemented` flag + `STATE_NOT_IMPLEMENTED`), `services/consistency_checks.py` (`check_capability_implementation` + `_SOURCE_CHECKS` runtime-image guard + no-silent-failure runner), `services/consistency.py` (no-silent-failure runtime auditor), `api/v1/capability_graph.py` (language from the saved UI preference), `core/i18n.py` (`cap.state.not_implemented`), `services/ui_prefs.py` (`language` preference consumed), `frontend/src/stores/help.ts` + `SettingsView.vue` (RU/EN selector), `DashboardView.vue` (renders the `not_implemented` note). Released via a reviewed `develop ‚Üí main` PR #12 (merge `f41ebc8`), tag `v1.5.1`; Release workflow (run `37453582161`) attached the Windows portable ZIP (24 796 203 bytes, sha256 `b46f9333‚Ä¶68dee`) + `.sha256`. Docker smoke: `/health` ‚Üí `1.5.1`, SPA `200`, `/api/v1/capability-graph` ‚Üí `not_implemented` for `config_sync`/`media_conversion`, `/api/v1/consistency` ‚Üí `pass`; artifact scan clean (no sessions/TDATA/DB/model).
@@ -1073,19 +1073,118 @@ additive).
   portable ZIP + `.sha256` (24.7 MB, checksum verified, artifact secret scan
   clean ‚Äî D-060).
 
+## 2j. v2.0 cycle — owner-approved priorities (on develop, unreleased)
+
+The owner approved a v2.0 cycle worked sequentially in separately verifiable
+stages (Этапы). Priorities, in order: (1) **Web Wrappers + free multimodal AI
+providers** — MAIN; (2) mass connection of created bots to channels; (3) Complete
+Content Operations with target-language translation. No release is cut from this
+cycle until the owner asks.
+
+### Priority 1 — free-first providers + honest capabilities
+Committed on `develop` (`feat(ai-gateway)` stage; `backend/app/ai/gateway/`):
+
+- **`PollinationsProvider`** (`providers/__init__.py`) — a keyless, anonymous
+  OpenAI-compatible text endpoint (`POST /openai/chat/completions`,
+  `https://text.pollinations.ai/openai`). Text only: an image/file request is
+  refused honestly (`CALL_BAD_REQUEST`) so the router fails over to a
+  vision-capable provider.
+- **`Llm7Provider`** — a second keyless free text path (llm7.io,
+  `https://api.llm7.io/v1`, model `gpt-oss:20b`); anonymous chat proven, image
+  request refused upstream → declared text only.
+- **`PollinationsImageProvider`** (`kind=pollinations_image`) — keyless free
+  **image generation** (`https://image.pollinations.ai/prompt/…`, model `flux`);
+  probed HTTP 200 / `image/jpeg`, deterministic per prompt+seed. Generation only
+  (declares no text/image understanding) and **off by default** (opt-in).
+- **Honesty fix** — `ProviderInfo.info` now derives `auth_required` from the auth
+  mode (`auth_mode == AUTH_API_KEY and not api_key`), so a keyless or
+  browser-session provider never claims it needs a key.
+- **`catalog.py`** — per-model capability matrix (operations, auth, cost,
+  `verified`/`verified_operations`); backs `GET /models`. Verified entries:
+  `pollinations` (text, structured), `llm7` (text), `pollinations_image`
+  (image_generation). No keyless entry is verified for vision.
+- **`provisioning.py`** — `FREE_PROVIDER_DEFAULTS`; `POST /provision` seeds the
+  free-first providers once, idempotently, never re-enabling a disabled row
+  (`pollinations` + `llm7` enabled; `pollinations_image` + `ollama` off).
+- **`preflight.py`** — `preflight()`/`probe()` browser environment inspection;
+  honest per-step progress, never fails. `GET /browser/preflight`,
+  `POST /browser/prepare`.
+- **`GET /operations`** — per operation (incl. `image_generation`, matched by
+  kind), the **configured** providers that can serve it now.
+- **Web wrappers** — added disabled, honest definitions for Microsoft Copilot and
+  Duck.ai (the latter never bypasses the anti-bot challenge).
+- **UI** — `AiGatewayView.vue` model/operation matrix, a free-first provisioning
+  button and a browser-preflight panel; typed client methods in `api/client.ts`.
+- **Tests** — `tests/test_v2_ai_providers.py` (keyless honesty, text-only vs
+  vision routing, image generation, provisioning, preflight, registry kinds).
+
+### Priority 1 — Stage 2 (free multimodal / vision): probed 2026-10-09, none confirmed
+Probed keyless endpoints honestly (D-119): `api.llm7.io` keyless models refuse an
+image (`400`); `gen.pollinations.ai` vision models need a key (`401`);
+`api.airforce` is paid (`402`); DuckDuckGo is an anti-bot challenge (never
+bypassed). **No genuinely free, keyless image-understanding endpoint exists**, so
+none is claimed. The confirmed free multimodal path is **image generation**
+(Stage 1). Vision stays on keyed providers (Google/Anthropic) or the owner's own
+logged-in browser session. Re-check only when a real, keyless, non-bypass vision
+endpoint is confirmed.
+
+### Priority 3 — Target Language stage
+Committed on `develop` (`feat(content): Target Language stage (v2.0 Part 1)`):
+
+- **`services/content_language.py`** — a language stage: a **source language**
+  (auto-detected or set per source) and a **target language** resolved by
+  precedence (publication → channel → source → global default); translation runs
+  only when the languages actually differ.
+- **Protected translation** — URLs, `@username`, `t.me` links, hashtags, inline
+  code, HTML tags and Telegram-entity spans are masked with private-use
+  placeholders before the text is sent to the AI and restored verbatim after, so
+  the model never rewrites a link or identifier. Uses the **existing** AI Gateway
+  (retries/failover unchanged); a total failure never loses material.
+- **Migration** `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`; API
+  `GET /api/v1/content/languages`, `POST /api/v1/content/items/{id}/language`,
+  `POST /api/v1/content/items/{id}/translate`; per-source/channel/item/publication
+  language columns; `ChannelsView.vue` / `ContentStudioView.vue` UI.
+- **Tests** — `tests/test_target_language.py`.
+
+### Priority 2 — mass bot→channel connection (D-120)
+Committed on `develop` (unreleased; `feat(...)` bot-onboarding stage):
+
+- **`services/bot_onboarding.py`** — connect many already-created worker bots to
+  one channel through Telegram's **official**
+  `t.me/<bot>?startchannel&admin=<rights>` deep link (rights joined by **`+`**,
+  Bot API 6.0+, never a space). Rights are least-privilege, purpose-named
+  profiles (`reactions`/`posting`/`editing`) — never a blanket "all rights". The
+  owner confirms each bot in Telegram; the candidate is then re-checked against
+  Telegram through the existing **BindingService**, so `ready` means "Telegram
+  reports the rights" and insufficient rights is an explicit `needs_permission`.
+- **Durable, restart-safe queue** — scheduler job `bot_onboarding.tick` advances
+  one bot per tick (the Bot Factory model, D-109); pause/resume/retry/skip; a
+  failure never stops the rest and already-connected bots are never rolled back.
+- **No secret ever leaves** — the bot token is never part of any request or
+  response; only the public username and Telegram's own link are exposed.
+- **Migration** `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py` (revises
+  `d4e5f6a7b8c9`; additive, in-place upgrade); API `/api/v1/bot-onboarding/*`;
+  capability `bot_onboarding`, Diagnostics check, help topic and the RU-first
+  `BotOnboardingView.vue` (`/bot-onboarding`) UI.
+- **Tests** — `tests/test_bot_onboarding.py`; two runtime meta-audit mutations
+  (`AA_onboarding_deeplink_separator`, `AB_onboarding_capability_anchor`) and the
+  static check `check_telegram_deeplink_contracts`.
+
 ## 5. Next action
 
-**v1.3.0 Bot Factory + LAN Mesh is released** (PR #9 `develop ‚Üí main`, merge
-`7788125`, tag `v1.3.0`; GitHub Release with the Windows portable ZIP +
-`.sha256`, built by CI ‚Äî D-060). `main == develop == 7788125`. No required next
-phase.
+**v1.9.0 Content Operations 2.0 is released** (reviewed `develop → main` PR #22,
+merge `997999e`, tag `v1.9.0`; GitHub Release with the Windows portable ZIP +
+`.sha256`, built by CI — D-060). `main` HEAD = `997999e`. `develop` is ahead of
+`main` only by the **unreleased v2.0 stages** (priorities 1–3 above) plus
+documentation/memory commits, with no change to the shipped release.
 
-`NEXT_TASK` returns to **MAINTENANCE / OPTIONAL EXTENSIONS**; the roadmap
-(PHASE 0‚Äì11) is complete. Optional future work (only if the owner asks): a fully
-automated @BotFather Mini App flow (D-054); short-lived signed Mini App tokens if
-it is ever exposed beyond the owner (D-035); a reliable, permissively-licensed
-TDATA converter adapter (D-070); or any feature the owner requests (record a
-decision; keep the vertical-slice workflow).
+`NEXT_TASK` points at the v2.0 cycle's remaining work; the roadmap (PHASE 0–11) is
+complete. Optional future work (only if the owner asks): a fully automated
+@BotFather Mini App flow (D-054); short-lived signed Mini App tokens if it is ever
+exposed beyond the owner (D-035); a reliable, permissively-licensed TDATA
+converter adapter (D-070); or any feature the owner requests (record a decision;
+keep the vertical-slice workflow). No release is cut from the v2.0 cycle until the
+owner asks.
 
 ### RC verification (2026-10-03) ‚Äî done against a live server in offline mode
 

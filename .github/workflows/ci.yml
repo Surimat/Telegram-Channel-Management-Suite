@@ -96,3 +96,37 @@ jobs:
       - name: Typecheck + build
         working-directory: frontend
         run: npm run build
+
+  browser-tests:
+    # Separately installed real Chromium so the Web Wrapper Hub's genuine
+    # browser runtime is exercised end to end, instead of being skipped for a
+    # missing browser. The scenarios use a *local* fixture site only — no
+    # third-party site, account or key (v2.0 integration verification).
+    name: Browser (real Playwright/Chromium)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements-dev.txt
+
+      - name: Install Playwright + Chromium
+        run: |
+          pip install "playwright==1.63.0"
+          python -m playwright install --with-deps chromium
+
+      # A skip means the browser layer silently did not run; that must fail the
+      # job, not pass quietly. The tests drive only the local FixtureSite.
+      - name: Run real Playwright integration tests (must not skip)
+        run: |
+          set -o pipefail
+          pytest tests/test_web_wrapper_playwright_integration.py -q 2>&1 | tee /tmp/pw.log
+          if grep -Eq '[0-9]+ skipped' /tmp/pw.log; then
+            echo "::error::Playwright integration tests were skipped — Chromium is not available"
+            exit 1
+          fi

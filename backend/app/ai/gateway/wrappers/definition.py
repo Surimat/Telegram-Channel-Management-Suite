@@ -49,6 +49,8 @@ class WrapperDefinition:
     response_take_last: bool = True
     #: Set when the wrapper can also send an image (upload input selector).
     attach_selector: str = ""
+    #: Set when the wrapper can also send a file (upload input selector).
+    attach_file_selector: str = ""
     extraction: str = "text"
     #: Attribute names to read for each structured record (extraction="structured").
     extract_attrs: tuple[str, ...] = ("href",)
@@ -97,11 +99,113 @@ GENERIC_DEFINITION = WrapperDefinition(
     ),
 )
 
+#: v2.0: free web-UI backup templates. They are honest templates — disabled and
+#: unverified until the owner enables them and a probe succeeds on the live site.
+#: They drive the owner's own logged-in browser session and never bypass a login
+#: wall, CAPTCHA/MFA, a regional block or any rate limit.
+_CHATGPT_DEFINITION = WrapperDefinition(
+    id="chatgpt",
+    name="ChatGPT (web UI)",
+    website="https://chatgpt.com/",
+    capabilities=Capability(text=True, image=True, verified=False),
+    auth_mode=AUTH_BROWSER_SESSION,
+    input_selector="#prompt-textarea, textarea[data-id]",
+    send_selector="button[data-testid='send-button']",
+    response_selector="[data-message-author-role='assistant']",
+    response_take_last=True,
+    attach_selector="input[type='file']",
+    attach_file_selector="input[type='file']",
+    login_markers=("log in", "войти", "sign up"),
+    version="1",
+    enabled=False,
+    fallback_priority=60,
+    cost="free",
+    note=(
+        "Резервный бесплатный путь через вашу браузерную сессию ChatGPT. "
+        "Селекторы могут меняться — обновляйте определение при изменении сайта."
+    ),
+)
+
+_GEMINI_DEFINITION = WrapperDefinition(
+    id="gemini",
+    name="Google Gemini (web UI)",
+    website="https://gemini.google.com/app",
+    capabilities=Capability(text=True, image=True, verified=False),
+    auth_mode=AUTH_BROWSER_SESSION,
+    input_selector="rich-textarea [contenteditable='true'], .ql-editor",
+    send_selector="button.send-button",
+    response_selector="message-content, .model-response-text",
+    response_take_last=True,
+    attach_selector="input[type='file']",
+    attach_file_selector="input[type='file']",
+    login_markers=("sign in", "войти"),
+    version="1",
+    enabled=False,
+    fallback_priority=65,
+    cost="free",
+    note=(
+        "Резервный бесплатный путь через вашу браузерную сессию Google Gemini. "
+        "Требуется вход владельца; ничего не обходится автоматически."
+    ),
+)
+
+_COPILOT_DEFINITION = WrapperDefinition(
+    id="copilot",
+    name="Microsoft Copilot (web UI)",
+    website="https://copilot.microsoft.com/",
+    capabilities=Capability(text=True, image=True, verified=False),
+    auth_mode=AUTH_BROWSER_SESSION,
+    input_selector="textarea, [contenteditable='true']",
+    send_selector="button[title*='Submit'], button[aria-label*='Submit']",
+    response_selector="[data-content='ai-message'], .ai-message, [class*='message']",
+    response_take_last=True,
+    attach_selector="input[type='file']",
+    login_markers=("sign in", "войти", "sign up"),
+    version="1",
+    enabled=False,
+    fallback_priority=70,
+    cost="free",
+    note=(
+        "Резервный бесплатный путь через вашу браузерную сессию Microsoft "
+        "Copilot. Требуется вход владельца; ничего не обходится автоматически."
+    ),
+)
+
+#: Duck.ai (DuckDuckGo Chat). Keyless, but the backend answers with an
+#: anti-bot JS challenge for automated clients — the wrapper drives a real
+#: logged-in browser and NEVER solves or bypasses that challenge. When the
+#: challenge appears the engine reports ``auth_required``/``selector`` honestly.
+_DUCKAI_DEFINITION = WrapperDefinition(
+    id="duckai",
+    name="Duck.ai (DuckDuckGo Chat)",
+    website="https://duck.ai/",
+    capabilities=Capability(text=True, verified=False),
+    auth_mode=AUTH_BROWSER_SESSION,
+    input_selector="textarea, [contenteditable='true']",
+    send_selector="button[type='submit'], button[aria-label*='Send']",
+    response_selector="[data-testid='chat-message'], .chat-message, article",
+    response_take_last=True,
+    login_markers=("enable javascript", "unusual traffic", "captcha"),
+    version="1",
+    enabled=False,
+    fallback_priority=75,
+    cost="free",
+    note=(
+        "Бесплатно и без ключа, но бэкенд защищён анти-бот проверкой. Обёртка "
+        "работает только через вашу браузерную сессию и НЕ обходит проверку; "
+        "при её появлении честно сообщает о требовании входа."
+    ),
+)
+
 #: Shipped definitions (all disabled by default; enabling requires the owner and
 #: the browser runtime). They are honest templates, not working integrations
 #: until a probe verifies them on the live site.
 LIBRARY: tuple[WrapperDefinition, ...] = (
     GENERIC_DEFINITION,
+    _CHATGPT_DEFINITION,
+    _GEMINI_DEFINITION,
+    _COPILOT_DEFINITION,
+    _DUCKAI_DEFINITION,
 )
 
 

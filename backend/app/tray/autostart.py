@@ -4,9 +4,10 @@
 user's Startup folder — no Administrator rights and no Windows Service for the
 portable build. The implementation is dependency-free:
 
-* On Windows it writes a small ``.cmd`` launcher into the Startup folder (the
-  same approach as a shortcut, but with no COM dependency). It is only created
-  when the owner turns the option on; turning it off deletes the file.
+* On Windows it writes a small ``.vbs`` launcher into the Startup folder (the
+  same effect as a shortcut, but with no COM dependency and no console window).
+  It is only created when the owner turns the option on; turning it off deletes
+  the file.
 * On other platforms the functions are safe no-ops so the code and its tests run
   everywhere.
 
@@ -16,11 +17,16 @@ nothing outside the temporary tree is ever touched.
 
 from __future__ import annotations
 
+import contextlib
 import os
 from pathlib import Path
 
 #: File name of the autostart launcher inside the Startup folder.
-AUTOSTART_FILENAME = "TCMS Tray Agent.cmd"
+AUTOSTART_FILENAME = "TCMS Tray Agent.vbs"
+
+#: Older ``.cmd`` launcher (pre-v2.0). Removed on enable/disable so an upgrade
+#: never leaves two autostart entries that would start the app twice.
+_LEGACY_FILENAME = "TCMS Tray Agent.cmd"
 
 
 def startup_dir(base: Path | None = None) -> Path | None:
@@ -47,13 +53,27 @@ def startup_shortcut_path(base: Path | None = None) -> Path | None:
 
 
 def _launcher_body(run_bat: str) -> str:
-    """The tiny launcher that starts the tray agent with no console window."""
+    """The tiny VBScript launcher that starts the tray agent with no console.
+
+    A ``.cmd`` launcher would flash a console window even with ``start /min``;
+    ``WScript.Shell.Run(..., 0, ...)`` creates none. The program path is a
+    VBScript string literal, so ``"`` is doubled.
+    """
+    escaped = run_bat.replace('"', '""')
     return (
-        "@echo off\r\n"
-        "REM Created by Telegram Channel Management Suite (autostart).\r\n"
-        "REM Removing the autostart option deletes this file.\r\n"
-        f'start "" /min "{run_bat}" --tray\r\n'
+        "' Created by Telegram Channel Management Suite (autostart).\r\n"
+        "' Removing the autostart option deletes this file.\r\n"
+        f'CreateObject("WScript.Shell").Run """{escaped}"" --tray", 0, False\r\n'
     )
+
+
+def _remove_legacy_launcher(base: Path | None = None) -> None:
+    """Delete the pre-v2.0 ``.cmd`` launcher if it is still present."""
+    directory = startup_dir(base)
+    if directory is None:
+        return
+    with contextlib.suppress(OSError):
+        (directory / _LEGACY_FILENAME).unlink(missing_ok=True)
 
 
 def enable_autostart(run_bat: str, *, base: Path | None = None) -> Path | None:
@@ -71,11 +91,13 @@ def enable_autostart(run_bat: str, *, base: Path | None = None) -> Path | None:
         path.write_text(_launcher_body(run_bat), encoding="utf-8")
     except OSError:
         return None
+    _remove_legacy_launcher(base)
     return path
 
 
 def disable_autostart(*, base: Path | None = None) -> bool:
     """Remove the autostart launcher. Returns True when it no longer exists."""
+    _remove_legacy_launcher(base)
     path = startup_shortcut_path(base)
     if path is None:
         return False
@@ -87,11 +109,13 @@ def disable_autostart(*, base: Path | None = None) -> bool:
 
 
 def autostart_enabled(*, base: Path | None = None) -> bool:
-    """True when the autostart launcher is present."""
-    path = startup_shortcut_path(base)
-    if path is None:
+    """True when an autostart launcher (current or legacy) is present."""
+    directory = startup_dir(base)
+    if directory is None:
         return False
-    return path.is_file()
+    return (directory / AUTOSTART_FILENAME).is_file() or (
+        directory / _LEGACY_FILENAME
+    ).is_file()
 
 
 __all__ = [

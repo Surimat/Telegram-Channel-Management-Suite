@@ -991,6 +991,7 @@ export interface Channel {
   verification_hint: string
   participants_count: number | null
   last_verified_at: string | null
+  target_language: string
   note: string
   created_at: string
   updated_at: string
@@ -1401,6 +1402,9 @@ export interface ContentSource {
   quiet_hours_start: number
   quiet_hours_end: number
   quiet_hours_tz: string
+  source_language: string
+  target_language: string
+  auto_detect: boolean
 }
 
 export interface ContentSourceList {
@@ -1443,6 +1447,8 @@ export interface ContentItem {
   protected: boolean
   content_hash: string
   language: string
+  source_language: string
+  target_language: string
   note: string
   scheduled_at: string
   rights_warning: string
@@ -1528,6 +1534,7 @@ export interface ContentPublication {
   attempts: number
   mode: string
   profile_key: string
+  target_language: string
   comment_status: string
   delete_status: string
 }
@@ -1598,6 +1605,30 @@ export interface ContentModeration {
   quiet_hours_start: number
   quiet_hours_end: number
   quiet_hours_tz: string
+  source_language: string
+  target_language: string
+  auto_detect: boolean
+}
+
+// --- Target Language (v2.0) -------------------------------------------------
+export interface LanguageOption {
+  code: string
+  title: string
+}
+
+export interface LanguageCatalog {
+  languages: LanguageOption[]
+  default: string
+}
+
+export interface LanguageResult {
+  item_id: string
+  source_language: string
+  target_language: string
+  translated: boolean
+  provider?: string
+  model?: string
+  detail?: string
 }
 
 // --- Content Operations 2.0 (v1.9) -----------------------------------------
@@ -1810,6 +1841,99 @@ export interface FactoryBindResult {
   binding_id: string
   status: string
   status_label: string
+}
+
+// Mass bot-to-channel onboarding (v2.0, D-120)
+export interface OnboardingRightsProfile {
+  key: string
+  title_ru: string
+  title_en: string
+  function: string
+  admin_rights: string[]
+  description_ru: string
+  description_en: string
+}
+
+export interface OnboardingBatch {
+  id: string
+  channel_id: string
+  channel_label: string
+  rights_profile: string
+  rights_profile_title: string
+  function: string
+  requested_count: number
+  ready_count: number
+  permission_count: number
+  failed_count: number
+  skipped_count: number
+  queue_paused: boolean
+  completed: boolean
+  last_error: string
+}
+
+export interface OnboardingCandidate {
+  id: string
+  batch_id: string
+  index: number
+  bot_id: string
+  bot_username: string
+  bot_title: string
+  channel_id: string
+  rights_profile: string
+  function: string
+  deep_link: string
+  status: string
+  status_label: string
+  attempts: number
+  binding_id: string
+  last_error: string
+}
+
+export interface OnboardingBatchDetail {
+  batch: OnboardingBatch
+  candidates: OnboardingCandidate[]
+}
+
+export interface OnboardingBatchList {
+  items: OnboardingBatch[]
+  total: number
+}
+
+export interface OnboardingProgress {
+  total: number
+  queued: number
+  waiting: number
+  verifying: number
+  ready: number
+  needs_permission: number
+  failed: number
+  skipped: number
+  paused: boolean
+  active: number
+  done: number
+}
+
+export interface OnboardingDashboard {
+  batch_id: string
+  channel_id: string
+  channel_label: string
+  rights_profile: string
+  rights_profile_title: string
+  function: string
+  queue_paused: boolean
+  completed: boolean
+  progress: OnboardingProgress
+}
+
+export interface OnboardingActionResult {
+  candidate_id: string
+  bot_id: string
+  bot_username: string
+  status: string
+  status_label: string
+  binding_id: string
+  deep_link: string
+  error: string
 }
 
 // Editorial Workspace (v1.4)
@@ -2180,6 +2304,49 @@ export interface GatewayBrowserStatus {
   docker_note: string
 }
 
+export interface GatewayModelCapability {
+  provider: string
+  model: string
+  kind: string
+  source: string
+  operations: string[]
+  auth: string
+  availability: string
+  cost: string
+  verified: boolean
+  verified_operations: string[]
+  note: string
+  params: Record<string, unknown>
+}
+
+export interface GatewayOperationAvailability {
+  operation: string
+  title: string
+  providers: string[]
+  available: boolean
+}
+
+export interface GatewayPrepStep {
+  id: string
+  title: string
+  status: string
+  detail: string
+}
+
+export interface GatewayBrowserPreflight {
+  available: boolean
+  runtime: string
+  steps: GatewayPrepStep[]
+  install_hint: string
+  api_works_without_browser: boolean
+  detail: string
+}
+
+export interface GatewayProvisionResult {
+  providers: string[]
+  message: string
+}
+
 export interface GatewayUseCase {
   group: string
   id: string
@@ -2343,6 +2510,63 @@ export const api = {
     }),
   factorySkipCandidate: (id: string) =>
     request<FactoryCandidate>(`/api/v1/bot-factory/candidates/${id}/skip`, {
+      method: 'POST',
+    }),
+
+  // Mass bot-to-channel onboarding (v2.0, D-120)
+  onboardingRightsProfiles: () =>
+    request<OnboardingRightsProfile[]>('/api/v1/bot-onboarding/rights-profiles'),
+  onboardingBatches: () =>
+    request<OnboardingBatchList>('/api/v1/bot-onboarding/batches'),
+  onboardingBatch: (id: string) =>
+    request<OnboardingBatchDetail>(`/api/v1/bot-onboarding/batches/${id}`),
+  createOnboardingBatch: (payload: {
+    bot_ids: string[]
+    channel_id: string
+    rights_profile?: string
+  }) =>
+    request<OnboardingBatchDetail>('/api/v1/bot-onboarding/batches', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  deleteOnboardingBatch: (id: string) =>
+    request<null>(`/api/v1/bot-onboarding/batches/${id}`, { method: 'DELETE' }),
+  onboardingDashboard: (id: string) =>
+    request<OnboardingDashboard>(`/api/v1/bot-onboarding/batches/${id}/dashboard`),
+  onboardingNext: (id: string) =>
+    request<OnboardingBatchDetail>(`/api/v1/bot-onboarding/batches/${id}/next`, {
+      method: 'POST',
+    }),
+  onboardingVerifyAll: (id: string) =>
+    request<OnboardingBatchDetail>(`/api/v1/bot-onboarding/batches/${id}/verify`, {
+      method: 'POST',
+    }),
+  onboardingRetryFailed: (id: string) =>
+    request<OnboardingBatchDetail>(`/api/v1/bot-onboarding/batches/${id}/retry`, {
+      method: 'POST',
+    }),
+  onboardingSkipRemaining: (id: string) =>
+    request<OnboardingBatchDetail>(`/api/v1/bot-onboarding/batches/${id}/skip`, {
+      method: 'POST',
+    }),
+  onboardingPause: (id: string) =>
+    request<OnboardingBatchDetail>(`/api/v1/bot-onboarding/batches/${id}/pause`, {
+      method: 'POST',
+    }),
+  onboardingResume: (id: string) =>
+    request<OnboardingBatchDetail>(`/api/v1/bot-onboarding/batches/${id}/resume`, {
+      method: 'POST',
+    }),
+  onboardingVerifyCandidate: (id: string) =>
+    request<OnboardingActionResult>(`/api/v1/bot-onboarding/candidates/${id}/verify`, {
+      method: 'POST',
+    }),
+  onboardingRetryCandidate: (id: string) =>
+    request<OnboardingActionResult>(`/api/v1/bot-onboarding/candidates/${id}/retry`, {
+      method: 'POST',
+    }),
+  onboardingSkipCandidate: (id: string) =>
+    request<OnboardingActionResult>(`/api/v1/bot-onboarding/candidates/${id}/skip`, {
       method: 'POST',
     }),
 
@@ -2758,6 +2982,7 @@ export const api = {
     kind?: string
     make_default?: boolean
     note?: string
+    target_language?: string
   }) => request<Channel>('/api/v1/channels', { method: 'POST', body: JSON.stringify(payload) }),
   updateChannel: (id: string, payload: Record<string, unknown>) =>
     request<Channel>(`/api/v1/channels/${id}`, {
@@ -2965,6 +3190,9 @@ export const api = {
     enabled?: boolean
     channel_id?: string
     account_id?: string
+    source_language?: string
+    target_language?: string
+    auto_detect?: boolean
   }) => request<ContentSource>('/api/v1/content/sources', { method: 'POST', body: JSON.stringify(payload) }),
   removeContentSource: (id: string) =>
     request<null>(`/api/v1/content/sources/${id}`, { method: 'DELETE' }),
@@ -3015,7 +3243,7 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ rows }),
     }),
-  planContent: (id: string, payload: { targets: { channel_id: string; scheduled_at?: string; text_override?: string; profile_key?: string; ai_instructions?: string }[]; mode?: string }) =>
+  planContent: (id: string, payload: { targets: { channel_id: string; scheduled_at?: string; text_override?: string; profile_key?: string; ai_instructions?: string; target_language?: string }[]; mode?: string }) =>
     request<ContentPlan>(`/api/v1/content/items/${id}/plan`, { method: 'POST', body: JSON.stringify(payload) }),
   contentPublications: (id: string) =>
     request<ContentPlan>(`/api/v1/content/items/${id}/publications`),
@@ -3084,6 +3312,16 @@ export const api = {
     request<null>(`/api/v1/content/automation-rules/${id}`, { method: 'DELETE' }),
   pipelineAnalytics: (limit = 50) =>
     request<PipelineAnalytics>(`/api/v1/content/pipeline/analytics?limit=${limit}`),
+
+  // v2.0: Target Language (detect + protected translation).
+  contentLanguages: () => request<LanguageCatalog>('/api/v1/content/languages'),
+  detectContentLanguage: (id: string) =>
+    request<LanguageResult>(`/api/v1/content/items/${id}/language`, { method: 'POST' }),
+  translateContentItem: (id: string, targetLanguage: string, strategy = '') =>
+    request<LanguageResult>(`/api/v1/content/items/${id}/translate`, {
+      method: 'POST',
+      body: JSON.stringify({ target_language: targetLanguage, strategy }),
+    }),
 
   // Editorial Workspace (v1.4)
   editorialRooms: () => request<EditorialRoomList>('/api/v1/editorial/rooms'),
@@ -3306,6 +3544,20 @@ export const api = {
     request<{ items: GatewayWrapper[] }>('/api/v1/ai-gateway/wrappers'),
   gatewayBrowser: () =>
     request<GatewayBrowserStatus>('/api/v1/ai-gateway/browser'),
+  gatewayBrowserPreflight: () =>
+    request<GatewayBrowserPreflight>('/api/v1/ai-gateway/browser/preflight'),
+  gatewayBrowserPrepare: () =>
+    request<GatewayBrowserPreflight>('/api/v1/ai-gateway/browser/prepare', {
+      method: 'POST',
+    }),
+  gatewayModels: () =>
+    request<{ items: GatewayModelCapability[]; operations: Record<string, string> }>(
+      '/api/v1/ai-gateway/models',
+    ),
+  gatewayOperations: () =>
+    request<{ items: GatewayOperationAvailability[] }>('/api/v1/ai-gateway/operations'),
+  gatewayProvision: () =>
+    request<GatewayProvisionResult>('/api/v1/ai-gateway/provision', { method: 'POST' }),
   gatewayUseCases: () =>
     request<{ items: GatewayUseCase[] }>('/api/v1/ai-gateway/use-cases'),
   gatewayRequests: (limit = 50) =>

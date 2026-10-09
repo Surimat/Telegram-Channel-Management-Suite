@@ -436,6 +436,34 @@ STATIC_MUTATIONS: list[Mutation] = [
             '\n<template><button @click="zzGatewayGhost">Пуск</button></template>\n',
         ),
     ),
+    Mutation(
+        id="AA_onboarding_deeplink_separator",
+        name="onboarding_deeplink_wrong_separator",
+        expected_finding_id="telegram.deeplink_startchannel_separator",
+        expected_severity="error",
+        severity="critical",
+        note=(
+            "The mass onboarding deep link must join admin rights with '+', not a "
+            "space, or Telegram silently drops the requested rights (D-120)."
+        ),
+        apply=lambda b: b.patch(
+            "backend/app/services/bot_onboarding.py",
+            'rights = "+".join(r for r in admin_rights if r)',
+            'rights = " ".join(r for r in admin_rights if r)',
+        ),
+    ),
+    Mutation(
+        id="AB_onboarding_capability_anchor",
+        name="onboarding_capability_without_anchor",
+        expected_finding_id="capabilities.no_anchor.bot_onboarding",
+        expected_severity="error",
+        severity="high",
+        note=(
+            "The bot_onboarding capability must stay anchored to its service "
+            "class, or it can claim to be implemented with no code (D-099/D-120)."
+        ),
+        apply=lambda b: _drop_anchor("bot_onboarding"),
+    ),
 ]
 
 

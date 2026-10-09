@@ -54,6 +54,7 @@ def _to_out(service: ChannelService, channel) -> ChannelOut:  # type: ignore[no-
         participants_count=channel.participants_count,
         last_verified_at=channel.last_verified_at,
         note=channel.note,
+        target_language=getattr(channel, "target_language", "auto"),
         created_at=channel.created_at,
         updated_at=channel.updated_at,
     )
@@ -155,6 +156,7 @@ async def update_channel(
             title=payload.title,
             note=payload.note,
             status=_parse_status(payload.status) if payload.status else None,
+            target_language=payload.target_language,
         )
     except ChannelServiceError as exc:
         _raise(exc)

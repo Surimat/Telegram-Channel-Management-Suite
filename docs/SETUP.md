@@ -97,7 +97,8 @@ Steps:
 1. Download the portable archive and extract it anywhere (USB stick is fine).
 2. Double-click **`run.bat`**.
 3. The browser opens `http://127.0.0.1:8000` automatically.
-4. Use **`stop.bat`** (or close the console window) for a graceful shutdown.
+4. Use **`stop.bat`** (the tray icon menu also stops the app) for a graceful
+   shutdown.
 
 No Python, Node, npm, Docker, PostgreSQL, or Redis is required.
 All mutable data stays inside the extracted folder.
@@ -622,6 +623,10 @@ It is optional and independent of the lightweight «Мини-ИИ» above.
    - `OpenAI-совместимый API`, `OpenRouter`, `Google (Gemini)`, `Anthropic`,
      `DeepSeek` — enter the model and the API key (write-only);
    - `Локально (Ollama)` — enter the local base URL, no key needed;
+   - `Бесплатный без ключа (Pollinations)` / `Бесплатный шлюз без ключа
+     (llm7.io)` — keyless text, ready to use with no key;
+   - `Бесплатная генерация изображений (Pollinations)` — keyless image
+     *generation* (not vision); off by default, enable it explicitly;
    - `Web UI обёртка` — set the wrapper id (e.g. `generic`); the wrapper drives
      **your own** logged-in browser session.
 2. **Маршрутизация** — turn the gateway on, choose a strategy, and optionally

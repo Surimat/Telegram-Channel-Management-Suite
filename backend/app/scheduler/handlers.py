@@ -19,6 +19,10 @@ from backend.app.services.bot_factory import (
     BOT_FACTORY_JOB_KIND,
     BotFactoryService,
 )
+from backend.app.services.bot_onboarding import (
+    BOT_ONBOARDING_JOB_KIND,
+    BotOnboardingService,
+)
 from backend.app.services.invite_service import INVITE_JOB_KIND, InviteService
 from backend.app.services.posting_service import POSTING_JOB_KIND, PostingService
 from backend.app.services.queue_service import QueueService
@@ -32,6 +36,10 @@ POSTING_TICK_SECONDS = 15
 #: Pause between two bot-creation operations in the queue. Kept deliberately
 #: modest so the durable queue paces itself instead of hammering Telegram.
 BOT_FACTORY_TICK_SECONDS = 2
+
+#: Pause between two bot-to-channel onboarding verifications. The owner confirms
+#: each bot by hand in Telegram, so a short pause only paces the rights checks.
+BOT_ONBOARDING_TICK_SECONDS = 3
 
 #: Durable-queue kind for the LAN Mesh maintenance tick.
 MESH_TICK_JOB_KIND = "mesh.tick"
@@ -132,6 +140,27 @@ async def _handle_bot_factory(session: AsyncSession, job: Job) -> None:
         )
 
 
+async def _handle_bot_onboarding(session: AsyncSession, job: Job) -> None:
+    # One onboarding verification per tick so a large queue never blocks the
+    # scheduler and a restart resumes where it stopped (D-008 style). While
+    # active work remains, a follow-up job is scheduled ahead of time.
+    payload = json.loads(job.payload or "{}")
+    batch_id = payload.get("batch_id")
+    if not batch_id:
+        return
+    service = BotOnboardingService(session)
+    await service.run_queue_once(batch_id)
+    progress = await service.queue_progress(batch_id)
+    if progress.active > 0 and not progress.paused:
+        await QueueService(session).enqueue(
+            kind=BOT_ONBOARDING_JOB_KIND,
+            payload={"batch_id": batch_id},
+            scheduled_at=utcnow() + timedelta(seconds=BOT_ONBOARDING_TICK_SECONDS),
+            group_key=batch_id,
+            max_attempts=1,
+        )
+
+
 def register_handlers(scheduler: Scheduler) -> None:
     """Register every durable-queue handler on ``scheduler``."""
     scheduler.register(REACTION_JOB_KIND, _handle_reaction)
@@ -139,6 +168,7 @@ def register_handlers(scheduler: Scheduler) -> None:
     scheduler.register(INVITE_JOB_KIND, _handle_invite)
     scheduler.register(POSTING_JOB_KIND, _handle_posting)
     scheduler.register(BOT_FACTORY_JOB_KIND, _handle_bot_factory)
+    scheduler.register(BOT_ONBOARDING_JOB_KIND, _handle_bot_onboarding)
     scheduler.register(MESH_TICK_JOB_KIND, _handle_mesh_tick)
 
 

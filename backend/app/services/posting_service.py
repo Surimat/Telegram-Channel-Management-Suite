@@ -109,6 +109,7 @@ class TargetSpec:
     text_override: str = ""
     profile_key: str = ""
     ai_instructions: str = ""
+    target_language: str = ""
 
 
 def _parse_json(raw: str, default: object) -> object:
@@ -300,6 +301,7 @@ class PostingService:
             pub.text_override = target.text_override
             pub.profile_key = target.profile_key
             pub.ai_instructions = target.ai_instructions
+            pub.target_language = target.target_language
             pub.idempotency_key = f"{item_id}:{channel.id}"
             pub.scheduled_at = target.scheduled_at
             pub.status = (

@@ -24,6 +24,7 @@ from backend.app.services.automation_rules import AutomationRuleService
 from backend.app.services.backup_service import BackupService
 from backend.app.services.binding_service import BindingService
 from backend.app.services.bot_factory import BotFactoryService
+from backend.app.services.bot_onboarding import BotOnboardingService
 from backend.app.services.bot_service import BotService, ProviderFactory
 from backend.app.services.campaign_service import CampaignService
 from backend.app.services.capability_service import CapabilityService
@@ -84,6 +85,22 @@ def get_bot_factory_service(
         session,
         session_provider_factory=session_provider_factory,
         bot_service=BotService(session, provider_factory=provider_factory),
+        binding_service=BindingService(session, provider_factory=provider_factory),
+    )
+
+
+def get_bot_onboarding_service(
+    session: AsyncSession = Depends(get_session),
+    provider_factory: ProviderFactory = Depends(get_provider_factory),
+) -> BotOnboardingService:
+    """Mass bot-to-channel onboarding wired to the real binding service.
+
+    The internal BindingService reuses the overridable provider factory so tests
+    run the whole verification flow against the deterministic fakes (D-001).
+    """
+    return BotOnboardingService(
+        session,
+        provider_factory=provider_factory,
         binding_service=BindingService(session, provider_factory=provider_factory),
     )
 

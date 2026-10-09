@@ -109,6 +109,13 @@ class BindIn(BaseModel):
     function: str = "reactions"
 
 
+class BindManyIn(BaseModel):
+    """Connect a batch to several channels at once (v2.0)."""
+
+    channel_ids: list[str] = []
+    function: str = "reactions"
+
+
 class BindResultOut(BaseModel):
     candidate_id: str
     bot_id: str
@@ -116,6 +123,7 @@ class BindResultOut(BaseModel):
     binding_id: str
     status: str
     status_label: str
+    channel_id: str = ""
 
 
 class AdoptIn(BaseModel):

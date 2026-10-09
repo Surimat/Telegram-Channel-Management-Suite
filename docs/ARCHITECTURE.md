@@ -845,8 +845,8 @@ itself honestly instead of each surface re-deriving the same state.
   actually produced. The copy is discarded — nothing is written to the working
   tree (asserted by a test and by a CI leak check). `SuiteResult` derives
   `detected`/`missed`/`kill_rate`/`false_positives`/`critical_misses`/`high_misses`
-  from those records and `verify()` asserts the arithmetic. There are 25 mutations
-  and 5 negative controls (a clean/correct tree must not produce a mutation
+  from those records and `verify()` asserts the arithmetic. There are 32 mutations
+  and 8 negative controls (a clean/correct tree must not produce a mutation
   finding). Removing a detector flips its mutation to `missed` and lowers the rate;
   adding a mutation changes `total` — both proven by tests. `tests/test_meta_audit.py`
   covers the silent-failure guard (a raising check becomes
@@ -854,7 +854,7 @@ itself honestly instead of each surface re-deriving the same state.
   `audit.source_unavailable.<name>` info) and the runtime checks.
   `agent/META_AUDIT_RESULT.json` is a **generated** artifact
   (`result_source: "computed from runtime mutation executions"`), uploaded by the
-  CI job `meta-audit`. Current run: **25 total, 25 detected, 0 missed, kill rate
+  CI job `meta-audit`. Current run: **32 total, 32 detected, 0 missed, kill rate
   100.0%, 0 false positives, 0 critical misses, 0 high misses** (`status: clean`);
   `KNOWN_GAP_IDS` is empty - every recorded gap has been closed
   (D-099/D-100/D-102/D-103/D-104).
@@ -988,8 +988,19 @@ the owner is already logged into into an API-shaped provider.
   ordering, retry, failover, `describe()` dry-run), `registry.py`
   (`ProviderConfig` → `AIProvider`).
 - **Providers** (`ai/gateway/providers/`): OpenAI-compatible, OpenRouter, Google,
-  Anthropic, DeepSeek, Ollama and the `web` wrapper provider. Adding a kind is one
-  branch in the registry — the single extension point.
+  Anthropic, DeepSeek, Ollama, `pollinations` (keyless free text) and the `web`
+  wrapper provider. Adding a kind is one branch in the registry — the single
+  extension point.
+- **Catalog** (`ai/gateway/catalog.py`): the model-capability catalog — per model,
+  its operations, auth mode, cost and whether each operation is **verified**
+  (really exercised) or merely declared. It backs the model matrix the UI shows,
+  so a capability is never advertised without an entry.
+- **Provisioning** (`ai/gateway/provisioning.py`): first-run provisioning of the
+  free-first providers (`free_default_providers()`); idempotent and it never
+  overwrites an owner-configured provider.
+- **Preflight** (`ai/gateway/preflight.py`): a browser environment probe with
+  honest per-step progress (`BrowserPreflight`); never fails, and reports the
+  install hint plus the fact that plain API providers work without a browser.
 - **Wrappers** (`ai/gateway/wrappers/`): `definition.py` (all site-specific
   detail: URL, selectors, extraction, login markers, version, cost),
   `engine.py` (`WebWrapperEngine` + `GenericWebWrapperProvider`). The engine
@@ -1087,6 +1098,51 @@ records through `BrowserRuntime.extract(selector, attrs=...)` and both runtimes
 implement it. A structured extraction with no matching node reports
 `wrapper_selector` rather than inventing data; a *text* extraction with no match
 honestly falls back to the page text.
+
+### 25.7 Free-first providers and honest capabilities (v2 cycle)
+
+The v2 cycle makes the gateway usable **out of the box** without an account, key
+or browser, and makes every capability claim checkable:
+
+- **Keyless free text — `pollinations`.** A real, anonymous OpenAI-compatible
+  endpoint (`POST /openai/chat/completions`) is wired as `PollinationsProvider`
+  (a thin `OpenAICompatibleProvider` subclass). It advertises **text only** —
+  Pollinations does **not** support image/vision input (a real request returns a
+  `400 "model does not support image input"`), so the provider must never be
+  offered for an image or structured case.
+- **Second keyless free text — `llm7`.** `Llm7Provider` wraps the community-run
+  llm7.io OpenAI-compatible gateway (model `gpt-oss:20b`). Anonymous chat works
+  with no key; a live image request was refused upstream, so it is **text only**
+  as well, and its model set/availability is never treated as guaranteed.
+- **Keyless free image generation — `pollinations_image`.** A keyless Pollinations
+  generator (`https://image.pollinations.ai/prompt/…`, model `flux`) answers a
+  text prompt with an image; probed HTTP 200 / `image/jpeg`, deterministic per
+  prompt+seed. It is **generation only**: it declares no text and no image
+  *understanding*, and it is **off by default** so ordinary text routing never
+  picks it up. Because a generator is not a text provider, `GET /operations`
+  matches it by provider kind rather than by the `at_least` capability rule.
+- **Keyless is honest.** The `ProviderInfo.info` property now sets
+  `auth_required` from the actual auth mode: only an `api_key` provider with no
+  key reports `auth_required=True`. A keyless or browser-session provider never
+  claims it needs a key.
+- **Model-capability catalog** (`catalog.py`) backs `GET /models`; each entry
+  carries its operations, auth mode, cost and a `verified` flag (with
+  `verified_operations`), so the UI distinguishes `Проверено` from `Заявлено`.
+- **Operation availability** (`GET /operations`) lists, per operation, the
+  **configured** providers that can serve it right now — an empty list is shown
+  plainly rather than hiding the gap.
+- **Browser preflight** (`preflight.py` + `GET /browser/preflight` and
+  `POST /browser/prepare`) probes the environment and reports honest per-step
+  progress; it never fails and states that API providers work without a browser.
+- **Session expiry is failover, not a hard stop.** A web wrapper that meets a
+  login wall returns `AUTH_REQUIRED`; the router then **fails over** to the next
+  eligible provider (e.g. a keyless API), and the response reports
+  `fallback_used`. The browser layer still never bypasses login, CAPTCHA or MFA —
+  it only declines and moves on to a provider the owner has configured.
+
+Deliberately **not** added: any mechanism that bypasses an anti-bot JS challenge
+(e.g. Duck.ai) or requires unverified third-party keys — those stay
+browser-session-only or unavailable, reported honestly.
 
 ---
 

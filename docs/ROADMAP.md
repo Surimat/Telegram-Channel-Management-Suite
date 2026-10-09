@@ -242,9 +242,112 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ---
 
+## v2.0 cycle — owner-approved priorities (in progress)
+
+Owner-approved priorities, worked sequentially in separately verifiable stages
+(**Этапы**). Do not invent new directions and do not revisit implemented work.
+No release is cut from this section until the owner asks.
+
+1. **Web Wrappers and free multimodal AI providers — MAIN priority.**
+   - **Stage 1 — free-first providers and honest capabilities (implemented,
+     unreleased; awaiting owner-requested release).** Free-first providers and honest capability
+     reporting for the AI Gateway:
+     - Keyless free text provider **`pollinations`** (`PollinationsProvider`,
+       OpenAI-compatible `POST /openai/chat/completions`); it is **text only**
+       (no vision — a real request returns `400 "model does not support image
+       input"`).
+     - Second keyless free text provider **`llm7`** (`Llm7Provider`, llm7.io
+       OpenAI-compatible gateway, model `gpt-oss:20b`); anonymous chat works with
+       no key, but the keyless models refused an image request upstream, so it is
+       declared **text only** too.
+     - Keyless free **image generation** — **`pollinations_image`**
+       (`PollinationsImageProvider`, `https://image.pollinations.ai/prompt/…`,
+       model `flux`). Probed HTTP 200 / `image/jpeg`, deterministic per
+       prompt+seed. It is generation only and is **off by default** (opt-in), and
+       it never claims image *understanding*.
+     - Model-capability **catalog** (`ai/gateway/catalog.py`), **provisioning**
+       (`ai/gateway/provisioning.py`, idempotent, never overwrites an
+       owner-configured provider) and browser **preflight**
+       (`ai/gateway/preflight.py`, honest per-step progress, never fails).
+     - New endpoints: `GET /models`, `GET /operations`, `GET /browser/preflight`,
+       `POST /browser/prepare`, `POST /provision`.
+     - Honesty fix: `ProviderInfo.info` sets `auth_required` from the actual auth
+       mode, so a keyless or browser-session provider never claims it needs a key.
+     - `GET /operations` reports `image_generation` by matching a generator by
+       kind (a generator is not a text provider, so it is never matched by
+       `at_least`).
+     - Session expiry is **failover**, not a hard stop: a wrapper that meets a
+       login wall returns `AUTH_REQUIRED` and the router moves to the next
+       eligible provider (`fallback_used`). The browser layer still never bypasses
+       login, CAPTCHA or MFA.
+     - UI: `AiGatewayView.vue` gains the model/operation matrix, a free-first
+       provisioning button and a browser-preflight panel.
+     - Tests: `tests/test_v2_ai_providers.py`.
+     - **Deliberately not done:** bypassing an anti-bot JS challenge (e.g.
+       Duck.ai) or unverified third-party keys — those stay browser-session-only
+       or unavailable, reported honestly.
+   - **Stage 2 — verified free *multimodal* (vision) providers (probed
+     2026-10-09; no keyless vision confirmed).** Live probes on 2026-10-09 found
+     **no genuinely free, keyless image-understanding endpoint**:
+     - `api.llm7.io` anonymous: text works (`gpt-oss:20b`), but every keyless
+       model refused an image request (`400 "does not support vision input"`);
+       `gemini-*`/`llama-*` want a key.
+     - `gen.pollinations.ai` anonymous: text works, but the vision-capable models
+       (`…-vision-exp`, `ling-3.0-flash-vl`, `gemma-4-31b-it`) return `401`
+       without a key.
+     - `api.airforce` → paid-only (`402`); DuckDuckGo → anti-bot challenge (never
+       bypassed, D-117).
+     The free multimodal path that *is* confirmed is **image generation** (Stage
+     1, `pollinations_image`); vision stays on keyed providers (Google/Anthropic)
+     or an owner's own logged-in browser session. Re-check only when a real,
+     keyless, non-bypass vision endpoint is confirmed.
+2. **Mass connection of created bots to channels.** Implemented (unreleased) —
+   see the Mass Bot-to-Channel Onboarding section below (D-120).
+3. **Complete Content Operations with target-language translation.** Implemented
+   (unreleased) — see the Target Language section below.
+
+### v2.0 implementation notes (unreleased)
+
+**Target-language translation (D-118).** The Content Studio gains an explicit
+language stage: a **source language** (auto-detected or set per source) and a
+**target language** resolved by precedence (publication → channel → source →
+global default). Translation runs only when the languages differ, goes through
+the **existing AI Gateway** (routing/retries/failover unchanged) and masks URLs,
+`@username`, `t.me` links, hashtags, inline code, HTML and Telegram-entity spans
+so the model never rewrites a link or markup. A total failure keeps the original
+material. Additive migration `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`.
+
+**Mass bot-to-channel onboarding (D-120).** A batch connects up to 50 already
+created bots to one channel using Telegram's official
+`t.me/<bot>?startchannel&admin=<rights>` deep link (rights joined by `+`, not a
+space — Bot API 6.0+). Rights are least-privilege, purpose-named profiles
+(`reactions`, `posting`, `editing`), never a blanket "all rights". The owner
+confirms each bot in Telegram; the candidate is then re-checked against Telegram
+through the existing **BindingService**, so `ready` means "Telegram reports the
+rights", not "a link was sent", and insufficient rights is an explicit
+`needs_permission` state. `bot_onboarding.tick` is a durable, restart-safe
+scheduler job that advances one bot per tick; a failure never stops the rest and
+already-connected bots are never rolled back (pause/resume/retry/skip). The bot
+token is never part of any request or response. Additive migration
+`20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`; UI `BotOnboardingView.vue`
+(`/bot-onboarding`). Tests: `tests/test_bot_onboarding.py`.
+
+---
+
 ## Release
 
-- **v1.9.0 (2026-10-12):** **Content Operations 2.0** (D-116) — the existing
+- **v2.0.0 (2026-10-09):** the three agreed v2.0 stages. An **AI Gateway** over
+  many providers (including **free multimodal** ones) and browser **web wrappers**
+  with verified free-first routing and honest capabilities (D-117…D-119); a
+  per-content **Target Language** (D-v2 Part 1); **mass bot-to-channel onboarding**
+  as a durable, restart-safe queue where `ready` means Telegram confirms the bot's
+  rights (D-120); **Content Operations 2.0** (D-116); and a **hidden (windowless)
+  background launch**. Additive migrations
+  `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py`,
+  `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`,
+  `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`. Released via a reviewed
+  `develop → main` PR, tag `v2.0.0`.
+- **v1.9.0 (2026-10-08):** **Content Operations 2.0** (D-116) — the existing
   Content Studio is extended into one pipeline (`source → gather → clean →
   mini-AI → moderation → publish → comment/delete`) instead of a second studio.
   Adds reusable **AI profiles** (prompt as data), a **mini-AI** classifier
@@ -252,7 +355,7 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
   **automation rules** and **secret-free pipeline analytics**. Additive migration
   `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py`. Released via a
   reviewed `develop → main` PR, tag `v1.9.0`.
-- **v1.8.2 (2026-10-11):** a **Web Wrapper Hub practical-verification patch**
+- **v1.8.2 (2026-10-08):** a **Web Wrapper Hub practical-verification patch**
   (D-115). It exercises the wrapper pipeline end to end on a deterministic
   **local fixture site** (real HTTP + HTML; index/search, article, extract, login
   and 500 pages) with **no external site, account, key or AI credential**, and
@@ -264,14 +367,14 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
   `develop ‚Üí main` PR #21 (merge `8542d4c`), tag `v1.8.2`; the Release workflow
   (run `37747125558`) attached the Windows portable ZIP (24 906 383 bytes, sha256
   `f0c6984d‚Ä¶f619`) + `.sha256`.
-- **v1.8.1 (2026-10-10):** an **AI Gateway verification patch** (D-114) over
+- **v1.8.1 (2026-10-07):** an **AI Gateway verification patch** (D-114) over
   v1.8.0. It proves the gateway *works* by behaviour and fixes two real defects ‚Äî
   a `web` provider whose wrapper id does not exist reported `available` (and lost
   its configured name), and `AIRouter._attempt` returned a transient *response*
   without retrying ‚Äî plus frontend lockfile version drift. No new features. The
   Release workflow (run `37705225761`) attached the Windows portable ZIP
   (24 905 404 bytes, sha256 `0ec6aca1‚Ä¶a9d4`) + `.sha256`.
-- **v1.8.0 (2026-10-09):** the **AI Gateway + Web Wrapper Hub** (D-111‚Ä¶D-113) ‚Äî
+- **v1.8.0 (2026-10-07):** the **AI Gateway + Web Wrapper Hub** (D-111‚Ä¶D-113) ‚Äî
   one access layer over many AI providers (OpenAI-compatible, OpenRouter, Google,
   Anthropic, DeepSeek, local Ollama) plus browser **web wrappers** that drive the
   owner's own logged-in session. Strategy-based routing, bounded retries, a

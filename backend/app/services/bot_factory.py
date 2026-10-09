@@ -841,6 +841,32 @@ class BotFactoryService:
         await self.session.commit()
         return results
 
+    async def bind_created_many(
+        self,
+        batch_id: str,
+        channel_ids: list[str],
+        *,
+        function: str = "reactions",
+    ) -> list[dict[str, object]]:
+        """Connect every created bot to several channels in one action (v2.0).
+
+        Reuses the existing single-channel binding path — it is a fan-out, not a
+        second binding implementation. One channel failing never aborts the rest.
+        """
+        targets = [c for c in dict.fromkeys(channel_ids) if c]
+        if not targets:
+            raise BotFactoryError(
+                "Не выбран ни один канал.",
+                how_to_fix="Отметьте хотя бы один канал для подключения.",
+            )
+        results: list[dict[str, object]] = []
+        for channel_id in targets:
+            for row in await self.bind_created(batch_id, channel_id, function=function):
+                row["channel_id"] = channel_id
+                results.append(row)
+        await self.session.commit()
+        return results
+
     # --- dashboard -----------------------------------------------------------
     async def dashboard(self, batch_id: str) -> dict[str, object]:
         batch = await self.get_batch(batch_id)

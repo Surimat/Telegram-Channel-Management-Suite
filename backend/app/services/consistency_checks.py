@@ -64,6 +64,7 @@ CAPABILITY_SERVICE_ANCHORS: dict[str, tuple[str, str]] = {
     "content_publish": ("services/posting_service.py", "class PostingService"),
     "ai_ru": ("services/encoder_service.py", "class EncoderService"),
     "bot_factory": ("services/bot_factory.py", "class BotFactoryService"),
+    "bot_onboarding": ("services/bot_onboarding.py", "class BotOnboardingService"),
     "donor_discovery": (
         "services/donor_discovery_service.py",
         "class DonorDiscoveryService",
@@ -208,6 +209,7 @@ def run_static_checks() -> list[Finding]:
         check_unused_model_columns,
         check_orphan_service_classes,
         check_frontend_unwired_controls,
+        check_telegram_deeplink_contracts,
     ):
         missing = [
             globals()[name]
@@ -500,6 +502,7 @@ def _registered_handlers() -> set[str]:
         ("posting_service", "posting_service.py"),
         ("reaction_service", "reaction_service.py"),
         ("bot_factory", "bot_factory.py"),
+        ("bot_onboarding", "bot_onboarding.py"),
     ):
         module_text = (BACKEND / "services" / module_path).read_text(encoding="utf-8")
         for name, value in re.findall(r'([A-Z_]+)\s*=\s*"([^"]+)"', module_text):
@@ -1597,6 +1600,80 @@ def _unwired_finding(rel: Path, name: str, reason: str) -> Finding:
     )
 
 
+def check_telegram_deeplink_contracts() -> list[Finding]:
+    """The ``startchannel`` deep link must keep Telegram's official contract.
+
+    Telegram's official format is ``t.me/<bot>?startchannel&admin=<tokens>`` with
+    the admin rights joined by ``+`` (Bot API 6.0+). Two silent-failure traps are
+    guarded: a space-joined rights list (Telegram drops the requested rights) and
+    a UI deep-link anchor that skips ``rel="noopener"`` (a tab-nabbing risk that
+    every other external link in the app avoids).
+    """
+    findings: list[Finding] = []
+    service = BACKEND / "services" / "bot_onboarding.py"
+    if service.is_file():
+        text = service.read_text(encoding="utf-8")
+        if "join(" in text and ('"+".join' not in text or '" ".join' in text):
+            findings.append(
+                Finding(
+                    id="telegram.deeplink_startchannel_separator",
+                    category="integration",
+                    severity=SEVERITY_ERROR,
+                    confidence="high",
+                    title="Ссылка startchannel собирает права не через «+»",
+                    detail=(
+                        "В bot_onboarding.py список прав администратора не "
+                        "склеивается через «+»."
+                    ),
+                    why=(
+                        "Официальный формат Telegram — t.me/<бот>?startchannel"
+                        "&admin=<права через +>. Разделитель-пробел приводит к "
+                        "тому, что Telegram молча выдаёт не те права."
+                    ),
+                    how_to_fix='Собирайте права так: "+".join(admin_rights).',
+                    subsystem="integration",
+                )
+            )
+        if "t.me/" in text and "?startchannel" not in text:
+            findings.append(
+                Finding(
+                    id="telegram.deeplink_startchannel_missing",
+                    category="integration",
+                    severity=SEVERITY_ERROR,
+                    confidence="high",
+                    title="Ссылка startchannel потеряла официальный параметр",
+                    detail="В bot_onboarding.py нет параметра ?startchannel.",
+                    why="Без ?startchannel Telegram не откроет окно добавления бота в канал.",
+                    how_to_fix="Используйте t.me/<бот>?startchannel&admin=<права через +>.",
+                    subsystem="integration",
+                )
+            )
+    if FRONTEND.is_dir():
+        for path in sorted(FRONTEND.rglob("*.vue")):
+            text = path.read_text(encoding="utf-8")
+            if "deep_link" not in text:
+                continue
+            for match in re.finditer(
+                r'<a\b[^>]*:href="([^"]*deep_link[^"]*)"[^>]*>', text, re.DOTALL
+            ):
+                if "noopener" not in match.group(0):
+                    rel = path.relative_to(FRONTEND)
+                    findings.append(
+                        Finding(
+                            id=f"telegram.deeplink_no_opener.{rel.as_posix()}",
+                            category="security",
+                            severity=SEVERITY_WARNING,
+                            confidence="medium",
+                            title="Внешняя ссылка на бота без rel=\"noopener\"",
+                            detail=f"{rel}: ссылка deep_link открывается без rel=\"noopener\".",
+                            why="Целевая страница получает доступ к window.opener.",
+                            how_to_fix='Добавьте rel="noopener" к ссылке target="_blank".',
+                            subsystem="frontend",
+                        )
+                    )
+    return findings
+
+
 # ---------------------------------------------------------------------------
 # AST helpers (kept for future, more precise checks)
 # ---------------------------------------------------------------------------
@@ -1629,6 +1706,7 @@ __all__ = [
     "check_provider_registry",
     "check_router_registration",
     "check_scheduler_job_handlers",
+    "check_telegram_deeplink_contracts",
     "check_unused_model_columns",
     "check_write_only_settings",
     "run_static_checks",

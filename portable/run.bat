@@ -35,6 +35,12 @@ REM Prefer the bundled runtime; fall back to a system Python.
 set "PYTHON=%~dp0runtime\python.exe"
 if not exist "%PYTHON%" set "PYTHON=python"
 
+REM Prefer a windowless interpreter for the tray agent so no console window
+REM appears at all (the embeddable runtime ships pythonw.exe). Fall back to the
+REM console interpreter only when pythonw is missing.
+set "PYTHONW=%~dp0runtime\pythonw.exe"
+if not exist "%PYTHONW%" set "PYTHONW=%PYTHON%"
+
 REM Determine the port (APP_PORT in .env, else 8000).
 set "APP_PORT=8000"
 if exist ".env" (
@@ -45,9 +51,10 @@ echo Starting Telegram Channel Management Suite (tray agent) on http://127.0.0.1
 echo This window will close; the icon appears in the system tray.
 echo To stop the app, use the tray icon menu or double-click stop.bat.
 
-REM Start the TCMS Tray Agent hidden. It supervises the backend process and
-REM shows the tray icon; the browser is opened by the readiness helper below.
-start "" /min cmd /c ""%PYTHON%" -m backend.app.tray.agent --tray --no-browser"
+REM Start the TCMS Tray Agent with no console window. It supervises the backend
+REM process and shows the tray icon; the browser is opened by the readiness
+REM helper below.
+start "" /b "%PYTHONW%" -m backend.app.tray.agent --tray --no-browser
 
 REM Wait for the server to actually answer /health, then open the browser.
 REM Uses only PowerShell (always present on Windows).

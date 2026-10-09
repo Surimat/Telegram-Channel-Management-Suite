@@ -22,9 +22,12 @@ from backend.app.ai.gateway.providers import (
     AnthropicProvider,
     DeepSeekProvider,
     GoogleProvider,
+    Llm7Provider,
     OllamaProvider,
     OpenAICompatibleProvider,
     OpenRouterProvider,
+    PollinationsImageProvider,
+    PollinationsProvider,
 )
 from backend.app.ai.gateway.types import Capability, SourceKind
 from backend.app.ai.gateway.wrappers.definition import get_definition
@@ -40,6 +43,9 @@ KIND_GOOGLE = "google"
 KIND_ANTHROPIC = "anthropic"
 KIND_DEEPSEEK = "deepseek"
 KIND_OLLAMA = "ollama"
+KIND_POLLINATIONS = "pollinations"
+KIND_POLLINATIONS_IMAGE = "pollinations_image"
+KIND_LLM7 = "llm7"
 KIND_WEB = "web"
 
 API_KINDS = (
@@ -49,6 +55,9 @@ API_KINDS = (
     KIND_ANTHROPIC,
     KIND_DEEPSEEK,
     KIND_OLLAMA,
+    KIND_POLLINATIONS,
+    KIND_POLLINATIONS_IMAGE,
+    KIND_LLM7,
 )
 WEB_KINDS = (KIND_WEB,)
 ALL_KINDS = API_KINDS + WEB_KINDS
@@ -61,6 +70,9 @@ KIND_LABELS: dict[str, str] = {
     KIND_ANTHROPIC: "Anthropic (Claude)",
     KIND_DEEPSEEK: "DeepSeek",
     KIND_OLLAMA: "Локально (Ollama)",
+    KIND_POLLINATIONS: "Бесплатный без ключа (Pollinations)",
+    KIND_POLLINATIONS_IMAGE: "Бесплатная генерация изображений (Pollinations)",
+    KIND_LLM7: "Бесплатный шлюз без ключа (llm7.io)",
     KIND_WEB: "Web UI обёртка",
 }
 
@@ -132,6 +144,30 @@ def build_provider(
             api_key=config.api_key,
             priority=config.priority,
         )
+    if kind == KIND_POLLINATIONS:
+        return PollinationsProvider(
+            model=config.model or "openai-fast",
+            base_url=config.base_url or "https://text.pollinations.ai/openai",
+            transport=http,
+            cost=config.cost or "free",
+            priority=config.priority or 90,
+        )
+    if kind == KIND_POLLINATIONS_IMAGE:
+        return PollinationsImageProvider(
+            model=config.model or "flux",
+            base_url=config.base_url or "https://image.pollinations.ai",
+            transport=http,
+            cost=config.cost or "free",
+            priority=config.priority or 70,
+        )
+    if kind == KIND_LLM7:
+        return Llm7Provider(
+            model=config.model or "gpt-oss:20b",
+            base_url=config.base_url or "https://api.llm7.io/v1",
+            transport=http,
+            cost=config.cost or "free",
+            priority=config.priority or 85,
+        )
     if kind == KIND_WEB:
         definition = get_definition(config.wrapper_id or "generic")
         runtime = browser_runtime or PlaywrightBrowserRuntime()
@@ -144,6 +180,13 @@ def build_provider(
 
             definition = GENERIC_DEFINITION
         engine = WebWrapperEngine(runtime)
+        # A wrapper can also carry files when its definition declares an upload
+        # selector; the capability is derived from the definition, never claimed.
+        capabilities = definition.capabilities
+        if definition.attach_file_selector and not capabilities.file:
+            from dataclasses import replace
+
+            capabilities = replace(capabilities, file=True)
         return GenericWebWrapperProvider(
             definition=definition,
             engine=engine,
@@ -151,6 +194,7 @@ def build_provider(
             # Keep the configured identity so a pinned provider name still routes
             # (the wrapper's ``web:<id>`` label is only a fallback).
             configured_name=config.provider,
+            capabilities=capabilities,
             note=(
                 f"Определение обёртки «{config.wrapper_id}» не найдено."
                 if unknown_id
@@ -201,9 +245,12 @@ __all__ = [
     "KIND_DEEPSEEK",
     "KIND_GOOGLE",
     "KIND_LABELS",
+    "KIND_LLM7",
     "KIND_OLLAMA",
     "KIND_OPENAI",
     "KIND_OPENROUTER",
+    "KIND_POLLINATIONS",
+    "KIND_POLLINATIONS_IMAGE",
     "KIND_WEB",
     "WEB_KINDS",
     "ProviderConfig",

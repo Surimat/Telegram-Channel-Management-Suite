@@ -15,8 +15,10 @@ Providers:
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import replace
 from typing import Any
+from urllib.parse import quote
 
 from backend.app.ai.gateway.errors import (
     GatewayError,
@@ -135,7 +137,13 @@ class _BaseApiProvider:
 
     @property
     def info(self) -> ProviderInfo:
-        return replace(self._info, auth_required=not bool(self._api_key))
+        # Auth is required only for an api-key provider that has no key. A
+        # keyless provider (Ollama, Pollinations) or a browser-session provider
+        # must never report itself as requiring a key.
+        return replace(
+            self._info,
+            auth_required=self.auth_mode == AUTH_API_KEY and not self._api_key,
+        )
 
     def availability(self) -> Availability:
         if self.auth_mode == AUTH_API_KEY and not self._api_key:
@@ -332,6 +340,212 @@ class DeepSeekProvider(OpenAICompatibleProvider):
             capabilities=Capability(text=True, streaming=True, structured=True),
             cost=cost,
             priority=priority,
+        )
+
+
+class PollinationsProvider(OpenAICompatibleProvider):
+    """Keyless free text endpoint (Pollinations, v2.0).
+
+    No API key and no account: it is the "works out of the box" free-first
+    provider. It is **text only** — a request carrying an image/file is refused
+    honestly (the upstream model does not support image input), so the router
+    falls over to a vision-capable provider instead of pretending.
+    """
+
+    def __init__(
+        self,
+        *,
+        model: str = "openai-fast",
+        transport: HttpTransport,
+        base_url: str = "https://text.pollinations.ai/openai",
+        cost: str = "free",
+        priority: int = 90,
+    ) -> None:
+        super().__init__(
+            provider="pollinations",
+            model=model,
+            base_url=base_url,
+            api_key="",
+            transport=transport,
+            capabilities=Capability(text=True, structured=True),
+            cost=cost,
+            priority=priority,
+            note=(
+                "Бесплатный доступ без ключа. Только текст — без изображений и "
+                "файлов. Доступность сервиса может меняться."
+            ),
+        )
+        # A keyless provider must never require auth.
+        self.auth_mode = AUTH_NONE
+        self._info = replace(
+            self._info, auth_mode=AUTH_NONE, auth_required=False, cost="free"
+        )
+
+    async def chat(self, request: ChatRequest) -> ChatResponse:
+        if request.modality() != "text":
+            return ChatResponse(
+                ok=False,
+                provider_used=self._name,
+                model_used=self._model,
+                source=self.source,
+                error=(
+                    "Бесплатный текстовый провайдер не принимает изображения или "
+                    "файлы. Выбран другой совместимый провайдер."
+                ),
+                error_category=CALL_BAD_REQUEST,
+                request_id=request.correlation_id,
+                status=STATUS_UNAVAILABLE,
+            )
+        return await super().chat(request)
+
+
+class Llm7Provider(OpenAICompatibleProvider):
+    """llm7.io — a keyless, community-run OpenAI-compatible gateway (v2.0).
+
+    Anonymous chat is accepted (no key, no account). Many catalogue models need a
+    key or are temporarily unavailable, so only a small, explicitly keyless model
+    set is ever used; anything else honestly returns ``auth_required`` and the
+    router fails over. It is a *best-effort* free path, never a critical
+    dependency. The catalogue model list does **not** confirm vision for the
+    keyless models (a real image request was refused upstream), so this provider
+    declares text-only.
+    """
+
+    def __init__(
+        self,
+        *,
+        model: str = "gpt-oss:20b",
+        transport: HttpTransport,
+        base_url: str = "https://api.llm7.io/v1",
+        cost: str = "free",
+        priority: int = 85,
+    ) -> None:
+        super().__init__(
+            provider="llm7",
+            model=model,
+            base_url=base_url,
+            api_key="",
+            transport=transport,
+            capabilities=Capability(text=True, structured=True),
+            cost=cost,
+            priority=priority,
+            note=(
+                "Бесплатный шлюз без ключа (llm7.io, gpt-oss:20b). Только текст; "
+                "модели и доступность меняются без предупреждения."
+            ),
+        )
+        self.auth_mode = AUTH_NONE
+        self._info = replace(
+            self._info, auth_mode=AUTH_NONE, auth_required=False, cost="free"
+        )
+
+    async def chat(self, request: ChatRequest) -> ChatResponse:
+        if request.modality() != "text":
+            return ChatResponse(
+                ok=False,
+                provider_used=self._name,
+                model_used=self._model,
+                source=self.source,
+                error=(
+                    "Бесплатный шлюз здесь работает только с текстом. Изображения "
+                    "и файлы обработает другой провайдер."
+                ),
+                error_category=CALL_BAD_REQUEST,
+                request_id=request.correlation_id,
+                status=STATUS_UNAVAILABLE,
+            )
+        return await super().chat(request)
+
+
+class PollinationsImageProvider(_BaseApiProvider):
+    """Keyless Pollinations image generation (v2.0, ``image_generation``).
+
+    It is **not** a chat model: it answers an image-generation prompt with an
+    image and never parses chat text. A caller passes the prompt as the request's
+    text; the response is an honest ``image_url`` (the deterministic public URL
+    for the prompt + seed). No key, no account. It never claims image
+    *understanding* (vision) — only generation.
+    """
+
+    def __init__(
+        self,
+        *,
+        model: str = "flux",
+        transport: HttpTransport,
+        base_url: str = "https://image.pollinations.ai",
+        cost: str = "free",
+        priority: int = 70,
+    ) -> None:
+        super().__init__(
+            provider="pollinations_image",
+            model=model,
+            base_url=base_url,
+            api_key="",
+            transport=transport,
+            capabilities=Capability(text=False, image=False),
+            cost=cost,
+            priority=priority,
+            note=(
+                "Бесплатная генерация изображений без ключа (Pollinations, Flux). "
+                "Генерирует картинку из текста; изображения НЕ распознаёт."
+            ),
+        )
+        self.auth_mode = AUTH_NONE
+        self._info = replace(
+            self._info, auth_mode=AUTH_NONE, auth_required=False, cost="free"
+        )
+
+    async def chat(self, request: ChatRequest) -> ChatResponse:
+        prompt = request.text()
+        if not prompt:
+            return ChatResponse(
+                ok=False,
+                provider_used=self._name,
+                model_used=self._model,
+                source=self.source,
+                error="Пустой запрос на генерацию изображения.",
+                error_category=CALL_BAD_REQUEST,
+                request_id=request.correlation_id,
+                status=STATUS_UNAVAILABLE,
+            )
+        if request.modality() != "text":
+            return ChatResponse(
+                ok=False,
+                provider_used=self._name,
+                model_used=self._model,
+                source=self.source,
+                error=(
+                    "Генератор изображений принимает только текстовый запрос "
+                    "(что нарисовать), без вложений."
+                ),
+                error_category=CALL_BAD_REQUEST,
+                request_id=request.correlation_id,
+                status=STATUS_UNAVAILABLE,
+            )
+        seed = int.from_bytes(
+            hashlib.sha256(prompt.encode("utf-8")).digest()[:4], "big"
+        )
+        url = (
+            f"{self._base_url}/prompt/{quote(prompt, safe='')}"
+            f"?width=1024&height=1024&nologo=true&seed={seed}"
+        )
+        resp = await self._transport.get_json(url, timeout=request.timeout_seconds)
+        if resp.error or resp.status >= 400:
+            return self._error_response(
+                ProviderUnavailableError(
+                    "Не удалось получить изображение.", provider=self._name
+                ),
+                request,
+            )
+        return ChatResponse(
+            ok=True,
+            text=url,
+            structured={"image_url": url},
+            provider_used=self._name,
+            model_used=self._model,
+            source=self.source,
+            request_id=request.correlation_id,
+            status=STATUS_AVAILABLE,
         )
 
 
@@ -623,7 +837,10 @@ __all__ = [
     "DeepSeekProvider",
     "FakeProvider",
     "GoogleProvider",
+    "Llm7Provider",
     "OllamaProvider",
     "OpenAICompatibleProvider",
     "OpenRouterProvider",
+    "PollinationsImageProvider",
+    "PollinationsProvider",
 ]

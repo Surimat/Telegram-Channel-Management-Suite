@@ -2,8 +2,11 @@
 import { onMounted, ref } from 'vue'
 import {
   api,
+  type GatewayBrowserPreflight,
   type GatewayBrowserStatus,
   type GatewayChatResult,
+  type GatewayModelCapability,
+  type GatewayOperationAvailability,
   type GatewayProvider,
   type GatewayProviderList,
   type GatewayRequestRecord,
@@ -25,6 +28,10 @@ const wrappers = ref<GatewayWrapper[]>([])
 const browser = ref<GatewayBrowserStatus | null>(null)
 const useCases = ref<GatewayUseCase[]>([])
 const history = ref<GatewayRequestRecord[]>([])
+const models = ref<GatewayModelCapability[]>([])
+const operations = ref<GatewayOperationAvailability[]>([])
+const preflight = ref<GatewayBrowserPreflight | null>(null)
+const preparing = ref(false)
 
 const loading = ref(true)
 const error = ref('')
@@ -87,13 +94,15 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [s, p, st, w, b, u] = await Promise.all([
+    const [s, p, st, w, b, u, m, o] = await Promise.all([
       api.gatewayStatus(),
       api.gatewayProviders(),
       api.gatewaySettings(),
       api.gatewayWrappers(),
       api.gatewayBrowser(),
       api.gatewayUseCases(),
+      api.gatewayModels(),
+      api.gatewayOperations(),
     ])
     status.value = s
     providers.value = p
@@ -101,11 +110,67 @@ async function load() {
     wrappers.value = w.items
     browser.value = b
     useCases.value = u.items
+    models.value = m.items
+    operations.value = o.items
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Не удалось загрузить данные шлюза.'
   } finally {
     loading.value = false
   }
+}
+
+async function loadPreflight() {
+  try {
+    preflight.value = await api.gatewayBrowserPreflight()
+  } catch {
+    preflight.value = null
+  }
+}
+
+async function prepareBrowser() {
+  error.value = ''
+  notice.value = ''
+  preparing.value = true
+  try {
+    preflight.value = await api.gatewayBrowserPrepare()
+    if (preflight.value.available) {
+      notice.value = 'Браузерный движок готов.'
+    } else {
+      notice.value = 'Браузерный движок недоступен — обычные API-провайдеры работают и без него.'
+    }
+    await load()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Не удалось проверить браузер.'
+  } finally {
+    preparing.value = false
+  }
+}
+
+async function provisionFree() {
+  error.value = ''
+  notice.value = ''
+  busy.value = true
+  try {
+    const res = await api.gatewayProvision()
+    notice.value = res.message
+    await load()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Не удалось добавить бесплатных провайдеров.'
+  } finally {
+    busy.value = false
+  }
+}
+
+function authLabel(auth: string) {
+  if (auth === 'no_auth') return 'Без ключа'
+  if (auth === 'browser_session') return 'Браузерная сессия'
+  return 'Ключ API'
+}
+
+function prepClass(status: string) {
+  if (status === 'ok') return 'badge ok'
+  if (status === 'missing') return 'badge danger'
+  return 'badge-muted'
 }
 
 async function loadHistory() {
@@ -205,6 +270,7 @@ async function runTest() {
 onMounted(async () => {
   await load()
   await loadHistory()
+  await loadPreflight()
 })
 </script>
 
@@ -237,6 +303,13 @@ onMounted(async () => {
           </span>
         </p>
         <p v-if="status" class="muted">{{ status.note }}</p>
+        <button class="btn" :disabled="busy" @click="provisionFree">
+          Добавить бесплатные провайдеры
+        </button>
+        <p class="muted">
+          Бесплатный текстовый доступ без ключа и без браузера. Уже настроенные
+          провайдеры не перезаписываются.
+        </p>
       </div>
 
       <div class="tabs">
@@ -344,6 +417,61 @@ onMounted(async () => {
             </tbody>
           </table>
         </div>
+
+        <div class="card">
+          <h3>Матрица моделей и операций</h3>
+          <p class="muted">
+            «Проверено» означает, что операция реально выполнялась здесь, а не только
+            заявлена. «Ключ API» / «Браузерная сессия» — что нужно для работы.
+          </p>
+          <table v-if="operations.length" class="table">
+            <thead>
+              <tr><th>Операция</th><th>Готовые провайдеры</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="op in operations" :key="op.operation">
+                <td>{{ op.title }}</td>
+                <td>
+                  <span v-if="op.providers.length">{{ op.providers.join(', ') }}</span>
+                  <span v-else class="muted">нет настроенных — добавьте провайдера</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Модель</th>
+                <th>Операции</th>
+                <th>Доступ</th>
+                <th>Статус</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="m in models" :key="m.provider + m.model">
+                <td>
+                  <strong>{{ m.provider }}</strong>
+                  <div class="muted">{{ m.model }}</div>
+                </td>
+                <td>
+                  <span
+                    v-for="op in m.operations"
+                    :key="op"
+                    class="badge-muted"
+                    style="margin-right: 4px"
+                  >{{ op }}</span>
+                </td>
+                <td>{{ authLabel(m.auth) }}<div class="muted">{{ costLabel(m.cost) }}</div></td>
+                <td>
+                  <span :class="m.verified ? 'badge ok' : 'badge warning'">
+                    {{ m.verified ? 'Проверено' : 'Заявлено' }}
+                  </span>
+                  <div v-if="m.note" class="muted">{{ m.note }}</div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </template>
 
       <!-- Routing -->
@@ -406,6 +534,34 @@ onMounted(async () => {
             Браузерный движок: {{ browser.runtime }} · {{ browser.detail }}
           </p>
           <p v-if="browser" class="muted">{{ browser.docker_note }}</p>
+          <div class="actions">
+            <button :disabled="preparing" @click="prepareBrowser">
+              {{ preparing ? 'Проверка…' : 'Подготовить браузер' }}
+            </button>
+          </div>
+          <template v-if="preflight">
+            <p class="muted">{{ preflight.detail }}</p>
+            <table class="table">
+              <thead>
+                <tr><th>Шаг</th><th>Статус</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="s in preflight.steps" :key="s.id">
+                  <td>{{ s.title }}<div class="muted">{{ s.detail }}</div></td>
+                  <td>
+                    <span :class="prepClass(s.status)">
+                      {{ s.status === 'ok' ? 'готово' : s.status === 'missing' ? 'нет' : 'необязательно' }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-if="!preflight.available" class="muted">
+              Установить браузер можно так:
+              <code>pip install playwright &amp;&amp; playwright install chromium</code>.
+              {{ preflight.api_works_without_browser ? 'Обычные API-провайдеры работают и без него.' : '' }}
+            </p>
+          </template>
           <table class="table">
             <thead>
               <tr><th>Обёртка</th><th>Сайт</th><th>Стоимость</th><th>Статус</th></tr>

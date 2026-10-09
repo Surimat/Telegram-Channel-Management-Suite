@@ -167,6 +167,11 @@ def test_autostart_roundtrip_uses_injected_base(tmp_path) -> None:
     body = created.read_text(encoding="utf-8")
     assert target in body
     assert "--tray" in body
+    # No console window: a VBScript launcher with a hidden-window run, never the
+    # old `start /min` (which still flashes a minimized console).
+    assert '", 0, False' in body
+    assert 'start "" /min' not in body
+    assert "/min cmd" not in body
     # The launcher only references the program path; no secrets are written.
     assert "token" not in body.lower()
 
@@ -181,6 +186,26 @@ def test_autostart_is_safe_without_startup_dir(monkeypatch) -> None:
     assert autostart.startup_dir() is None
     assert autostart.enable_autostart("run.bat") is None
     assert autostart.autostart_enabled() is False
+
+
+def test_autostart_removes_the_legacy_console_launcher(tmp_path) -> None:
+    """Upgrading from the pre-v2.0 ``.cmd`` launcher must not start the app twice."""
+    from backend.app.tray import autostart
+
+    legacy = tmp_path / "TCMS Tray Agent.cmd"
+    legacy.write_text("start /min run.bat --tray", encoding="utf-8")
+    assert autostart.autostart_enabled(base=tmp_path) is True
+
+    autostart.enable_autostart(str(tmp_path / "run.bat"), base=tmp_path)
+    assert not legacy.exists()  # the old entry is gone
+    assert (tmp_path / "TCMS Tray Agent.vbs").is_file()
+
+    # A leftover legacy file is also reported and cleared by disable.
+    legacy.write_text("start /min run.bat --tray", encoding="utf-8")
+    assert autostart.autostart_enabled(base=tmp_path) is True
+    assert autostart.disable_autostart(base=tmp_path) is True
+    assert not legacy.exists()
+    assert autostart.autostart_enabled(base=tmp_path) is False
 
 
 def test_snapshot_roundtrip_and_pid_check(tmp_path, monkeypatch) -> None:

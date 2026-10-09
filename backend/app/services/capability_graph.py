@@ -41,6 +41,7 @@ REQ_OWNER_AUTH = "owner_auth"
 REQ_GOOGLE_DRIVE = "google_drive"
 REQ_MANAGER_BOT = "manager_bot"
 REQ_AI_PROVIDER = "ai_provider"
+REQ_BOT_ONBOARDING = "bot_onboarding"
 
 ALL_REQUIREMENTS = (
     REQ_CHANNEL,
@@ -54,6 +55,7 @@ ALL_REQUIREMENTS = (
     REQ_GOOGLE_DRIVE,
     REQ_MANAGER_BOT,
     REQ_AI_PROVIDER,
+    REQ_BOT_ONBOARDING,
 )
 
 # --- Capability states ------------------------------------------------------
@@ -167,6 +169,20 @@ CAPABILITIES: tuple[Capability, ...] = (
         note_en=(
             "Prepares managed bots in bulk through official Telegram flows. "
             "Tokens are stored encrypted and never shown."
+        ),
+    ),
+    Capability(
+        key="bot_onboarding",
+        title_ru="Массовое подключение ботов к каналу",
+        title_en="Mass bot-to-channel connection",
+        requires=(REQ_BOT_ONBOARDING,),
+        note_ru=(
+            "Подключает созданных ботов к каналу пачкой через официальные ссылки "
+            "Telegram. Права проверяются реально; токены не показываются."
+        ),
+        note_en=(
+            "Connects created bots to a channel in bulk via Telegram's official "
+            "links. Rights are verified for real; tokens are never shown."
         ),
     ),
     Capability(
@@ -391,6 +407,16 @@ async def context_from_db(
             pass
 
     try:
+        from backend.app.db.repositories.bots import BotRepository
+
+        candidates, _ = await BotRepository(session).list(limit=1)
+        context[REQ_BOT_ONBOARDING] = bool(
+            candidates and (candidates[0].username or "")
+        )
+    except Exception:  # pragma: no cover - defensive
+        pass
+
+    try:
         from backend.app.services.owner_auth_service import OwnerAuthService
 
         context[REQ_OWNER_AUTH] = await OwnerAuthService(session).exists()
@@ -430,6 +456,7 @@ __all__ = [
     "CAPABILITIES_BY_KEY",
     "REQ_AI_PROVIDER",
     "REQ_BOT_BINDING",
+    "REQ_BOT_ONBOARDING",
     "REQ_CHANNEL",
     "REQ_ENCODER_MODEL",
     "REQ_FFMPEG",

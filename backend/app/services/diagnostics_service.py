@@ -97,6 +97,7 @@ _CHECK_TITLES = {
     "manager_bot": "Управляющий бот",
     "managed_bots": "Управляемые боты",
     "bot_factory": "Фабрика ботов",
+    "bot_onboarding": "Подключение ботов к каналу",
     "sessions": "Аккаунты Telegram",
     "channels": "Каналы",
     "bindings": "Подключения ботов к каналам",
@@ -169,6 +170,7 @@ class DiagnosticsService:
             ),
             await self._guarded("managed_bots", self._managed_bots_item),
             await self._guarded("bot_factory", self._bot_factory_item),
+            await self._guarded("bot_onboarding", self._bot_onboarding_item),
             await self._guarded("owner_auth", self._owner_auth_item),
             await self._guarded("config_sync", self._config_sync_item),
             await self._guarded("sessions", self._sessions_item),
@@ -339,6 +341,52 @@ class DiagnosticsService:
             "Фабрика ботов",
             STATUS_OK,
             f"Пакетов: {total}. Незавершённых операций: {queued}.",
+            "",
+        )
+
+    async def _bot_onboarding_item(self):  # type: ignore[no-untyped-def]
+        from backend.app.db.repositories.bot_onboarding import (
+            OnboardingBatchRepository,
+            OnboardingCandidateRepository,
+        )
+        from backend.app.services.system_service import Check
+
+        batches, total = await OnboardingBatchRepository(self.session).list_all(limit=100)
+        if total == 0:
+            return Check(
+                "bot_onboarding",
+                "Подключение ботов к каналу",
+                STATUS_NOT_CONFIGURED,
+                "Очереди массового подключения ботов не создавались — это необязательно.",
+                "Откройте «Боты» и выберите «Подключить к каналу».",
+            )
+        active = 0
+        failed = 0
+        ready = 0
+        for batch in batches:
+            counts = await OnboardingCandidateRepository(self.session).count_by_status(
+                batch.id
+            )
+            active += (
+                counts.get("queued", 0)
+                + counts.get("waiting_confirmation", 0)
+                + counts.get("verifying", 0)
+            )
+            failed += counts.get("failed", 0)
+            ready += counts.get("ready", 0)
+        if failed:
+            return Check(
+                "bot_onboarding",
+                "Подключение ботов к каналу",
+                STATUS_WARNING,
+                f"Очередей: {total}. Готово: {ready}. Активных: {active}. С ошибкой: {failed}.",
+                "Откройте «Боты» → «Подключить к каналу» и повторите неудачные.",
+            )
+        return Check(
+            "bot_onboarding",
+            "Подключение ботов к каналу",
+            STATUS_OK,
+            f"Очередей: {total}. Готово: {ready}. Активных: {active}.",
             "",
         )
 

@@ -799,6 +799,37 @@ Telegram limits; a username is reported free only after a real Telegram check.
 | POST | `/api/v1/bot-factory/batches/{id}/cancel` | stop the batch's queue (already-created bots are kept) |
 | POST | `/api/v1/bot-factory/batches/{id}/resume` | restart a stopped batch queue |
 
+### Mass Bot-to-Channel Onboarding (v2.0, D-120)
+
+Connects the bots created by the Bot Factory to a channel in bulk, using only
+Telegram's official `t.me/<bot>?startchannel&admin=<rights>` deep link (rights
+joined by `+`, Bot API 6.0+). The owner confirms each bot in Telegram; the
+candidate is re-checked against Telegram through the existing **BindingService**,
+so `ready` means "Telegram reports the rights". The bot token is never part of
+any request or response.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/bot-onboarding/rights-profiles` | least-privilege rights profiles (`reactions`/`posting`/`editing`) |
+| GET | `/api/v1/bot-onboarding/batches` | list onboarding batches |
+| POST | `/api/v1/bot-onboarding/batches` | create a batch (`bot_ids`, `channel_id`, `rights_profile`) |
+| GET | `/api/v1/bot-onboarding/batches/{id}` | one batch with candidates (public username + deep link only) |
+| DELETE | `/api/v1/bot-onboarding/batches/{id}` | delete a batch (already-connected bots are untouched) |
+| GET | `/api/v1/bot-onboarding/batches/{id}/dashboard` | progress breakdown (ready / needs_permission / failed / …) |
+| POST | `/api/v1/bot-onboarding/batches/{id}/next` | advance the queue by exactly one bot ("Следующий бот") |
+| POST | `/api/v1/bot-onboarding/batches/{id}/verify` | re-check every bot's real rights against Telegram |
+| POST | `/api/v1/bot-onboarding/batches/{id}/retry` | re-queue every failed bot |
+| POST | `/api/v1/bot-onboarding/batches/{id}/skip` | skip every waiting bot |
+| POST | `/api/v1/bot-onboarding/batches/{id}/pause` | pause the durable queue |
+| POST | `/api/v1/bot-onboarding/batches/{id}/resume` | resume the durable queue |
+| POST | `/api/v1/bot-onboarding/candidates/{cid}/verify` | re-check one bot's real rights |
+| POST | `/api/v1/bot-onboarding/candidates/{cid}/retry` | re-queue one bot |
+| POST | `/api/v1/bot-onboarding/candidates/{cid}/skip` | skip one bot |
+
+The durable scheduler job `bot_onboarding.tick` advances one bot per tick, so a
+batch survives a restart; a failure never stops the rest and already-connected
+bots are never rolled back.
+
 The **creation queue** (v1.7) runs through the durable scheduler job
 `bot_factory.create`: one creation operation per tick, so a batch survives a
 restart. Deep-link batches are not queued for background ticking — the owner
@@ -959,12 +990,29 @@ regional blocks, and never touches someone else's cookies or sessions.
 | POST | `/api/v1/ai-gateway/chat` | run a request through the router with failover |
 | GET | `/api/v1/ai-gateway/wrappers` | the web-wrapper library (definitions) |
 | GET | `/api/v1/ai-gateway/browser` | browser-runtime availability (honest; never claims unprobed) |
+| GET | `/api/v1/ai-gateway/browser/preflight` | inspect the browser environment (no launch) and list prep steps |
+| POST | `/api/v1/ai-gateway/browser/prepare` | probe the real browser once and report honest progress (never fails) |
+| GET | `/api/v1/ai-gateway/models` | per-model capability matrix (operations, auth, `verified` flags) |
+| GET | `/api/v1/ai-gateway/operations` | which **configured** providers can serve each operation right now |
+| POST | `/api/v1/ai-gateway/provision` | add the free-first providers once (no key, no browser, no CLI) |
 | GET | `/api/v1/ai-gateway/use-cases` | capability/use-case matrix per modality |
 | GET | `/api/v1/ai-gateway/requests` | bounded observability ring (metadata only — no prompt text) |
 
 **Provider kinds:** `openai_compatible`, `openrouter`, `google`, `anthropic`,
-`deepseek`, `ollama` (local), `web` (browser wrapper). **Strategies:** `auto`,
-`free_first`, `cheapest`, `fastest`, `best_quality`, `manual`.
+`deepseek`, `ollama` (local), `pollinations` (free, keyless text), `llm7` (free,
+keyless text gateway), `pollinations_image` (free, keyless image *generation*),
+`web` (browser wrapper). **Strategies:** `auto`, `free_first`, `cheapest`,
+`fastest`, `best_quality`, `manual`.
+
+**Free-first provisioning.** `POST /provision` seeds the free-first providers
+that work **without a key and without a browser**: today `pollinations` and `llm7`
+(keyless OpenAI-compatible text endpoints, enabled) and `pollinations_image`
+(keyless image generation, **disabled by default** — it is not a chat provider).
+It is idempotent and never overwrites an owner-configured provider, so a fresh
+install has a working text path out of the box while keys and browser wrappers
+stay optional. The `GET /operations` list reports `image_generation` separately,
+matched by provider kind (a generator is never matched by the text `at_least`
+rule).
 
 The router orders eligible providers (capability match, then strategy, then
 priority), retries transient failures with bounded backoff, trips a per-provider

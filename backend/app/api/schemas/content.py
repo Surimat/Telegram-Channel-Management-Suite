@@ -26,6 +26,10 @@ class ContentSourceOut(BaseModel):
     quiet_hours_start: int = 23
     quiet_hours_end: int = 8
     quiet_hours_tz: str = "UTC"
+    # v2.0 target language (source-level).
+    source_language: str = "auto"
+    target_language: str = "auto"
+    auto_detect: bool = True
 
 
 class ContentSourceListOut(BaseModel):
@@ -40,6 +44,9 @@ class ContentSourceIn(BaseModel):
     enabled: bool = True
     channel_id: str = ""
     account_id: str = ""
+    source_language: str = "auto"
+    target_language: str = "auto"
+    auto_detect: bool = True
 
 
 class GrabOut(BaseModel):
@@ -77,6 +84,8 @@ class ContentItemOut(BaseModel):
     protected: bool
     content_hash: str
     language: str
+    source_language: str = "auto"
+    target_language: str = ""
     note: str
     scheduled_at: str = ""
     rights_warning: str = ""
@@ -108,6 +117,7 @@ class ContentItemUpdateIn(BaseModel):
     attribution_enabled: bool | None = None
     mode: str | None = None
     scheduled_at: str | None = None
+    target_language: str | None = None
 
 
 class CleanPreviewOut(BaseModel):
@@ -179,6 +189,7 @@ class TargetIn(BaseModel):
     text_override: str = ""
     profile_key: str = ""
     ai_instructions: str = ""
+    target_language: str = ""
 
 
 class PlanIn(BaseModel):
@@ -201,6 +212,7 @@ class PublicationOut(BaseModel):
     attempts: int = 0
     mode: str = ""
     profile_key: str = ""
+    target_language: str = ""
     comment_status: str = ""
     delete_status: str = ""
 
@@ -292,6 +304,9 @@ class ModerationIn(BaseModel):
     quiet_hours_start: int | None = None
     quiet_hours_end: int | None = None
     quiet_hours_tz: str | None = None
+    source_language: str | None = None
+    target_language: str | None = None
+    auto_detect: bool | None = None
 
 
 class ModerationOut(BaseModel):
@@ -301,6 +316,35 @@ class ModerationOut(BaseModel):
     quiet_hours_start: int
     quiet_hours_end: int
     quiet_hours_tz: str
+    source_language: str = "auto"
+    target_language: str = "auto"
+    auto_detect: bool = True
+
+
+class TranslateIn(BaseModel):
+    """Translate an item to a target language (v2.0)."""
+
+    target_language: str = ""
+    strategy: str = ""
+
+
+class LanguageOut(BaseModel):
+    """The resolved language state for an item (v2.0)."""
+
+    item_id: str
+    source_language: str
+    target_language: str
+    translated: bool = False
+    provider: str = ""
+    model: str = ""
+    detail: str = ""
+
+
+class LanguageCatalogOut(BaseModel):
+    """The languages the UI may offer."""
+
+    languages: list[dict[str, str]]
+    default: str
 
 
 class TickOut(BaseModel):

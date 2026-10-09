@@ -2261,7 +2261,7 @@ code, API, schema or dependency change, and no new release (v1.6.1 stays the
 latest tag; these edits are `Unreleased` on `develop`).
 
 
-## D-109 — 2026-10-08 — Bot Factory batch is a durable creation queue (v1.7, additive) — LOCKED
+## D-109 — 2026-10-07 — Bot Factory batch is a durable creation queue (v1.7, additive) — LOCKED
 
 **Context.** v1.3 created a whole batch synchronously: one long request tried to
 create every candidate at once. On a weak PC or a slow Telegram link this is
@@ -2292,7 +2292,7 @@ of the batch.
 step, a help topic and `BotFactoryView.vue` queue controls. Additive: an existing
 v1.6 database upgrades in place.
 
-## D-110 — 2026-10-08 — `token_mask` is display-only and derived without decryption — LOCKED
+## D-110 — 2026-10-07 — `token_mask` is display-only and derived without decryption — LOCKED
 
 **Context.** After token registration the UI wanted to show *which* managed-bot
 credential is stored, but the raw token is a secret that must never be returned,
@@ -2311,7 +2311,7 @@ queue state, attempts and the mask — never a token, session or auth key (D-061
 
 
 
-## D-111 — 2026-10-09 — One AI Gateway over many providers, with honest routing — LOCKED
+## D-111 — 2026-10-07 — One AI Gateway over many providers, with honest routing — LOCKED
 
 **Context.** The Suite already had an optional tiny classifier (rules + an
 optional GGUF LLM) but no shared way to reach real AI providers. Each future
@@ -2344,7 +2344,7 @@ the rest of the Suite calls instead of a vendor:
 i18n keys, the `/ai-gateway` UI and two help topics. Additive: an existing v1.7
 database upgrades in place and the rules/encoder path is unchanged.
 
-## D-112 — 2026-10-09 — Web wrappers use the owner's own session and never bypass a wall — LOCKED
+## D-112 — 2026-10-07 — Web wrappers use the owner's own session and never bypass a wall — LOCKED
 
 **Context.** A "web wrapper" turns a website's chat UI into an API-shaped
 provider, which is attractive for free access — but it sits next to a line the
@@ -2364,7 +2364,7 @@ lives in business logic, and no wrapper credential is returned or logged.
 status endpoints are additive and off by default (`ai_gateway_web_enabled`).
 Wrapper definitions are honest templates until a real probe verifies them.
 
-## D-113 — 2026-10-09 — Gateway costs and modalities are opt-in, never assumed — LOCKED
+## D-113 — 2026-10-07 — Gateway costs and modalities are opt-in, never assumed — LOCKED
 
 **Context.** A gateway that silently picks a paid provider or a browser session
 would spend the owner's money or reach the network in a way they did not expect.
@@ -2380,7 +2380,7 @@ so the UI cannot show a use-case as available when no provider satisfies it.
 spends money or opens a browser. Settings are per-installation and ride the
 existing settings service; no new heavy infrastructure.
 
-## D-114 — 2026-10-10 — Gateway availability and retries are proven by behaviour, not by flags — LOCKED
+## D-114 — 2026-10-07 — Gateway availability and retries are proven by behaviour, not by flags — LOCKED
 
 **Context.** v1.8.0 shipped the AI Gateway and claimed "a provider/wrapper is
 `available` only after a real probe" and that transient failures are retried with
@@ -2416,7 +2416,7 @@ a flag-based availability. No new features, no schema change, no new dependency.
 
 ---
 
-## D-115 — 2026-10-11 — The wrapper pipeline is verified on practical scenarios, not by compiles — LOCKED
+## D-115 — 2026-10-08 — The wrapper pipeline is verified on practical scenarios, not by compiles — LOCKED
 
 **Context.** After v1.8.1 the Web Wrapper Hub was "architecturally implemented"
 but had not been exercised on *practical* scenarios end to end. A verification
@@ -2457,7 +2457,7 @@ dependency and no schema change.
 **Release.** Shipped as **v1.8.2** via a reviewed `develop → main` PR #21 (merge
 `8542d4c`), tag `v1.8.2`; the Release workflow (run `37747125558`) created the
 GitHub Release and attached the Windows portable ZIP (24 906 383 bytes, sha256
-`f0c6984d…f619`) + `.sha256`. Gates: full suite green (**943 passed**), `ruff`
+`f0c6984d…f619`) + `.sha256`. Gates: full suite green (**935 passed, 8 skipped**), `ruff`
 clean, `vue-tsc` + `npm run build` clean, meta-audit 30/30 (0 missed, 0 false
 positives). `main` HEAD = `8542d4c`; `develop` is ahead of `main` only by
 documentation/memory-only commits (`ab2c120`, `acf9de4`, …) with no code change.
@@ -2465,7 +2465,7 @@ documentation/memory-only commits (`ab2c120`, `acf9de4`, …) with no code chang
 
 ---
 
-## D-116 — 2026-10-12 — Content Operations 2.0 extends the one studio; the mini-AI classifies, it never chooses — LOCKED
+## D-116 — 2026-10-08 — Content Operations 2.0 extends the one studio; the mini-AI classifies, it never chooses — LOCKED
 
 **Context.** The product brief for the v1.9 cycle asks for a *single* content
 pipeline — `source -> gather -> clean -> mini-AI -> moderation -> publish ->
@@ -2508,7 +2508,7 @@ AI pick an emoji.
    (`comment_status`, `delete_status`) so a lost step never marks a publication
    `failed`.
 
-**Consequences.** The full suite is **954 passed**; `ruff` clean; `vue-tsc` +
+**Consequences.** The full suite is **946 passed, 8 skipped**; `ruff` clean; `vue-tsc` +
 `npm run build` clean; meta-audit **30/30 (0 missed, 0 false positives)**. New
 tests in `tests/test_content_operations.py` cover profiles, moderation, rule
 matching and analytics against a temporary SQLite DB with no real accounts,
@@ -2518,3 +2518,183 @@ fails these decisions.
 
 **Release.** Shipped as **v1.9.0** via a reviewed `develop -> main` PR (D-060),
 tag `v1.9.0`; the Release workflow attaches the Windows portable ZIP + `.sha256`.
+
+---
+
+## D-117 — 2026-10-09 — Free-first AI providers are keyless and honest; a wrapper never bypasses a challenge — LOCKED
+
+**Context.** The v2.0 cycle's main priority is usable Web Wrappers and free
+multimodal AI providers. A fresh install must be able to make an AI call without
+an account, a key or a browser, and every capability claim must be checkable.
+
+**Decision.**
+1. **Free-first provisioning is keyless and idempotent.** `POST /provision`
+   seeds the free-first provider(s) that need **no key and no browser** (today:
+   `pollinations`, a keyless OpenAI-compatible text endpoint). It never
+   overwrites or re-enables a provider the owner already configured; a disabled
+   row stays disabled.
+2. **A provider never claims a key it does not need.** `ProviderInfo.info`
+   derives `auth_required` from the actual auth mode: only an `api_key` provider
+   with no key reports `auth_required=True`. Keyless (`Ollama`, `Pollinations`)
+   and browser-session providers report no-auth.
+3. **Capabilities are declared *and* verified.** `ai/gateway/catalog.py` carries,
+   per model, its operations, auth mode, cost and a `verified` flag (with
+   `verified_operations`). The UI shows `Проверено` vs `Заявлено`; a text-only
+   provider is never offered for an image or structured operation.
+4. **Session expiry is failover, not a bypass.** A web wrapper that meets a login
+   wall returns `AUTH_REQUIRED`; the router **fails over** to the next eligible
+   provider and reports `fallback_used`. The browser layer never solves or
+   bypasses a CAPTCHA, MFA, anti-bot JS challenge (e.g. Duck.ai) or regional
+   block, and no unverified third-party key is bundled.
+5. **Browser preparation is honest.** `ai/gateway/preflight.py` inspects the
+   environment and reports per-step progress; it never fails, and it states that
+   plain API providers (including the free keyless one) work without a browser.
+
+**Consequences.** `tests/test_v2_ai_providers.py` locks keyless honesty, text-only
+vs vision routing, session-expiry failover, provisioning and preflight. A future
+change that forces `auth_required` on a keyless provider, offers a text-only
+provider for an image, re-enables a disabled provisioned row, or bypasses a
+challenge fails these decisions. No release is cut from the v2.0 cycle until the
+owner asks (D-060 process).
+
+---
+
+## D-118 — 2026-10-09 — Target-language translation is protected and additive — LOCKED
+
+**Context.** The v2.0 cycle's third priority is completing Content Operations with
+target-language support.
+
+**Decision.**
+1. **Explicit language stage.** Content gains a **source language** (auto-detected
+   or set per source) and a **target language** resolved by precedence
+   (publication → channel → source → global default). Translation runs only when
+   the languages actually differ.
+2. **Protected translation.** URLs, `@username`, `t.me` links, hashtags, inline
+   code, HTML tags and Telegram-entity spans are masked with private-use
+   placeholders before the text is sent to the AI and restored verbatim after, so
+   the model never rewrites a link, identifier or markup.
+3. **Reuse the existing gateway.** Translation goes through the **existing** AI
+   Gateway, so provider selection, retries and failover are exactly the v1.8
+   behaviour; a total failure never loses material (the caller keeps the
+   original).
+4. **Additive only.** New columns carry server defaults; migration
+   `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py` upgrades an existing v1.9
+   database in place. No new account registration and no Telegram-limit bypass.
+
+**Consequences.** `tests/test_target_language.py` locks detection, precedence,
+masking/restoration and translation. A future change that rewrites links, loses
+material on AI failure, or makes the language stage non-additive fails these
+decisions.
+
+---
+
+## D-119 — 2026-10-09 — Keyless free access is text + image *generation*; free vision is not claimed — LOCKED
+
+**Context.** Stage 2 of the v2.0 main priority is "verified free *multimodal*
+(vision) providers". Live probes were run against candidate keyless endpoints.
+
+**Decision.** The honestly-verified free surface is **text** (keyless) plus
+**image generation** (keyless); **free, keyless image *understanding* is not
+available and must not be claimed**.
+1. **Text (keyless, verified).** `pollinations` and `llm7.io`
+   (`Llm7Provider`, model `gpt-oss:20b`) answer anonymous chat with no key; both
+   are declared **text only** and never offered for an image request.
+2. **Image generation (keyless, verified).** `PollinationsImageProvider`
+   (`pollinations_image`, `image.pollinations.ai/prompt/…`, model `flux`) returns
+   an image (HTTP 200 / `image/jpeg`, deterministic per prompt+seed, no key). It
+   is **generation only** — it declares no text and no image understanding — and
+   is **off by default** (not a chat provider, so it is never auto-routed).
+3. **Free vision (keyless) — probed and refused; not offered.** On 2026-10-09:
+   `api.llm7.io` keyless models refused an image (`400 "does not support vision
+   input"`); `gen.pollinations.ai` vision models returned `401` without a key;
+   `api.airforce` was paid-only (`402`); DuckDuckGo was an anti-bot challenge
+   (never bypassed — D-117). Vision therefore stays on keyed providers
+   (Google/Anthropic) or an owner's own logged-in browser session, reported as
+   `image_understanding: none configured` rather than faked.
+4. **`GET /operations` reports `image_generation` by kind.** A generator is not a
+   text provider, so it is matched by provider kind and never by the text
+   `at_least` rule (which would wrongly exclude it).
+
+**Consequences.** `tests/test_v2_ai_providers.py` locks keyless text + generation
+honesty and asserts no keyless provider is ever marked `verified` for
+`image_understanding`. A future change that marks a free provider verified for
+vision, offers a text provider for image generation, or enables the generator by
+default fails this decision.
+
+
+---
+
+## D-120 — 2026-10-09 — Mass bot-to-channel onboarding uses only Telegram's official startchannel link — LOCKED
+
+**Context.** The v2.0 cycle's active priority is connecting the bots created by
+the Bot Factory to channels in bulk. Telegram offers an official deep link that
+opens its own "add bot as admin" dialog; nothing may be automated past the
+owner's confirmation.
+
+**Decision.**
+1. **Official link only.** `channel_start_link` builds
+   `t.me/<bot>?startchannel&admin=<rights>` with the admin-right tokens joined by
+   **`+`** (Bot API 6.0+, matching Telegram's `?startchannel` contract), never by
+   a space. The link only *opens* the dialog and never adds a bot silently.
+2. **Least privilege by profile.** Rights are a small, purpose-named allow-list
+   (`reactions`, `posting`, `editing`); there is no blanket "all rights" grant.
+   A profile's `function` is carried through to the binding.
+3. **Real verification, never assumption.** After the owner confirms, the
+   candidate is re-checked against Telegram through the existing
+   **BindingService** path, so `ready` means "Telegram reports the rights", not
+   "we sent a link". Insufficient rights is an explicit `needs_permission` state.
+4. **Durable, restart-safe queue.** `bot_onboarding.tick` is a scheduler job that
+   advances one bot per tick through the shared durable job queue (D-109 model);
+   a failure never stops the rest, and already-connected bots are never rolled
+   back. Batches can be paused, resumed, retried or skipped.
+5. **No secret ever leaves.** The bot token is never part of any request or
+   response; only the public username and Telegram's own link are exposed. No
+   account registration and no Telegram-limit bypass.
+6. **Additive only.** Migration
+   `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py` (revises `d4e5f6a7b8c9`)
+   adds `onboarding_batches` / `onboarding_candidates`; an existing v1.9 database
+   upgrades in place.
+
+**Consequences.** `tests/test_bot_onboarding.py` locks the `+` link format, the
+least-privilege profiles, the fake-provider verification and the queue lifecycle
+(service + API). Two runtime mutations (`AA_onboarding_deeplink_separator`,
+`AB_onboarding_capability_anchor`) plus the static check
+`check_telegram_deeplink_contracts` fail a regression that space-joins the rights,
+drops `?startchannel`, exposes the token, or leaves the `bot_onboarding`
+capability unanchored. No release is cut from the v2.0 cycle until the owner asks
+(D-060 process).
+
+---
+
+## D-121 — 2026-10-09 — v2.0.0 ships the three agreed stages; the release gate is green before merge — RELEASE
+
+**Decision.** The **v2.0 cycle** is released as **v2.0.0** (minor over v1.9.0).
+It carries the three owner-approved stages, all additive:
+1. **AI Gateway + free providers (D-117…D-119):** free-first routing with
+   verified free multimodal **generation** and honest capability claims (a
+   text-only provider never serves an image request; a key is required only for
+   an `api_key` provider with no key; a session expiry is failover, never a
+   bypass).
+2. **Target Language (D-118):** per-source/channel/item/publication, translated
+   through the gateway with the original text preserved.
+3. **Mass bot-to-channel onboarding (D-120):** a durable, restart-safe queue that
+   uses only Telegram's official `startchannel` link; `ready` means Telegram
+   confirms the bot's rights.
+4. **Content Operations 2.0 (D-116)** and a **hidden (windowless) background
+   launch** complete the cycle.
+
+**Release process (D-060).** A reviewed `develop → main` PR was merged only after
+all gates were green on the PR head: `pytest` (full suite **1035 passed, 10
+skipped**), `ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit **32/32
+(0 missed, 0 false positives)**, and the **browser-tests** CI job (real
+Playwright/Chromium, 8 tests, 0 skipped). The tag **`v2.0.0`** was created on the
+merge commit; the Release workflow built the Windows portable ZIP + `.sha256` and
+attached them to the GitHub Release. `develop` was then re-synced to `main`.
+
+**Consequences.** Additive migrations
+`20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py`,
+`20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py` and
+`20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`; a v1.9 database upgrades in
+place. Version strings read **2.0.0** everywhere (guarded by
+`test_repo_version_is_consistent`). No account registration and no Telegram-limit
+bypass. A release is only ever cut when the owner asks (D-060).

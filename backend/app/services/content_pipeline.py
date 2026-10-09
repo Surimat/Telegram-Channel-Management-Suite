@@ -41,6 +41,10 @@ from backend.app.db.repositories.content_ops import (
 )
 from backend.app.services.ai_gateway_service import AiGatewayService
 from backend.app.services.ai_profiles import AiProfileService, ProfileError
+from backend.app.services.content_language import (
+    ContentLanguageService,
+    normalize_language,
+)
 from backend.app.services.content_service import ContentError, content_hash
 from backend.app.services.events_service import EventsService
 
@@ -82,6 +86,11 @@ class ContentPipelineService:
         self.operations = ContentOperationRepository(session)
         self.events = EventsService(session)
         self._gateway = gateway
+        self.language = ContentLanguageService(
+            session, settings=self.settings, gateway=gateway
+        )
+        #: Outcome of the most recent language call (per-request service instance).
+        self.last_language_outcome = None
 
     def _gateway_service(self) -> AiGatewayService:
         if self._gateway is None:
@@ -156,6 +165,74 @@ class ContentPipelineService:
         await self.session.commit()
         return item
 
+    # --- language (v2.0) -----------------------------------------------------
+    async def detect_language(self, item_id: str) -> ContentItem:
+        """Detect the item's source language and resolve its target language.
+
+        Records the ``language`` stage. Never overwrites an explicitly declared
+        source language; a source set to ``auto`` is detected from the text.
+        """
+        item = await self._require_item(item_id)
+        outcome = await self.language.resolve_for_item(item)
+        self.last_language_outcome = outcome
+        item.source_language = outcome.source_language
+        if normalize_language(item.language) != outcome.source_language:
+            item.language = outcome.source_language
+        if not item.target_language:
+            item.target_language = outcome.target_language
+        await self.record(
+            stage="language",
+            status="detected",
+            item_id=item.id,
+            detail=f"{outcome.source_language}→{outcome.target_language}",
+        )
+        await self.session.commit()
+        return item
+
+    async def translate(
+        self, item_id: str, *, target_language: str = "", strategy: str = ""
+    ) -> ContentItem:
+        """Translate the item if source and target differ (v2.0).
+
+        A no-op when the languages already match, so the pipeline never runs an
+        unnecessary translation. Never destructive: on failure the item keeps its
+        text and moves to ``NEEDS_REVIEW`` only if it was mid-flight.
+        """
+        item = await self._require_item(item_id)
+        outcome = await self.language.translate(
+            item, target_language=target_language, strategy=strategy
+        )
+        self.last_language_outcome = outcome
+        if outcome.source_language:
+            item.source_language = outcome.source_language
+        item.target_language = outcome.target_language
+        if not outcome.translated:
+            await self.record(
+                stage="translate",
+                status="skipped",
+                item_id=item.id,
+                provider=outcome.provider,
+                model=outcome.model,
+                detail=outcome.detail or "Перевод не требуется.",
+            )
+            await self.session.commit()
+            return item
+        if not item.original_text:
+            item.original_text = item.text
+        item.cleaned_text = outcome.text
+        item.content_hash = content_hash(outcome.text)
+        await self.record(
+            stage="translate",
+            status="ok",
+            item_id=item.id,
+            provider=outcome.provider,
+            model=outcome.model,
+            fallback_used=outcome.fallback_used,
+            detail=f"{outcome.source_language}→{outcome.target_language}",
+        )
+        await self.session.commit()
+        return item
+
     # --- generation (existing AI Gateway) -----------------------------------
     async def process(self, item_id: str, *, profile_key: str = "") -> ContentItem:
         """Apply the profile's actions through the AI Gateway with failover.
@@ -187,10 +264,32 @@ class ContentPipelineService:
         attempts = 0
         latency_total = 0
         failures: list[str] = []
+        #: True once any action actually produced output (or legitimately no-op'd).
+        succeeded = False
 
         for action in actions:
             if action in ("classify", "moderation"):
                 # Classification is handled locally; moderation is a separate step.
+                continue
+            if action == "translate":
+                # v2.0: use the protected, target-aware translation path rather
+                # than a naive transform, so links/usernames/hashtags survive.
+                started = time.perf_counter()
+                outcome = await self.language.translate(item, strategy=strategy)
+                latency_total += int((time.perf_counter() - started) * 1000)
+                if outcome.translated:
+                    output = outcome.text
+                    provider_used = outcome.provider
+                    model_used = outcome.model
+                    fallback_used = fallback_used or outcome.fallback_used
+                    item.source_language = outcome.source_language
+                    item.target_language = outcome.target_language
+                    succeeded = True
+                elif "не требуется" in outcome.detail:
+                    # Languages already match — a legitimate no-op, not a failure.
+                    succeeded = True
+                else:
+                    failures.append(f"translate: {outcome.detail or 'нет ответа'}")
                 continue
             instruction = ACTION_INSTRUCTIONS.get(action, "")
             if profile and profile.system_instructions:
@@ -209,11 +308,12 @@ class ContentPipelineService:
                 provider_used = response.provider_used
                 model_used = response.model_used
                 fallback_used = fallback_used or response.fallback_used
+                succeeded = True
             else:
                 failures.append(f"{action}: {response.error or 'нет ответа'}")
 
         item.ai_profile = profile.key if profile else ""
-        if not output.strip() or output == text:
+        if not succeeded or not output.strip():
             # Every generative action failed → do not lose the material.
             item.ai_status = AI_STATUS_UNAVAILABLE
             item.ai_note = (

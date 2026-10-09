@@ -12,6 +12,7 @@ from backend.app.api.v1 import (
     backup,
     bindings,
     bot_factory,
+    bot_onboarding,
     bots,
     campaigns,
     capability_graph,
@@ -49,6 +50,7 @@ api_router.include_router(owner.router)
 api_router.include_router(settings.router)
 api_router.include_router(bots.router)
 api_router.include_router(bot_factory.router)
+api_router.include_router(bot_onboarding.router)
 api_router.include_router(channels.router)
 api_router.include_router(content.router)
 api_router.include_router(editorial.router)

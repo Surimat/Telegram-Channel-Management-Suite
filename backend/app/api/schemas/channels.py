@@ -23,6 +23,7 @@ class ChannelUpdate(BaseModel):
     title: str | None = None
     note: str | None = None
     status: str | None = None
+    target_language: str | None = None
 
 
 class ChannelModulesIn(BaseModel):
@@ -51,6 +52,7 @@ class ChannelOut(BaseModel):
     participants_count: int | None = None
     last_verified_at: datetime | None = None
     note: str = ""
+    target_language: str = "auto"
     created_at: datetime
     updated_at: datetime
 

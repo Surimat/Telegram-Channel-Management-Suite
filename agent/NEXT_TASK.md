@@ -3,53 +3,79 @@
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
-**Updated:** 2026-10-11
-**Status:** **v1.9.0 Content Operations 2.0 is IMPLEMENTED and ready for release.** The existing **Content Studio** is extended (not duplicated) into a single pipeline: `source → gather → clean → mini-AI → moderation → publish → comment/delete`. It adds reusable **AI profiles** (prompt/instructions/language/tone/max-length/provider-policy/actions as data), a **lightweight local mini-AI** classifier (category + intent, never an emoji), **human moderation** states, declarative **automation rules** (`SOURCE + CONDITION → ACTION`, a fixed field allow-list, not a script engine) and **secret-free pipeline analytics**. An AI failure never loses material: the item moves to `needs_review` with `ai_status=ai_unavailable` and a clear note. Publication tracks `comment_status` and `delete_status` independently. Version string is **1.9.0**. Additive only — no account registration and no Telegram-limit bypass.
+**Updated:** 2026-10-09
+**Status:** **v2.0.0 is RELEASED (2026-10-09).** The three agreed v2.0 stages are shipped: an **AI Gateway** over many providers (including **free multimodal** ones) and browser **web wrappers** with free-first routing and honest capabilities (D-117…D-119); a per-content **Target Language**; **mass bot-to-channel onboarding** as a durable, restart-safe queue where `ready` means Telegram confirms the bot's rights (D-120); **Content Operations 2.0** (D-116); and a **hidden (windowless) background launch**. Additive only — no account registration and no Telegram-limit bypass. Version string is **2.0.0**.
 
-Released via a reviewed `develop → main` PR #21 (merge `8542d4c`), tag `v1.8.2`;
-the Release workflow (run `37747125558`) created the GitHub Release and attached
-the Windows portable ZIP (**24 906 383 bytes**, sha256
-`f0c6984d…f619`) + `.sha256`. `main` HEAD = `8542d4c`; `develop` is ahead of `main` only by
-documentation/memory-sync commits. Nothing is required to follow up. Do **not** add new large features.
+Released via a reviewed `develop → main` PR; tag `v2.0.0`; the Release workflow
+created the GitHub Release and attached the Windows portable ZIP + `.sha256`
+(D-060). `main` HEAD = `TBDMAIN`; `develop` HEAD = `TBDDEV` (re-synced). Release
+ZIP scan: no `.session`/TDATA/DB/model.
 
-Version string is **1.9.0** across `backend/app/__init__.py`,
-`pyproject.toml`, `frontend/package.json` + lock.
+Version string is **2.0.0** across `backend/app/__init__.py`, `pyproject.toml`,
+`frontend/package.json` + lock.
 
-### What this change does (D-115, additive)
+### Active task — none (v2.0.0 released)
 
-- **Local deterministic fixture** (`tests/support/web_fixtures.py`): `FixtureSite`
-  (a `127.0.0.1` HTTP server serving index + search form, article, extract page,
-  login page and a 500 page) and `FixtureBrowserRuntime` (real HTTP GET + a small
-  CSS-subset HTML matcher — not a browser).
-- **Benchmark** (`tests/web_wrapper_bench.py`): 7 scenarios over the real
-  pipeline; writes `agent/WEB_WRAPPER_BENCHMARK.json` (7/7).
-- **Verification tests:** `tests/test_web_wrapper_verification.py` (scenarios +
-  login-not-bypassed + HTTP error + strict structured extraction + artifact/secret
-  checks), `tests/test_ai_gateway_verification.py` (capability-matrix honesty,
-  regional failover narration, secret safety).
-- **Real browser layer** (`tests/test_web_wrapper_playwright_integration.py`):
-  genuine headless Chromium; **skips** when Playwright/Chromium is absent (CI
-  without a browser stays green). No startup dependency.
-- **Fixes:** runtime `extract()` prefers a nested `<a>`; `WrapperDefinition`
-  gains `extract_attrs` (default `("href",)`); engine passes attrs through; the
-  `diagnostics()` `"wrapers"` typo is corrected to `"wrappers"`.
+**There is no required next task.** Do **not** add new large features; the v2.0
+cycle is complete. Cut a release only when the owner asks (D-060): branch from
+`develop`, then a reviewed `develop → main` PR + tag.
 
-### No active task
+**v2.0 completion gates added this cycle:** `tests/test_content_pipeline_e2e.py`
+and `tests/test_bot_onboarding_e2e.py` (end-to-end integration), a separate
+`browser-tests` CI job (Playwright + Chromium, must not skip), and
+`tests/test_windows_hidden_console.py` (the no-console Windows launch). A
+post-v1.9.0 memory reconciliation added release-hygiene guards in
+`tests/test_meta_audit.py` §6; the meta-audit prose in `docs/ARCHITECTURE.md`
+(32 mutations / 8 controls) is guarded by
+`test_architecture_doc_meta_audit_counts_match_report`.
 
-**v1.8.2 is RELEASED and verified — there is no pending task.** Do **not** add new
-large features. The quality gate was run and passed before the release:
+### Завершённые этапы v2.0 (released in v2.0.0)
+
+1. **Web Wrappers + free multimodal AI providers — COMPLETE.**
+   - **Stage 1 — free-first providers + honest capabilities (D-117/D-118).**
+     `PollinationsProvider` (keyless free text), `Llm7Provider` (llm7.io),
+     `PollinationsImageProvider` (`pollinations_image`, keyless free image
+     generation, off by default), the model-capability catalog
+     (`ai/gateway/catalog.py`), idempotent provisioning (`POST /provision`) and
+     browser preflight. Honesty: a key is required only for an `api_key` provider
+     with no key; session expiry is failover, not a bypass. `GET /operations`
+     reports `image_generation` by kind. Tests: `tests/test_v2_ai_providers.py`.
+   - **Stage 2 — verified free multimodal (vision) providers: probed 2026-10-09,
+     none confirmed (D-119).** Keyless endpoints refused an image upstream,
+     required a key or were paid/challenged. No free keyless image-understanding
+     endpoint is claimed; the confirmed free multimodal path is image generation.
+     Never bypass a challenge or bundle an unverified key.
+2. **Target Language — COMPLETE.** `backend/app/services/content_language.py`,
+   migration `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`,
+   `tests/test_target_language.py`.
+3. **Mass Bot-to-Channel Onboarding — COMPLETE (D-120).**
+   `services/bot_onboarding.py`, migration
+   `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`, scheduler job
+   `bot_onboarding.tick`; UI `BotOnboardingView.vue`; `tests/test_bot_onboarding.py`
+   + `tests/test_bot_onboarding_e2e.py`.
+4. **Content Operations 2.0 — COMPLETE (D-116).** One pipeline; AI profiles as
+   data; mini-AI classifies (never an emoji); migration
+   `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py`.
+
+### Following cycle (only when the owner asks)
+
+Branch from `develop`, then a reviewed `develop → main` PR + tag (D-060).
+
+### Завершённая задача — v1.9.0 RELEASED
+
+**v1.9.0 is RELEASED and verified.** The quality gate was run and passed before
+the release:
 
 ```bash
-python -m pytest                                  # 943 passed
+python -m pytest                                  # 946 passed, 8 skipped
 ruff check backend tests                          # clean
 cd frontend && npx vue-tsc --noEmit && npm run build   # clean
 PYTHONPATH=. python tests/meta_audit/engine.py    # 30/30, 0 false positives
 ```
 
-The only commits on `develop` after the release are **documentation/memory-only**
-(`ab2c120` release facts, `acf9de4` Docker smoke, and this memory-sync commit), so
-`develop` is ahead of `main` with **no code change**. For the next release (only when the owner asks):
-branch from `develop`, then a reviewed `develop → main` PR + tag.
+The commits on `develop` after the v1.9.0 release are the memory-sync commit, the
+release-hygiene guards and the unreleased v2.0 stages, so `develop` is ahead of
+`main` with **no change to the shipped release**.
 
 **Prior release:** **v1.8.1 (AI Gateway verification patch, D-114) is RELEASED**
 via a reviewed `develop → main` PR #20 (merge `bc8382b`), tag `v1.8.1`; the
@@ -214,7 +240,7 @@ defects and one unwired control were fixed, **additively and with no new feature
 3. **Google Drive `/owner` UI** — added the missing token field + "save token"
    button calling the existing `syncGoogleConnect` endpoint.
 
-Release as **v1.6.1** (patch) via a reviewed `develop → main` PR and tag; the
+Released as **v1.6.1** (patch) via a reviewed `develop → main` PR and tag; the
 Release workflow builds the Windows portable ZIP. After the merge, re-sync
 `develop` to the merge commit and record the facts here.
 

@@ -189,8 +189,13 @@ class ChannelService:
         reference: str | None = None,
         note: str | None = None,
         status: ChannelStatus | None = None,
+        target_language: str | None = None,
     ) -> Channel:
         channel = await self._require(channel_id)
+        if target_language is not None:
+            from backend.app.services.content_language import normalize_language
+
+            channel.target_language = normalize_language(target_language)
         if reference is not None:
             ref = normalize_reference(reference)
             if not ref:

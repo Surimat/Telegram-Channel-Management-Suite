@@ -76,6 +76,11 @@ class Channel(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     note: Mapped[str] = mapped_column(Text, default="", nullable=False)
 
+    # --- v2.0 Target Language (additive) ---
+    #: Language posts to this channel should be published in. Empty/``auto`` =
+    #: inherit the source, then the global default.
+    target_language: Mapped[str] = mapped_column(String(8), default="auto", nullable=False)
+
     def __repr__(self) -> str:  # pragma: no cover - debugging aid
         return f"<Channel reference={self.reference!r} status={self.status}>"
 
