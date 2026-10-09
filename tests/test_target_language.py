@@ -60,6 +60,29 @@ class _EchoGateway:
         )
 
 
+class _TargetAwareGateway:
+    """A gateway whose *output depends on the target language* in the instruction.
+
+    It stamps the destination-language title that
+    :func:`translation_instruction` embedded into the prompt. A test can then
+    prove that changing ``target_language`` changes the produced text, rather
+    than only changing a stored field.
+    """
+
+    async def transform(
+        self, *, task: str, text: str, instruction: str = "", **_: object
+    ) -> ChatResponse:
+        # instruction looks like: "Переведи текст с языка «X» на «Y», ..."
+        target = instruction.split("на «", 1)[-1].split("»", 1)[0] if "на «" in instruction else "?"
+        return ChatResponse(
+            ok=True,
+            text=f"[{target}] {text}",
+            provider_used="fake",
+            model_used="fake-1",
+            attempts=[{"provider": "fake"}],
+        )
+
+
 async def _get_item(session, item_id: str):  # type: ignore[no-untyped-def]
     from backend.app.db.repositories.content import ContentItemRepository
 
@@ -71,6 +94,7 @@ async def _make_item(
     *,
     source_language: str = "en",
     target_language: str = "ru",
+    language: str | None = None,
 ) -> str:
     async with session_scope() as session:
         source = ContentSource(
@@ -85,7 +109,7 @@ async def _make_item(
             source_id=source.id,
             text=text,
             cleaned_text=text,
-            language=source_language,
+            language=language if language is not None else source_language,
             source_language=source_language,
             target_language=target_language,
         )
@@ -209,6 +233,52 @@ async def test_translate_failure_never_loses_material():
         outcome = await service.translate(item, target_language="ru")
     assert outcome.translated is False
     assert outcome.text == "Hello world"  # original text preserved
+
+
+# --- target language actually changes the output ---------------------------
+
+
+@pytest.mark.asyncio
+async def test_target_language_changes_output_not_just_stored():
+    """The end-to-end v2.0 question: does ``target_language`` affect the text?
+
+    Two identical English items are translated to different targets. Because the
+    gateway echoes the destination title embedded in the instruction, the saved
+    text must differ — proving the target is *applied*, not merely persisted.
+    """
+    async with session_scope() as session:
+        service = ContentPipelineService(session, gateway=_TargetAwareGateway())
+        ru_id = await _make_item("Hello world", source_language="en", target_language="ru")
+        de_id = await _make_item("Hello world", source_language="en", target_language="de")
+        ru_item = await service.translate(ru_id)
+        de_item = await service.translate(de_id)
+
+    assert ru_item.cleaned_text == "[Русский] Hello world"
+    assert de_item.cleaned_text == "[Немецкий] Hello world"
+    assert ru_item.cleaned_text != de_item.cleaned_text
+    # The declared target is preserved and reflected on the item.
+    assert ru_item.target_language == "ru"
+    assert de_item.target_language == "de"
+
+
+@pytest.mark.asyncio
+async def test_source_auto_detects_english_then_translates_to_russian():
+    """English source → auto-detect → translate to Russian (scenario A core)."""
+    item_id = await _make_item(
+        "Hello world, this is a news post.",
+        source_language="auto",
+        target_language="ru",
+        language="auto",
+    )
+    async with session_scope() as session:
+        service = ContentPipelineService(session, gateway=_TargetAwareGateway())
+        item = await service.detect_language(item_id)
+        assert item.source_language == "en"  # detected, not assumed
+        item = await service.translate(item_id)
+
+    assert item.source_language == "en"
+    assert item.target_language == "ru"
+    assert item.cleaned_text.startswith("[Русский]")
 
 
 # --- pipeline action -------------------------------------------------------

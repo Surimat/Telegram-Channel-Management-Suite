@@ -102,6 +102,15 @@ def test_run_bat_waits_for_health_not_fixed_sleep() -> None:
     assert "STARTUP_POLL_MS" in run_bat
 
 
+def test_run_bat_launches_tray_agent_without_a_console_window() -> None:
+    run_bat = (REPO_ROOT / "portable" / "run.bat").read_text(encoding="utf-8")
+    # The tray agent must be started with a windowless interpreter: `start /min`
+    # and `cmd /c` both create a console window even when minimized.
+    assert "pythonw.exe" in run_bat
+    assert 'start "" /min cmd /c' not in run_bat
+    assert "%PYTHONW%" in run_bat
+
+
 def test_readiness_helper_reports_friendly_timeout_message() -> None:
     ps1 = (REPO_ROOT / "portable" / "open_when_ready.ps1").read_text(encoding="utf-8")
     assert "did not finish starting" in ps1

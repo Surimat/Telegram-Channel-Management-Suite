@@ -97,7 +97,8 @@ Steps:
 1. Download the portable archive and extract it anywhere (USB stick is fine).
 2. Double-click **`run.bat`**.
 3. The browser opens `http://127.0.0.1:8000` automatically.
-4. Use **`stop.bat`** (or close the console window) for a graceful shutdown.
+4. Use **`stop.bat`** (the tray icon menu also stops the app) for a graceful
+   shutdown.
 
 No Python, Node, npm, Docker, PostgreSQL, or Redis is required.
 All mutable data stays inside the extracted folder.

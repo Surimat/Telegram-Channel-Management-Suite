@@ -44,16 +44,18 @@ Version string is **1.9.0** across `backend/app/__init__.py`,
   (revises `b2c3d4e5f6a7`); every new column carries a server default, so an
   existing v1.8 database upgrades in place.
 
-### Active task — Priority 2: Mass Bot-to-Channel Onboarding (v2.0 cycle, unreleased)
+### Active task — none (v2.0 priorities implemented on `develop`, unreleased)
 
 The v2.0 cycle runs the owner-approved priorities **sequentially** in separately
 verifiable stages (**Этапы**); do **not** invent new directions and do **not**
 revisit implemented work. Priorities live in `docs/ROADMAP.md`
-(§ "v2.0 cycle"). Priority 1 is complete and merged into `develop`; the active
-work is now **Priority 2**.
+(§ "v2.0 cycle"). All three priorities are now implemented on `develop` and
+unreleased, so there is **no required next task**. Cut a release only when the
+owner asks (D-060): branch from `develop`, then a reviewed `develop → main` PR +
+tag.
 
-**Mass Bot-to-Channel Onboarding (Priority 2) — implemented on `develop`,
-unreleased (D-120).**
+**Priority 2 — Mass Bot-to-Channel Onboarding (D-120) — implemented on `develop`,
+unreleased.**
 Turn bot→channel binding from a one-at-a-time action into a bounded, restart-safe
 **batch** flow, mirroring the Bot Factory creation queue (D-109) and the existing
 binding rules (D-047…D-049, D-064): select many already-created worker bots and
@@ -89,6 +91,10 @@ gate stays green. No release is cut from this cycle until the owner asks (D-060)
      image-understanding endpoint is claimed; the confirmed free multimodal path
      is image *generation*. Never bypass a challenge or bundle an unverified key;
      re-check only when a real keyless vision endpoint is confirmed.
+2. **Mass Bot-to-Channel Onboarding — COMPLETE (unreleased).** Implemented on
+   `develop` (`services/bot_onboarding.py`, migration
+   `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`,
+   `tests/test_bot_onboarding.py`, D-120). See the "Priority 2" section above.
 3. **Complete Content Operations with target-language translation — COMPLETE
    (unreleased).** Implemented on `develop` (`backend/app/services/content_language.py`,
    migration `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`,
