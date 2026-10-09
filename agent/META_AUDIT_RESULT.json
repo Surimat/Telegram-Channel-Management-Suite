@@ -1,10 +1,10 @@
 {
   "version": "1.9.0",
-  "baseline_sha": "5558c1db3b9fac094cd75d56d3c172f2ee0f7eaf",
-  "generated_at": "2026-10-09T07:42:20.218735+00:00",
+  "baseline_sha": "db06066e64a8ef09b6fb36bb6c25c23df531d3e6",
+  "generated_at": "2026-10-09T11:59:36.386106+00:00",
   "result_source": "computed from runtime mutation executions",
-  "total": 30,
-  "detected": 30,
+  "total": 32,
+  "detected": 32,
   "missed": 0,
   "kill_rate": 100.0,
   "false_positives": 0,
@@ -2824,6 +2824,204 @@
       "error": null
     },
     {
+      "id": "AA_onboarding_deeplink_separator",
+      "name": "onboarding_deeplink_wrong_separator",
+      "detected": true,
+      "expected": {
+        "finding_id": "telegram.deeplink_startchannel_separator",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "capabilities.no_anchor.ai_gateway",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "telegram.deeplink_startchannel_separator",
+          "severity": "error",
+          "category": "integration"
+        }
+      ],
+      "severity": "critical",
+      "note": "The mass onboarding deep link must join admin rights with '+', not a space, or Telegram silently drops the requested rights (D-120).",
+      "error": null
+    },
+    {
+      "id": "AB_onboarding_capability_anchor",
+      "name": "onboarding_capability_without_anchor",
+      "detected": true,
+      "expected": {
+        "finding_id": "capabilities.no_anchor.bot_onboarding",
+        "severity": "error"
+      },
+      "actual_findings": [
+        {
+          "id": "api.backend_unused",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "capabilities.no_anchor.bot_onboarding",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
+          "id": "capabilities.no_anchor.ai_gateway",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
+          "id": "help.orphan_topics",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceSource.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.AudienceUser.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.audience.SourceUserLink.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.link_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.campaign.JoinRequest.requested_at",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.width",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.MediaAsset.height",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.content.Publication.media_override",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.posts_per_week",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.donor.DonorMetrics.view_subscriber_ratio",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.editorial.EditorialItem.published_message_id",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "db.unused_column.session.UserSession.meta",
+          "severity": "info",
+          "category": "orphan"
+        },
+        {
+          "id": "dead.service.notification_destinations.RecordingDestination",
+          "severity": "info",
+          "category": "orphan"
+        }
+      ],
+      "severity": "high",
+      "note": "The bot_onboarding capability must stay anchored to its service class, or it can claim to be implemented with no code (D-099/D-120).",
+      "error": null
+    },
+    {
       "id": "L_orphan_setting",
       "name": "orphan_setting_runtime",
       "detected": true,
@@ -2834,6 +3032,11 @@
       "actual_findings": [
         {
           "id": "capabilities.no_anchor.ai_gateway",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
+          "id": "capabilities.no_anchor.bot_onboarding",
           "severity": "error",
           "category": "capabilities"
         },
@@ -2935,6 +3138,11 @@
           "category": "orphan"
         },
         {
+          "id": "capabilities.no_anchor.bot_onboarding",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
           "id": "capabilities.no_anchor.ai_gateway",
           "severity": "error",
           "category": "capabilities"
@@ -3018,6 +3226,11 @@
       "findings": [
         {
           "id": "capabilities.no_anchor.ai_gateway",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
+          "id": "capabilities.no_anchor.bot_onboarding",
           "severity": "error",
           "category": "capabilities"
         },
@@ -3109,6 +3322,11 @@
           "category": "orphan"
         },
         {
+          "id": "capabilities.no_anchor.bot_onboarding",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
           "id": "capabilities.no_anchor.ai_gateway",
           "severity": "error",
           "category": "capabilities"
@@ -3194,6 +3412,11 @@
           "id": "api.backend_unused",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "capabilities.no_anchor.bot_onboarding",
+          "severity": "error",
+          "category": "capabilities"
         },
         {
           "id": "capabilities.no_anchor.ai_gateway",
@@ -3288,6 +3511,11 @@
           "category": "orphan"
         },
         {
+          "id": "capabilities.no_anchor.bot_onboarding",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
           "id": "capabilities.no_anchor.ai_gateway",
           "severity": "error",
           "category": "capabilities"
@@ -3380,6 +3608,11 @@
           "category": "orphan"
         },
         {
+          "id": "capabilities.no_anchor.bot_onboarding",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
           "id": "capabilities.no_anchor.ai_gateway",
           "severity": "error",
           "category": "capabilities"
@@ -3467,6 +3700,11 @@
           "category": "orphan"
         },
         {
+          "id": "capabilities.no_anchor.bot_onboarding",
+          "severity": "error",
+          "category": "capabilities"
+        },
+        {
           "id": "capabilities.no_anchor.ai_gateway",
           "severity": "error",
           "category": "capabilities"
@@ -3552,6 +3790,11 @@
           "id": "api.backend_unused",
           "severity": "info",
           "category": "orphan"
+        },
+        {
+          "id": "capabilities.no_anchor.bot_onboarding",
+          "severity": "error",
+          "category": "capabilities"
         },
         {
           "id": "capabilities.no_anchor.ai_gateway",

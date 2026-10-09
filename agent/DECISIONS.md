@@ -2457,7 +2457,7 @@ dependency and no schema change.
 **Release.** Shipped as **v1.8.2** via a reviewed `develop → main` PR #21 (merge
 `8542d4c`), tag `v1.8.2`; the Release workflow (run `37747125558`) created the
 GitHub Release and attached the Windows portable ZIP (24 906 383 bytes, sha256
-`f0c6984d…f619`) + `.sha256`. Gates: full suite green (**943 passed**), `ruff`
+`f0c6984d…f619`) + `.sha256`. Gates: full suite green (**935 passed, 8 skipped**), `ruff`
 clean, `vue-tsc` + `npm run build` clean, meta-audit 30/30 (0 missed, 0 false
 positives). `main` HEAD = `8542d4c`; `develop` is ahead of `main` only by
 documentation/memory-only commits (`ab2c120`, `acf9de4`, …) with no code change.
@@ -2621,3 +2621,45 @@ honesty and asserts no keyless provider is ever marked `verified` for
 vision, offers a text provider for image generation, or enables the generator by
 default fails this decision.
 
+
+---
+
+## D-120 — 2026-10-09 — Mass bot-to-channel onboarding uses only Telegram's official startchannel link — LOCKED
+
+**Context.** The v2.0 cycle's active priority is connecting the bots created by
+the Bot Factory to channels in bulk. Telegram offers an official deep link that
+opens its own "add bot as admin" dialog; nothing may be automated past the
+owner's confirmation.
+
+**Decision.**
+1. **Official link only.** `channel_start_link` builds
+   `t.me/<bot>?startchannel&admin=<rights>` with the admin-right tokens joined by
+   **`+`** (Bot API 6.0+, matching Telegram's `?startchannel` contract), never by
+   a space. The link only *opens* the dialog and never adds a bot silently.
+2. **Least privilege by profile.** Rights are a small, purpose-named allow-list
+   (`reactions`, `posting`, `editing`); there is no blanket "all rights" grant.
+   A profile's `function` is carried through to the binding.
+3. **Real verification, never assumption.** After the owner confirms, the
+   candidate is re-checked against Telegram through the existing
+   **BindingService** path, so `ready` means "Telegram reports the rights", not
+   "we sent a link". Insufficient rights is an explicit `needs_permission` state.
+4. **Durable, restart-safe queue.** `bot_onboarding.tick` is a scheduler job that
+   advances one bot per tick through the shared durable job queue (D-109 model);
+   a failure never stops the rest, and already-connected bots are never rolled
+   back. Batches can be paused, resumed, retried or skipped.
+5. **No secret ever leaves.** The bot token is never part of any request or
+   response; only the public username and Telegram's own link are exposed. No
+   account registration and no Telegram-limit bypass.
+6. **Additive only.** Migration
+   `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py` (revises `d4e5f6a7b8c9`)
+   adds `onboarding_batches` / `onboarding_candidates`; an existing v1.9 database
+   upgrades in place.
+
+**Consequences.** `tests/test_bot_onboarding.py` locks the `+` link format, the
+least-privilege profiles, the fake-provider verification and the queue lifecycle
+(service + API). Two runtime mutations (`AA_onboarding_deeplink_separator`,
+`AB_onboarding_capability_anchor`) plus the static check
+`check_telegram_deeplink_contracts` fail a regression that space-joins the rights,
+drops `?startchannel`, exposes the token, or leaves the `bot_onboarding`
+capability unanchored. No release is cut from the v2.0 cycle until the owner asks
+(D-060 process).

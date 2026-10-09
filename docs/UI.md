@@ -161,6 +161,7 @@ Wording rule — instead of `BOT_TOKEN missing`, write:
 | `/diagnostics` | `DiagnosticsView` (status + safe actions + redacted report) | polish |
 | `/backup` | `BackupView` (backup / restore + config export/import) | 10 |
 | `/bot-factory` | `BotFactoryView` | v1.3 |
+| `/bot-onboarding` | `BotOnboardingView` (Подключение ботов) | v2.0 |
 | `/mesh` | `MeshView` (Компьютеры) | v1.3 |
 | `/editorial` | `EditorialView` (Редакция) | v1.4 |
 | `/notifications` | `NotificationsView` (Центр уведомлений) | v1.4 |

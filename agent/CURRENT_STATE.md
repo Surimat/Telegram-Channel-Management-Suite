@@ -12,7 +12,7 @@
 **v1.6.0 (minor) adds an Owner Auth + Config Sync vertical slice (D-105/D-106):** a local owner profile (password/PIN) protects the panel with a PBKDF2 verifier and an HMAC-signed session token (`X-Owner-Token`, default-on middleware), and a **versioned encrypted configuration bundle** (canonical JSON ‚Üí AES-256-GCM, secret denylist) moves settings to a new computer via a local folder or Google Drive (app-data scope) ‚Äî never the DB, sessions or TDATA. Owner Auth is **local-first**: while no profile exists the panel stays open exactly as before; sync detects conflicts instead of overwriting silently. The `/owner` RU-first UI page, `/api/v1/owner/*` endpoints, `owner_auth`/`config_sync` help topics, Diagnostics checks and a Promotion Wizard step are wired in. Additive only; no account registration and no Telegram-limit bypass. That release read **1.6.0** with 822 tests; `ruff` clean; `vue-tsc` + `npm run build` clean; meta-audit **25/25, 100%, 0 false positives**.
 **v1.5.4 (patch) closed the last three Consistency Auditor gaps N, O and P (D-104); the meta-audit is a *runtime mutation engine* (D-102) and now reaches 100%.** The kill rate is **computed from real executions**: `tests/meta_audit/engine.py` builds an isolated copy of `backend/app`, `frontend/src`, `migrations/versions`, `docs` in a temp dir (or a fresh temp DB for runtime checks), injects one seeded defect, runs the **real** auditor, semantically matches the finding it actually produced (exact id or a family prefix; an unrelated finding is never a detection), and records ``detected`` / ``missed``. `agent/META_AUDIT_RESULT.json` is a **generated** artifact: it carries `result_source: "computed from runtime mutation executions"`, `generated_at`, `baseline_sha`, per-mutation `{id, detected, expected, actual_findings, severity}`, and derived totals. Arithmetic (`detected + missed == total`, `kill_rate == detected/total*100`, `critical_misses`/`high_misses` from the records) is asserted by `SuiteResult.verify()` in `pytest` and CI ‚Äî no hardcoded `25`/`25`/`100.0` in logic. There are **25** mutations and **8 negative controls** (a clean/correct tree must not produce a mutation finding). Removing a detector flips its mutation to `missed` and lowers the kill rate automatically (proven for F, M, N, O, P and Q); adding a mutation changes `total` automatically (proven by `test_new_mutation_changes_total_without_code_edits`). Current computed result: **25 total, 25 detected, 0 missed, kill rate 100.0%, 0 false positives, 0 critical misses, 0 high misses** (`status: clean`). Five static detectors closed the gaps: `check_write_only_settings` (M), `check_channel_registry_usage` (Q), `check_unused_model_columns` (N ‚Äî an ORM column no module reads/writes, info), `check_orphan_service_classes` (O ‚Äî a public service class no module references, info) and `check_frontend_unwired_controls` (P ‚Äî an `@click`/`@change`/`@submit` handler that is undefined or has an empty body, warning). `KNOWN_GAP_IDS` is now **empty**. CI job `meta-audit` runs the engine, the tests, and a working-tree leak assertion; it does **not** compare against a hardcoded percentage.
 **v1.5.4 released** via a reviewed `develop ‚Üí main` PR #15 (merge `b219341`), tag `v1.5.4`; the Release workflow (run `37522394131`) created the GitHub Release and attached the Windows portable ZIP (24 807 288 bytes, sha256 `ff01f787‚Ä¶dc67a`) + `.sha256`. It is a patch over v1.5.3: it closes the last three auditor gaps (N, O, P) with static detectors, so the meta-audit reaches 100%.
-**Factual git state:** v1.9.0 Content Operations 2.0 is released. `main` HEAD = `997999e` (= `origin/main`, tag `v1.9.0`). `develop` HEAD = `bbe59ac` (one documentation-only commit ahead of `main`; the v1.9 code/migration/tests are in the PR #22 merge). Version strings read **1.9.0** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock. Latest released release: v1.9.0 — PR #22 (merge `997999e`), tag `v1.9.0`, Release workflow run `37775533451`, ZIP 24 929 020 bytes, sha256 `3227988c…d2ac`. Previous release: v1.8.2 — PR #21 (merge `8542d4c`), tag `v1.8.2`, Release workflow run `37747125558`, ZIP 24 906 383 bytes, sha256 `f0c6984d…f619`.
+**Factual git state:** v1.9.0 Content Operations 2.0 is released. `main` HEAD = `997999e` (= `origin/main`, tag `v1.9.0`). `develop` carries the unreleased v2.0 stages on top of `main`; its exact tip is intentionally **not pinned** (it moves with every documentation-only commit, which used to leave a stale SHA here). Version strings read **1.9.0** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock. Latest released release: v1.9.0 — PR #22 (merge `997999e`), tag `v1.9.0`, Release workflow run `37775533451`, ZIP 24 929 020 bytes, sha256 `3227988c…d2ac`. Previous release: v1.8.2 — PR #21 (merge `8542d4c`), tag `v1.8.2`, Release workflow run `37747125558`, ZIP 24 906 383 bytes, sha256 `f0c6984d…f619`.
 Previous: **v1.5.1 forensic-audit fixes are released** ‚Äî reviewed `develop ‚Üí main` PR #12 (merge `f41ebc8`), tag `v1.5.1`; the Release workflow (run `37453582161`) created the GitHub Release and attached the Windows portable ZIP (24 796 203 bytes, sha256 `b46f9333‚Ä¶68dee`) + `.sha256` (D-060). It fixes five confirmed discrepancies found by an independent audit of v1.5.0 (D-095‚Ä¶D-098): a capability with no implementation can never report `available` (`config_sync`/`media_conversion` ‚Üí `not_implemented`, guarded by a CI check); a consistency check that raises is an `error` finding, never silently skipped; the stored `language` preference is actually consumed (capability graph + a Settings RU/EN selector); source-comparison checks report `audit.source_unavailable` as `info` when the runtime image has no frontend/docs source (so Docker `/api/v1/consistency` is `pass`); and `README.md` version drift. Version strings read **1.5.1**. Suite **731 passed**; `ruff` clean; `vue-tsc` + `npm run build` clean; Docker smoke clean; artifact/secret scan clean.
 Previous: **v1.5.0 Capability graph + i18n + Consistency Auditor is released** ‚Äî reviewed `develop ‚Üí main` PR #11 (merge `ad24bc6`), tag `v1.5.0`; the Release workflow (run `37442056281`) created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It adds (D-092‚Ä¶D-094): It adds three small, additive cross-cutting layers: a machine-readable **capability graph** (`services/capability_graph.py`, `GET /api/v1/capability-graph`, embedded in the Promotion Wizard's `WizardState.capabilities` and shown on the Dashboard as "–ß—Ç–æ —É–∂–µ –¥–æ—Å—Ç—É–ø–Ω–æ"); a bilingual RU/EN **i18n catalog** (`core/i18n.py`) with a stored `language` preference on `/api/v1/help/prefs`; and a **Consistency Auditor** (`services/consistency_checks.py` static + `services/consistency.py` runtime, `GET /api/v1/consistency`, Diagnostics "–ü—Ä–æ–≤–µ—Ä–∫–∞ —Ü–µ–ª–æ—Å—Ç–Ω–æ—Å—Ç–∏" panel) whose static checks run in `pytest` so cross-module drift fails a PR. Version strings read **1.5.0**. Suite **726 passed**; `ruff` clean; `vue-tsc` + `npm run build` clean; Docker smoke clean; artifact/secret scan clean.
 Previous: **v1.4.0 Notification Center + Tray Agent + Editorial Workspace is released** ‚Äî reviewed `develop ‚Üí main` PR #10 (merge `306672e`), tag `v1.4.0`; the Release workflow created the GitHub Release and attached the Windows portable ZIP + `.sha256` (D-060). It adds the **Notification Center** (D-084‚Ä¶D-086): a durable, queryable history of important events with categories, priorities, per-category routing (owner DM / notification group / Windows toast), quiet hours that postpone only non-urgent messages, anti-spam aggregation, a dashboard and a history API/UI; the **TCMS Tray Agent** (D-087/D-088): a light Windows supervisor that starts the backend hidden, waits for `/health` (never a fixed sleep), restarts a crashed backend with a bounded backoff (5/hour), offers optional Startup-folder autostart (no admin) and writes only a secret-free `data/tray.json` snapshot surfaced in Diagnostics; and the **Editorial Workspace** (D-089‚Ä¶D-091): a linked Telegram forum supergroup where the owner, editors and moderators work the same publication queue as the Web UI (honest, verified bot rights; roles by numeric Telegram id; optimistic-version moves; a full audit trail; publishing reuses the Content Studio posting path). None of these features register accounts or bypass Telegram limits.
@@ -1146,22 +1146,45 @@ Committed on `develop` (`feat(content): Target Language stage (v2.0 Part 1)`):
   language columns; `ChannelsView.vue` / `ContentStudioView.vue` UI.
 - **Tests** — `tests/test_target_language.py`.
 
-### Priority 2 — mass bot→channel connection
-Not started (planned).
+### Priority 2 — mass bot→channel connection (D-120)
+Committed on `develop` (unreleased; `feat(...)` bot-onboarding stage):
+
+- **`services/bot_onboarding.py`** — connect many already-created worker bots to
+  one channel through Telegram's **official**
+  `t.me/<bot>?startchannel&admin=<rights>` deep link (rights joined by **`+`**,
+  Bot API 6.0+, never a space). Rights are least-privilege, purpose-named
+  profiles (`reactions`/`posting`/`editing`) — never a blanket "all rights". The
+  owner confirms each bot in Telegram; the candidate is then re-checked against
+  Telegram through the existing **BindingService**, so `ready` means "Telegram
+  reports the rights" and insufficient rights is an explicit `needs_permission`.
+- **Durable, restart-safe queue** — scheduler job `bot_onboarding.tick` advances
+  one bot per tick (the Bot Factory model, D-109); pause/resume/retry/skip; a
+  failure never stops the rest and already-connected bots are never rolled back.
+- **No secret ever leaves** — the bot token is never part of any request or
+  response; only the public username and Telegram's own link are exposed.
+- **Migration** `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py` (revises
+  `d4e5f6a7b8c9`; additive, in-place upgrade); API `/api/v1/bot-onboarding/*`;
+  capability `bot_onboarding`, Diagnostics check, help topic and the RU-first
+  `BotOnboardingView.vue` (`/bot-onboarding`) UI.
+- **Tests** — `tests/test_bot_onboarding.py`; two runtime meta-audit mutations
+  (`AA_onboarding_deeplink_separator`, `AB_onboarding_capability_anchor`) and the
+  static check `check_telegram_deeplink_contracts`.
 
 ## 5. Next action
 
-**v1.3.0 Bot Factory + LAN Mesh is released** (PR #9 `develop ‚Üí main`, merge
-`7788125`, tag `v1.3.0`; GitHub Release with the Windows portable ZIP +
-`.sha256`, built by CI ‚Äî D-060). `main == develop == 7788125`. No required next
-phase.
+**v1.9.0 Content Operations 2.0 is released** (reviewed `develop → main` PR #22,
+merge `997999e`, tag `v1.9.0`; GitHub Release with the Windows portable ZIP +
+`.sha256`, built by CI — D-060). `main` HEAD = `997999e`. `develop` is ahead of
+`main` only by the **unreleased v2.0 stages** (priorities 1–3 above) plus
+documentation/memory commits, with no change to the shipped release.
 
-`NEXT_TASK` returns to **MAINTENANCE / OPTIONAL EXTENSIONS**; the roadmap
-(PHASE 0‚Äì11) is complete. Optional future work (only if the owner asks): a fully
-automated @BotFather Mini App flow (D-054); short-lived signed Mini App tokens if
-it is ever exposed beyond the owner (D-035); a reliable, permissively-licensed
-TDATA converter adapter (D-070); or any feature the owner requests (record a
-decision; keep the vertical-slice workflow).
+`NEXT_TASK` points at the v2.0 cycle's remaining work; the roadmap (PHASE 0–11) is
+complete. Optional future work (only if the owner asks): a fully automated
+@BotFather Mini App flow (D-054); short-lived signed Mini App tokens if it is ever
+exposed beyond the owner (D-035); a reliable, permissively-licensed TDATA
+converter adapter (D-070); or any feature the owner requests (record a decision;
+keep the vertical-slice workflow). No release is cut from the v2.0 cycle until the
+owner asks.
 
 ### RC verification (2026-10-03) ‚Äî done against a live server in offline mode
 

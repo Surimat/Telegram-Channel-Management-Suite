@@ -1843,6 +1843,99 @@ export interface FactoryBindResult {
   status_label: string
 }
 
+// Mass bot-to-channel onboarding (v2.0, D-120)
+export interface OnboardingRightsProfile {
+  key: string
+  title_ru: string
+  title_en: string
+  function: string
+  admin_rights: string[]
+  description_ru: string
+  description_en: string
+}
+
+export interface OnboardingBatch {
+  id: string
+  channel_id: string
+  channel_label: string
+  rights_profile: string
+  rights_profile_title: string
+  function: string
+  requested_count: number
+  ready_count: number
+  permission_count: number
+  failed_count: number
+  skipped_count: number
+  queue_paused: boolean
+  completed: boolean
+  last_error: string
+}
+
+export interface OnboardingCandidate {
+  id: string
+  batch_id: string
+  index: number
+  bot_id: string
+  bot_username: string
+  bot_title: string
+  channel_id: string
+  rights_profile: string
+  function: string
+  deep_link: string
+  status: string
+  status_label: string
+  attempts: number
+  binding_id: string
+  last_error: string
+}
+
+export interface OnboardingBatchDetail {
+  batch: OnboardingBatch
+  candidates: OnboardingCandidate[]
+}
+
+export interface OnboardingBatchList {
+  items: OnboardingBatch[]
+  total: number
+}
+
+export interface OnboardingProgress {
+  total: number
+  queued: number
+  waiting: number
+  verifying: number
+  ready: number
+  needs_permission: number
+  failed: number
+  skipped: number
+  paused: boolean
+  active: number
+  done: number
+}
+
+export interface OnboardingDashboard {
+  batch_id: string
+  channel_id: string
+  channel_label: string
+  rights_profile: string
+  rights_profile_title: string
+  function: string
+  queue_paused: boolean
+  completed: boolean
+  progress: OnboardingProgress
+}
+
+export interface OnboardingActionResult {
+  candidate_id: string
+  bot_id: string
+  bot_username: string
+  status: string
+  status_label: string
+  binding_id: string
+  deep_link: string
+  error: string
+}
+
 // Editorial Workspace (v1.4)
 export interface EditorialRoom {
   id: string
@@ -2417,6 +2510,63 @@ export const api = {
     }),
   factorySkipCandidate: (id: string) =>
     request<FactoryCandidate>(`/api/v1/bot-factory/candidates/${id}/skip`, {
+      method: 'POST',
+    }),
+
+  // Mass bot-to-channel onboarding (v2.0, D-120)
+  onboardingRightsProfiles: () =>
+    request<OnboardingRightsProfile[]>('/api/v1/bot-onboarding/rights-profiles'),
+  onboardingBatches: () =>
+    request<OnboardingBatchList>('/api/v1/bot-onboarding/batches'),
+  onboardingBatch: (id: string) =>
+    request<OnboardingBatchDetail>(`/api/v1/bot-onboarding/batches/${id}`),
+  createOnboardingBatch: (payload: {
+    bot_ids: string[]
+    channel_id: string
+    rights_profile?: string
+  }) =>
+    request<OnboardingBatchDetail>('/api/v1/bot-onboarding/batches', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  deleteOnboardingBatch: (id: string) =>
+    request<null>(`/api/v1/bot-onboarding/batches/${id}`, { method: 'DELETE' }),
+  onboardingDashboard: (id: string) =>
+    request<OnboardingDashboard>(`/api/v1/bot-onboarding/batches/${id}/dashboard`),
+  onboardingNext: (id: string) =>
+    request<OnboardingBatchDetail>(`/api/v1/bot-onboarding/batches/${id}/next`, {
+      method: 'POST',
+    }),
+  onboardingVerifyAll: (id: string) =>
+    request<OnboardingBatchDetail>(`/api/v1/bot-onboarding/batches/${id}/verify`, {
+      method: 'POST',
+    }),
+  onboardingRetryFailed: (id: string) =>
+    request<OnboardingBatchDetail>(`/api/v1/bot-onboarding/batches/${id}/retry`, {
+      method: 'POST',
+    }),
+  onboardingSkipRemaining: (id: string) =>
+    request<OnboardingBatchDetail>(`/api/v1/bot-onboarding/batches/${id}/skip`, {
+      method: 'POST',
+    }),
+  onboardingPause: (id: string) =>
+    request<OnboardingBatchDetail>(`/api/v1/bot-onboarding/batches/${id}/pause`, {
+      method: 'POST',
+    }),
+  onboardingResume: (id: string) =>
+    request<OnboardingBatchDetail>(`/api/v1/bot-onboarding/batches/${id}/resume`, {
+      method: 'POST',
+    }),
+  onboardingVerifyCandidate: (id: string) =>
+    request<OnboardingActionResult>(`/api/v1/bot-onboarding/candidates/${id}/verify`, {
+      method: 'POST',
+    }),
+  onboardingRetryCandidate: (id: string) =>
+    request<OnboardingActionResult>(`/api/v1/bot-onboarding/candidates/${id}/retry`, {
+      method: 'POST',
+    }),
+  onboardingSkipCandidate: (id: string) =>
+    request<OnboardingActionResult>(`/api/v1/bot-onboarding/candidates/${id}/skip`, {
       method: 'POST',
     }),
 

@@ -301,9 +301,36 @@ No release is cut from this section until the owner asks.
      1, `pollinations_image`); vision stays on keyed providers (Google/Anthropic)
      or an owner's own logged-in browser session. Re-check only when a real,
      keyless, non-bypass vision endpoint is confirmed.
-2. **Mass connection of created bots to channels.** Planned (not started).
+2. **Mass connection of created bots to channels.** Implemented (unreleased) —
+   see the Mass Bot-to-Channel Onboarding section below (D-120).
 3. **Complete Content Operations with target-language translation.** Implemented
    (unreleased) — see the Target Language section below.
+
+### v2.0 implementation notes (unreleased)
+
+**Target-language translation (D-118).** The Content Studio gains an explicit
+language stage: a **source language** (auto-detected or set per source) and a
+**target language** resolved by precedence (publication → channel → source →
+global default). Translation runs only when the languages differ, goes through
+the **existing AI Gateway** (routing/retries/failover unchanged) and masks URLs,
+`@username`, `t.me` links, hashtags, inline code, HTML and Telegram-entity spans
+so the model never rewrites a link or markup. A total failure keeps the original
+material. Additive migration `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`.
+
+**Mass bot-to-channel onboarding (D-120).** A batch connects up to 50 already
+created bots to one channel using Telegram's official
+`t.me/<bot>?startchannel&admin=<rights>` deep link (rights joined by `+`, not a
+space — Bot API 6.0+). Rights are least-privilege, purpose-named profiles
+(`reactions`, `posting`, `editing`), never a blanket "all rights". The owner
+confirms each bot in Telegram; the candidate is then re-checked against Telegram
+through the existing **BindingService**, so `ready` means "Telegram reports the
+rights", not "a link was sent", and insufficient rights is an explicit
+`needs_permission` state. `bot_onboarding.tick` is a durable, restart-safe
+scheduler job that advances one bot per tick; a failure never stops the rest and
+already-connected bots are never rolled back (pause/resume/retry/skip). The bot
+token is never part of any request or response. Additive migration
+`20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`; UI `BotOnboardingView.vue`
+(`/bot-onboarding`). Tests: `tests/test_bot_onboarding.py`.
 
 ---
 

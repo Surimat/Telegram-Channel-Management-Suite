@@ -74,6 +74,14 @@ MESSAGES: dict[str, dict[str, str]] = {
         "ru": "Добавьте провайдера в разделе «Центр ИИ» → «Провайдеры».",
         "en": "Add a provider in AI Center → Providers.",
     },
+    "cap.bot_onboarding": {
+        "ru": "Созданные боты",
+        "en": "Created bots",
+    },
+    "cap.bot_onboarding.fix": {
+        "ru": "Создайте хотя бы одного бота в «Фабрике ботов», чтобы подключать их к каналу.",
+        "en": "Create at least one bot in the Bot Factory to connect it to a channel.",
+    },
     "cap.state.available": {"ru": "Доступно", "en": "Available"},
     "cap.state.partial": {"ru": "Частично доступно", "en": "Partially available"},
     "cap.state.needs_setup": {"ru": "Требуется настройка", "en": "Needs setup"},

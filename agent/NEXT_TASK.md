@@ -9,7 +9,7 @@
 Released via a reviewed `develop → main` PR #22 (merge `997999e`), tag `v1.9.0`;
 the Release workflow (run `37775533451`) created the GitHub Release and attached
 the Windows portable ZIP (**24 929 020 bytes**, sha256
-`3227988c…d2ac`) + `.sha256`. `main` HEAD = `997999e`; `develop` HEAD = `aa4935a`.
+`3227988c…d2ac`) + `.sha256`. `main` HEAD = `997999e`; `develop` carries the unreleased v2.0 stages and is intentionally not pinned here.
 Release ZIP scan: no `.session`/TDATA/DB/model.
 
 Version string is **1.9.0** across `backend/app/__init__.py`,
@@ -52,20 +52,21 @@ revisit implemented work. Priorities live in `docs/ROADMAP.md`
 (§ "v2.0 cycle"). Priority 1 is complete and merged into `develop`; the active
 work is now **Priority 2**.
 
-**Mass Bot-to-Channel Onboarding (Priority 2) — the active task. Not started.**
+**Mass Bot-to-Channel Onboarding (Priority 2) — implemented on `develop`,
+unreleased (D-120).**
 Turn bot→channel binding from a one-at-a-time action into a bounded, restart-safe
 **batch** flow, mirroring the Bot Factory creation queue (D-109) and the existing
 binding rules (D-047…D-049, D-064): select many already-created worker bots and
 one or more target channels, then bind/promote them **one operation per scheduler
 tick** so the run is restart-resumable, stoppable, and reports per-pair progress
-(bound / already-bound / permission-denied / FloodWait-retry). Reuse the existing
+(ready / needs-permission / failed / waiting-confirmation). Reuse the existing
 `/api/v1/bindings` path and the permission probe — do not add a second binding
 mechanism. **Honesty:** capacity/permission checks are real Telegram calls; never
-bypass privacy, admin or FloodWait limits (D-006/D-065/D-070). Before coding,
-record a decision (D-120) describing the queue shape, the restart-resumable
-tick, and the honest failure states. Add additive tests + a runtime meta-audit
-mutation; keep the full gate green. No release is cut from this cycle until the
-owner asks (D-060).
+bypass privacy, admin or FloodWait limits (D-006/D-065/D-070). Recorded as
+**D-120** (queue shape, restart-resumable tick, honest failure states). Additive
+tests (`tests/test_bot_onboarding.py`) plus two runtime meta-audit mutations
+(`AA_onboarding_deeplink_separator`, `AB_onboarding_capability_anchor`); the full
+gate stays green. No release is cut from this cycle until the owner asks (D-060).
 
 ### Завершённые этапы v2.0 (implemented on `develop`, unreleased)
 

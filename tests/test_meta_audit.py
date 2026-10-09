@@ -815,3 +815,34 @@ def test_next_task_active_task_is_not_declared_released() -> None:
     assert not re.search(r"\bRELEASED\b", body), (
         "agent/NEXT_TASK.md 'Active task' section declares RELEASED work"
     )
+
+
+#: Lines that claim what the *latest release* is, as ``(file, stripped_prefix)``.
+#: These must name the shipped version; older versions may still appear later on
+#: the same line (a "Previous release:" clause), so the mid-line stale-version
+#: guard exempts such lines and cannot catch a stale anchor here.
+_LATEST_RELEASE_ANCHORS = (
+    ("README.md", "**Current stable release:"),
+    ("agent/CURRENT_STATE.md", "**Factual git state:**"),
+)
+
+
+def test_latest_release_anchors_name_the_shipped_version() -> None:
+    """The 'latest release' anchor lines must name the shipped version.
+
+    Reproduces the drift where ``README.md`` advertised ``v1.4.0`` as the current
+    stable release after later releases had shipped. ``test_readme_states_the_
+    current_release`` only checks that the version appears *somewhere*, and the
+    CURRENT_STATE factual-git-state line carries a "Previous release:" clause, so
+    it is exempted by the historical-line guard — a stale "latest release" there
+    would otherwise slip through. This guard checks the anchor lines directly.
+    """
+    current = f"v{__version__}"
+    offenders: list[str] = []
+    for name, prefix in _LATEST_RELEASE_ANCHORS:
+        lines = (REPO_ROOT / name).read_text(encoding="utf-8").splitlines()
+        match = next((ln for ln in lines if ln.strip().startswith(prefix)), None)
+        assert match is not None, f"{name} lost its latest-release anchor {prefix!r}"
+        if current not in match:
+            offenders.append(f"{name}: {prefix!r} does not name {current}")
+    assert not offenders, "stale latest-release anchor:\n" + "\n".join(offenders)

@@ -44,6 +44,15 @@ from backend.app.db.models.bot_factory import (
     BotCandidate,
     CandidateStatus,
 )
+from backend.app.db.models.bot_onboarding import (
+    ACTIVE_ONBOARDING_STATUSES,
+    MAX_ONBOARDING_BOTS,
+    ONBOARDING_STATUS_TITLES,
+    TERMINAL_ONBOARDING_STATUSES,
+    OnboardingBatch,
+    OnboardingCandidate,
+    OnboardingStatus,
+)
 from backend.app.db.models.campaign import (
     CampaignStatus,
     InviteCampaign,
@@ -207,6 +216,7 @@ from backend.app.db.models.update_state import (
 )
 
 __all__ = [
+    "ACTIVE_ONBOARDING_STATUSES",
     "ALL_CAPABILITIES",
     "BATCH_STATUS_TITLES",
     "BOT_CREATE_LIMIT_NOTE",
@@ -232,6 +242,7 @@ __all__ = [
     "FUNCTION_REACTIONS",
     "FUNCTION_TITLES",
     "KIND_TITLES",
+    "MAX_ONBOARDING_BOTS",
     "METHOD_TITLES",
     "MODERATION_STATES",
     "MODE_AUTO",
@@ -239,6 +250,7 @@ __all__ = [
     "MODE_SEMI_AUTO",
     "MODE_TITLES",
     "NOTIFICATION_DESTINATION_TITLES",
+    "ONBOARDING_STATUS_TITLES",
     "OPTIONAL_TOPICS",
     "PEER_STATUS_TITLES",
     "PRESET_ADVANCED",
@@ -270,6 +282,7 @@ __all__ = [
     "STATUS_TITLES",
     "TERMINAL_CANDIDATE_STATUSES",
     "TERMINAL_INVITE_STATUSES",
+    "TERMINAL_ONBOARDING_STATUSES",
     "UPDATE_APPLYING",
     "UPDATE_AVAILABLE",
     "UPDATE_CHECKING",
@@ -353,6 +366,9 @@ __all__ = [
     "NotificationPriority",
     "NotificationRecord",
     "NotificationStatus",
+    "OnboardingBatch",
+    "OnboardingCandidate",
+    "OnboardingStatus",
     "OwnerAuthMethod",
     "OwnerIdentity",
     "PairingCode",

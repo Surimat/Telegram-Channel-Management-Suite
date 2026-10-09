@@ -8,6 +8,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/analytics', name: 'analytics', component: () => import('@/views/AnalyticsView.vue') },
   { path: '/bots', name: 'bots', component: () => import('@/views/BotsView.vue') },
   { path: '/bot-factory', name: 'bot-factory', component: () => import('@/views/BotFactoryView.vue') },
+  { path: '/bot-onboarding', name: 'bot-onboarding', component: () => import('@/views/BotOnboardingView.vue') },
   { path: '/channels', name: 'channels', component: () => import('@/views/ChannelsView.vue') },
   { path: '/sessions', name: 'sessions', component: () => import('@/views/SessionsView.vue') },
   { path: '/sources', name: 'sources', component: () => import('@/views/SourcesView.vue') },
