@@ -959,12 +959,24 @@ regional blocks, and never touches someone else's cookies or sessions.
 | POST | `/api/v1/ai-gateway/chat` | run a request through the router with failover |
 | GET | `/api/v1/ai-gateway/wrappers` | the web-wrapper library (definitions) |
 | GET | `/api/v1/ai-gateway/browser` | browser-runtime availability (honest; never claims unprobed) |
+| GET | `/api/v1/ai-gateway/browser/preflight` | inspect the browser environment (no launch) and list prep steps |
+| POST | `/api/v1/ai-gateway/browser/prepare` | probe the real browser once and report honest progress (never fails) |
+| GET | `/api/v1/ai-gateway/models` | per-model capability matrix (operations, auth, `verified` flags) |
+| GET | `/api/v1/ai-gateway/operations` | which **configured** providers can serve each operation right now |
+| POST | `/api/v1/ai-gateway/provision` | add the free-first providers once (no key, no browser, no CLI) |
 | GET | `/api/v1/ai-gateway/use-cases` | capability/use-case matrix per modality |
 | GET | `/api/v1/ai-gateway/requests` | bounded observability ring (metadata only — no prompt text) |
 
 **Provider kinds:** `openai_compatible`, `openrouter`, `google`, `anthropic`,
-`deepseek`, `ollama` (local), `web` (browser wrapper). **Strategies:** `auto`,
-`free_first`, `cheapest`, `fastest`, `best_quality`, `manual`.
+`deepseek`, `ollama` (local), `pollinations` (free, keyless text), `web` (browser
+wrapper). **Strategies:** `auto`, `free_first`, `cheapest`, `fastest`,
+`best_quality`, `manual`.
+
+**Free-first provisioning.** `POST /provision` seeds the free-first providers
+that work **without a key and without a browser** (today: `pollinations`, a
+keyless OpenAI-compatible text endpoint). It is idempotent and never overwrites an
+owner-configured provider, so a fresh install has a working text path out of the
+box while keys and browser wrappers stay optional.
 
 The router orders eligible providers (capability match, then strategy, then
 priority), retries transient failures with bounded backoff, trips a per-provider

@@ -44,10 +44,37 @@ Version string is **1.9.0** across `backend/app/__init__.py`,
   (revises `b2c3d4e5f6a7`); every new column carries a server default, so an
   existing v1.8 database upgrades in place.
 
-### No active task
+### Active task — v2.0 cycle (owner-approved priorities, unreleased)
 
-**v1.9.0 is RELEASED and verified — there is no pending task.** Do **not** add new
-large features. The quality gate was run and passed before the release:
+Work sequentially in separately verifiable stages (**Этапы**); do **not** invent
+new directions and do **not** revisit implemented work. Priorities live in
+`docs/ROADMAP.md` (§ "v2.0 cycle"):
+
+1. **Web Wrappers + free multimodal AI providers — MAIN.**
+   - **Stage 1 — free-first providers + honest capabilities: implemented on
+     `develop`, unreleased.** `PollinationsProvider` (keyless free text), the
+     model-capability catalog (`ai/gateway/catalog.py`), idempotent provisioning
+     (`ai/gateway/provisioning.py`, `POST /provision`) and the browser preflight
+     (`ai/gateway/preflight.py`). Honesty fix: `ProviderInfo.info` requires a key
+     only for an `api_key` provider with no key. Session expiry is failover, not a
+     bypass. UI: `AiGatewayView.vue` model/operation matrix + provisioning +
+     preflight. Tests: `tests/test_v2_ai_providers.py`.
+   - **Stage 2 — verified free multimodal (vision) providers: planned**, only when
+     a real, keyless, non-bypass endpoint is confirmed. Never bypass a challenge
+     (e.g. Duck.ai) or bundle an unverified third-party key.
+2. **Mass connection of created bots to channels.** Planned (not started).
+3. **Complete Content Operations with target-language translation.** Implemented
+   on `develop` (`backend/app/services/content_language.py`, migration
+   `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`,
+   `tests/test_target_language.py`), unreleased.
+
+No release is cut from this cycle until the owner asks (D-060). When the owner
+asks: branch from `develop`, then a reviewed `develop → main` PR + tag.
+
+### Завершённая задача — v1.9.0 RELEASED
+
+**v1.9.0 is RELEASED and verified.** The quality gate was run and passed before
+the release:
 
 ```bash
 python -m pytest                                  # 946 passed, 8 skipped
@@ -56,10 +83,9 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # clean
 PYTHONPATH=. python tests/meta_audit/engine.py    # 30/30, 0 false positives
 ```
 
-The only commit on `develop` after the release is **documentation/memory-only**
-(`bbe59ac` release facts), so `develop` is one commit ahead of `main` with **no
-code change**. For the next release (only when the owner asks):
-branch from `develop`, then a reviewed `develop → main` PR + tag.
+The commits on `develop` after the v1.9.0 release are the memory-sync commit, the
+release-hygiene guards and the unreleased v2.0 stages, so `develop` is ahead of
+`main` with **no change to the shipped release**.
 
 **Prior release:** **v1.8.1 (AI Gateway verification patch, D-114) is RELEASED**
 via a reviewed `develop → main` PR #20 (merge `bc8382b`), tag `v1.8.1`; the

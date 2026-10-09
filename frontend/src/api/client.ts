@@ -2211,6 +2211,49 @@ export interface GatewayBrowserStatus {
   docker_note: string
 }
 
+export interface GatewayModelCapability {
+  provider: string
+  model: string
+  kind: string
+  source: string
+  operations: string[]
+  auth: string
+  availability: string
+  cost: string
+  verified: boolean
+  verified_operations: string[]
+  note: string
+  params: Record<string, unknown>
+}
+
+export interface GatewayOperationAvailability {
+  operation: string
+  title: string
+  providers: string[]
+  available: boolean
+}
+
+export interface GatewayPrepStep {
+  id: string
+  title: string
+  status: string
+  detail: string
+}
+
+export interface GatewayBrowserPreflight {
+  available: boolean
+  runtime: string
+  steps: GatewayPrepStep[]
+  install_hint: string
+  api_works_without_browser: boolean
+  detail: string
+}
+
+export interface GatewayProvisionResult {
+  providers: string[]
+  message: string
+}
+
 export interface GatewayUseCase {
   group: string
   id: string
@@ -3351,6 +3394,20 @@ export const api = {
     request<{ items: GatewayWrapper[] }>('/api/v1/ai-gateway/wrappers'),
   gatewayBrowser: () =>
     request<GatewayBrowserStatus>('/api/v1/ai-gateway/browser'),
+  gatewayBrowserPreflight: () =>
+    request<GatewayBrowserPreflight>('/api/v1/ai-gateway/browser/preflight'),
+  gatewayBrowserPrepare: () =>
+    request<GatewayBrowserPreflight>('/api/v1/ai-gateway/browser/prepare', {
+      method: 'POST',
+    }),
+  gatewayModels: () =>
+    request<{ items: GatewayModelCapability[]; operations: Record<string, string> }>(
+      '/api/v1/ai-gateway/models',
+    ),
+  gatewayOperations: () =>
+    request<{ items: GatewayOperationAvailability[] }>('/api/v1/ai-gateway/operations'),
+  gatewayProvision: () =>
+    request<GatewayProvisionResult>('/api/v1/ai-gateway/provision', { method: 'POST' }),
   gatewayUseCases: () =>
     request<{ items: GatewayUseCase[] }>('/api/v1/ai-gateway/use-cases'),
   gatewayRequests: (limit = 50) =>

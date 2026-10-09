@@ -242,6 +242,46 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ---
 
+## v2.0 cycle — owner-approved priorities (in progress)
+
+Owner-approved priorities, worked sequentially in separately verifiable stages
+(**Этапы**). Do not invent new directions and do not revisit implemented work.
+No release is cut from this section until the owner asks.
+
+1. **Web Wrappers and free multimodal AI providers — MAIN priority.**
+   - **Stage 1 — free-first providers and honest capabilities (implemented,
+     unreleased; awaiting owner-requested release).** Free-first providers and honest capability
+     reporting for the AI Gateway:
+     - Keyless free text provider **`pollinations`** (`PollinationsProvider`,
+       OpenAI-compatible `POST /openai/chat/completions`); it is **text only**
+       (no vision — a real request returns `400 "model does not support image
+       input"`).
+     - Model-capability **catalog** (`ai/gateway/catalog.py`), **provisioning**
+       (`ai/gateway/provisioning.py`, idempotent, never overwrites an
+       owner-configured provider) and browser **preflight**
+       (`ai/gateway/preflight.py`, honest per-step progress, never fails).
+     - New endpoints: `GET /models`, `GET /operations`, `GET /browser/preflight`,
+       `POST /browser/prepare`, `POST /provision`.
+     - Honesty fix: `ProviderInfo.info` sets `auth_required` from the actual auth
+       mode, so a keyless or browser-session provider never claims it needs a key.
+     - Session expiry is **failover**, not a hard stop: a wrapper that meets a
+       login wall returns `AUTH_REQUIRED` and the router moves to the next
+       eligible provider (`fallback_used`). The browser layer still never bypasses
+       login, CAPTCHA or MFA.
+     - UI: `AiGatewayView.vue` gains the model/operation matrix, a free-first
+       provisioning button and a browser-preflight panel.
+     - Tests: `tests/test_v2_ai_providers.py`.
+     - **Deliberately not done:** bypassing an anti-bot JS challenge (e.g.
+       Duck.ai) or unverified third-party keys — those stay browser-session-only
+       or unavailable, reported honestly.
+   - **Stage 2 — verified free *multimodal* (vision) providers.** Planned: only
+     when a real, keyless, non-bypass endpoint is confirmed.
+2. **Mass connection of created bots to channels.** Planned (not started).
+3. **Complete Content Operations with target-language translation.** Implemented
+   (unreleased) — see the Target Language section below.
+
+---
+
 ## Release
 
 - **v1.9.0 (2026-10-08):** **Content Operations 2.0** (D-116) — the existing

@@ -1073,6 +1073,62 @@ additive).
   portable ZIP + `.sha256` (24.7 MB, checksum verified, artifact secret scan
   clean ‚Äî D-060).
 
+## 2j. v2.0 cycle — owner-approved priorities (on develop, unreleased)
+
+The owner approved a v2.0 cycle worked sequentially in separately verifiable
+stages (Этапы). Priorities, in order: (1) **Web Wrappers + free multimodal AI
+providers** — MAIN; (2) mass connection of created bots to channels; (3) Complete
+Content Operations with target-language translation. No release is cut from this
+cycle until the owner asks.
+
+### Priority 1 — free-first providers + honest capabilities
+Committed on `develop` (`feat(ai-gateway)` stage; `backend/app/ai/gateway/`):
+
+- **`PollinationsProvider`** (`providers/__init__.py`) — a keyless, anonymous
+  OpenAI-compatible text endpoint (`POST /openai/chat/completions`,
+  `https://text.pollinations.ai/openai`). Text only: an image/file request is
+  refused honestly (`CALL_BAD_REQUEST`) so the router fails over to a
+  vision-capable provider.
+- **Honesty fix** — `ProviderInfo.info` now derives `auth_required` from the auth
+  mode (`auth_mode == AUTH_API_KEY and not api_key`), so a keyless or
+  browser-session provider never claims it needs a key.
+- **`catalog.py`** — per-model capability matrix (operations, auth, cost,
+  `verified`/`verified_operations`); backs `GET /models`.
+- **`provisioning.py`** — `FREE_PROVIDER_DEFAULTS`; `POST /provision` seeds the
+  free-first provider once, idempotently, never re-enabling a disabled row.
+- **`preflight.py`** — `preflight()`/`probe()` browser environment inspection;
+  honest per-step progress, never fails. `GET /browser/preflight`,
+  `POST /browser/prepare`.
+- **`GET /operations`** — per operation, the **configured** providers that can
+  serve it now.
+- **Web wrappers** — added disabled, honest definitions for Microsoft Copilot and
+  Duck.ai (the latter never bypasses the anti-bot challenge).
+- **UI** — `AiGatewayView.vue` model/operation matrix, a free-first provisioning
+  button and a browser-preflight panel; typed client methods in `api/client.ts`.
+- **Tests** — `tests/test_v2_ai_providers.py` (keyless honesty, text-only vs
+  vision routing, session-expiry failover, provisioning, preflight).
+
+### Priority 3 — Target Language stage
+Committed on `develop` (`feat(content): Target Language stage (v2.0 Part 1)`):
+
+- **`services/content_language.py`** — a language stage: a **source language**
+  (auto-detected or set per source) and a **target language** resolved by
+  precedence (publication → channel → source → global default); translation runs
+  only when the languages actually differ.
+- **Protected translation** — URLs, `@username`, `t.me` links, hashtags, inline
+  code, HTML tags and Telegram-entity spans are masked with private-use
+  placeholders before the text is sent to the AI and restored verbatim after, so
+  the model never rewrites a link or identifier. Uses the **existing** AI Gateway
+  (retries/failover unchanged); a total failure never loses material.
+- **Migration** `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`; API
+  `GET /api/v1/content/languages`, `POST /api/v1/content/items/{id}/language`,
+  `POST /api/v1/content/items/{id}/translate`; per-source/channel/item/publication
+  language columns; `ChannelsView.vue` / `ContentStudioView.vue` UI.
+- **Tests** — `tests/test_target_language.py`.
+
+### Priority 2 — mass bot→channel connection
+Not started (planned).
+
 ## 5. Next action
 
 **v1.3.0 Bot Factory + LAN Mesh is released** (PR #9 `develop ‚Üí main`, merge

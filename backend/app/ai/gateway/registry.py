@@ -25,6 +25,7 @@ from backend.app.ai.gateway.providers import (
     OllamaProvider,
     OpenAICompatibleProvider,
     OpenRouterProvider,
+    PollinationsProvider,
 )
 from backend.app.ai.gateway.types import Capability, SourceKind
 from backend.app.ai.gateway.wrappers.definition import get_definition
@@ -40,6 +41,7 @@ KIND_GOOGLE = "google"
 KIND_ANTHROPIC = "anthropic"
 KIND_DEEPSEEK = "deepseek"
 KIND_OLLAMA = "ollama"
+KIND_POLLINATIONS = "pollinations"
 KIND_WEB = "web"
 
 API_KINDS = (
@@ -49,6 +51,7 @@ API_KINDS = (
     KIND_ANTHROPIC,
     KIND_DEEPSEEK,
     KIND_OLLAMA,
+    KIND_POLLINATIONS,
 )
 WEB_KINDS = (KIND_WEB,)
 ALL_KINDS = API_KINDS + WEB_KINDS
@@ -61,6 +64,7 @@ KIND_LABELS: dict[str, str] = {
     KIND_ANTHROPIC: "Anthropic (Claude)",
     KIND_DEEPSEEK: "DeepSeek",
     KIND_OLLAMA: "Локально (Ollama)",
+    KIND_POLLINATIONS: "Бесплатный без ключа (Pollinations)",
     KIND_WEB: "Web UI обёртка",
 }
 
@@ -131,6 +135,14 @@ def build_provider(
             transport=http,
             api_key=config.api_key,
             priority=config.priority,
+        )
+    if kind == KIND_POLLINATIONS:
+        return PollinationsProvider(
+            model=config.model or "openai-fast",
+            base_url=config.base_url or "https://text.pollinations.ai/openai",
+            transport=http,
+            cost=config.cost or "free",
+            priority=config.priority or 90,
         )
     if kind == KIND_WEB:
         definition = get_definition(config.wrapper_id or "generic")
@@ -212,6 +224,7 @@ __all__ = [
     "KIND_OLLAMA",
     "KIND_OPENAI",
     "KIND_OPENROUTER",
+    "KIND_POLLINATIONS",
     "KIND_WEB",
     "WEB_KINDS",
     "ProviderConfig",

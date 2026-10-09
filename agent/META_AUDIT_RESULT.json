@@ -1,7 +1,7 @@
 {
   "version": "1.9.0",
-  "baseline_sha": "864f1fcd8dd9bede259222cbd8ca2bfc9c7ad198",
-  "generated_at": "2026-10-08T22:59:36.212037+00:00",
+  "baseline_sha": "4fa0b036d115ab70c27f80582568289ff70b6d95",
+  "generated_at": "2026-10-09T07:03:26.176417+00:00",
   "result_source": "computed from runtime mutation executions",
   "total": 30,
   "detected": 30,
@@ -2739,7 +2739,7 @@
           "category": "capabilities"
         },
         {
-          "id": "ux.hardcoded_string.views/AiGatewayView.vue:575",
+          "id": "ux.hardcoded_string.views/AiGatewayView.vue:731",
           "severity": "warning",
           "category": "ux"
         },

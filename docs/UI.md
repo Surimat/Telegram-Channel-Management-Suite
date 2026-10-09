@@ -600,14 +600,23 @@ One RU-first page that configures and observes the AI Gateway. Sidebar entry
   cost, priority, wrapper) and a table of configured providers. The key is
   write-only: the table shows only `задан`/`—`. Each row has enable/disable and
   delete; the status badge is honest (`Готов` / `Не проверен` / `Недоступен` /
-  `Нужен вход` / …) and never claims availability without a probe.
+  `Нужен вход` / …) and never claims availability without a probe. A
+  **Матрица моделей и операций** card below shows, per model, the operations it
+  can serve, how it authenticates (`Без ключа` / `Ключ API` / `Браузерная
+  сессия`), and whether the operation is `Проверено` (really exercised) or
+  `Заявлено` (declared only), plus the per-operation list of **configured**
+  providers that can serve it. The summary card has a **Добавить бесплатные
+  провайдеры** button (idempotent; never overwrites an owner-configured provider).
 - **Маршрутизация** — enable the gateway, pick a strategy (Автоматически / Сначала
   бесплатные / Самые дешёвые / Самые быстрые / Лучшее качество / Только вручную),
   allow paid providers, allow web wrappers; shows timeout, retries and history
   limit.
 - **Web-обёртки** — the wrapper library, the browser engine and its Docker note,
-  and an explicit statement that a wrapper uses your own browser session and does
-  not bypass login, CAPTCHA or MFA.
+  a **Подготовить браузер** button that runs the preflight and lists its steps
+  (with an honest `pip install playwright && playwright install chromium` hint and
+  the note that plain API providers work without a browser), and an explicit
+  statement that a wrapper uses your own browser session and does not bypass
+  login, CAPTCHA or MFA.
 - **Проверка** — send a test request (optionally pinning a provider or strategy),
   see success/failure, the provider used, latency, fallback and the attempt list;
   plus the capability/use-case matrix per modality. The matrix is honest: a

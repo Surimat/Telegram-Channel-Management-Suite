@@ -135,7 +135,13 @@ class _BaseApiProvider:
 
     @property
     def info(self) -> ProviderInfo:
-        return replace(self._info, auth_required=not bool(self._api_key))
+        # Auth is required only for an api-key provider that has no key. A
+        # keyless provider (Ollama, Pollinations) or a browser-session provider
+        # must never report itself as requiring a key.
+        return replace(
+            self._info,
+            auth_required=self.auth_mode == AUTH_API_KEY and not self._api_key,
+        )
 
     def availability(self) -> Availability:
         if self.auth_mode == AUTH_API_KEY and not self._api_key:
@@ -333,6 +339,62 @@ class DeepSeekProvider(OpenAICompatibleProvider):
             cost=cost,
             priority=priority,
         )
+
+
+class PollinationsProvider(OpenAICompatibleProvider):
+    """Keyless free text endpoint (Pollinations, v2.0).
+
+    No API key and no account: it is the "works out of the box" free-first
+    provider. It is **text only** — a request carrying an image/file is refused
+    honestly (the upstream model does not support image input), so the router
+    falls over to a vision-capable provider instead of pretending.
+    """
+
+    def __init__(
+        self,
+        *,
+        model: str = "openai-fast",
+        transport: HttpTransport,
+        base_url: str = "https://text.pollinations.ai/openai",
+        cost: str = "free",
+        priority: int = 90,
+    ) -> None:
+        super().__init__(
+            provider="pollinations",
+            model=model,
+            base_url=base_url,
+            api_key="",
+            transport=transport,
+            capabilities=Capability(text=True, structured=True),
+            cost=cost,
+            priority=priority,
+            note=(
+                "Бесплатный доступ без ключа. Только текст — без изображений и "
+                "файлов. Доступность сервиса может меняться."
+            ),
+        )
+        # A keyless provider must never require auth.
+        self.auth_mode = AUTH_NONE
+        self._info = replace(
+            self._info, auth_mode=AUTH_NONE, auth_required=False, cost="free"
+        )
+
+    async def chat(self, request: ChatRequest) -> ChatResponse:
+        if request.modality() != "text":
+            return ChatResponse(
+                ok=False,
+                provider_used=self._name,
+                model_used=self._model,
+                source=self.source,
+                error=(
+                    "Бесплатный текстовый провайдер не принимает изображения или "
+                    "файлы. Выбран другой совместимый провайдер."
+                ),
+                error_category=CALL_BAD_REQUEST,
+                request_id=request.correlation_id,
+                status=STATUS_UNAVAILABLE,
+            )
+        return await super().chat(request)
 
 
 class AnthropicProvider(_BaseApiProvider):
@@ -626,4 +688,5 @@ __all__ = [
     "OllamaProvider",
     "OpenAICompatibleProvider",
     "OpenRouterProvider",
+    "PollinationsProvider",
 ]

@@ -988,8 +988,19 @@ the owner is already logged into into an API-shaped provider.
   ordering, retry, failover, `describe()` dry-run), `registry.py`
   (`ProviderConfig` → `AIProvider`).
 - **Providers** (`ai/gateway/providers/`): OpenAI-compatible, OpenRouter, Google,
-  Anthropic, DeepSeek, Ollama and the `web` wrapper provider. Adding a kind is one
-  branch in the registry — the single extension point.
+  Anthropic, DeepSeek, Ollama, `pollinations` (keyless free text) and the `web`
+  wrapper provider. Adding a kind is one branch in the registry — the single
+  extension point.
+- **Catalog** (`ai/gateway/catalog.py`): the model-capability catalog — per model,
+  its operations, auth mode, cost and whether each operation is **verified**
+  (really exercised) or merely declared. It backs the model matrix the UI shows,
+  so a capability is never advertised without an entry.
+- **Provisioning** (`ai/gateway/provisioning.py`): first-run provisioning of the
+  free-first providers (`free_default_providers()`); idempotent and it never
+  overwrites an owner-configured provider.
+- **Preflight** (`ai/gateway/preflight.py`): a browser environment probe with
+  honest per-step progress (`BrowserPreflight`); never fails, and reports the
+  install hint plus the fact that plain API providers work without a browser.
 - **Wrappers** (`ai/gateway/wrappers/`): `definition.py` (all site-specific
   detail: URL, selectors, extraction, login markers, version, cost),
   `engine.py` (`WebWrapperEngine` + `GenericWebWrapperProvider`). The engine
@@ -1087,6 +1098,40 @@ records through `BrowserRuntime.extract(selector, attrs=...)` and both runtimes
 implement it. A structured extraction with no matching node reports
 `wrapper_selector` rather than inventing data; a *text* extraction with no match
 honestly falls back to the page text.
+
+### 25.7 Free-first providers and honest capabilities (v2 cycle)
+
+The v2 cycle makes the gateway usable **out of the box** without an account, key
+or browser, and makes every capability claim checkable:
+
+- **Keyless free text — `pollinations`.** A real, anonymous OpenAI-compatible
+  endpoint (`POST /openai/chat/completions`) is wired as `PollinationsProvider`
+  (a thin `OpenAICompatibleProvider` subclass). It advertises **text only** —
+  Pollinations does **not** support image/vision input (a real request returns a
+  `400 "model does not support image input"`), so the provider must never be
+  offered for an image or structured case.
+- **Keyless is honest.** The `ProviderInfo.info` property now sets
+  `auth_required` from the actual auth mode: only an `api_key` provider with no
+  key reports `auth_required=True`. A keyless or browser-session provider never
+  claims it needs a key.
+- **Model-capability catalog** (`catalog.py`) backs `GET /models`; each entry
+  carries its operations, auth mode, cost and a `verified` flag (with
+  `verified_operations`), so the UI distinguishes `Проверено` from `Заявлено`.
+- **Operation availability** (`GET /operations`) lists, per operation, the
+  **configured** providers that can serve it right now — an empty list is shown
+  plainly rather than hiding the gap.
+- **Browser preflight** (`preflight.py` + `GET /browser/preflight` and
+  `POST /browser/prepare`) probes the environment and reports honest per-step
+  progress; it never fails and states that API providers work without a browser.
+- **Session expiry is failover, not a hard stop.** A web wrapper that meets a
+  login wall returns `AUTH_REQUIRED`; the router then **fails over** to the next
+  eligible provider (e.g. a keyless API), and the response reports
+  `fallback_used`. The browser layer still never bypasses login, CAPTCHA or MFA —
+  it only declines and moves on to a provider the owner has configured.
+
+Deliberately **not** added: any mechanism that bypasses an anti-bot JS challenge
+(e.g. Duck.ai) or requires unverified third-party keys — those stay
+browser-session-only or unavailable, reported honestly.
 
 ---
 

@@ -195,13 +195,71 @@ class RequestHistoryOut(BaseModel):
     items: list[RequestRecordOut]
 
 
+class VersionedProviderDefaultsOut(BaseModel):
+    providers: list[str] = Field(default_factory=list)
+    message: str = ""
+
+
+class ModelCapabilityOut(BaseModel):
+    provider: str
+    model: str
+    kind: str
+    source: str = "api"
+    operations: list[str] = Field(default_factory=list)
+    auth: str = "api_key"
+    availability: str = "unknown"
+    cost: str = "standard"
+    verified: bool = False
+    verified_operations: list[str] = Field(default_factory=list)
+    note: str = ""
+    params: dict[str, object] = Field(default_factory=dict)
+
+
+class ModelMatrixOut(BaseModel):
+    items: list[ModelCapabilityOut]
+    operations: dict[str, str] = Field(default_factory=dict)
+
+
+class OperationAvailabilityOut(BaseModel):
+    operation: str
+    title: str
+    providers: list[str] = Field(default_factory=list)
+    available: bool = False
+
+
+class OperationAvailabilityListOut(BaseModel):
+    items: list[OperationAvailabilityOut]
+
+
+class PrepStepOut(BaseModel):
+    id: str
+    title: str
+    status: str = "unknown"
+    detail: str = ""
+
+
+class BrowserPreflightOut(BaseModel):
+    available: bool = False
+    runtime: str = "playwright"
+    steps: list[PrepStepOut] = Field(default_factory=list)
+    install_hint: str = ""
+    api_works_without_browser: bool = True
+    detail: str = ""
+
+
 __all__ = [
     "AttemptOut",
+    "BrowserPreflightOut",
     "BrowserStatusOut",
     "CapabilityOut",
     "ChatIn",
     "ChatOut",
     "GatewayStatusOut",
+    "ModelCapabilityOut",
+    "ModelMatrixOut",
+    "OperationAvailabilityListOut",
+    "OperationAvailabilityOut",
+    "PrepStepOut",
     "ProviderIn",
     "ProviderListOut",
     "ProviderOut",
@@ -212,6 +270,7 @@ __all__ = [
     "ToggleIn",
     "UseCaseMatrixOut",
     "UseCaseOut",
+    "VersionedProviderDefaultsOut",
     "WrapperLibraryOut",
     "WrapperOut",
 ]

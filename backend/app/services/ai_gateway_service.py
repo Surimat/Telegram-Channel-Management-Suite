@@ -24,9 +24,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.ai.gateway import registry as reg
 from backend.app.ai.gateway.browser import BrowserRuntime, PlaywrightBrowserRuntime
+from backend.app.ai.gateway.catalog import matrix as catalog_matrix
+from backend.app.ai.gateway.catalog import operation_titles
 from backend.app.ai.gateway.errors import GatewayError
 from backend.app.ai.gateway.http import HttpTransport, HttpxTransport
+from backend.app.ai.gateway.preflight import BrowserPreflight
+from backend.app.ai.gateway.preflight import preflight as browser_preflight
+from backend.app.ai.gateway.preflight import probe as browser_probe
 from backend.app.ai.gateway.provider import AIProvider
+from backend.app.ai.gateway.provisioning import FREE_PROVIDER_DEFAULTS
 from backend.app.ai.gateway.reliability import (
     HealthStore,
     new_correlation_id,
@@ -547,6 +553,100 @@ class AiGatewayService:
             ]
             out.append({**uc, "providers": capable, "available": bool(capable)})
         return out
+
+    # ==================================================================
+    # First-run provisioning (v2.0 "out of the box")
+    # ==================================================================
+    async def provision_free_providers(self) -> list[str]:
+        """Configure the free-first providers once, without overwriting the owner.
+
+        Idempotent: a provider the owner already has (enabled or not) is left
+        untouched, so a disabled row is never silently re-enabled. Returns the
+        names actually created.
+        """
+        created: list[str] = []
+        for default in FREE_PROVIDER_DEFAULTS:
+            existing = await self.providers_repo.find(default.provider)
+            if existing is not None:
+                continue
+            caps = default.capabilities
+            row = AiProviderRow(provider=default.provider)
+            self.session.add(row)
+            row.kind = default.kind
+            row.model = default.model
+            row.base_url = default.base_url
+            # Free providers need no key and no browser session.
+            row.auth_mode = "no_auth"
+            row.enabled = default.enabled
+            row.priority = default.priority
+            row.cost = default.cost
+            row.wrapper_id = ""
+            row.note = default.note
+            row.region_status = ""
+            row.cap_text = caps.text
+            row.cap_image = caps.image
+            row.cap_file = caps.file
+            row.cap_streaming = caps.streaming
+            row.cap_structured = caps.structured
+            row.cap_verified = False
+            created.append(default.provider)
+        if created:
+            await self.session.flush()
+            self._provider_cache = None
+        return created
+
+    # ==================================================================
+    # Model-level capability matrix (v2.0)
+    # ==================================================================
+    def model_matrix(self) -> list[dict[str, object]]:
+        """Per-model capabilities/operations (declared vs verified)."""
+        return catalog_matrix()
+
+    def operation_titles(self) -> dict[str, str]:
+        return operation_titles()
+
+    async def operation_availability(self) -> list[dict[str, object]]:
+        """For each operation, which *configured* providers can serve it now.
+
+        This merges the static catalog (what a model *declares*) with the live
+        configured/available providers (what the owner actually has), so the UI
+        can say honestly "vision: none configured" instead of "vision: yes".
+        """
+        providers = await self.build_providers()
+        out: list[dict[str, object]] = []
+        for op, required in (
+            ("text", Capability(text=True)),
+            ("image_understanding", Capability(text=True, image=True)),
+            ("file", Capability(text=True, file=True)),
+            ("structured", Capability(text=True, structured=True)),
+        ):
+            capable = [
+                p.name for p in providers if p.info.capabilities.at_least(required)
+            ]
+            out.append(
+                {
+                    "operation": op,
+                    "title": operation_titles().get(op, op),
+                    "providers": capable,
+                    "available": bool(capable),
+                }
+            )
+        return out
+
+    # ==================================================================
+    # Browser preflight / preparation (v2.0)
+    # ==================================================================
+    def browser_preflight(self) -> BrowserPreflight:
+        """Inspect the browser environment without launching it."""
+        return browser_preflight()
+
+    async def browser_prepare(self) -> BrowserPreflight:
+        """Run the real browser launch probe; report progress honestly.
+
+        Never raises: a machine without a browser simply reports the missing
+        steps, and API providers keep working.
+        """
+        return await browser_probe()
 
     # ==================================================================
     # Observability

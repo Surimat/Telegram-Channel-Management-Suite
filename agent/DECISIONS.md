@@ -2518,3 +2518,71 @@ fails these decisions.
 
 **Release.** Shipped as **v1.9.0** via a reviewed `develop -> main` PR (D-060),
 tag `v1.9.0`; the Release workflow attaches the Windows portable ZIP + `.sha256`.
+
+---
+
+## D-117 — 2026-10-09 — Free-first AI providers are keyless and honest; a wrapper never bypasses a challenge — LOCKED
+
+**Context.** The v2.0 cycle's main priority is usable Web Wrappers and free
+multimodal AI providers. A fresh install must be able to make an AI call without
+an account, a key or a browser, and every capability claim must be checkable.
+
+**Decision.**
+1. **Free-first provisioning is keyless and idempotent.** `POST /provision`
+   seeds the free-first provider(s) that need **no key and no browser** (today:
+   `pollinations`, a keyless OpenAI-compatible text endpoint). It never
+   overwrites or re-enables a provider the owner already configured; a disabled
+   row stays disabled.
+2. **A provider never claims a key it does not need.** `ProviderInfo.info`
+   derives `auth_required` from the actual auth mode: only an `api_key` provider
+   with no key reports `auth_required=True`. Keyless (`Ollama`, `Pollinations`)
+   and browser-session providers report no-auth.
+3. **Capabilities are declared *and* verified.** `ai/gateway/catalog.py` carries,
+   per model, its operations, auth mode, cost and a `verified` flag (with
+   `verified_operations`). The UI shows `Проверено` vs `Заявлено`; a text-only
+   provider is never offered for an image or structured operation.
+4. **Session expiry is failover, not a bypass.** A web wrapper that meets a login
+   wall returns `AUTH_REQUIRED`; the router **fails over** to the next eligible
+   provider and reports `fallback_used`. The browser layer never solves or
+   bypasses a CAPTCHA, MFA, anti-bot JS challenge (e.g. Duck.ai) or regional
+   block, and no unverified third-party key is bundled.
+5. **Browser preparation is honest.** `ai/gateway/preflight.py` inspects the
+   environment and reports per-step progress; it never fails, and it states that
+   plain API providers (including the free keyless one) work without a browser.
+
+**Consequences.** `tests/test_v2_ai_providers.py` locks keyless honesty, text-only
+vs vision routing, session-expiry failover, provisioning and preflight. A future
+change that forces `auth_required` on a keyless provider, offers a text-only
+provider for an image, re-enables a disabled provisioned row, or bypasses a
+challenge fails these decisions. No release is cut from the v2.0 cycle until the
+owner asks (D-060 process).
+
+---
+
+## D-118 — 2026-10-09 — Target-language translation is protected and additive — LOCKED
+
+**Context.** The v2.0 cycle's third priority is completing Content Operations with
+target-language support.
+
+**Decision.**
+1. **Explicit language stage.** Content gains a **source language** (auto-detected
+   or set per source) and a **target language** resolved by precedence
+   (publication → channel → source → global default). Translation runs only when
+   the languages actually differ.
+2. **Protected translation.** URLs, `@username`, `t.me` links, hashtags, inline
+   code, HTML tags and Telegram-entity spans are masked with private-use
+   placeholders before the text is sent to the AI and restored verbatim after, so
+   the model never rewrites a link, identifier or markup.
+3. **Reuse the existing gateway.** Translation goes through the **existing** AI
+   Gateway, so provider selection, retries and failover are exactly the v1.8
+   behaviour; a total failure never loses material (the caller keeps the
+   original).
+4. **Additive only.** New columns carry server defaults; migration
+   `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py` upgrades an existing v1.9
+   database in place. No new account registration and no Telegram-limit bypass.
+
+**Consequences.** `tests/test_target_language.py` locks detection, precedence,
+masking/restoration and translation. A future change that rewrites links, loses
+material on AI failure, or makes the language stage non-additive fails these
+decisions.
+

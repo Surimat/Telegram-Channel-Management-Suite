@@ -149,6 +149,54 @@ _GEMINI_DEFINITION = WrapperDefinition(
     ),
 )
 
+_COPILOT_DEFINITION = WrapperDefinition(
+    id="copilot",
+    name="Microsoft Copilot (web UI)",
+    website="https://copilot.microsoft.com/",
+    capabilities=Capability(text=True, image=True, verified=False),
+    auth_mode=AUTH_BROWSER_SESSION,
+    input_selector="textarea, [contenteditable='true']",
+    send_selector="button[title*='Submit'], button[aria-label*='Submit']",
+    response_selector="[data-content='ai-message'], .ai-message, [class*='message']",
+    response_take_last=True,
+    attach_selector="input[type='file']",
+    login_markers=("sign in", "войти", "sign up"),
+    version="1",
+    enabled=False,
+    fallback_priority=70,
+    cost="free",
+    note=(
+        "Резервный бесплатный путь через вашу браузерную сессию Microsoft "
+        "Copilot. Требуется вход владельца; ничего не обходится автоматически."
+    ),
+)
+
+#: Duck.ai (DuckDuckGo Chat). Keyless, but the backend answers with an
+#: anti-bot JS challenge for automated clients — the wrapper drives a real
+#: logged-in browser and NEVER solves or bypasses that challenge. When the
+#: challenge appears the engine reports ``auth_required``/``selector`` honestly.
+_DUCKAI_DEFINITION = WrapperDefinition(
+    id="duckai",
+    name="Duck.ai (DuckDuckGo Chat)",
+    website="https://duck.ai/",
+    capabilities=Capability(text=True, verified=False),
+    auth_mode=AUTH_BROWSER_SESSION,
+    input_selector="textarea, [contenteditable='true']",
+    send_selector="button[type='submit'], button[aria-label*='Send']",
+    response_selector="[data-testid='chat-message'], .chat-message, article",
+    response_take_last=True,
+    login_markers=("enable javascript", "unusual traffic", "captcha"),
+    version="1",
+    enabled=False,
+    fallback_priority=75,
+    cost="free",
+    note=(
+        "Бесплатно и без ключа, но бэкенд защищён анти-бот проверкой. Обёртка "
+        "работает только через вашу браузерную сессию и НЕ обходит проверку; "
+        "при её появлении честно сообщает о требовании входа."
+    ),
+)
+
 #: Shipped definitions (all disabled by default; enabling requires the owner and
 #: the browser runtime). They are honest templates, not working integrations
 #: until a probe verifies them on the live site.
@@ -156,6 +204,8 @@ LIBRARY: tuple[WrapperDefinition, ...] = (
     GENERIC_DEFINITION,
     _CHATGPT_DEFINITION,
     _GEMINI_DEFINITION,
+    _COPILOT_DEFINITION,
+    _DUCKAI_DEFINITION,
 )
 
 

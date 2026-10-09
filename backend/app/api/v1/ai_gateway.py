@@ -20,10 +20,13 @@ from backend.app.api.deps import get_ai_gateway_service
 from backend.app.api.errors import ApiError
 from backend.app.api.schemas.ai_gateway import (
     AttemptOut,
+    BrowserPreflightOut,
     BrowserStatusOut,
     ChatIn,
     ChatOut,
     GatewayStatusOut,
+    ModelMatrixOut,
+    OperationAvailabilityListOut,
     ProviderIn,
     ProviderListOut,
     ProviderOut,
@@ -33,6 +36,7 @@ from backend.app.api.schemas.ai_gateway import (
     ToggleIn,
     UseCaseMatrixOut,
     UseCaseOut,
+    VersionedProviderDefaultsOut,
     WrapperLibraryOut,
     WrapperOut,
 )
@@ -244,6 +248,49 @@ async def wrapper_library(service: GatewayDep) -> WrapperLibraryOut:
 @router.get("/browser", response_model=BrowserStatusOut)
 async def browser_status(service: GatewayDep) -> BrowserStatusOut:
     return BrowserStatusOut(**service.browser_status())  # type: ignore[arg-type]
+
+
+@router.get("/browser/preflight", response_model=BrowserPreflightOut)
+async def browser_preflight_status(service: GatewayDep) -> BrowserPreflightOut:
+    """Inspect the browser environment (no launch) and list preparation steps."""
+    return BrowserPreflightOut(**service.browser_preflight().as_dict())  # type: ignore[arg-type]
+
+
+@router.post("/browser/prepare", response_model=BrowserPreflightOut)
+async def browser_prepare(service: GatewayDep) -> BrowserPreflightOut:
+    """Probe the real browser once and report honest progress.
+
+    Never fails: a machine without a browser reports the missing steps and the
+    API providers (including the free keyless one) keep working.
+    """
+    return BrowserPreflightOut(**(await service.browser_prepare()).as_dict())  # type: ignore[arg-type]
+
+
+@router.get("/models", response_model=ModelMatrixOut)
+async def model_matrix(service: GatewayDep) -> ModelMatrixOut:
+    """Per-model capability matrix (operations, auth, verified flags)."""
+    return ModelMatrixOut(
+        items=service.model_matrix(),  # type: ignore[arg-type]
+        operations=service.operation_titles(),
+    )
+
+
+@router.get("/operations", response_model=OperationAvailabilityListOut)
+async def operation_availability(service: GatewayDep) -> OperationAvailabilityListOut:
+    """Which *configured* providers can serve each operation right now."""
+    return OperationAvailabilityListOut(items=await service.operation_availability())  # type: ignore[arg-type]
+
+
+@router.post("/provision", response_model=VersionedProviderDefaultsOut)
+async def provision_free_providers(service: GatewayDep) -> VersionedProviderDefaultsOut:
+    """Add the free-first providers once (no key, no browser, no CLI)."""
+    created = await service.provision_free_providers()
+    await service.session.commit()
+    if created:
+        message = "Добавлены бесплатные провайдеры: " + ", ".join(created) + "."
+    else:
+        message = "Бесплатные провайдеры уже настроены — ничего не изменено."
+    return VersionedProviderDefaultsOut(providers=created, message=message)
 
 
 @router.get("/use-cases", response_model=UseCaseMatrixOut)
