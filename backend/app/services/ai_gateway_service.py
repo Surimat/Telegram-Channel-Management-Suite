@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.ai.gateway import registry as reg
 from backend.app.ai.gateway.browser import BrowserRuntime, PlaywrightBrowserRuntime
 from backend.app.ai.gateway.catalog import matrix as catalog_matrix
+from backend.app.ai.gateway.catalog import models_supporting as catalog_models_supporting
 from backend.app.ai.gateway.catalog import operation_titles
 from backend.app.ai.gateway.errors import GatewayError
 from backend.app.ai.gateway.http import HttpTransport, HttpxTransport
@@ -631,6 +632,20 @@ class AiGatewayService:
                     "available": bool(capable),
                 }
             )
+        # Image generation is not a chat capability: a generator is matched by
+        # kind, never by ``at_least`` (it is not a text provider).
+        image_providers = {
+            m.provider for m in catalog_models_supporting("image_generation")
+        }
+        generators = [p.name for p in providers if p.name in image_providers]
+        out.append(
+            {
+                "operation": "image_generation",
+                "title": operation_titles().get("image_generation", "image_generation"),
+                "providers": generators,
+                "available": bool(generators),
+            }
+        )
         return out
 
     # ==================================================================

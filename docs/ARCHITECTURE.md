@@ -1110,6 +1110,17 @@ or browser, and makes every capability claim checkable:
   Pollinations does **not** support image/vision input (a real request returns a
   `400 "model does not support image input"`), so the provider must never be
   offered for an image or structured case.
+- **Second keyless free text — `llm7`.** `Llm7Provider` wraps the community-run
+  llm7.io OpenAI-compatible gateway (model `gpt-oss:20b`). Anonymous chat works
+  with no key; a live image request was refused upstream, so it is **text only**
+  as well, and its model set/availability is never treated as guaranteed.
+- **Keyless free image generation — `pollinations_image`.** A keyless Pollinations
+  generator (`https://image.pollinations.ai/prompt/…`, model `flux`) answers a
+  text prompt with an image; probed HTTP 200 / `image/jpeg`, deterministic per
+  prompt+seed. It is **generation only**: it declares no text and no image
+  *understanding*, and it is **off by default** so ordinary text routing never
+  picks it up. Because a generator is not a text provider, `GET /operations`
+  matches it by provider kind rather than by the `at_least` capability rule.
 - **Keyless is honest.** The `ProviderInfo.info` property now sets
   `auth_required` from the actual auth mode: only an `api_key` provider with no
   key reports `auth_required=True`. A keyless or browser-session provider never

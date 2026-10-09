@@ -51,6 +51,36 @@ FREE_PROVIDER_DEFAULTS: tuple[FreeProviderDefault, ...] = (
         ),
     ),
     FreeProviderDefault(
+        provider="llm7",
+        kind="llm7",
+        model="gpt-oss:20b",
+        base_url="https://api.llm7.io/v1",
+        cost="free",
+        capabilities=Capability(text=True, structured=True),
+        enabled=True,
+        priority=85,
+        note=(
+            "Бесплатный шлюз без ключа (llm7.io, gpt-oss:20b). Только текст; "
+            "доступность и набор моделей могут меняться."
+        ),
+    ),
+    FreeProviderDefault(
+        provider="pollinations_image",
+        kind="pollinations_image",
+        model="flux",
+        base_url="https://image.pollinations.ai",
+        cost="free",
+        capabilities=Capability(),
+        # Off by default: it generates images (not chat), so it is opt-in and
+        # pinned by name rather than picked up by ordinary text routing.
+        enabled=False,
+        priority=70,
+        note=(
+            "Бесплатная генерация изображений без ключа (Pollinations, Flux). "
+            "Только генерация; изображения не распознаёт."
+        ),
+    ),
+    FreeProviderDefault(
         provider="ollama",
         kind="ollama",
         model="llama3.2",

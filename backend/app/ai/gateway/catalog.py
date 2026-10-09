@@ -10,10 +10,14 @@ Each :class:`ModelCapability` states, per model:
 * its observed availability and an honest ``verified`` flag.
 
 ``verified`` is **False** for anything that was not actually exercised end to end
-in this repository's environment. The only entry marked verified is the keyless
-Pollinations text endpoint, which was probed on 2026-10-08 (see
-``docs/AI_PROVIDERS.md``). Everything else is a declared capability the owner
-must enable and probe; a README or a reachable URL is never treated as proof.
+in this repository's environment. The entries marked verified are the keyless
+Pollinations text endpoint and the keyless llm7.io gateway (both probed on
+2026-10-08/09) and the keyless Pollinations image generation endpoint (probed
+2026-10-09) — see ``docs/ARCHITECTURE.md`` §25.7 and ``agent/DECISIONS.md``
+D-119. Everything else is a declared capability
+the owner must enable and probe; a README or a reachable URL is never treated as
+proof. In particular, keyless *vision* was probed and refused upstream, so no
+free provider is marked verified for ``image_understanding``.
 
 Nothing here performs network calls — it is the *matrix* the router and the UI
 consult. Real enforcement lives in :class:`ProviderInfo.capabilities` and the
@@ -107,9 +111,10 @@ class ModelCapability:
 
 #: The shipped matrix. Ordered free-first, then by capability.
 #:
-#: IMPORTANT: only the Pollinations entry carries ``verified=True`` and only for
-#: the operations actually probed. Do not set ``verified=True`` for a model that
-#: merely compiles or whose homepage is reachable.
+#: IMPORTANT: only the entries carrying ``verified=True`` — and only for the
+#: operations actually probed — are proven here. Do not set ``verified=True`` for
+#: a model that merely compiles or whose homepage is reachable, and do not mark a
+#: free provider verified for vision: keyless vision was refused upstream.
 MODEL_CATALOG: tuple[ModelCapability, ...] = (
     ModelCapability(
         provider="pollinations",
@@ -124,10 +129,47 @@ MODEL_CATALOG: tuple[ModelCapability, ...] = (
         verified_operations=(OP_TEXT, OP_STRUCTURED),
         note=(
             "Бесплатный ключ-не-нужен текстовый эндпоинт (Pollinations). "
-            "Проверено фактическим запросом 2026-10-08. Изображения/файлы НЕ "
+            "Проверено фактическим запросом. Изображения/файлы НЕ "
             "поддерживаются — запрос с картинкой отклоняется сервисом."
         ),
         params={"base_url": "https://text.pollinations.ai/openai"},
+    ),
+    ModelCapability(
+        provider="llm7",
+        model="gpt-oss:20b",
+        kind="llm7",
+        source="api",
+        operations=(OP_TEXT, OP_STRUCTURED, OP_TRANSLATE),
+        auth=AUTH_NONE,
+        availability=AVAIL_READY,
+        cost="free",
+        verified=True,
+        verified_operations=(OP_TEXT,),
+        note=(
+            "Бесплатный шлюз без ключа (llm7.io, gpt-oss:20b). Проверено "
+            "фактическим анонимным запросом. Только текст: ключевые модели не "
+            "приняли изображение (vision отклонён upstream). Доступность и "
+            "набор моделей не гарантированы."
+        ),
+        params={"base_url": "https://api.llm7.io/v1"},
+    ),
+    ModelCapability(
+        provider="pollinations_image",
+        model="flux",
+        kind="pollinations_image",
+        source="api",
+        operations=(OP_IMAGE_GEN,),
+        auth=AUTH_NONE,
+        availability=AVAIL_READY,
+        cost="free",
+        verified=True,
+        verified_operations=(OP_IMAGE_GEN,),
+        note=(
+            "Бесплатная генерация изображений без ключа (Pollinations, Flux). "
+            "Проверено фактическим запросом (HTTP 200, image/jpeg), результат "
+            "детерминирован по prompt+seed. Это НЕ понимание изображений."
+        ),
+        params={"base_url": "https://image.pollinations.ai"},
     ),
     ModelCapability(
         provider="ollama",

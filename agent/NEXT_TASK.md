@@ -3,7 +3,7 @@
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
-**Updated:** 2026-10-08
+**Updated:** 2026-10-09
 **Status:** **v1.9.0 Content Operations 2.0 is RELEASED (2026-10-08).** The existing **Content Studio** is extended (not duplicated) into a single pipeline: `source → gather → clean → mini-AI → moderation → publish → comment/delete`. It adds reusable **AI profiles** (prompt/instructions/language/tone/max-length/provider-policy/actions as data), a **lightweight local mini-AI** classifier (category + intent, never an emoji), **human moderation** states, declarative **automation rules** (`SOURCE + CONDITION → ACTION`, a fixed field allow-list, not a script engine) and **secret-free pipeline analytics**. An AI failure never loses material: the item moves to `needs_review` with `ai_status=ai_unavailable` and a clear note. Publication tracks `comment_status` and `delete_status` independently. Version string is **1.9.0**. Additive only — no account registration and no Telegram-limit bypass.
 
 Released via a reviewed `develop → main` PR #22 (merge `997999e`), tag `v1.9.0`;
@@ -52,16 +52,23 @@ new directions and do **not** revisit implemented work. Priorities live in
 
 1. **Web Wrappers + free multimodal AI providers — MAIN.**
    - **Stage 1 — free-first providers + honest capabilities: implemented on
-     `develop`, unreleased.** `PollinationsProvider` (keyless free text), the
+     `develop`, unreleased.** `PollinationsProvider` (keyless free text),
+     `Llm7Provider` (second keyless free text, llm7.io), `PollinationsImageProvider`
+     (`pollinations_image`, keyless free image *generation*, off by default), the
      model-capability catalog (`ai/gateway/catalog.py`), idempotent provisioning
      (`ai/gateway/provisioning.py`, `POST /provision`) and the browser preflight
      (`ai/gateway/preflight.py`). Honesty fix: `ProviderInfo.info` requires a key
      only for an `api_key` provider with no key. Session expiry is failover, not a
-     bypass. UI: `AiGatewayView.vue` model/operation matrix + provisioning +
-     preflight. Tests: `tests/test_v2_ai_providers.py`.
-   - **Stage 2 — verified free multimodal (vision) providers: planned**, only when
-     a real, keyless, non-bypass endpoint is confirmed. Never bypass a challenge
-     (e.g. Duck.ai) or bundle an unverified third-party key.
+     bypass. `GET /operations` reports `image_generation` by kind. UI:
+     `AiGatewayView.vue` model/operation matrix + provisioning + preflight. Tests:
+     `tests/test_v2_ai_providers.py`.
+   - **Stage 2 — verified free multimodal (vision) providers: probed 2026-10-09,
+     none confirmed (D-119).** Keyless endpoints refused an image upstream
+     (`api.llm7.io` `400`), required a key (`gen.pollinations.ai` `401`) or were
+     paid/challenged (`api.airforce` `402`, DuckDuckGo anti-bot). No free keyless
+     image-understanding endpoint is claimed; the confirmed free multimodal path
+     is image *generation*. Never bypass a challenge or bundle an unverified key;
+     re-check only when a real keyless vision endpoint is confirmed.
 2. **Mass connection of created bots to channels.** Planned (not started).
 3. **Complete Content Operations with target-language translation.** Implemented
    on `develop` (`backend/app/services/content_language.py`, migration

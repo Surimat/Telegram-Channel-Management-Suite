@@ -3,7 +3,7 @@
 > Persistent project memory. **A new agent must be able to continue from this
 > file + git + code alone.** Update this after every major phase.
 
-**Last updated:** 2026-10-08
+**Last updated:** 2026-10-09
 **Current phase:** **v1.9.0 Content Operations 2.0 (D-116) — RELEASED (2026-10-08).** Shipped via a reviewed `develop → main` PR #22 (merge `997999e`), tag `v1.9.0`; the Release workflow (run `37775533451`) created the GitHub Release and attached the Windows portable ZIP (24 929 020 bytes, sha256 `3227988c…d2ac`) + `.sha256`. Release ZIP scan: no `.session`/TDATA/DB/model. The existing Content Studio (v1.2) is extended — not duplicated — into a single pipeline: `source → gather → clean → mini-AI → moderation → publish → comment/delete`. New additive tables `ai_profiles` (reusable AI profiles: prompt instructions/language/tone/max-length/provider-policy/actions as data), `automation_rules` (declarative `SOURCE + CONDITION → ACTION`, a fixed field allow-list, not a script engine) and `content_operations` (secret-free append-only pipeline analytics/audit). Additive columns on `content_items` (`original_text`, `ai_status`, `ai_category`, `ai_intent`, `ai_profile`, `ai_note`) and on `publications` (`profile_key`, `ai_instructions`, independent `comment_status`/`delete_status`). Services: `services/ai_profiles.py` (AiProfileService), `services/content_pipeline.py` (ContentPipelineService: classify/process/moderate/apply_rule_actions/analytics), `services/automation_rules.py` (AutomationRuleService). API: `/api/v1/content/ai-profiles`, `/items/{id}/ai/classify`, `/items/{id}/ai/process`, `/items/{id}/moderate`, `/automation-rules`, `/items/{id}/apply-rules`, `/pipeline/analytics`. The mini-AI returns only a category/intent (never an emoji); an AI failure moves the item to `needs_review` with `ai_status=ai_unavailable` and a clear note — material is never lost. Migration `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py` (revises `b2c3d4e5f6a7`). UI: a new «ИИ и правила» tab in `ContentStudioView.vue` (profiles, rules, pipeline analytics) plus per-item mini-AI/moderation controls. Additive only — no new account registration and no Telegram-limit bypass. Version string is **1.9.0**.
 **v1.8.2 RELEASED (2026-10-08) — Web Wrapper Hub practical verification (D-115).** The v1.8.1 wrapper work was "architecturally implemented" but not exercised on practical scenarios end to end. A verification pass over the real engine→provider→router pipeline found a **real defect in the genuine Playwright runtime**: `extract()` read `href` from the matched node itself, so extracting a container (`li.link`, `tr.row`) returned empty links (only visible when the real browser ran). Fixed: extraction now prefers a nested `<a>`; `WrapperDefinition.extract_attrs` configures which attributes are read; the `diagnostics()` `"wrapers"` typo is fixed to `"wrappers"`. Added a deterministic **local fixture site** (`tests/support/web_fixtures.py`), a **benchmark** (`tests/web_wrapper_bench.py`, 7/7), CI-safe verification tests and an optional real-Chromium test (skips when Playwright/Chromium is absent). Released via reviewed PR #21 (merge `8542d4c`), tag `v1.8.2`; Release workflow run `37747125558`, ZIP 24 906 383 bytes, sha256 `f0c6984d…f619`. No schema change.
 **v1.8.1 RELEASED (2026-10-08).** AI Gateway verification patch (D-114) shipped via a reviewed `develop ‚Üí main` PR #20 (merge `bc8382b`), tag `v1.8.1`; the Release workflow (run `37705225761`) created the GitHub Release and attached the Windows portable ZIP (24 905 404 bytes, sha256 `0ec6aca1‚Ä¶a9d4`) + `.sha256`. An independent verification of the v1.8.0 **AI Gateway + Web Wrapper Hub** proved it *works* (not just compiles) and fixed two real defects plus a version drift ‚Äî no new features. (1) A `web` provider whose `wrapper_id` has no matching `WrapperDefinition` was reported `available` and lost its configured name; it is now forced `unavailable` with an explicit reason and keeps its configured name so a pinned provider still routes. (2) `AIRouter._attempt` returned a transient *response* without retrying (only raised errors were retried); it now retries both, bounded by the retry budget. (3) `frontend/package-lock.json` read `1.7.0` while the app read `1.8.0` ‚Äî synced + locked by an assertion. New independent gateway behaviour tests (retry/failover/availability/identity/e2e web answer) and three runtime meta-audit cases (capability dependency, orphan provider class, unwired control). Additive only ‚Äî no account registration and no CAPTCHA/MFA/regional-block or Telegram-limit bypass. Version strings read **1.8.1**; full suite green (909 passed); `ruff` clean; `vue-tsc` + `npm run build` clean; meta-audit **30/30, 100%, 0 false positives**.
@@ -1089,24 +1089,44 @@ Committed on `develop` (`feat(ai-gateway)` stage; `backend/app/ai/gateway/`):
   `https://text.pollinations.ai/openai`). Text only: an image/file request is
   refused honestly (`CALL_BAD_REQUEST`) so the router fails over to a
   vision-capable provider.
+- **`Llm7Provider`** — a second keyless free text path (llm7.io,
+  `https://api.llm7.io/v1`, model `gpt-oss:20b`); anonymous chat proven, image
+  request refused upstream → declared text only.
+- **`PollinationsImageProvider`** (`kind=pollinations_image`) — keyless free
+  **image generation** (`https://image.pollinations.ai/prompt/…`, model `flux`);
+  probed HTTP 200 / `image/jpeg`, deterministic per prompt+seed. Generation only
+  (declares no text/image understanding) and **off by default** (opt-in).
 - **Honesty fix** — `ProviderInfo.info` now derives `auth_required` from the auth
   mode (`auth_mode == AUTH_API_KEY and not api_key`), so a keyless or
   browser-session provider never claims it needs a key.
 - **`catalog.py`** — per-model capability matrix (operations, auth, cost,
-  `verified`/`verified_operations`); backs `GET /models`.
+  `verified`/`verified_operations`); backs `GET /models`. Verified entries:
+  `pollinations` (text, structured), `llm7` (text), `pollinations_image`
+  (image_generation). No keyless entry is verified for vision.
 - **`provisioning.py`** — `FREE_PROVIDER_DEFAULTS`; `POST /provision` seeds the
-  free-first provider once, idempotently, never re-enabling a disabled row.
+  free-first providers once, idempotently, never re-enabling a disabled row
+  (`pollinations` + `llm7` enabled; `pollinations_image` + `ollama` off).
 - **`preflight.py`** — `preflight()`/`probe()` browser environment inspection;
   honest per-step progress, never fails. `GET /browser/preflight`,
   `POST /browser/prepare`.
-- **`GET /operations`** — per operation, the **configured** providers that can
-  serve it now.
+- **`GET /operations`** — per operation (incl. `image_generation`, matched by
+  kind), the **configured** providers that can serve it now.
 - **Web wrappers** — added disabled, honest definitions for Microsoft Copilot and
   Duck.ai (the latter never bypasses the anti-bot challenge).
 - **UI** — `AiGatewayView.vue` model/operation matrix, a free-first provisioning
   button and a browser-preflight panel; typed client methods in `api/client.ts`.
 - **Tests** — `tests/test_v2_ai_providers.py` (keyless honesty, text-only vs
-  vision routing, session-expiry failover, provisioning, preflight).
+  vision routing, image generation, provisioning, preflight, registry kinds).
+
+### Priority 1 — Stage 2 (free multimodal / vision): probed 2026-10-09, none confirmed
+Probed keyless endpoints honestly (D-119): `api.llm7.io` keyless models refuse an
+image (`400`); `gen.pollinations.ai` vision models need a key (`401`);
+`api.airforce` is paid (`402`); DuckDuckGo is an anti-bot challenge (never
+bypassed). **No genuinely free, keyless image-understanding endpoint exists**, so
+none is claimed. The confirmed free multimodal path is **image generation**
+(Stage 1). Vision stays on keyed providers (Google/Anthropic) or the owner's own
+logged-in browser session. Re-check only when a real, keyless, non-bypass vision
+endpoint is confirmed.
 
 ### Priority 3 — Target Language stage
 Committed on `develop` (`feat(content): Target Language stage (v2.0 Part 1)`):

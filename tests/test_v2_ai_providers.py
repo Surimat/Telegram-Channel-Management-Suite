@@ -21,10 +21,14 @@ from __future__ import annotations
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from backend.app.ai.gateway import catalog
+from backend.app.ai.gateway import catalog, registry
 from backend.app.ai.gateway.http import FakeHttpTransport, HttpResponse
 from backend.app.ai.gateway.preflight import STEP_MISSING, STEP_OK, BrowserPreflight, PrepStep
-from backend.app.ai.gateway.providers import PollinationsProvider
+from backend.app.ai.gateway.providers import (
+    Llm7Provider,
+    PollinationsImageProvider,
+    PollinationsProvider,
+)
 from backend.app.ai.gateway.router import AIRouter
 from backend.app.ai.gateway.types import Capability, ChatMessage, ChatRequest
 from backend.app.ai.gateway.wrappers.definition import LIBRARY, get_definition
@@ -41,14 +45,11 @@ def _req(text: str = "привет", **kw) -> ChatRequest:
 
 
 def _ok_transport() -> FakeHttpTransport:
-    return FakeHttpTransport(
-        {
-            "pollinations": HttpResponse(
-                status=200,
-                text='{"choices":[{"message":{"content":"ответ"}}]}',
-            )
-        }
+    reply = HttpResponse(
+        status=200,
+        text='{"choices":[{"message":{"content":"ответ"}}]}',
     )
+    return FakeHttpTransport({"pollinations": reply, "llm7": reply})
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +77,31 @@ def test_models_supporting_returns_honest_vision_list() -> None:
     providers = {m.provider for m in vision}
     assert "pollinations" not in providers
     assert "google" in providers  # Gemini declares vision (needs key)
+
+
+def test_keyless_providers_are_never_verified_for_vision() -> None:
+    """Honesty: no free, keyless provider may claim verified image understanding."""
+    for model in catalog.MODEL_CATALOG:
+        if model.auth == catalog.AUTH_NONE:
+            assert catalog.OP_IMAGE not in model.verified_operations, model.provider
+
+
+def test_llm7_is_keyless_and_verified_for_text() -> None:
+    m = next(x for x in catalog.MODEL_CATALOG if x.provider == "llm7")
+    assert m.auth == catalog.AUTH_NONE
+    assert m.availability == catalog.AVAIL_READY
+    assert m.verified and catalog.OP_TEXT in m.verified_operations
+    assert catalog.OP_IMAGE not in m.operations
+
+
+def test_pollinations_image_is_verified_for_generation_only() -> None:
+    m = next(x for x in catalog.MODEL_CATALOG if x.provider == "pollinations_image")
+    assert m.auth == catalog.AUTH_NONE
+    assert m.verified
+    assert catalog.OP_IMAGE_GEN in m.verified_operations
+    # Generation is not understanding.
+    assert catalog.OP_IMAGE not in m.operations
+    assert catalog.OP_IMAGE_GEN in catalog.models_supporting(catalog.OP_IMAGE_GEN)[0].operations
 
 
 # ---------------------------------------------------------------------------
@@ -127,6 +153,60 @@ async def test_pollinations_fails_over_to_vision_capable_provider() -> None:
     resp = await AIRouter(max_attempts=2).route(req, [text_only, vision])
     assert resp.ok is True
     assert resp.provider_used == "vision"
+
+
+async def test_llm7_needs_no_key_and_serves_text() -> None:
+    provider = Llm7Provider(transport=_ok_transport())
+    info = provider.info
+    assert info.auth_mode == "no_auth"
+    assert info.auth_required is False
+    assert info.cost == "free"
+    assert provider.availability().usable is True
+    resp = await provider.chat(_req("привет"))
+    assert resp.ok is True and resp.text == "ответ"
+
+
+async def test_llm7_refuses_image_honestly() -> None:
+    from backend.app.ai.gateway.types import MODALITY_IMAGE, Attachment
+
+    provider = Llm7Provider(transport=_ok_transport())
+    req = _req(
+        "что на картинке",
+        requires=Capability(text=True, image=True),
+        messages=[
+            ChatMessage(
+                role="user",
+                content="что на картинке",
+                attachments=[Attachment(kind=MODALITY_IMAGE, reference="x.png")],
+            )
+        ],
+    )
+    resp = await provider.chat(req)
+    assert resp.ok is False and resp.error
+
+
+async def test_pollinations_image_generates_and_needs_no_key() -> None:
+    transport = FakeHttpTransport(
+        {"image.pollinations.ai": HttpResponse(status=200, text="")}
+    )
+    provider = PollinationsImageProvider(transport=transport)
+    assert provider.info.auth_mode == "no_auth"
+    assert provider.info.auth_required is False
+    resp = await provider.chat(_req("красный круг"))
+    assert resp.ok is True
+    assert resp.structured and resp.structured["image_url"].startswith(
+        "https://image.pollinations.ai/prompt/"
+    )
+    # Deterministic: the same prompt yields the same seed/url.
+    again = await provider.chat(_req("красный круг"))
+    assert again.text == resp.text
+
+
+async def test_pollinations_image_never_claims_vision() -> None:
+    provider = PollinationsImageProvider(transport=FakeHttpTransport())
+    assert provider.info.capabilities.image is False
+    assert provider.info.capabilities.text is False
+    assert provider.info.capabilities.verified is False
 
 
 async def test_web_session_expiry_fails_over_to_api_provider() -> None:
@@ -201,7 +281,27 @@ async def test_provision_is_additive_and_idempotent(session) -> None:
     assert rows["pollinations"].enabled is True  # free + keyless: ready
     assert rows["pollinations"].api_key_encrypted == ""
     assert rows["pollinations"].auth_mode == "no_auth"
+    assert rows["llm7"].enabled is True  # second keyless free text path
+    assert rows["llm7"].auth_mode == "no_auth"
+    assert rows["pollinations_image"].enabled is False  # generation: opt-in
     assert rows["ollama"].enabled is False  # needs a local server
+
+
+def test_registry_maps_new_free_kinds() -> None:
+    from backend.app.ai.gateway.registry import ProviderConfig, build_provider
+
+    llm7 = build_provider(
+        ProviderConfig(provider="llm7", kind="llm7", enabled=True),
+        transport=_ok_transport(),
+    )
+    assert llm7.info.auth_required is False and llm7.name == "llm7"
+    image = build_provider(
+        ProviderConfig(provider="pollinations_image", kind="pollinations_image", enabled=True),
+        transport=_ok_transport(),
+    )
+    assert image.info.auth_required is False
+    assert image.info.capabilities.image is False
+    assert registry.KIND_LLM7 in registry.ALL_KINDS
 
 
 async def test_provision_never_overwrites_owner_choice(session) -> None:
@@ -334,6 +434,11 @@ async def test_api_provision_then_operations(client: AsyncClient) -> None:
         i for i in ops.json()["items"] if i["operation"] == "image_understanding"
     )
     assert vision["available"] is False
+    # Image generation is reported too; it is off by default (opt-in).
+    gen = next(
+        i for i in ops.json()["items"] if i["operation"] == "image_generation"
+    )
+    assert gen["available"] is False
 
 
 async def test_api_browser_preflight_no_launch(client: AsyncClient) -> None:

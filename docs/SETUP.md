@@ -622,6 +622,10 @@ It is optional and independent of the lightweight «Мини-ИИ» above.
    - `OpenAI-совместимый API`, `OpenRouter`, `Google (Gemini)`, `Anthropic`,
      `DeepSeek` — enter the model and the API key (write-only);
    - `Локально (Ollama)` — enter the local base URL, no key needed;
+   - `Бесплатный без ключа (Pollinations)` / `Бесплатный шлюз без ключа
+     (llm7.io)` — keyless text, ready to use with no key;
+   - `Бесплатная генерация изображений (Pollinations)` — keyless image
+     *generation* (not vision); off by default, enable it explicitly;
    - `Web UI обёртка` — set the wrapper id (e.g. `generic`); the wrapper drives
      **your own** logged-in browser session.
 2. **Маршрутизация** — turn the gateway on, choose a strategy, and optionally

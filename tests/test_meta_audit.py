@@ -774,3 +774,44 @@ def test_next_task_release_anchors_match_git() -> None:
         f"agent/NEXT_TASK.md does not state the real main HEAD {head}"
     )
     assert tag in text, f"agent/NEXT_TASK.md does not name the current tag {tag}"
+
+
+def test_next_task_names_the_latest_tag() -> None:
+    """NEXT_TASK.md must name the repository's latest release tag.
+
+    ``git tag --sort=-v:refname`` reports the newest tag by version; if NEXT_TASK
+    names an older one (the classic stale "latest tag" left after a release), a
+    new agent is misled about what has actually shipped. Version sorting is used
+    rather than ``git describe`` because the latest tag points at the ``main``
+    merge commit, which is not an ancestor of ``develop``. Skipped when git
+    cannot answer (shallow/tagless checkout).
+    """
+    tags = _git_output("tag", "--sort=-v:refname")
+    if not tags:  # pragma: no cover - shallow clone
+        pytest.skip("git cannot list tags in this checkout")
+    latest = tags.splitlines()[0]
+    text = (REPO_ROOT / "agent" / "NEXT_TASK.md").read_text(encoding="utf-8")
+    assert latest in text, (
+        f"agent/NEXT_TASK.md does not name the latest release tag {latest}"
+    )
+
+
+def test_next_task_active_task_is_not_declared_released() -> None:
+    """An 'Active task' section must not describe already-released work.
+
+    This is the drift that had to be repaired by hand: NEXT_TASK kept an
+    'Active task' heading over work that had already shipped. The body of the
+    active section (up to the next heading) must not declare a RELEASED state —
+    a shipped task belongs under a completed section, not the active one.
+    """
+    text = (REPO_ROOT / "agent" / "NEXT_TASK.md").read_text(encoding="utf-8")
+    heading = re.search(
+        r"^#+\s*Active task\b.*$", text, flags=re.MULTILINE | re.IGNORECASE
+    )
+    assert heading is not None, "agent/NEXT_TASK.md lost its 'Active task' heading"
+    rest = text[heading.end():]
+    next_heading = re.search(r"^#+\s", rest, flags=re.MULTILINE)
+    body = rest[: next_heading.start()] if next_heading else rest
+    assert not re.search(r"\bRELEASED\b", body), (
+        "agent/NEXT_TASK.md 'Active task' section declares RELEASED work"
+    )

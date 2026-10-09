@@ -2586,3 +2586,38 @@ masking/restoration and translation. A future change that rewrites links, loses
 material on AI failure, or makes the language stage non-additive fails these
 decisions.
 
+---
+
+## D-119 — 2026-10-09 — Keyless free access is text + image *generation*; free vision is not claimed — LOCKED
+
+**Context.** Stage 2 of the v2.0 main priority is "verified free *multimodal*
+(vision) providers". Live probes were run against candidate keyless endpoints.
+
+**Decision.** The honestly-verified free surface is **text** (keyless) plus
+**image generation** (keyless); **free, keyless image *understanding* is not
+available and must not be claimed**.
+1. **Text (keyless, verified).** `pollinations` and `llm7.io`
+   (`Llm7Provider`, model `gpt-oss:20b`) answer anonymous chat with no key; both
+   are declared **text only** and never offered for an image request.
+2. **Image generation (keyless, verified).** `PollinationsImageProvider`
+   (`pollinations_image`, `image.pollinations.ai/prompt/…`, model `flux`) returns
+   an image (HTTP 200 / `image/jpeg`, deterministic per prompt+seed, no key). It
+   is **generation only** — it declares no text and no image understanding — and
+   is **off by default** (not a chat provider, so it is never auto-routed).
+3. **Free vision (keyless) — probed and refused; not offered.** On 2026-10-09:
+   `api.llm7.io` keyless models refused an image (`400 "does not support vision
+   input"`); `gen.pollinations.ai` vision models returned `401` without a key;
+   `api.airforce` was paid-only (`402`); DuckDuckGo was an anti-bot challenge
+   (never bypassed — D-117). Vision therefore stays on keyed providers
+   (Google/Anthropic) or an owner's own logged-in browser session, reported as
+   `image_understanding: none configured` rather than faked.
+4. **`GET /operations` reports `image_generation` by kind.** A generator is not a
+   text provider, so it is matched by provider kind and never by the text
+   `at_least` rule (which would wrongly exclude it).
+
+**Consequences.** `tests/test_v2_ai_providers.py` locks keyless text + generation
+honesty and asserts no keyless provider is ever marked `verified` for
+`image_understanding`. A future change that marks a free provider verified for
+vision, offers a text provider for image generation, or enables the generator by
+default fails this decision.
+

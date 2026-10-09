@@ -22,9 +22,11 @@ from backend.app.ai.gateway.providers import (
     AnthropicProvider,
     DeepSeekProvider,
     GoogleProvider,
+    Llm7Provider,
     OllamaProvider,
     OpenAICompatibleProvider,
     OpenRouterProvider,
+    PollinationsImageProvider,
     PollinationsProvider,
 )
 from backend.app.ai.gateway.types import Capability, SourceKind
@@ -42,6 +44,8 @@ KIND_ANTHROPIC = "anthropic"
 KIND_DEEPSEEK = "deepseek"
 KIND_OLLAMA = "ollama"
 KIND_POLLINATIONS = "pollinations"
+KIND_POLLINATIONS_IMAGE = "pollinations_image"
+KIND_LLM7 = "llm7"
 KIND_WEB = "web"
 
 API_KINDS = (
@@ -52,6 +56,8 @@ API_KINDS = (
     KIND_DEEPSEEK,
     KIND_OLLAMA,
     KIND_POLLINATIONS,
+    KIND_POLLINATIONS_IMAGE,
+    KIND_LLM7,
 )
 WEB_KINDS = (KIND_WEB,)
 ALL_KINDS = API_KINDS + WEB_KINDS
@@ -65,6 +71,8 @@ KIND_LABELS: dict[str, str] = {
     KIND_DEEPSEEK: "DeepSeek",
     KIND_OLLAMA: "Локально (Ollama)",
     KIND_POLLINATIONS: "Бесплатный без ключа (Pollinations)",
+    KIND_POLLINATIONS_IMAGE: "Бесплатная генерация изображений (Pollinations)",
+    KIND_LLM7: "Бесплатный шлюз без ключа (llm7.io)",
     KIND_WEB: "Web UI обёртка",
 }
 
@@ -144,6 +152,22 @@ def build_provider(
             cost=config.cost or "free",
             priority=config.priority or 90,
         )
+    if kind == KIND_POLLINATIONS_IMAGE:
+        return PollinationsImageProvider(
+            model=config.model or "flux",
+            base_url=config.base_url or "https://image.pollinations.ai",
+            transport=http,
+            cost=config.cost or "free",
+            priority=config.priority or 70,
+        )
+    if kind == KIND_LLM7:
+        return Llm7Provider(
+            model=config.model or "gpt-oss:20b",
+            base_url=config.base_url or "https://api.llm7.io/v1",
+            transport=http,
+            cost=config.cost or "free",
+            priority=config.priority or 85,
+        )
     if kind == KIND_WEB:
         definition = get_definition(config.wrapper_id or "generic")
         runtime = browser_runtime or PlaywrightBrowserRuntime()
@@ -221,10 +245,12 @@ __all__ = [
     "KIND_DEEPSEEK",
     "KIND_GOOGLE",
     "KIND_LABELS",
+    "KIND_LLM7",
     "KIND_OLLAMA",
     "KIND_OPENAI",
     "KIND_OPENROUTER",
     "KIND_POLLINATIONS",
+    "KIND_POLLINATIONS_IMAGE",
     "KIND_WEB",
     "WEB_KINDS",
     "ProviderConfig",

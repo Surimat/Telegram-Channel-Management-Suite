@@ -968,15 +968,20 @@ regional blocks, and never touches someone else's cookies or sessions.
 | GET | `/api/v1/ai-gateway/requests` | bounded observability ring (metadata only — no prompt text) |
 
 **Provider kinds:** `openai_compatible`, `openrouter`, `google`, `anthropic`,
-`deepseek`, `ollama` (local), `pollinations` (free, keyless text), `web` (browser
-wrapper). **Strategies:** `auto`, `free_first`, `cheapest`, `fastest`,
-`best_quality`, `manual`.
+`deepseek`, `ollama` (local), `pollinations` (free, keyless text), `llm7` (free,
+keyless text gateway), `pollinations_image` (free, keyless image *generation*),
+`web` (browser wrapper). **Strategies:** `auto`, `free_first`, `cheapest`,
+`fastest`, `best_quality`, `manual`.
 
 **Free-first provisioning.** `POST /provision` seeds the free-first providers
-that work **without a key and without a browser** (today: `pollinations`, a
-keyless OpenAI-compatible text endpoint). It is idempotent and never overwrites an
-owner-configured provider, so a fresh install has a working text path out of the
-box while keys and browser wrappers stay optional.
+that work **without a key and without a browser**: today `pollinations` and `llm7`
+(keyless OpenAI-compatible text endpoints, enabled) and `pollinations_image`
+(keyless image generation, **disabled by default** — it is not a chat provider).
+It is idempotent and never overwrites an owner-configured provider, so a fresh
+install has a working text path out of the box while keys and browser wrappers
+stay optional. The `GET /operations` list reports `image_generation` separately,
+matched by provider kind (a generator is never matched by the text `at_least`
+rule).
 
 The router orders eligible providers (capability match, then strategy, then
 priority), retries transient failures with bounded backoff, trips a per-provider

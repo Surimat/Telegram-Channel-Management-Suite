@@ -256,6 +256,15 @@ No release is cut from this section until the owner asks.
        OpenAI-compatible `POST /openai/chat/completions`); it is **text only**
        (no vision — a real request returns `400 "model does not support image
        input"`).
+     - Second keyless free text provider **`llm7`** (`Llm7Provider`, llm7.io
+       OpenAI-compatible gateway, model `gpt-oss:20b`); anonymous chat works with
+       no key, but the keyless models refused an image request upstream, so it is
+       declared **text only** too.
+     - Keyless free **image generation** — **`pollinations_image`**
+       (`PollinationsImageProvider`, `https://image.pollinations.ai/prompt/…`,
+       model `flux`). Probed HTTP 200 / `image/jpeg`, deterministic per
+       prompt+seed. It is generation only and is **off by default** (opt-in), and
+       it never claims image *understanding*.
      - Model-capability **catalog** (`ai/gateway/catalog.py`), **provisioning**
        (`ai/gateway/provisioning.py`, idempotent, never overwrites an
        owner-configured provider) and browser **preflight**
@@ -264,6 +273,9 @@ No release is cut from this section until the owner asks.
        `POST /browser/prepare`, `POST /provision`.
      - Honesty fix: `ProviderInfo.info` sets `auth_required` from the actual auth
        mode, so a keyless or browser-session provider never claims it needs a key.
+     - `GET /operations` reports `image_generation` by matching a generator by
+       kind (a generator is not a text provider, so it is never matched by
+       `at_least`).
      - Session expiry is **failover**, not a hard stop: a wrapper that meets a
        login wall returns `AUTH_REQUIRED` and the router moves to the next
        eligible provider (`fallback_used`). The browser layer still never bypasses
@@ -274,8 +286,21 @@ No release is cut from this section until the owner asks.
      - **Deliberately not done:** bypassing an anti-bot JS challenge (e.g.
        Duck.ai) or unverified third-party keys — those stay browser-session-only
        or unavailable, reported honestly.
-   - **Stage 2 — verified free *multimodal* (vision) providers.** Planned: only
-     when a real, keyless, non-bypass endpoint is confirmed.
+   - **Stage 2 — verified free *multimodal* (vision) providers (probed
+     2026-10-09; no keyless vision confirmed).** Live probes on 2026-10-09 found
+     **no genuinely free, keyless image-understanding endpoint**:
+     - `api.llm7.io` anonymous: text works (`gpt-oss:20b`), but every keyless
+       model refused an image request (`400 "does not support vision input"`);
+       `gemini-*`/`llama-*` want a key.
+     - `gen.pollinations.ai` anonymous: text works, but the vision-capable models
+       (`…-vision-exp`, `ling-3.0-flash-vl`, `gemma-4-31b-it`) return `401`
+       without a key.
+     - `api.airforce` → paid-only (`402`); DuckDuckGo → anti-bot challenge (never
+       bypassed, D-117).
+     The free multimodal path that *is* confirmed is **image generation** (Stage
+     1, `pollinations_image`); vision stays on keyed providers (Google/Anthropic)
+     or an owner's own logged-in browser session. Re-check only when a real,
+     keyless, non-bypass vision endpoint is confirmed.
 2. **Mass connection of created bots to channels.** Planned (not started).
 3. **Complete Content Operations with target-language translation.** Implemented
    (unreleased) — see the Target Language section below.
