@@ -4,114 +4,62 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-09
-**Status:** **v1.9.0 Content Operations 2.0 is RELEASED (2026-10-08).** The existing **Content Studio** is extended (not duplicated) into a single pipeline: `source → gather → clean → mini-AI → moderation → publish → comment/delete`. It adds reusable **AI profiles** (prompt/instructions/language/tone/max-length/provider-policy/actions as data), a **lightweight local mini-AI** classifier (category + intent, never an emoji), **human moderation** states, declarative **automation rules** (`SOURCE + CONDITION → ACTION`, a fixed field allow-list, not a script engine) and **secret-free pipeline analytics**. An AI failure never loses material: the item moves to `needs_review` with `ai_status=ai_unavailable` and a clear note. Publication tracks `comment_status` and `delete_status` independently. Version string is **1.9.0**. Additive only — no account registration and no Telegram-limit bypass.
+**Status:** **v2.0.0 is RELEASED (2026-10-09).** The three agreed v2.0 stages are shipped: an **AI Gateway** over many providers (including **free multimodal** ones) and browser **web wrappers** with free-first routing and honest capabilities (D-117…D-119); a per-content **Target Language**; **mass bot-to-channel onboarding** as a durable, restart-safe queue where `ready` means Telegram confirms the bot's rights (D-120); **Content Operations 2.0** (D-116); and a **hidden (windowless) background launch**. Additive only — no account registration and no Telegram-limit bypass. Version string is **2.0.0**.
 
-Released via a reviewed `develop → main` PR #22 (merge `997999e`), tag `v1.9.0`;
-the Release workflow (run `37775533451`) created the GitHub Release and attached
-the Windows portable ZIP (**24 929 020 bytes**, sha256
-`3227988c…d2ac`) + `.sha256`. `main` HEAD = `997999e`; `develop` carries the unreleased v2.0 stages and is intentionally not pinned here.
-Release ZIP scan: no `.session`/TDATA/DB/model.
+Released via a reviewed `develop → main` PR; tag `v2.0.0`; the Release workflow
+created the GitHub Release and attached the Windows portable ZIP + `.sha256`
+(D-060). `main` HEAD = `TBDMAIN`; `develop` HEAD = `TBDDEV` (re-synced). Release
+ZIP scan: no `.session`/TDATA/DB/model.
 
-Version string is **1.9.0** across `backend/app/__init__.py`,
-`pyproject.toml`, `frontend/package.json` + lock.
+Version string is **2.0.0** across `backend/app/__init__.py`, `pyproject.toml`,
+`frontend/package.json` + lock.
 
-### What this change does (D-116, additive)
+### Active task — none (v2.0.0 released)
 
-- **AI profiles (as data).** `ai_profiles` table + `AiProfileService`
-  (`services/ai_profiles.py`): key, title, language, tone, max length, system
-  instructions, provider policy and a validated list of pipeline actions. Built-in
-  profiles are seeded and protected from deletion.
-- **Automation rules (declarative, not a script engine).**
-  `automation_rules` table + `AutomationRuleService`
-  (`services/automation_rules.py`): `SOURCE + CONDITION → ACTION` over a fixed
-  condition field allow-list and a fixed action allow-list; an unknown action is
-  dropped, never executed.
-- **Single pipeline service.** `services/content_pipeline.py`
-  (`ContentPipelineService`): `classify` (local encoder, advisory), `process`
-  (apply a profile through the AI Gateway with failover), `moderate` (human
-  approve/reject/review), apply matching rule actions, and secret-free pipeline
-  analytics/audit records.
-- **Pipeline records.** `content_operations` table — append-only metadata per
-  stage; stores no text, keys or credentials.
-- **Independent comment/delete tracking.** `publications` gains `profile_key`,
-  `ai_instructions`, `comment_status`, `delete_status`.
-- **API (`/api/v1/content/*`, all additive):** `ai-profiles` CRUD,
-  `/items/{id}/ai/classify`, `/items/{id}/ai/process`, `/items/{id}/moderate`,
-  `automation-rules` CRUD, `/items/{id}/apply-rules`, `/pipeline/analytics`.
-- **UI.** A new «ИИ и правила» tab in `ContentStudioView.vue` plus per-item
-  mini-AI/moderation controls and a `content_operations` help topic.
-- **Migration.** `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py`
-  (revises `b2c3d4e5f6a7`); every new column carries a server default, so an
-  existing v1.8 database upgrades in place.
+**There is no required next task.** Do **not** add new large features; the v2.0
+cycle is complete. Cut a release only when the owner asks (D-060): branch from
+`develop`, then a reviewed `develop → main` PR + tag.
 
-### Active task — none (v2.0 completion gates green on `develop`, unreleased)
+**v2.0 completion gates added this cycle:** `tests/test_content_pipeline_e2e.py`
+and `tests/test_bot_onboarding_e2e.py` (end-to-end integration), a separate
+`browser-tests` CI job (Playwright + Chromium, must not skip), and
+`tests/test_windows_hidden_console.py` (the no-console Windows launch). A
+post-v1.9.0 memory reconciliation added release-hygiene guards in
+`tests/test_meta_audit.py` §6; the meta-audit prose in `docs/ARCHITECTURE.md`
+(32 mutations / 8 controls) is guarded by
+`test_architecture_doc_meta_audit_counts_match_report`.
 
-The v2.0 cycle runs the owner-approved priorities **sequentially** in separately
-verifiable stages (**Этапы**); do **not** invent new directions and do **not**
-revisit implemented work. Priorities live in `docs/ROADMAP.md`
-(§ "v2.0 cycle"). All three priorities are implemented on `develop` and
-unreleased, and the remaining completion gates are now covered by tests (see
-below), so there is **no required next task**. Cut a release only when the owner
-asks (D-060): branch from `develop`, then a reviewed `develop → main` PR + tag.
+### Завершённые этапы v2.0 (released in v2.0.0)
 
-**Completion gates added this cycle (on `develop`, unreleased):**
-`tests/test_content_pipeline_e2e.py` and `tests/test_bot_onboarding_e2e.py`
-(end-to-end integration), a separate `browser-tests` CI job (Playwright +
-Chromium, must not skip), and `tests/test_windows_hidden_console.py` (the
-no-console Windows launch, verified without a real Windows host). A post-v1.9.0
-memory reconciliation corrected stale facts and added release-hygiene guards in
-`tests/test_meta_audit.py` §6; the current meta-audit prose in
-`docs/ARCHITECTURE.md` was corrected (32 mutations / 8 controls) and is now
-guarded by `test_architecture_doc_meta_audit_counts_match_report`.
-
-**Priority 2 — Mass Bot-to-Channel Onboarding (D-120) — implemented on `develop`,
-unreleased.**
-Turn bot→channel binding from a one-at-a-time action into a bounded, restart-safe
-**batch** flow, mirroring the Bot Factory creation queue (D-109) and the existing
-binding rules (D-047…D-049, D-064): select many already-created worker bots and
-one or more target channels, then bind/promote them **one operation per scheduler
-tick** so the run is restart-resumable, stoppable, and reports per-pair progress
-(ready / needs-permission / failed / waiting-confirmation). Reuse the existing
-`/api/v1/bindings` path and the permission probe — do not add a second binding
-mechanism. **Honesty:** capacity/permission checks are real Telegram calls; never
-bypass privacy, admin or FloodWait limits (D-006/D-065/D-070). Recorded as
-**D-120** (queue shape, restart-resumable tick, honest failure states). Additive
-tests (`tests/test_bot_onboarding.py`) plus two runtime meta-audit mutations
-(`AA_onboarding_deeplink_separator`, `AB_onboarding_capability_anchor`); the full
-gate stays green. No release is cut from this cycle until the owner asks (D-060).
-
-### Завершённые этапы v2.0 (implemented on `develop`, unreleased)
-
-1. **Web Wrappers + free multimodal AI providers — MAIN (Priority 1) — COMPLETE.**
-   - **Stage 1 — free-first providers + honest capabilities: implemented,
-     unreleased.** `PollinationsProvider` (keyless free text), `Llm7Provider`
-     (second keyless free text, llm7.io), `PollinationsImageProvider`
-     (`pollinations_image`, keyless free image *generation*, off by default), the
-     model-capability catalog (`ai/gateway/catalog.py`), idempotent provisioning
-     (`ai/gateway/provisioning.py`, `POST /provision`) and the browser preflight
-     (`ai/gateway/preflight.py`). Honesty fix: `ProviderInfo.info` requires a key
-     only for an `api_key` provider with no key. Session expiry is failover, not a
-     bypass. `GET /operations` reports `image_generation` by kind. UI:
-     `AiGatewayView.vue` model/operation matrix + provisioning + preflight. Tests:
-     `tests/test_v2_ai_providers.py`.
+1. **Web Wrappers + free multimodal AI providers — COMPLETE.**
+   - **Stage 1 — free-first providers + honest capabilities (D-117/D-118).**
+     `PollinationsProvider` (keyless free text), `Llm7Provider` (llm7.io),
+     `PollinationsImageProvider` (`pollinations_image`, keyless free image
+     generation, off by default), the model-capability catalog
+     (`ai/gateway/catalog.py`), idempotent provisioning (`POST /provision`) and
+     browser preflight. Honesty: a key is required only for an `api_key` provider
+     with no key; session expiry is failover, not a bypass. `GET /operations`
+     reports `image_generation` by kind. Tests: `tests/test_v2_ai_providers.py`.
    - **Stage 2 — verified free multimodal (vision) providers: probed 2026-10-09,
-     none confirmed (D-119).** Keyless endpoints refused an image upstream
-     (`api.llm7.io` `400`), required a key (`gen.pollinations.ai` `401`) or were
-     paid/challenged (`api.airforce` `402`, DuckDuckGo anti-bot). No free keyless
-     image-understanding endpoint is claimed; the confirmed free multimodal path
-     is image *generation*. Never bypass a challenge or bundle an unverified key;
-     re-check only when a real keyless vision endpoint is confirmed.
-2. **Mass Bot-to-Channel Onboarding — COMPLETE (unreleased).** Implemented on
-   `develop` (`services/bot_onboarding.py`, migration
-   `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`,
-   `tests/test_bot_onboarding.py`, D-120). See the "Priority 2" section above.
-3. **Complete Content Operations with target-language translation — COMPLETE
-   (unreleased).** Implemented on `develop` (`backend/app/services/content_language.py`,
+     none confirmed (D-119).** Keyless endpoints refused an image upstream,
+     required a key or were paid/challenged. No free keyless image-understanding
+     endpoint is claimed; the confirmed free multimodal path is image generation.
+     Never bypass a challenge or bundle an unverified key.
+2. **Target Language — COMPLETE.** `backend/app/services/content_language.py`,
    migration `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`,
-   `tests/test_target_language.py`).
+   `tests/test_target_language.py`.
+3. **Mass Bot-to-Channel Onboarding — COMPLETE (D-120).**
+   `services/bot_onboarding.py`, migration
+   `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`, scheduler job
+   `bot_onboarding.tick`; UI `BotOnboardingView.vue`; `tests/test_bot_onboarding.py`
+   + `tests/test_bot_onboarding_e2e.py`.
+4. **Content Operations 2.0 — COMPLETE (D-116).** One pipeline; AI profiles as
+   data; mini-AI classifies (never an emoji); migration
+   `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py`.
 
-When the owner asks for a release: branch from `develop`, then a reviewed
-`develop → main` PR + tag.
+### Following cycle (only when the owner asks)
+
+Branch from `develop`, then a reviewed `develop → main` PR + tag (D-060).
 
 ### Завершённая задача — v1.9.0 RELEASED
 

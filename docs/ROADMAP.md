@@ -336,6 +336,17 @@ token is never part of any request or response. Additive migration
 
 ## Release
 
+- **v2.0.0 (2026-10-09):** the three agreed v2.0 stages. An **AI Gateway** over
+  many providers (including **free multimodal** ones) and browser **web wrappers**
+  with verified free-first routing and honest capabilities (D-117…D-119); a
+  per-content **Target Language** (D-v2 Part 1); **mass bot-to-channel onboarding**
+  as a durable, restart-safe queue where `ready` means Telegram confirms the bot's
+  rights (D-120); **Content Operations 2.0** (D-116); and a **hidden (windowless)
+  background launch**. Additive migrations
+  `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py`,
+  `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`,
+  `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`. Released via a reviewed
+  `develop → main` PR, tag `v2.0.0`.
 - **v1.9.0 (2026-10-08):** **Content Operations 2.0** (D-116) — the existing
   Content Studio is extended into one pipeline (`source → gather → clean →
   mini-AI → moderation → publish → comment/delete`) instead of a second studio.

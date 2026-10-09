@@ -2663,3 +2663,38 @@ least-privilege profiles, the fake-provider verification and the queue lifecycle
 drops `?startchannel`, exposes the token, or leaves the `bot_onboarding`
 capability unanchored. No release is cut from the v2.0 cycle until the owner asks
 (D-060 process).
+
+---
+
+## D-121 — 2026-10-09 — v2.0.0 ships the three agreed stages; the release gate is green before merge — RELEASE
+
+**Decision.** The **v2.0 cycle** is released as **v2.0.0** (minor over v1.9.0).
+It carries the three owner-approved stages, all additive:
+1. **AI Gateway + free providers (D-117…D-119):** free-first routing with
+   verified free multimodal **generation** and honest capability claims (a
+   text-only provider never serves an image request; a key is required only for
+   an `api_key` provider with no key; a session expiry is failover, never a
+   bypass).
+2. **Target Language (D-118):** per-source/channel/item/publication, translated
+   through the gateway with the original text preserved.
+3. **Mass bot-to-channel onboarding (D-120):** a durable, restart-safe queue that
+   uses only Telegram's official `startchannel` link; `ready` means Telegram
+   confirms the bot's rights.
+4. **Content Operations 2.0 (D-116)** and a **hidden (windowless) background
+   launch** complete the cycle.
+
+**Release process (D-060).** A reviewed `develop → main` PR was merged only after
+all gates were green on the PR head: `pytest` (full suite **1035 passed, 10
+skipped**), `ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit **32/32
+(0 missed, 0 false positives)**, and the **browser-tests** CI job (real
+Playwright/Chromium, 8 tests, 0 skipped). The tag **`v2.0.0`** was created on the
+merge commit; the Release workflow built the Windows portable ZIP + `.sha256` and
+attached them to the GitHub Release. `develop` was then re-synced to `main`.
+
+**Consequences.** Additive migrations
+`20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py`,
+`20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py` and
+`20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`; a v1.9 database upgrades in
+place. Version strings read **2.0.0** everywhere (guarded by
+`test_repo_version_is_consistent`). No account registration and no Telegram-limit
+bypass. A release is only ever cut when the owner asks (D-060).

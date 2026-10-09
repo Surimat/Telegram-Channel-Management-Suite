@@ -9,15 +9,32 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v1.9.0`.** It is **Content Operations 2.0** — the
-existing **Content Studio** is extended (not duplicated) into a single pipeline:
-`source → gather → clean → mini-AI → moderation → publish → comment/delete`.
-It adds reusable **AI profiles** (the prompt as data), a lightweight local
-mini-AI that returns a **category/intent** (never an emoji), human moderation
-states, declarative **automation rules** (`SOURCE + CONDITION → ACTION`, not a
-script engine) and secret-free **pipeline analytics**. An AI failure never
-destroys material — the item moves to `needs_review` with a clear note. No new
+**Current stable release: `v2.0.0`.** It completes the three agreed v2.0 stages:
+an **AI Gateway** over many providers (including **free multimodal** ones) and
+browser **web wrappers**, a per-content **Target Language**, **mass
+bot-to-channel onboarding**, and **Content Operations 2.0** — all with a
+**hidden (windowless) background launch** and honest capabilities. It adds no
 account registration and no Telegram-limit bypass.
+**v2.0.0 (this release)** completes the three agreed v2.0 stages. It adds an
+**AI Gateway** that routes across many providers (OpenAI-compatible,
+OpenRouter, Google, Anthropic, DeepSeek, local Ollama) and browser **web
+wrappers**, with **free multimodal** providers verified against the real
+pipeline and honest capability claims (a text-only provider never serves an
+image request). It adds a per-content **Target Language**, **mass
+bot-to-channel onboarding** (a durable, restart-safe queue where `ready` means
+Telegram confirms the bot's rights), **Content Operations 2.0** (one content
+pipeline with AI profiles, a mini-AI classifier, moderation and declarative
+rules) and a **hidden (windowless) background launch**. Keys are sealed and
+write-only; automation stores metadata only. It adds no account registration
+and no Telegram-limit bypass.
+**v1.9.0** was **Content Operations 2.0** — the existing **Content Studio**
+extended (not duplicated) into a single pipeline (`source → gather → clean
+→ mini-AI → moderation → publish → comment/delete`) with reusable
+**AI profiles** (the prompt as data), a lightweight local mini-AI that returns a
+**category/intent** (never an emoji), human moderation states, declarative
+**automation rules** (`SOURCE + CONDITION → ACTION`, not a script engine) and
+secret-free **pipeline analytics**. An AI failure never destroys material — the
+item moves to `needs_review` with a clear note.
 `v1.8.2` was a small **verification patch** over
 `v1.8.1`: it proved the **Web Wrapper Hub** on practical scenarios (with no
 external site, account or key) and fixed a real structured-extraction defect the
@@ -192,7 +209,7 @@ the language preference selectable in Settings) and the **Consistency Auditor**
 (cross-module drift detection surfaced in Diagnostics, with a failed check
 reported as an error instead of being silently skipped). It adds no account
 registration and no Telegram-limit bypass.
-**v1.9.0 (this release)** is **Content Operations 2.0**, extending the existing
+**v1.9.0** was **Content Operations 2.0**, extending the existing
 Content Studio into one pipeline instead of a second studio. It adds **AI
 profiles** (reusable prompt/instructions/language/tone/max-length/provider-policy
 as data), a **lightweight local mini-AI** classifier that returns only a

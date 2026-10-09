@@ -5,37 +5,86 @@ Dates are ISO-8601.
 
 ---
 
-## Unreleased (develop)
+## [2.0.0] — 2026-10-09
 
-**v2.0 completion-gate hardening + memory reconciliation (no release, D-060).**
-No production behaviour changes; the owner has not asked for a release.
+**v2.0.0 — the three agreed v2.0 stages (additive).** AI Gateway + free
+providers, a per-content **Target Language**, **mass bot-to-channel onboarding**,
+**Content Operations 2.0**, and a **hidden (windowless) background launch**.
+Additive only: no account registration and no Telegram-limit bypass
+(D-006/D-065/D-070). Version strings read **2.0.0** across
+`backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
 
-- **Integration coverage added:** `tests/test_content_pipeline_e2e.py` (end-to-end
-  publish → moderation → plan → run, comment/auto-delete outcomes, restart
+**Released** via a reviewed `develop → main` PR; tag `v2.0.0`; the Release
+workflow (`.github/workflows/release.yml`) created the GitHub Release and attached
+the Windows portable ZIP + `.sha256` (D-060). Release ZIP scan: no
+`.session`/TDATA/DB/model. Gates: full suite green (**1035 passed, 10 skipped**),
+`ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit 32/32 (0 missed,
+0 false positives).
+
+### Added
+- **AI Gateway — free-first providers with honest capabilities (D-117…D-119).**
+  The gateway routes across OpenAI-compatible, OpenRouter, Google, Anthropic,
+  DeepSeek and local Ollama providers plus browser **web wrappers**; free providers
+  are verified against the real routing pipeline and capability claims are honest
+  (a text-only provider never serves an image request; a provider whose wrapper id
+  does not exist is `unavailable`, never `available`). Keys are sealed and
+  write-only; the journal keeps metadata only. No account registration and no
+  CAPTCHA/MFA/regional-block or Telegram-limit bypass.
+  (`tests/test_v2_ai_providers.py`.)
+- **Target Language (v2.0 Part 1).** A per-source / per-channel / per-item /
+  per-publication **target language**, so content can be gathered in one language
+  and published in another; translation goes through the AI Gateway and the
+  original text is preserved. Additive migration
+  `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`.
+  (`tests/test_target_language.py`.)
+- **Mass bot-to-channel onboarding (D-120).** A durable onboarding queue that takes
+  a set of planned bots and connects each to a channel through the official
+  owner-confirmed flow: the owner confirms in Telegram, the candidate is
+  re-checked, and `ready` means Telegram reports the rights (not merely that a link
+  was sent); insufficient rights is an explicit `needs_permission`.
+  `bot_onboarding.tick` is a restart-safe scheduler job (one bot per tick; a failure
+  never stops the rest; pause/resume/retry/skip; already-connected bots are never
+  rolled back). The bot token is never part of any request or response. Additive
+  migration `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`; UI
+  `BotOnboardingView.vue`. (`tests/test_bot_onboarding.py`,
+  `tests/test_bot_onboarding_e2e.py`.)
+- **Content Operations 2.0 (D-116).** The existing Content Studio is extended into
+  one pipeline (`source → gather → clean → mini-AI → moderation
+  → publish → comment/delete`): reusable **AI profiles** (the prompt as
+  data), a lightweight local **mini-AI** classifier that returns only a
+  category/intent (never an emoji), human **moderation** states, declarative
+  **automation rules** and secret-free **pipeline analytics**. An AI failure moves
+  the item to `needs_review` with `ai_status=ai_unavailable` and a clear note —
+  material is never lost. Additive migration
+  `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py`.
+- **Hidden background launch.** The tray/supervisor spawns the backend windowless on
+  Windows (`CREATE_NO_WINDOW` + `STARTF_USESHOWWINDOW`/`SW_HIDE`), the
+  Startup-folder autostart uses a VBScript launcher, and `portable/run.bat` prefers
+  `pythonw.exe` + `start /b`, so background processes leave no console window.
+  (`tests/test_windows_hidden_console.py`.)
+- **Integration coverage.** `tests/test_content_pipeline_e2e.py` (end-to-end publish
+  → moderation → plan → run, comment/auto-delete outcomes, restart
   idempotency) and `tests/test_bot_onboarding_e2e.py` (batch onboarding with
   official start-channel links, permission-ready vs missing-permission, queue
   resume, retry, binding verification).
-- **CI:** a separate `browser-tests` job (Playwright + Chromium, "must not skip")
-  was added to `.github/workflows/ci.yml`, so CI is now backend / meta-audit /
-  frontend / browser-tests.
-- **Windows hidden console:** `tests/test_windows_hidden_console.py` verifies the
-  no-console launch without a real Windows host — the supervisor's
-  `CREATE_NO_WINDOW` + `STARTF_USESHOWWINDOW`/`SW_HIDE` spawn flags, the VBScript
-  autostart launcher (`Run(..., 0, …)`), and `portable/run.bat`'s preference for
-  the windowless `pythonw.exe` + `start /b`.
-- **Memory de-staleness:** `docs/ARCHITECTURE.md`'s "current meta-audit" prose
-  read **25 mutations / 5 controls / 25 total** while the generated report and the
-  registry are at **32 / 8 / 32**; corrected here.
-- **Regression guard:** `test_architecture_doc_meta_audit_counts_match_report`
-  pins that prose to the committed report and the mutation registry. It joins the
-  existing release-hygiene guards (`tests/test_meta_audit.py` §6) that already
-  block a stale current version, latest tag, latest release, test count, and an
-  already-completed task left in `NEXT_TASK.md`.
+- **CI.** A separate `browser-tests` job (real Playwright + Chromium; installs the
+  browser and fails if the 8 integration tests skip) was added to
+  `.github/workflows/ci.yml`; CI is now backend / meta-audit / frontend /
+  browser-tests.
 
-Gates: `pytest` green, `ruff` clean, `vue-tsc` + `npm run build` clean,
-meta-audit 32/32 (0 missed, 0 false positives).
+### Changed
+- **Memory/guards.** `docs/ARCHITECTURE.md`'s "current meta-audit" prose is pinned
+  to the generated report and the mutation registry by
+  `test_architecture_doc_meta_audit_counts_match_report`, alongside the release-
+  hygiene guards (`tests/test_meta_audit.py` §6) that block a stale current
+  version, latest tag, latest release, test count, and an already-completed task in
+  `NEXT_TASK.md`.
 
----
+### Migration
+- `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py` (Content Operations 2.0),
+  `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py` (target language) and
+  `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py` (bot onboarding) — all
+  additive with server defaults, so a v1.9 database upgrades in place.
 
 ## [1.9.0] — 2026-10-08
 

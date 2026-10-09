@@ -20,7 +20,9 @@ PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_R
       `backend/app/static/.gitkeep` still present — see the `public/.gitkeep`
       note below).
 - [ ] GitHub Actions **CI** (`.github/workflows/ci.yml`) is green on the PR head
-      (backend: ruff + pytest; frontend: `npm ci` + `npm run build`).
+      (backend: ruff + pytest; frontend: `npm ci` + `npm run build`; meta-audit:
+      runtime mutation engine; browser-tests: real Playwright/Chromium, must not
+      skip).
 
 ## 2. Packaging / deployment gates
 
@@ -65,6 +67,29 @@ PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_R
       `.sha256` to it — no manual step (D-060).
 
 ## 6. Release verification (fill in per release)
+
+### v2.0.0 (v2.0 stages: AI Gateway + Target Language + Bot Onboarding + Content Ops, 2026-10-09)
+
+Minor over v1.9.0: completes the three agreed v2.0 stages. Additive migrations; no
+account registration and no Telegram-limit bypass.
+
+| Gate | v2.0.0 | Notes |
+| --- | --- | --- |
+| Version consistency (`2.0.0` everywhere) | ✅ | app / pyproject / frontend / lock (`test_repo_version_is_consistent`) |
+| AI Gateway + free providers | ✅ | free multimodal providers verified against the real pipeline; honest capability claims (D-117…D-119); `tests/test_v2_ai_providers.py` |
+| Target Language | ✅ | per-source/channel/item/publication; additive migration `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`; `tests/test_target_language.py` |
+| Mass bot-to-channel onboarding | ✅ | durable restart-safe queue; `ready` = Telegram confirms rights (D-120); migration `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`; `tests/test_bot_onboarding.py` + e2e |
+| Content Operations 2.0 | ✅ | one pipeline; AI profiles as data; mini-AI classifies (never an emoji); migration `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py` (D-116) |
+| Hidden background launch | ✅ | windowless spawn flags + VBScript autostart + `run.bat` `pythonw`; `tests/test_windows_hidden_console.py` |
+| Integration coverage | ✅ | `tests/test_content_pipeline_e2e.py`, `tests/test_bot_onboarding_e2e.py` |
+| Tests (`pytest` / `ruff`) | ✅ | full suite **1035 passed, 10 skipped**; ruff clean |
+| Frontend build | ✅ | `vue-tsc --noEmit` + `npm run build` clean |
+| Meta-audit engine (runtime) | ✅ | 32 total, 32 detected, 0 missed, 0 false positives |
+| Browser CI (`browser-tests`) | ✅ | real Playwright/Chromium; 8 integration tests, 0 skipped |
+| Artifact scan | ✅ | no `.session`/TDATA/DB/model in the ZIP; runtime dirs empty |
+| Secret scan | ✅ | no tokens/api_hash/session strings in the diff or tracked tree |
+| Git merge (`develop → main`) | ✅ | reviewed `develop → main` PR |
+| Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v2.0.0` (D-060) |
 
 ### v1.9.0 (Content Operations 2.0, 2026-10-08, D-116)
 
