@@ -272,7 +272,7 @@ and no Telegram-limit bypass.
 static detectors — an **unused DB field** (N), a **backend service without a
 caller** (O) and a **frontend control without behaviour** (P) — proven by the
 **runtime mutation engine**, which computes the kill rate from real executions:
-**100% (25/25 seeded defects), 0 critical or high misses, 0 false positives**.
+**100% (32/32 seeded defects), 0 critical or high misses, 0 false positives**.
 `KNOWN_GAP_IDS` is now empty. It adds no account registration and no
 Telegram-limit bypass.
 **v1.5.3** closed two high-impact **Consistency Auditor** gaps with static

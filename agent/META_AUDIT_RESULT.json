@@ -1,7 +1,7 @@
 {
   "version": "2.0.0",
-  "baseline_sha": "e5eb1f458c925c5cb82fb3903d185ffd75843408",
-  "generated_at": "2026-10-09T18:08:35.935083+00:00",
+  "baseline_sha": "926a3b3493b3cf4b841daee8fb4ef7bb090259f2",
+  "generated_at": "2026-10-09T20:14:06.836018+00:00",
   "result_source": "computed from runtime mutation executions",
   "total": 32,
   "detected": 32,

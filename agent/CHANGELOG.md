@@ -14,12 +14,15 @@ Additive only: no account registration and no Telegram-limit bypass
 (D-006/D-065/D-070). Version strings read **2.0.0** across
 `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
 
-**Released** via a reviewed `develop → main` PR; tag `v2.0.0`; the Release
-workflow (`.github/workflows/release.yml`) created the GitHub Release and attached
-the Windows portable ZIP + `.sha256` (D-060). Release ZIP scan: no
-`.session`/TDATA/DB/model. Gates: full suite green (**1035 passed, 10 skipped**),
-`ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit 32/32 (0 missed,
-0 false positives).
+**Released** via a reviewed `develop → main` PR #23 (merge `926a3b3`), tag
+`v2.0.0`; the Release workflow (`.github/workflows/release.yml`, run
+`37982855350`) created the GitHub Release (published 2026-10-09T20:06:51Z) and
+attached the Windows portable ZIP (24 977 686 bytes, sha256
+`4d62a52f…bd649`) + `.sha256` (D-060). Release ZIP scan: no
+`.session`/TDATA/DB/model. Gates: full suite green (**1035 passed**, 10 skipped
+at the PR head; the reconciled tree collects **1046** incl. the real
+Playwright/Chromium browser tests), `ruff` clean, `vue-tsc` + `npm run build`
+clean, meta-audit 32/32 (0 missed, 0 false positives).
 
 ### Added
 - **AI Gateway — free-first providers with honest capabilities (D-117…D-119).**

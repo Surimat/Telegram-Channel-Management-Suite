@@ -242,15 +242,15 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ---
 
-## v2.0 cycle — owner-approved priorities (in progress)
+## v2.0 cycle — owner-approved priorities (released in v2.0.0)
 
 Owner-approved priorities, worked sequentially in separately verifiable stages
 (**Этапы**). Do not invent new directions and do not revisit implemented work.
-No release is cut from this section until the owner asks.
+All three stages shipped as **v2.0.0** (PR #23, merge `926a3b3`, tag `v2.0.0`).
 
 1. **Web Wrappers and free multimodal AI providers — MAIN priority.**
-   - **Stage 1 — free-first providers and honest capabilities (implemented,
-     unreleased; awaiting owner-requested release).** Free-first providers and honest capability
+   - **Stage 1 — free-first providers and honest capabilities (implemented;
+     released in v2.0.0).** Free-first providers and honest capability
      reporting for the AI Gateway:
      - Keyless free text provider **`pollinations`** (`PollinationsProvider`,
        OpenAI-compatible `POST /openai/chat/completions`); it is **text only**
@@ -301,12 +301,13 @@ No release is cut from this section until the owner asks.
      1, `pollinations_image`); vision stays on keyed providers (Google/Anthropic)
      or an owner's own logged-in browser session. Re-check only when a real,
      keyless, non-bypass vision endpoint is confirmed.
-2. **Mass connection of created bots to channels.** Implemented (unreleased) —
+2. **Mass connection of created bots to channels.** Implemented (released in
+   v2.0.0) —
    see the Mass Bot-to-Channel Onboarding section below (D-120).
 3. **Complete Content Operations with target-language translation.** Implemented
-   (unreleased) — see the Target Language section below.
+   (released in v2.0.0) — see the Target Language section below.
 
-### v2.0 implementation notes (unreleased)
+### v2.0 implementation notes (released in v2.0.0)
 
 **Target-language translation (D-118).** The Content Studio gains an explicit
 language stage: a **source language** (auto-detected or set per source) and a
@@ -408,8 +409,9 @@ token is never part of any request or response. Additive migration
 - **v1.5.4 (2026-10-06):** the last three **Consistency Auditor** coverage gaps
   (N, O, P) are closed with pure static checks ‚Äî an unused ORM column, a public
   service class no module references, and a Vue control whose handler is undefined
-  or empty. The runtime mutation engine now detects **every** seeded defect:
-  **25/25, 100%, 0 false positives**, and `KNOWN_GAP_IDS` is empty. Additive only;
+  or empty. The runtime mutation engine now detects **every** seeded defect: at that
+  release **25/25** (the engine reports **32/32, 100%, 0 false positives**
+  today), and `KNOWN_GAP_IDS` is empty. Additive only;
   no new phases; no account registration and no Telegram-limit bypass.
 - **v1.5.3 (2026-10-06):** two high-impact **Consistency Auditor** gaps (M, Q)
   closed statically ‚Äî a setting saved but never read, and a channel-aware module

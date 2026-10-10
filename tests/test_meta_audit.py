@@ -810,6 +810,29 @@ def test_next_task_release_anchors_match_git() -> None:
     assert tag in text, f"agent/NEXT_TASK.md does not name the current tag {tag}"
 
 
+def test_current_state_release_anchors_match_git() -> None:
+    """CURRENT_STATE's stated ``main`` HEAD and tag must match the real repo.
+
+    The "Factual git state" line is one of the first things a resuming agent
+    reads, so a stale SHA there misleads it about what has shipped. The parallel
+    NEXT_TASK guard covers that file; this closes the same hole for CURRENT_STATE.
+    If git cannot answer (shallow clone), the check is skipped rather than failing.
+    """
+    text = (REPO_ROOT / "agent" / "CURRENT_STATE.md").read_text(encoding="utf-8")
+    head = _git_output("rev-parse", "--short", "main")
+    tag = _git_output("describe", "--tags", "--exact-match", "main")
+    if head is None or tag is None:  # pragma: no cover - shallow clone
+        pytest.skip("git cannot resolve main/tag in this checkout")
+    if tag != f"v{__version__}":  # pragma: no cover - pre-release branch state
+        pytest.skip(f"main is not tagged v{__version__} (tag={tag!r})")
+    assert f"`main` HEAD = `{head}`" in text, (
+        f"agent/CURRENT_STATE.md does not state the real main HEAD {head}"
+    )
+    assert tag in text, (
+        f"agent/CURRENT_STATE.md does not name the current tag {tag}"
+    )
+
+
 def test_next_task_names_the_latest_tag() -> None:
     """NEXT_TASK.md must name the repository's latest release tag.
 

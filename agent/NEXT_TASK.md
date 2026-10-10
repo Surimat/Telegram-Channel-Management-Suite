@@ -6,9 +6,10 @@
 **Updated:** 2026-10-09
 **Status:** **v2.0.0 is RELEASED (2026-10-09).** The three agreed v2.0 stages are shipped: an **AI Gateway** over many providers (including **free multimodal** ones) and browser **web wrappers** with free-first routing and honest capabilities (D-117…D-119); a per-content **Target Language**; **mass bot-to-channel onboarding** as a durable, restart-safe queue where `ready` means Telegram confirms the bot's rights (D-120); **Content Operations 2.0** (D-116); and a **hidden (windowless) background launch**. Additive only — no account registration and no Telegram-limit bypass. Version string is **2.0.0**.
 
-Released via a reviewed `develop → main` PR; tag `v2.0.0`; the Release workflow
-created the GitHub Release and attached the Windows portable ZIP + `.sha256`
-(D-060). `main` HEAD = `TBDMAIN`; `develop` HEAD = `TBDDEV` (re-synced). Release
+Released via a reviewed `develop → main` PR #23 (merge `926a3b3`), tag `v2.0.0`;
+the Release workflow (run `37982855350`) created the GitHub Release and attached the
+Windows portable ZIP (24 977 686 bytes, sha256 `4d62a52f…bd649`) + `.sha256`
+(D-060). `main` HEAD = `926a3b3`; `develop` HEAD = `926a3b3` (re-synced). Release
 ZIP scan: no `.session`/TDATA/DB/model.
 
 Version string is **2.0.0** across `backend/app/__init__.py`, `pyproject.toml`,
@@ -73,9 +74,9 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # clean
 PYTHONPATH=. python tests/meta_audit/engine.py    # 30/30, 0 false positives
 ```
 
-The commits on `develop` after the v1.9.0 release are the memory-sync commit, the
-release-hygiene guards and the unreleased v2.0 stages, so `develop` is ahead of
-`main` with **no change to the shipped release**.
+The commits on `develop` after the v1.9.0 release were the memory-sync commit, the
+release-hygiene guards and the v2.0 stages; those v2.0 stages shipped as
+**v2.0.0** (PR #23, merge `926a3b3`), and `develop` is now re-synced to `main`.
 
 **Prior release:** **v1.8.1 (AI Gateway verification patch, D-114) is RELEASED**
 via a reviewed `develop → main` PR #20 (merge `bc8382b`), tag `v1.8.1`; the

@@ -1201,3 +1201,47 @@ provider/fallback/failure counts and recent metadata records (stage, status,
 provider, model, latency, attempts, detail) — never prompt text, keys or audience
 data. Comment and auto-delete are tracked by `comment_status`/`delete_status` so
 a lost step never marks a publication `failed`.
+
+## 27. Free-first AI providers and honest capabilities (v2.0.0, D-117…D-119)
+
+The AI Gateway (section 25) gains a **free-first** layer, all additive and
+honest about what it can actually do:
+
+- **Keyless free text** — `pollinations` (`PollinationsProvider`) and `llm7`
+  (`Llm7Provider`). Both are OpenAI-compatible and **text only**: a real image
+  request is refused upstream, so neither ever claims vision.
+- **Keyless free image generation** — `pollinations_image`
+  (`PollinationsImageProvider`, model `flux`). Generation only, **off by
+  default**; it never claims image *understanding*.
+- **Capability catalog** (`ai/gateway/catalog.py`), idempotent **provisioning**
+  (`ai/gateway/provisioning.py`, never overwrites an owner-configured provider)
+  and browser **preflight** (`ai/gateway/preflight.py`, honest per-step progress,
+  never fails).
+- **Honesty rule (D-119).** A key is required only for an `api_key` provider with
+  no key; a text-only provider never serves an image request; session expiry is
+  **failover**, never a bypass. No catalog entry may claim a capability the
+  provider does not have.
+
+## 28. Target Language (v2.0.0, D-118)
+
+Content translation is an explicit, protected stage
+(`backend/app/services/content_language.py`). A **source language** (auto-detected
+or set per source) and a **target language** are resolved by precedence:
+publication → channel → source → global default. Translation runs only when the
+languages differ, goes through the **existing AI Gateway** (routing/retries/
+failover unchanged), masks URLs and preserves the original text, so no material is
+lost and no secret is sent. Additive migration
+`20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`; tests
+`tests/test_target_language.py`.
+
+## 29. Mass Bot-to-Channel Onboarding (v2.0.0, D-120)
+
+`services/bot_onboarding.py` connects many already-created bots to one channel
+through Telegram's **official** onboarding link — never a limit bypass. A batch is
+a durable, restart-safe queue (scheduler job `bot_onboarding.tick`, one bot per
+tick) with least-privilege rights profiles (`reactions`/`posting`/`editing`); a
+candidate is `ready` only when Telegram confirms the bot's rights. The bot token
+is never part of any request or response — only the public username and Telegram's
+own `?startchannel` link are exposed. UI `BotOnboardingView.vue`; additive
+migration `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`; tests
+`tests/test_bot_onboarding.py`, `tests/test_bot_onboarding_e2e.py`.
