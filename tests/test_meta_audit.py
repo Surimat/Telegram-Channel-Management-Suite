@@ -853,6 +853,37 @@ def test_next_task_names_the_latest_tag() -> None:
     )
 
 
+def test_readme_current_release_matches_latest_tag() -> None:
+    """README's "Current stable release" anchor must name the latest tag.
+
+    Reproduces the drift the owner reported: the GitHub Release is Latest and the
+    tag points at the merge commit, yet a reader of the repository front page
+    still sees the previous version. ``test_readme_states_the_current_release``
+    only asserts the shipped version appears *somewhere* in README.md, so a stale
+    "Current stable release" anchor slips past it. This pins the anchor line to
+    the newest tag by version (the published release). Skipped when git cannot
+    list tags (shallow/tagless checkout), where the version guard still applies.
+    """
+    tags = _git_output("tag", "--sort=-v:refname")
+    if not tags:  # pragma: no cover - shallow clone
+        pytest.skip("git cannot list tags in this checkout")
+    latest = tags.splitlines()[0]
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    line = next(
+        (
+            ln
+            for ln in readme.splitlines()
+            if ln.strip().startswith("**Current stable release:")
+        ),
+        None,
+    )
+    assert line is not None, "README.md lost its 'Current stable release' anchor"
+    assert latest in line, (
+        f"README.md 'Current stable release' does not name the latest tag "
+        f"{latest}: {line[:140]!r}"
+    )
+
+
 def test_next_task_active_task_is_not_declared_released() -> None:
     """An 'Active task' section must not describe already-released work.
 
