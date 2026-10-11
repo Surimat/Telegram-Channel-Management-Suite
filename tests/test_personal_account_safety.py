@@ -136,6 +136,151 @@ async def test_invites_require_both_switches(db) -> None:
             await service.create_job(target="@target")
 
 
+async def test_start_and_resume_blocked_when_invites_switched_off(db) -> None:
+    """A drafted run cannot be started or resumed while the mass switch is off."""
+    from backend.app.db.session import session_scope
+
+    await _set_flag("personal_account_enabled", True)
+    await _set_flag("invites_enabled", True)
+    provider = FakeSessionProvider()
+    async with session_scope() as session:
+        service = InviteService(session, session_provider_factory=_factory(provider))
+        job = await service.create_job(
+            target="@target", per_account_delay_min=0, per_account_delay_max=0
+        )
+        job_id = job.id
+
+    await _set_flag("invites_enabled", False)
+    async with session_scope() as session:
+        service = InviteService(session, session_provider_factory=_factory(provider))
+        with pytest.raises(PersonalAccountDisabledError):
+            await service.start_job(job_id)
+        job = await service.jobs.get(job_id)
+        await service.pause_job(job_id)
+        with pytest.raises(PersonalAccountDisabledError):
+            await service.resume_job(job_id)
+    assert provider.invite.record == []
+
+
+async def test_flood_wait_pauses_without_automatic_retry(db) -> None:
+    """FloodWait pauses the run and is never retried automatically (D-006)."""
+    from backend.app.db.models.invite import InviteJobStatus, InviteStatus
+    from backend.app.db.session import session_scope
+    from backend.app.providers.errors import FloodWaitError
+    from backend.app.providers.fake_session import FakeInviteScenario
+
+    await _set_flag("personal_account_enabled", True)
+    await _set_flag("invites_enabled", True)
+    provider = FakeSessionProvider(
+        invite=FakeInviteScenario(error_after=1, default_error=FloodWaitError(45))
+    )
+    async with session_scope() as session:
+        service = InviteService(session, session_provider_factory=_factory(provider))
+        job = await service.create_job(
+            target="@target", per_account_delay_min=0, per_account_delay_max=0
+        )
+        job = await service.confirm_and_start(job.id)
+        job_id = job.id
+
+    async with session_scope() as session:
+        service = InviteService(session, session_provider_factory=_factory(provider))
+        action, delay = await service.run_tick(job_id)
+        assert action == "paused"
+        assert delay == 0.0
+        job = await service.jobs.get(job_id)
+        assert job.status == InviteJobStatus.PAUSED
+        assert job.wait_until is not None
+        assert job.flood_count >= 1
+        tasks, _ = await service.tasks.list_for_job(job_id, limit=100)
+        assert any(t.status == InviteStatus.FLOOD_WAIT for t in tasks)
+        # A paused run does nothing on a further tick — no retry loop.
+        assert await service.run_tick(job_id) == ("done", 0.0)
+    assert len(provider.invite.record) <= 2
+
+
+async def test_retry_failed_requires_the_mass_switch(db) -> None:
+    """Even an explicit retry cannot run while bulk invitations are switched off."""
+    from backend.app.db.models.invite import InviteJobStatus
+    from backend.app.db.session import session_scope
+    from backend.app.providers.errors import TelegramProviderError
+    from backend.app.providers.fake_session import FakeInviteScenario
+
+    await _set_flag("personal_account_enabled", True)
+    await _set_flag("invites_enabled", True)
+    provider = FakeSessionProvider(
+        invite=FakeInviteScenario(default_error=TelegramProviderError("Временный сбой."))
+    )
+    async with session_scope() as session:
+        service = InviteService(session, session_provider_factory=_factory(provider))
+        job = await service.create_job(
+            target="@target", per_account_delay_min=0, per_account_delay_max=0
+        )
+        await service.confirm_and_start(job.id)
+        await service.run_tick(job.id)
+        job_id = job.id
+    attempts_while_enabled = len(provider.invite.record)
+
+    await _set_flag("invites_enabled", False)
+    async with session_scope() as session:
+        service = InviteService(session, session_provider_factory=_factory(provider))
+        # An explicit retry must also refuse while the mass switch is off.
+        with pytest.raises(PersonalAccountDisabledError):
+            await service.retry_failed(job_id)
+        job = await service.jobs.get(job_id)
+        assert job.status != InviteJobStatus.RUNNING
+        # run_tick must not act on a non-running job, so nothing new is invited.
+        assert await service.run_tick(job_id) == ("done", 0.0)
+    assert len(provider.invite.record) == attempts_while_enabled
+
+
+async def test_invite_api_blocked_when_invites_off(client) -> None:
+    """Both the dry-run and creation answer a friendly 403 while invites are off."""
+    from backend.app.db.models.session import SessionStatus, UserSession
+    from backend.app.db.session import session_scope
+
+    await _set_flag("personal_account_enabled", True)
+    await _set_flag("invites_enabled", False)
+    async with session_scope() as session:
+        session.add(
+            UserSession(
+                telegram_user_id=1000009,
+                username="fake_user2",
+                display_name="Fake User 2",
+                status=SessionStatus.ONLINE,
+                enabled=True,
+                api_id="1",
+            )
+        )
+        await session.flush()
+
+    preview = await client.post("/api/v1/invites/preview", json={"target": "@target"})
+    assert preview.status_code == 403
+    assert preview.json()["error"]["hint"]
+
+    created = await client.post("/api/v1/invites", json={"target": "@target"})
+    assert created.status_code == 403
+    assert created.json()["error"]["hint"]
+
+
+async def test_bot_api_works_while_personal_account_is_off(db) -> None:
+    """Turning the personal account off must not affect the Telegram Bot API."""
+    from backend.app.db.session import session_scope
+    from backend.app.services.bot_service import BotService
+    from tests.conftest import make_fake_provider_factory
+
+    await _set_flag("personal_account_enabled", False)
+    await _set_flag("invites_enabled", False)
+    async with session_scope() as session:
+        service = BotService(session, provider_factory=make_fake_provider_factory())
+        bot = await service.add_bot(token="123456:TEST-TOKEN", title="My Bot")
+        assert bot.has_token
+        provider = service.provider_for(bot)
+        identity = await provider.get_me()
+        assert identity.id == 123456
+        await provider.send_message("@channel", "hello")
+        assert provider.sent_messages == [("@channel", "hello")]
+
+
 async def test_start_is_blocked_when_invites_are_switched_off_mid_run(db) -> None:
     from backend.app.db.session import session_scope
 
