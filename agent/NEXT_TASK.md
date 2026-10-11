@@ -3,13 +3,14 @@
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
-**Updated:** 2026-10-09
-**Status:** **v2.0.0 is RELEASED (2026-10-09).** The three agreed v2.0 stages are shipped: an **AI Gateway** over many providers (including keyless-free **text** and **image generation** ones) and browser **web wrappers** with free-first routing and honest capabilities (D-117…D-119); a per-content **Target Language**; **mass bot-to-channel onboarding** as a durable, restart-safe queue where `ready` means Telegram confirms the bot's rights (D-120); **Content Operations 2.0** (D-116); and a **hidden (windowless) background launch**. Additive only — no account registration and no Telegram-limit bypass. Version string is **2.0.0**.
+**Updated:** 2026-10-11
+**Status:** **v2.0.0 is RELEASED (2026-10-09); the post-v2.0.0 Free-Vision stage (D-122) is complete on `develop` (unreleased).** v2.0.0 shipped the three agreed stages: an **AI Gateway** over many providers (including keyless-free **text** and **image generation** ones) and browser **web wrappers** with free-first routing and honest capabilities (D-117…D-119); a per-content **Target Language**; **mass bot-to-channel onboarding** as a durable, restart-safe queue where `ready` means Telegram confirms the bot's rights (D-120); **Content Operations 2.0** (D-116); and a **hidden (windowless) background launch**. Additive only — no account registration and no Telegram-limit bypass. Version string is **2.0.0**.
 
 Released via a reviewed `develop → main` PR #23 (merge `926a3b3`), tag `v2.0.0`;
 the Release workflow (run `37982855350`) created the GitHub Release and attached the
 Windows portable ZIP (24 977 686 bytes, sha256 `4d62a52f…bd649`) + `.sha256`
-(D-060). `main` HEAD = `926a3b3`; `develop` HEAD = `926a3b3` (re-synced). Release
+(D-060). `main` HEAD = `926a3b3` (= `origin/main`, tag `v2.0.0`); `develop` is
+**ahead of `main`** (the unreleased post-v2.0.0 Free-Vision work, D-122). Release
 ZIP scan: no `.session`/TDATA/DB/model.
 
 Version string is **2.0.0** across `backend/app/__init__.py`, `pyproject.toml`,
@@ -21,12 +22,26 @@ Version string is **2.0.0** across `backend/app/__init__.py`, `pyproject.toml`,
 cycle is complete. Cut a release only when the owner asks (D-060): branch from
 `develop`, then a reviewed `develop → main` PR + tag.
 
-**Post-v2.0.0 (2026-10-11, D-122, not released):** the owner asked to connect a
-free keyless image-understanding provider. One was found and verified (the Kilo
-Gateway free pool) and integrated additively through the existing AI Gateway —
-`KiloGatewayProvider`, the `kilo_gateway` registry kind, a `catalog` entry and a
-provisioning default (opt-in, best-effort). No new architecture, no new endpoint,
-no key bundled. Version stays **2.0.0**; this is unreleased `develop` work.
+**Free Vision (D-122) — COMPLETE, not released (committed `af2f44b`, pushed to
+`origin/develop`).** A free keyless image-understanding provider was found and
+verified (the Kilo Gateway free pool) and integrated additively through the
+existing AI Gateway — `KiloGatewayProvider`, the `kilo_gateway` registry kind, a
+`catalog` entry verified only for `image_understanding`, and a disabled-by-default
+provisioning entry (opt-in, best-effort; a failure fails over and never loses
+material; no key bundled). Tests: `tests/test_v2_ai_providers.py`; opt-in live
+probe `tests/test_kilo_free_vision_live.py` (`TCMS_LIVE_KILO_VISION=1`). No new
+architecture, no new endpoint. Version stays **2.0.0**.
+
+### Next stage (factual)
+
+**Release the unreleased Free-Vision (D-122) work — only when the owner asks
+(D-060).** There is no other required task. To release: branch/review a
+`develop → main` PR from the current `develop` tip, tag the merge commit, and let
+the Release workflow attach the Windows portable ZIP. Decide the version at that
+point (a patch over v2.0.0). Otherwise the v2.0 cycle is complete and no new
+large feature is planned. The non-blocking optional items (a full automated
+BotFather Mini App flow, richer analytics, additional AI backends, a
+permissively-licensed TDATA converter, D-070) remain, but only if the owner asks.
 
 **v2.0 completion gates added this cycle:** `tests/test_content_pipeline_e2e.py`
 and `tests/test_bot_onboarding_e2e.py` (end-to-end integration), a separate
