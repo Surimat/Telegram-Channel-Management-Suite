@@ -399,7 +399,7 @@ token is never part of any request or response. Additive migration
   Released via a reviewed `develop ‚Üí main` PR #19 (merge `d8c62c1`), tag `v1.8.0`;
   the Release workflow (run `37653661662`) attached the Windows portable ZIP
   (24 904 789 bytes, sha256 `9bb39e4b‚Ä¶d353c`) + `.sha256`.
-- **v1.7.0 (2026-10-08):** the **Bot Factory** (v1.3) becomes a **durable creation
+- **v1.7.0 (2026-10-07):** the **Bot Factory** (v1.3) becomes a **durable creation
   queue** (D-109/D-110). A batch marks its free candidates and the scheduler job
   `bot_factory.create` creates them **one operation per tick**, so the batch is
   restart-resumable, can be stopped/resumed, and never rolls back an
@@ -412,7 +412,7 @@ token is never part of any request or response. Additive migration
   path normalisation (a leading `//` can no longer skip the guard), the
   `config_sync` capability reports `needs_setup` until a provider is connected,
   and the Google Drive token step is wired into the `/owner` UI. No new features.
-- **v1.6.0 (2026-10-07):** an **Owner Auth + Config Sync** vertical slice (D-105/D-106).
+- **v1.6.0 (2026-10-06):** an **Owner Auth + Config Sync** vertical slice (D-105/D-106).
   A **local owner profile** (password or PIN) protects the panel with a one-way
   PBKDF2 verifier and an HMAC-signed session token (`X-Owner-Token`; default-on
   middleware, local-first ‚Äî open until a profile enables protection). A
@@ -438,7 +438,7 @@ token is never part of any request or response. Additive migration
   capabilities, a swallowed consistency-check failure, a write-only `language`
   preference, runtime-image source-unavailable checks, and `README.md` version
   drift (D-095‚Ä¶D-098).
-- **v1.5.0 (2026-10-05):** Capability graph + i18n + Consistency Auditor. Three
+- **v1.5.0 (2026-10-06):** Capability graph + i18n + Consistency Auditor. Three
   small cross-cutting layers that make the product explain itself honestly: a
   machine-readable **capability graph** (`GET /api/v1/capability-graph`, also
   embedded in the Promotion Wizard and the Dashboard) so every surface agrees on
@@ -448,7 +448,7 @@ token is never part of any request or response. Additive migration
   rendered as the Diagnostics "–ü—Ä–æ–≤–µ—Ä–∫–∞ —Ü–µ–ª–æ—Å—Ç–Ω–æ—Å—Ç–∏" panel) whose static checks run
   in CI to catch cross-module drift. Additive only; no new phases; no account
   registration and no Telegram-limit bypass.
-- **v1.4.0 (2026-10-05):** Notification Center + Tray Agent + Editorial
+- **v1.4.0 (2026-10-06):** Notification Center + Tray Agent + Editorial
   Workspace (D-084‚Ä¶D-091). A durable, queryable Notification Center with
   categories, priorities, per-category routing (owner DM / notification group /
   Windows toast), quiet hours and anti-spam aggregation; the TCMS Tray Agent so

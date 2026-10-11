@@ -212,7 +212,7 @@ Additive minor over v1.7.0: a single AI Gateway over many providers plus browser
 | Git merge (`develop → main`) | ✅ | reviewed PR #19 (`develop → main`, merge `d8c62c1`) |
 | Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v1.8.0` → Release workflow (run `37653661662`, D-060); ZIP 24 904 789 bytes, sha256 `9bb39e4b…d353c` |
 
-### v1.7.0 (Bot Factory creation queue, 2026-10-08, D-109)
+### v1.7.0 (Bot Factory creation queue, 2026-10-07, D-109)
 
 Additive minor over v1.6.1: the Bot Factory batch becomes a durable creation
 queue driven by the scheduler job `bot_factory.create`.
@@ -255,7 +255,7 @@ author's working tree): clone → `git checkout v1.6.1` → fresh venv.
 | Git merge (`develop → main`) | ✅ | reviewed PR #17 (`develop → main`, merge `a38823d`) |
 | Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v1.6.1` → Release workflow (run `37601801598`, D-060) |
 
-### v1.6.0 (Owner Auth + Config Sync, 2026-10-07)
+### v1.6.0 (Owner Auth + Config Sync, 2026-10-06)
 
 | Gate | v1.6.0 | Notes |
 | --- | --- | --- |
@@ -353,7 +353,7 @@ author's working tree): clone → `git checkout v1.6.1` → fresh venv.
 | Docker smoke | ✅ | `/health` → `1.5.1`, SPA `200`, `/api/v1/capability-graph` → `not_implemented`, `/api/v1/consistency` → `pass` |
 | Artifact scan | ✅ | ZIP has no `.session`/TDATA/DB/model (only the public `certifi/cacert.pem`); runtime dirs (`sessions/`, `data/`, `backups/`, `logs/`, `exports/`, `models/`, `updates/`) empty; only placeholder `.env.example` |
 
-### v1.5.0 (released 2026-10-05)
+### v1.5.0 (released 2026-10-06)
 
 | Gate | v1.5.0 | Notes |
 | --- | --- | --- |
@@ -376,7 +376,7 @@ author's working tree): clone → `git checkout v1.6.1` → fresh venv.
 | Docker smoke | ✅ | build + run: `/health` → `1.5.0`, SPA `200`, v1.5 routes `200` |
 | Artifact scan | ✅ | ZIP has no `.session`/TDATA/DB/model; runtime dirs (`sessions/`, `data/`, `backups/`, `logs/`, `exports/`, `models/`, `updates/`) empty; only placeholder `.env.example` |
 
-### v1.4.0 (released 2026-10-05)
+### v1.4.0 (released 2026-10-06)
 
 | Gate | v1.4.0 | Notes |
 | --- | --- | --- |

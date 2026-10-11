@@ -286,7 +286,12 @@ _CURRENT_ANCHORS = (
 #: history (it also contains one of ``_HISTORY_MARKERS``). This catches stale
 #: "… Latest release: vX.Y.Z" / "**Repository status:** … vX.Y.Z" lines while
 #: leaving "README.md still said …" drift notes alone.
-_MIDLINE_CLAIMS = ("Latest release:", "**Repository status:")
+_MIDLINE_CLAIMS = (
+    "Latest release:",
+    "**Repository status:",
+    "Version string",
+    "All gates pass:",
+)
 _HISTORY_MARKERS = (
     "history",
     "historical",
@@ -362,6 +367,31 @@ def test_memory_files_have_no_stale_current_version() -> None:
                 )
 
     assert not failures, "stale current-release facts in memory files:\n" + "\n".join(failures)
+
+
+def test_memory_files_state_the_current_version() -> None:
+    """Every "Version string is **X**" claim in memory must name the shipped X.
+
+    The anchor guards only inspect the *first* current-release line, and the
+    mid-line version regex requires a ``v`` prefix — so a bare
+    ``Version string is **2.0.0**`` left in CURRENT_STATE (the exact drift this
+    repository hit) slipped through both. This checks every such claim directly.
+    Only the current-tense "Version string is" phrasing is pinned; historical
+    lines use "Version strings read **1.8.1**", which is left alone.
+    """
+    current = f"**{__version__}**"
+    offenders: list[str] = []
+    for name in ("agent/CURRENT_STATE.md", "agent/NEXT_TASK.md"):
+        for lineno, line in enumerate(
+            (REPO_ROOT / name).read_text(encoding="utf-8").splitlines(), start=1
+        ):
+            if "Version string is" not in line:
+                continue
+            if current not in line:
+                offenders.append(
+                    f"{name}:{lineno} does not state {current}: {line[:120]!r}"
+                )
+    assert not offenders, "stale 'Version string is' claim:\n" + "\n".join(offenders)
 
 
 def test_changelog_leads_with_the_current_release() -> None:
@@ -579,6 +609,7 @@ _VERSION_HEADINGS = (
 #: Version strings written into the release-verification sections. A release
 #: bumps the app version, so a stale ``**NNN passed**`` here is drift.
 _TEST_COUNT_RE = re.compile(r"(\d+) passed(?:, (\d+) skipped)?")
+_COLLECTED_RE = re.compile(r"(\d+) collected")
 _CHANGELOG_PASSED_RE = re.compile(r"full suite green \(\*\*(\d+) passed")
 
 
@@ -659,6 +690,42 @@ def test_release_docs_do_not_claim_a_future_date() -> None:
     )
 
 
+#: ``(file, regex)`` pairs whose captured group 1 is an ``X.Y.Z`` version and
+#: group 2 the calendar date documented for that release. Each release's heading
+#: must carry the date of its git tag — the one authoritative, immutable record
+#: of when a release actually shipped.
+_RELEASE_DATE_HEADINGS = (
+    ("agent/CHANGELOG.md", r"^## \[(\d+\.\d+\.\d+)\][^\n]*?(\d{4}-\d{2}-\d{2})"),
+    ("docs/RELEASE_CHECKLIST.md", r"^### v(\d+\.\d+\.\d+) \([^)]*?(\d{4}-\d{2}-\d{2})"),
+    ("docs/ROADMAP.md", r"^- \*\*v(\d+\.\d+\.\d+) \((\d{4}-\d{2}-\d{2})\)"),
+)
+
+
+def test_release_heading_dates_match_their_git_tags() -> None:
+    """A release heading's date must equal its git tag's date.
+
+    This repository documented v1.7.0 as 2026-10-08, v1.6.0/v1.5.0/v1.4.0 as a
+    day late, and (once) v1.9.0 as 2026-10-12 while the tag and GitHub Release
+    are dated 2026-10-08. Each heading's release date is now pinned to the tag,
+    so an invented or copied-forward date cannot be committed again. Skipped
+    (never failed) when git or the tag is unavailable, so a shallow checkout
+    cannot raise a false alarm.
+    """
+    offenders: list[str] = []
+    for name, pattern in _RELEASE_DATE_HEADINGS:
+        text = (REPO_ROOT / name).read_text(encoding="utf-8")
+        for match in re.finditer(pattern, text, flags=re.MULTILINE):
+            version, documented = match.group(1), match.group(2)
+            tagged = _git_output(
+                "for-each-ref", f"refs/tags/v{version}", "--format=%(taggerdate:short)"
+            )
+            if tagged and tagged != documented:
+                offenders.append(
+                    f"{name}: v{version} documented {documented}, tag is {tagged}"
+                )
+    assert not offenders, "release heading date != tag date:\n" + "\n".join(offenders)
+
+
 def _git_output(*args: str) -> str | None:
     """Return stdout of a git command, or None if git cannot answer.
 
@@ -731,6 +798,30 @@ def test_memory_files_do_not_claim_a_stale_test_count() -> None:
                     f"> {collected_count} tests"
                 )
     assert not offenders, "documented test count exceeds the real suite:\n" + "\n".join(
+        sorted(set(offenders))
+    )
+
+
+def test_memory_files_do_not_claim_a_stale_collected_count() -> None:
+    """No doc may claim the suite *collects* more tests than it really does.
+
+    ``N collected`` is a stronger claim than ``N passed``: the collection is
+    deterministic and independent of skips, so a documented collected count that
+    exceeds the real one is provably wrong. This pins the top-of-file "All gates
+    pass: … N collected" line (and any sibling) to reality, catching the drift
+    where the count was left at an older release's value.
+    """
+    collected_count = _full_suite_size()
+    offenders: list[str] = []
+    for name in ("README.md", "agent/CHANGELOG.md", "agent/CURRENT_STATE.md"):
+        text = (REPO_ROOT / name).read_text(encoding="utf-8")
+        for match in _COLLECTED_RE.finditer(text):
+            claimed = int(match.group(1))
+            if claimed > collected_count:
+                offenders.append(
+                    f"{name}: claims {claimed} collected > {collected_count} tests"
+                )
+    assert not offenders, "documented collected count exceeds the real suite:\n" + "\n".join(
         sorted(set(offenders))
     )
 

@@ -361,7 +361,7 @@ bypass.
 
 ---
 
-## [1.7.0] — 2026-10-08
+## [1.7.0] — 2026-10-07
 
 **v1.7.0 — Bot Factory becomes a durable creation queue (additive minor).**
 Released via a reviewed `develop → main` PR #18 (merge `48eecdc`), tag `v1.7.0`;
@@ -467,7 +467,7 @@ behaviour-preserving for the local-first default.
 
 ---
 
-## [1.6.0] — 2026-10-07
+## [1.6.0] — 2026-10-06
 
 **Owner Auth + Config Sync vertical slice.** A local owner profile protects the
 panel, and an encrypted, versioned configuration bundle moves the owner's settings
@@ -751,7 +751,7 @@ clean.
 
 ---
 
-## [1.5.0] — 2026-10-05 — released
+## [1.5.0] — 2026-10-06 — released
 
 Minor release: a **capability graph**, a bilingual **i18n catalog** and a
 **Consistency Auditor** (D-092…D-094). Three small, additive cross-cutting layers
@@ -799,7 +799,7 @@ scan clean.
 
 ---
 
-## [1.4.0] — 2026-10-05 — released
+## [1.4.0] — 2026-10-06 — released
 
 Minor release: the **Notification Center**, the **TCMS Tray Agent** and the
 **Editorial Workspace** (D-084…D-091). A durable, queryable history of important
