@@ -9,15 +9,18 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v2.0.0`.** It completes the three agreed v2.0 stages:
-an **AI Gateway** over many providers (including keyless-free **text** and
-**image generation** ones, plus a keyless-free **image understanding** path via
-the Kilo Gateway, D-122) and
+**Current stable release: `v2.0.1`.** This is a patch over v2.0.0 that adds a
+keyless-free **image understanding** (vision) path through the **Kilo Gateway**
+free model (D-122) — **opt-in and off by default**, best-effort, with an honest
+failover so a rate limit or outage never loses material. It completes the three
+agreed v2.0 stages: an **AI Gateway** over many providers (including keyless-free
+**text**, **image generation** and — new in this patch — keyless-free **image
+understanding**) and
 browser **web wrappers**, a per-content **Target Language**, **mass
 bot-to-channel onboarding**, and **Content Operations 2.0** — all with a
 **hidden (windowless) background launch** and honest capabilities. It adds no
 account registration and no Telegram-limit bypass.
-**v2.0.0 (this release)** completes the three agreed v2.0 stages. It adds an
+**v2.0.0** completed the three agreed v2.0 stages. It adds an
 **AI Gateway** that routes across many providers (OpenAI-compatible,
 OpenRouter, Google, Anthropic, DeepSeek, local Ollama) and browser **web
 wrappers**. The verified keyless-free surface is **text** and **image

@@ -5,10 +5,22 @@ Dates are ISO-8601.
 
 ---
 
-## [Unreleased]
+## [2.0.1] — 2026-10-11
 
-**Keyless free image understanding via the Kilo Gateway (D-122).** Additive,
-through the existing AI Gateway — no new architecture and no new endpoint.
+**v2.0.1 — keyless free image understanding via the Kilo Gateway (D-122, patch
+over v2.0.0).** Additive, through the existing AI Gateway — no new architecture
+and no new endpoint. Version strings read **2.0.1** across
+`backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
+Opt-in and **off by default**; a rate limit or upstream outage is an honest
+failure and the router fails over, so material is never lost. No key is bundled
+and no challenge is bypassed.
+
+**Released** via a reviewed `develop → main` PR, tag `v2.0.1`; the Release
+workflow (`.github/workflows/release.yml`) created the GitHub Release and attached
+the Windows portable ZIP + `.sha256` (D-060). Release ZIP scan: no
+`.session`/TDATA/DB/model. Gates: full suite green (**1054 passed**, 3 skipped),
+`ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit 32/32 (0 missed,
+0 false positives), browser CI (real Playwright/Chromium) green.
 
 ### Added
 - **`KiloGatewayProvider`** (`backend/app/ai/gateway/providers/__init__.py`), an

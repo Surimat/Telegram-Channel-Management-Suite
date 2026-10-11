@@ -4,44 +4,42 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-11
-**Status:** **v2.0.0 is RELEASED (2026-10-09); the post-v2.0.0 Free-Vision stage (D-122) is complete on `develop` (unreleased).** v2.0.0 shipped the three agreed stages: an **AI Gateway** over many providers (including keyless-free **text** and **image generation** ones) and browser **web wrappers** with free-first routing and honest capabilities (D-117…D-119); a per-content **Target Language**; **mass bot-to-channel onboarding** as a durable, restart-safe queue where `ready` means Telegram confirms the bot's rights (D-120); **Content Operations 2.0** (D-116); and a **hidden (windowless) background launch**. Additive only — no account registration and no Telegram-limit bypass. Version string is **2.0.0**.
+**Status:** **v2.0.1 is RELEASED (2026-10-11).** It is a patch over v2.0.0 that adds a keyless-free **image understanding** (vision) path through the **Kilo Gateway** free model (D-122), integrated additively through the existing AI Gateway — **opt-in and off by default**, best-effort, with an honest failover so a rate limit or outage never loses material. It completes the three agreed v2.0 stages (an **AI Gateway** over many providers including keyless-free **text**, **image generation** and now **image understanding**; browser **web wrappers**; a per-content **Target Language**; **mass bot-to-channel onboarding**; **Content Operations 2.0**; and a **hidden (windowless) background launch**). Additive only — no account registration and no Telegram-limit bypass. Version string is **2.0.1**.
 
-Released via a reviewed `develop → main` PR #23 (merge `926a3b3`), tag `v2.0.0`;
-the Release workflow (run `37982855350`) created the GitHub Release and attached the
-Windows portable ZIP (24 977 686 bytes, sha256 `4d62a52f…bd649`) + `.sha256`
-(D-060). `main` HEAD = `926a3b3` (= `origin/main`, tag `v2.0.0`); `develop` is
-**ahead of `main`** (the unreleased post-v2.0.0 Free-Vision work, D-122). Release
-ZIP scan: no `.session`/TDATA/DB/model.
+Released via a reviewed `develop → main` PR #__PR__ (merge `__MAINSHA__`), tag
+`v2.0.1`; the Release workflow (run `__RUN__`) created the GitHub Release and attached
+the Windows portable ZIP (__ZIP__ bytes, sha256 `__SHA__…`) + `.sha256` (D-060).
+`main` HEAD = `__MAINSHA__` (= `origin/main`, tag `v2.0.1`); `develop` = `__MAINSHA__`
+(re-synced). Release ZIP scan: no `.session`/TDATA/DB/model. No schema change.
 
-Version string is **2.0.0** across `backend/app/__init__.py`, `pyproject.toml`,
+Version string is **2.0.1** across `backend/app/__init__.py`, `pyproject.toml`,
 `frontend/package.json` + lock.
 
-### Active task — none (v2.0.0 released)
+### Active task — none (v2.0.1 shipped)
 
 **There is no required next task.** Do **not** add new large features; the v2.0
 cycle is complete. Cut a release only when the owner asks (D-060): branch from
 `develop`, then a reviewed `develop → main` PR + tag.
 
-**Free Vision (D-122) — COMPLETE, not released (committed `af2f44b`, pushed to
-`origin/develop`).** A free keyless image-understanding provider was found and
-verified (the Kilo Gateway free pool) and integrated additively through the
-existing AI Gateway — `KiloGatewayProvider`, the `kilo_gateway` registry kind, a
-`catalog` entry verified only for `image_understanding`, and a disabled-by-default
-provisioning entry (opt-in, best-effort; a failure fails over and never loses
-material; no key bundled). Tests: `tests/test_v2_ai_providers.py`; opt-in live
-probe `tests/test_kilo_free_vision_live.py` (`TCMS_LIVE_KILO_VISION=1`). No new
-architecture, no new endpoint. Version stays **2.0.0**.
+**Free Vision (D-122) is now shipped in v2.0.1 (commit `af2f44b`, PR #__PR__).** A
+free keyless image-understanding provider (the Kilo Gateway free pool) was found and
+verified and integrated additively through the existing AI Gateway —
+`KiloGatewayProvider`, the `kilo_gateway` registry kind, a `catalog` entry verified
+only for `image_understanding`, and a disabled-by-default provisioning entry
+(opt-in, best-effort; a failure fails over and never loses material; no key bundled).
+Tests: `tests/test_v2_ai_providers.py`; opt-in live probe
+`tests/test_kilo_free_vision_live.py` (`TCMS_LIVE_KILO_VISION=1`). No new
+architecture, no new endpoint.
 
 ### Next stage (factual)
 
-**Release the unreleased Free-Vision (D-122) work — only when the owner asks
-(D-060).** There is no other required task. To release: branch/review a
-`develop → main` PR from the current `develop` tip, tag the merge commit, and let
-the Release workflow attach the Windows portable ZIP. Decide the version at that
-point (a patch over v2.0.0). Otherwise the v2.0 cycle is complete and no new
-large feature is planned. The non-blocking optional items (a full automated
-BotFather Mini App flow, richer analytics, additional AI backends, a
-permissively-licensed TDATA converter, D-070) remain, but only if the owner asks.
+**Nothing is required.** v2.0.1 shipped the Free-Vision (D-122) work; the v2.0 cycle
+is complete and no new large feature is planned. Cut a release only when the owner
+asks (D-060): branch/review a `develop → main` PR from the current `develop` tip, tag
+the merge commit, and let the Release workflow attach the Windows portable ZIP. The
+non-blocking optional items (a full automated BotFather Mini App flow, richer
+analytics, additional AI backends, a permissively-licensed TDATA converter, D-070)
+remain, but only if the owner asks.
 
 **v2.0 completion gates added this cycle:** `tests/test_content_pipeline_e2e.py`
 and `tests/test_bot_onboarding_e2e.py` (end-to-end integration), a separate

@@ -287,7 +287,7 @@ All three stages shipped as **v2.0.0** (PR #23, merge `926a3b3`, tag `v2.0.0`).
        Duck.ai) or unverified third-party keys — those stay browser-session-only
        or unavailable, reported honestly.
    - **Stage 2 — free vision (image understanding): CONFIRMED 2026-10-11 (D-122),
-     unreleased `develop` work.** A re-probe found **one** genuine keyless-free
+     released in v2.0.1.** A re-probe found **one** genuine keyless-free
      image-understanding path: the **Kilo Gateway** free pool
      (`api.kilo.ai/api/gateway`, OpenAI-compatible, model
      `dots-studio/dots-3-note-preview:free`). No key and no account; it described
@@ -342,6 +342,14 @@ token is never part of any request or response. Additive migration
 
 ## Release
 
+- **v2.0.1 (2026-10-11):** a patch over v2.0.0 that adds the keyless-free
+  **image understanding** (vision) path through the **Kilo Gateway** free model
+  (`api.kilo.ai/api/gateway`, `dots-studio/dots-3-note-preview:free`), integrated
+  additively through the existing AI Gateway (D-122). It is **opt-in and off by
+  default**; a rate limit or upstream outage is an honest failure and the router
+  fails over, so material is never lost. The verified free surface is now **text +
+  image generation + image understanding**; no key is bundled and no challenge is
+  bypassed. Released via a reviewed `develop → main` PR, tag `v2.0.1`.
 - **v2.0.0 (2026-10-09):** the three agreed v2.0 stages. An **AI Gateway** over
   many providers (including keyless-free **text** and **image generation** ones)
   and browser **web wrappers**
