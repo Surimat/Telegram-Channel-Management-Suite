@@ -299,6 +299,16 @@ _HISTORY_MARKERS = (
     "previous",
 )
 
+#: Present-tense claims about what is *currently* latest. These override the
+#: historical-line exemption above: a "(historical snapshot)" heading is not a
+#: licence to assert a stale value for the *current* latest release or tag. The
+#: pattern deliberately requires an ``is``/``=`` copula so past-tense narration
+#: ("its latest tag was vX") stays exempt, while "the current latest release is
+#: vX" cannot hide behind the word "history".
+_PRESENT_TENSE_LATEST_RE = re.compile(
+    r"latest (?:release|tag) (?:is|=)|current latest (?:release|tag)"
+)
+
 
 def test_memory_files_have_no_stale_current_version() -> None:
     """Guard CURRENT_STATE/NEXT_TASK against stale *current release* facts.
@@ -336,9 +346,14 @@ def test_memory_files_have_no_stale_current_version() -> None:
             if any(v > parsed for v in _versions(match[:window])):
                 failures.append(f"{name}: {prefix!r} line claims an unreleased version")
         for lineno, line in enumerate(lines, start=1):
-            if not any(claim in line for claim in _MIDLINE_CLAIMS):
+            if not (
+                any(claim in line for claim in _MIDLINE_CLAIMS)
+                or _PRESENT_TENSE_LATEST_RE.search(line)
+            ):
                 continue
-            if any(marker in line for marker in _HISTORY_MARKERS):
+            if any(marker in line for marker in _HISTORY_MARKERS) and not (
+                _PRESENT_TENSE_LATEST_RE.search(line)
+            ):
                 continue
             named = _versions(line)
             if named and not any(v == parsed for v in named):
