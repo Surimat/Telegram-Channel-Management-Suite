@@ -54,11 +54,17 @@ from backend.app.providers.errors import (
 )
 from backend.app.providers.session_base import SessionProvider
 from backend.app.services.events_service import EventsService
+from backend.app.services.personal_account import PersonalAccountPolicy
 from backend.app.services.queue_service import QueueService
 from backend.app.services.session_service import SessionProviderFactory, SessionService
 
 MODULE = "invites"
 INVITE_JOB_KIND = "invite.batch"
+
+#: Safety caps applied when neither the job nor the environment sets a positive
+#: value. A fresh install can therefore never launch an unbounded bulk invite.
+DEFAULT_INVITE_MAX_TOTAL = 500
+DEFAULT_INVITE_MAX_PER_ACCOUNT = 50
 
 # Filter keys accepted from the UI (a subset of the audience filters).
 _FILTER_KEYS = (
@@ -113,6 +119,27 @@ class InviteService:
             kwargs["provider_factory"] = self._session_provider_factory
         return SessionService(self.session, **kwargs)
 
+    def _policy(self) -> PersonalAccountPolicy:
+        return PersonalAccountPolicy(self.session, settings=self.settings)
+
+    def _effective_caps(
+        self, max_total: int | None, max_per_account: int | None
+    ) -> tuple[int, int]:
+        """Resolve the invite caps, never returning an unbounded (<=0) value."""
+        cap = max_total if max_total is not None else self.settings.invite_max_total
+        per_acct = (
+            max_per_account
+            if max_per_account is not None
+            else self.settings.invite_max_per_account
+        )
+        if cap <= 0:
+            cap = self.settings.invite_max_total or DEFAULT_INVITE_MAX_TOTAL
+        if per_acct <= 0:
+            per_acct = (
+                self.settings.invite_max_per_account or DEFAULT_INVITE_MAX_PER_ACCOUNT
+            )
+        return int(cap), int(per_acct)
+
     async def _load_accounts(self, account_ids: list[str]) -> list[Any]:
         service = self._session_service()
         accounts = []
@@ -139,9 +166,9 @@ class InviteService:
             )
         return accounts
 
-    def _provider_for(self, account: Any) -> SessionProvider:
+    async def _provider_for(self, account: Any) -> SessionProvider:
         service = self._session_service()
-        return service.provider_for(account)
+        return await service.provider_for(account)
 
     # ------------------------------------------------------------------
     # Filters / planning
@@ -186,6 +213,8 @@ class InviteService:
         sample_limit: int = 10,
     ) -> dict[str, Any]:
         """Dry-run: count the audience slice and describe the planned run."""
+        # Preparing a bulk invite requires the explicit switch (preview included).
+        await self._policy().require_invites_enabled()
         if channel_id:
             channel = await ChannelRepository(self.session).get(channel_id)
             if channel is None:
@@ -204,7 +233,8 @@ class InviteService:
         if source_ids:
             merged["source_ids"] = list(source_ids)
         users, total = await self._filtered_users(merged, limit=sample_limit)
-        planned = total if max_total <= 0 else min(total, max_total)
+        cap, _per_acct = self._effective_caps(max_total, None)
+        planned = total if cap <= 0 else min(total, cap)
         accounts = await self._load_accounts(list(account_ids or []))
 
         source_labels = []
@@ -223,7 +253,7 @@ class InviteService:
             "total_candidates": total,
             "planned_operations": planned,
             "accounts_count": len(accounts),
-            "max_total": max_total,
+            "max_total": cap,
             "sample": [
                 {
                     "id": u.id,
@@ -268,6 +298,8 @@ class InviteService:
         max_per_account: int | None = None,
         max_total: int | None = None,
     ) -> InviteJob:
+        # A bulk invite is only prepared when the owner has explicitly enabled it.
+        await self._policy().require_invites_enabled()
         # A channel chosen from the shared registry supplies the target and its
         # display title, so the owner does not retype it (decision D-051).
         channel_ref = ""
@@ -313,6 +345,7 @@ class InviteService:
             if max_per_account is not None
             else self.settings.invite_max_per_account
         )
+        cap, per_acct = self._effective_caps(cap, per_acct)
 
         users, _total = await self._filtered_users(
             merged, limit=(cap if cap > 0 else 100000)
@@ -405,6 +438,8 @@ class InviteService:
         return await self.start_job(job_id)
 
     async def start_job(self, job_id: str) -> InviteJob:
+        # Never start (or resume) a bulk run while the owner has it switched off.
+        await self._policy().require_invites_enabled()
         job = await self._require_job(job_id)
         if job.confirmed_at is None:
             raise InviteServiceError(
@@ -491,6 +526,13 @@ class InviteService:
         if job is None or job.status != InviteJobStatus.RUNNING:
             return "done", 0.0
 
+        # If the owner switched invitations off mid-run, stop honestly: pause the
+        # job (never keep inviting) and let the operator resume deliberately.
+        if not await self._policy().invites_allowed():
+            job.status = InviteJobStatus.PAUSED
+            await self.session.commit()
+            return "done", 0.0
+
         size = self.settings.invite_batch_size
         now = utcnow()
         claimed = await self.tasks.claim_batch(job.id, limit=size, now=now)
@@ -522,7 +564,7 @@ class InviteService:
                 continue
             provider = providers.get(account.id)
             if provider is None:
-                provider = self._provider_for(account)
+                provider = await self._provider_for(account)
                 providers[account.id] = provider
             outcome = await self._execute_task(job, task, provider)
             if outcome == "flood":

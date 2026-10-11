@@ -258,7 +258,7 @@ class AudienceService:
         if self._audience_override is not None:
             return self._audience_override
         service, account = await self._resolve_account(source)
-        session_provider: SessionProvider = service.provider_for(account)
+        session_provider: SessionProvider = await service.provider_for(account)
         return build_audience_provider(
             session_provider, provider_name=self.settings.telegram_provider, settings=self.settings
         )

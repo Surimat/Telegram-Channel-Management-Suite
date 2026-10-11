@@ -5,6 +5,31 @@ Dates are ISO-8601.
 
 ---
 
+## [Unreleased] — Personal Account Safety (in progress on `develop`)
+
+**Personal Account Safety (D-123, additive).** A safety stage that makes an
+accidental action through the owner's personal Telegram (MTProto) account
+impossible unless the owner opts in. Not yet released; work is on `develop`.
+
+- **Master switch `personal_account_enabled` (default OFF).** While off, no
+  MTProto provider is built: `SessionService.provider_for()` refuses at a single
+  chokepoint, so the API, the scheduler and background tasks are all blocked. Bot
+  API work is unaffected.
+- **Mass-action switch `invites_enabled` (default OFF).** Requires the master
+  switch too; gates invite `preview`/`create_job`/`start_job`/`resume_job`, and
+  `run_tick` pauses a running job instead of inviting when it is turned off.
+- **Bounded invites by default.** `invite_max_total=500`, `invite_max_per_account=50`;
+  `_effective_caps()` never returns an unbounded (`<=0`) value.
+- **Refuse before touching state.** Every gate runs before a DB row, session file
+  or provider is created, so a blocked operation leaves no orphan account.
+- **Honest auth UX.** `AuthStartResult.code_delivery` reports where Telegram
+  actually sent the code (often in-app, not SMS); auth errors keep the account in
+  the wizard; `PersonalAccountDisabledError` maps to a friendly 403 envelope.
+
+Gates: `pytest` full suite green, `ruff` clean, `vue-tsc` + `npm run build` clean,
+meta-audit 32/32 (0 false positives). Guards:
+`tests/test_personal_account_safety.py`.
+
 ## [2.0.1] — 2026-10-11
 
 **v2.0.1 — keyless free image understanding via the Kilo Gateway (D-122, patch

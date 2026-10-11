@@ -29,6 +29,11 @@ def _isolated_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[N
     monkeypatch.setenv("LOG_DIR", str(tmp_path / "logs"))
     monkeypatch.setenv("SESSIONS_DIR", str(tmp_path / "sessions"))
     monkeypatch.setenv("BACKUP_DIR", str(tmp_path / "backups"))
+    # The personal-account safety switches default to OFF in production. Tests
+    # exercise the MTProto flows, so enable them here; the guard tests switch them
+    # off explicitly to prove the refusal.
+    monkeypatch.setenv("PERSONAL_ACCOUNT_ENABLED", "true")
+    monkeypatch.setenv("INVITES_ENABLED", "true")
 
     from backend.app.core import paths
     from backend.app.core.config import reset_settings_cache

@@ -69,6 +69,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         async with session_scope() as session:
             await BotService(session).ensure_manager_bot()
 
+    # Seed the personal-account safety switches with their safe (off) defaults so
+    # they appear in Settings as switches. An existing owner choice is untouched.
+    with contextlib.suppress(Exception):
+        from backend.app.db.session import session_scope
+        from backend.app.services.personal_account import ensure_personal_account_settings
+
+        async with session_scope() as session:
+            await ensure_personal_account_settings(session)
+            await session.commit()
+
     # Seed editable reaction rules + recover reaction jobs left running.
     with contextlib.suppress(Exception):
         from backend.app.db.session import session_scope

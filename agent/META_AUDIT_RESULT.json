@@ -1,7 +1,7 @@
 {
   "version": "2.0.1",
-  "baseline_sha": "92143a0a3eaeb1d4fa72ad808fbf97e2a9945235",
-  "generated_at": "2026-10-11T16:01:11.764351+00:00",
+  "baseline_sha": "0056e027b96a42240480ad945a74a614acae42c8",
+  "generated_at": "2026-10-11T19:13:12.506307+00:00",
   "result_source": "computed from runtime mutation executions",
   "total": 32,
   "detected": 32,
@@ -2244,7 +2244,7 @@
           "category": "help"
         },
         {
-          "id": "ux.hardcoded_string.views/SettingsView.vue:242",
+          "id": "ux.hardcoded_string.views/SettingsView.vue:298",
           "severity": "warning",
           "category": "ux"
         },

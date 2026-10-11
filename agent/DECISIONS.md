@@ -2748,3 +2748,52 @@ losing the task. `tests/test_kilo_free_vision_live.py` is an **opt-in** live pro
 free-vision prose; naming Kilo/D-122 is honest narration.
 
 **Release.** Shipped as **v2.0.1** (patch over v2.0.0) via a reviewed `develop → main` PR #24 (merge `21f2d01`), tag `v2.0.1`; the Release workflow attached the Windows portable ZIP + `.sha256` (D-060). No schema change. See `agent/CHANGELOG.md` / `agent/CURRENT_STATE.md`.
+
+---
+
+## D-123 — 2026-10-11 — Personal Account Safety: off by default, one chokepoint, honest code delivery — LOCKED
+
+**Context.** The suite can act *as the owner* through a personal Telegram (MTProto)
+account. An accidental or unattended action (a login, a bulk invite) would be
+indistinguishable from the owner's own and cannot be undone. The owner asked to
+make that impossible unless they explicitly opt in.
+
+**Decision.** Personal-account work is refused unless the owner turns it on, and
+the refusal is enforced at a single chokepoint.
+
+1. **Master switch `personal_account_enabled` (default OFF).** Stored as a
+   UI-editable setting (seeded at startup with its safe default; an owner choice is
+   never overwritten). While off, **no MTProto provider is ever built** — the API,
+   the scheduler and background tasks are all blocked because
+   `SessionService.provider_for()` consults the policy before constructing a
+   provider. Bot API work is unaffected, so ordinary operation continues.
+2. **Mass-action switch `invites_enabled` (default OFF).** On top of the master
+   switch; `require_invites_enabled()` requires *both*. It gates `preview`,
+   `create_job`, `start_job`/`resume_job`, and `run_tick` pauses a running job
+   instead of inviting when the switch is turned off mid-run.
+3. **Bounded by default.** `invite_max_total` (500) and `invite_max_per_account`
+   (50) are non-zero, and `_effective_caps()` never returns an unbounded (`<=0`)
+   value, so a fresh install cannot launch an unbounded bulk invite (D-006).
+4. **Refuse before touching state.** Every gate runs *before* a DB row, session
+   file or provider is created, so a blocked operation leaves no orphan account or
+   artifact. `start_auth` in particular checks the policy before creating the
+   `UserSession` record.
+5. **Honest auth UX.** The Telegram login code is often delivered inside the app,
+   not by SMS; `AuthStartResult.code_delivery` (`describe_code_delivery`) reports
+   where the code was actually sent and the UI never promises an SMS. Auth errors
+   (`AuthCodeInvalid/Expired`, `PasswordRequired`, `PhoneNumberInvalid`) keep the
+   account in the wizard instead of a generic error state.
+6. **Friendly 403.** `PersonalAccountDisabledError` is mapped to a 403 envelope
+   (`code/message/hint`) by a global handler, so the owner sees what happened and
+   which switch to turn on — never a stack trace or a secret.
+
+**Consequences.** `tests/test_personal_account_safety.py` proves the switches
+default to OFF, that the master switch blocks `start_auth` without creating an
+account, that both switches are required for invites, that a mid-run switch-off
+pauses the job without inviting, that the caps are bounded, and that the API
+answers a friendly 403. `tests/conftest.py` enables both switches for the MTProto
+test flows. Docs/memory only otherwise; no schema change.
+
+**Status.** In progress on `develop` (not yet released). Do not cut a release for
+it until the owner asks (D-060).
+

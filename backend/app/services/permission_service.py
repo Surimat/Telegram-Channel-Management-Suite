@@ -152,7 +152,7 @@ class PermissionService:
             account.display_name or account.username or account.phone_masked or account.id
         )
 
-        provider = service.provider_for(account)
+        provider = await service.provider_for(account)
         try:
             report = await provider.probe_permissions(target)
         except TelegramProviderError as exc:

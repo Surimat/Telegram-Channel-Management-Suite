@@ -329,6 +329,7 @@ export interface AuthStartResult {
   message: string
   how_to_fix: string
   phone_masked: string
+  code_delivery: string
 }
 
 export interface AuthStepResult {

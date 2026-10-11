@@ -16,28 +16,53 @@ change). Release ZIP scan: no `.session`/TDATA/DB/model. No schema change.
 Version string is **2.0.1** across `backend/app/__init__.py`, `pyproject.toml`,
 `frontend/package.json` + lock.
 
-### Active task — none (v2.0.1 shipped)
+### Active task — Personal Account Safety (in progress on `develop`, D-123)
 
-**There is no required next task.** Do **not** add new large features; the v2.0
-cycle is complete. Cut a release only when the owner asks (D-060): branch from
-`develop`, then a reviewed `develop → main` PR + tag.
+**Goal:** make an accidental action through the owner's personal Telegram (MTProto)
+account — and any unsafe mass action — impossible unless the owner explicitly opts
+in. **Do not** add new large features beyond this stage and do **not** cut a release
+until the owner asks (D-060).
 
-**Free Vision (D-122) is now shipped in v2.0.1 (commit `af2f44b`, PR #24).** A
-free keyless image-understanding provider (the Kilo Gateway free pool) was found and
-verified and integrated additively through the existing AI Gateway —
-`KiloGatewayProvider`, the `kilo_gateway` registry kind, a `catalog` entry verified
-only for `image_understanding`, and a disabled-by-default provisioning entry
-(opt-in, best-effort; a failure fails over and never loses material; no key bundled).
-Tests: `tests/test_v2_ai_providers.py`; opt-in live probe
-`tests/test_kilo_free_vision_live.py` (`TCMS_LIVE_KILO_VISION=1`). No new
-architecture, no new endpoint.
+**Implemented (code, on `develop`, uncommitted at the time of writing):**
+
+- **Master switch `personal_account_enabled` (default OFF).** Stored as a
+  UI-editable setting (`services/personal_account.py`, seeded at startup by
+  `ensure_personal_account_settings`; an owner choice is never overwritten). While
+  off, **no MTProto provider is built**: `SessionService.provider_for()` refuses at
+  the single chokepoint, blocking the API, the scheduler and background tasks. The
+  Telegram **Bot API** is unaffected.
+- **Mass-action switch `invites_enabled` (default OFF).** `require_invites_enabled()`
+  requires both switches; it gates invite `preview`/`create_job`/`start_job`/
+  `resume_job`, and `run_tick` **pauses** a running job instead of inviting when the
+  switch is turned off mid-run.
+- **Bounded invites by default.** `invite_max_total=500`, `invite_max_per_account=50`;
+  `_effective_caps()` never returns an unbounded (`<=0`) value.
+- **Refuse before touching state.** Every gate runs before a DB row, session file or
+  provider is created (notably `start_auth` checks the policy before creating the
+  `UserSession`), so a blocked operation leaves no orphan account.
+- **Honest auth UX + friendly 403.** `AuthStartResult.code_delivery`
+  (`describe_code_delivery`) says where Telegram actually sent the code (often
+  in-app, not SMS); auth errors keep the account in the wizard;
+  `PersonalAccountDisabledError` maps to a 403 envelope (`code/message/hint`).
+- **UI.** Settings gains a «Личный аккаунт (безопасность)» card; a
+  `personal_account_safety` help topic explains it.
+
+**Remaining:** commit/push on `develop` (the owner's call), then a normal reviewed
+`develop → main` release when asked. Guards live in
+`tests/test_personal_account_safety.py`; `tests/conftest.py` enables both switches
+for the MTProto test flows.
+
+### Completed stage — v2.0.1 shipped (2026-10-11)
+
+**v2.0.1 is RELEASED (2026-10-11).** It is a patch over v2.0.0 that adds a keyless-free **image understanding** (vision) path through the **Kilo Gateway** free model (D-122), integrated additively through the existing AI Gateway — **opt-in and off by default**, best-effort, with an honest failover so a rate limit or outage never loses material. It completes the three agreed v2.0 stages (an **AI Gateway** over many providers including keyless-free **text**, **image generation** and now **image understanding**; browser **web wrappers**; a per-content **Target Language**; **mass bot-to-channel onboarding**; **Content Operations 2.0**; and a **hidden (windowless) background launch**). Additive only — no account registration and no Telegram-limit bypass. Version string is **2.0.1**.
 
 ### Next stage (factual)
 
-**Nothing is required.** v2.0.1 shipped the Free-Vision (D-122) work; the v2.0 cycle
-is complete and no new large feature is planned. Cut a release only when the owner
-asks (D-060): branch/review a `develop → main` PR from the current `develop` tip, tag
-the merge commit, and let the Release workflow attach the Windows portable ZIP. The
+**The next stage is the Personal Account Safety work above (D-123), which is in
+progress on `develop`.** Finish it (commit/push on `develop` when the owner is
+ready), keep the gates green, then release only when the owner asks (D-060):
+branch/review a `develop → main` PR from the current `develop` tip, tag the merge
+commit, and let the Release workflow attach the Windows portable ZIP. The
 non-blocking optional items (a full automated BotFather Mini App flow, richer
 analytics, additional AI backends, a permissively-licensed TDATA converter, D-070)
 remain, but only if the owner asks.
