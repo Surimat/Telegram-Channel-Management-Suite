@@ -1102,7 +1102,14 @@ Committed on `develop` (`feat(ai-gateway)` stage; `backend/app/ai/gateway/`):
 - **`catalog.py`** — per-model capability matrix (operations, auth, cost,
   `verified`/`verified_operations`); backs `GET /models`. Verified entries:
   `pollinations` (text, structured), `llm7` (text), `pollinations_image`
-  (image_generation). No keyless entry is verified for vision.
+  (image_generation) and `kilo_gateway` (image_understanding, D-122).
+- **`KiloGatewayProvider`** (`kind=kilo_gateway`, `api.kilo.ai/api/gateway/v1`,
+  model `dots-studio/dots-3-note-preview:free`) — keyless, no-account, OpenAI-
+  compatible **image understanding**. Verified 2026-10-11 on two distinct
+  generated images (bars; green-circle/yellow-square) and a 3× repeat, each
+  described correctly and reproducibly. **Off by default** (opt-in) and
+  best-effort: a rate limit/upstream outage is an honest failure and the router
+  fails over. The paid `kilo-auto/*` router is never requested.
 - **`provisioning.py`** — `FREE_PROVIDER_DEFAULTS`; `POST /provision` seeds the
   free-first providers once, idempotently, never re-enabling a disabled row
   (`pollinations` + `llm7` enabled; `pollinations_image` + `ollama` off).
@@ -1118,15 +1125,22 @@ Committed on `develop` (`feat(ai-gateway)` stage; `backend/app/ai/gateway/`):
 - **Tests** — `tests/test_v2_ai_providers.py` (keyless honesty, text-only vs
   vision routing, image generation, provisioning, preflight, registry kinds).
 
-### Priority 1 — Stage 2 (free vision / image understanding): probed 2026-10-09, none confirmed
-Probed keyless endpoints honestly (D-119): `api.llm7.io` keyless models refuse an
-image (`400`); `gen.pollinations.ai` vision models need a key (`401`);
-`api.airforce` is paid (`402`); DuckDuckGo is an anti-bot challenge (never
-bypassed). **No genuinely free, keyless image-understanding endpoint exists**, so
-none is claimed. The only confirmed keyless-free path beyond **text** is
-**image generation** (Stage 1). Vision stays on keyed providers (Google/Anthropic) or the owner's own
-logged-in browser session. Re-check only when a real, keyless, non-bypass vision
-endpoint is confirmed.
+### Priority 1 — Stage 2 (free vision / image understanding): CONFIRMED 2026-10-11 (D-122)
+The 2026-10-09 probe found nothing keyless; a later probe (2026-10-11) confirmed
+**one** genuine keyless-free image-understanding path. `api.llm7.io` keyless
+models still refuse an image (`400`); `gen.pollinations.ai` vision models need a
+key (`401`); `api.airforce` is paid (`402`); DuckDuckGo is an anti-bot challenge
+(never bypassed). **The Kilo Gateway free pool works**: `api.kilo.ai/api/gateway`
+serves `dots-studio/dots-3-note-preview:free` (and other `:free` models) with **no
+key and no account**, and it genuinely describes an image — verified on two
+distinct generated PNGs (a red/blue bar container; a green circle + yellow square
+on black) and reproduced 3× identically. `kilo-auto/*` is paid
+(`PAID_MODEL_AUTH_REQUIRED`). Integration is **additive** through the existing
+gateway (`KiloGatewayProvider` + `registry` kind + catalog entry + provisioning
+default), **opt-in and best-effort** (IP rate-limited third-party gateway; a
+refusal fails over, never loses material). Still no bypass of any challenge, and
+no key is bundled. Tests: `tests/test_v2_ai_providers.py` (fake transport) plus an
+opt-in live probe `tests/test_kilo_free_vision_live.py` (`TCMS_LIVE_KILO_VISION=1`).
 
 ### Priority 3 — Target Language stage
 Committed on `develop` (`feat(content): Target Language stage (v2.0 Part 1)`):

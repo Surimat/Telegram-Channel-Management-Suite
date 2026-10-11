@@ -1202,7 +1202,7 @@ provider, model, latency, attempts, detail) — never prompt text, keys or audie
 data. Comment and auto-delete are tracked by `comment_status`/`delete_status` so
 a lost step never marks a publication `failed`.
 
-## 27. Free-first AI providers and honest capabilities (v2.0.0, D-117…D-119)
+## 27. Free-first AI providers and honest capabilities (v2.0.0, D-117…D-119, D-122)
 
 The AI Gateway (section 25) gains a **free-first** layer, all additive and
 honest about what it can actually do:
@@ -1213,6 +1213,12 @@ honest about what it can actually do:
 - **Keyless free image generation** — `pollinations_image`
   (`PollinationsImageProvider`, model `flux`). Generation only, **off by
   default**; it never claims image *understanding*.
+- **Keyless free image understanding** — `kilo_gateway` (`KiloGatewayProvider`,
+  `api.kilo.ai/api/gateway/v1`, model `dots-studio/dots-3-note-preview:free`).
+  Verified 2026-10-11 against two distinct generated images (D-122). It is
+  **opt-in** (off by default) and **best-effort**: a rate limit/outage becomes an
+  honest failure and the router fails over, so no material is lost. The paid
+  `kilo-auto/*` router is never requested (it answers `PAID_MODEL_AUTH_REQUIRED`).
 - **Capability catalog** (`ai/gateway/catalog.py`), idempotent **provisioning**
   (`ai/gateway/provisioning.py`, never overwrites an owner-configured provider)
   and browser **preflight** (`ai/gateway/preflight.py`, honest per-step progress,
@@ -1220,7 +1226,8 @@ honest about what it can actually do:
 - **Honesty rule (D-119).** A key is required only for an `api_key` provider with
   no key; a text-only provider never serves an image request; session expiry is
   **failover**, never a bypass. No catalog entry may claim a capability the
-  provider does not have.
+  provider does not have, and `verified`/`verified_operations` are set only for
+  operations actually exercised here.
 
 ## 28. Target Language (v2.0.0, D-118)
 

@@ -21,6 +21,13 @@ Version string is **2.0.0** across `backend/app/__init__.py`, `pyproject.toml`,
 cycle is complete. Cut a release only when the owner asks (D-060): branch from
 `develop`, then a reviewed `develop → main` PR + tag.
 
+**Post-v2.0.0 (2026-10-11, D-122, not released):** the owner asked to connect a
+free keyless image-understanding provider. One was found and verified (the Kilo
+Gateway free pool) and integrated additively through the existing AI Gateway —
+`KiloGatewayProvider`, the `kilo_gateway` registry kind, a `catalog` entry and a
+provisioning default (opt-in, best-effort). No new architecture, no new endpoint,
+no key bundled. Version stays **2.0.0**; this is unreleased `develop` work.
+
 **v2.0 completion gates added this cycle:** `tests/test_content_pipeline_e2e.py`
 and `tests/test_bot_onboarding_e2e.py` (end-to-end integration), a separate
 `browser-tests` CI job (Playwright + Chromium, must not skip), and
@@ -41,12 +48,17 @@ post-v1.9.0 memory reconciliation added release-hygiene guards in
      browser preflight. Honesty: a key is required only for an `api_key` provider
      with no key; session expiry is failover, not a bypass. `GET /operations`
      reports `image_generation` by kind. Tests: `tests/test_v2_ai_providers.py`.
-   - **Stage 2 — free vision (image understanding): probed 2026-10-09; no keyless
-     vision provider confirmed (D-119).** Keyless endpoints refused an image upstream,
-     required a key or were paid/challenged. No free keyless image-understanding
-     endpoint is claimed; the only confirmed keyless-free path beyond text is
-     image generation.
-     Never bypass a challenge or bundle an unverified key.
+   - **Stage 2 — free vision (image understanding): CONFIRMED 2026-10-11 (D-122).**
+     A keyless-free image-understanding path exists: the **Kilo Gateway** free
+     pool (`api.kilo.ai/api/gateway`, model `dots-studio/dots-3-note-preview:free`)
+     describes an image with **no key and no account** — verified on two distinct
+     generated PNGs and reproduced 3×. It is integrated **additively through the
+     existing gateway** (`KiloGatewayProvider` + `kilo_gateway` registry kind +
+     catalog entry + provisioning default), **opt-in and best-effort** (disabled
+     by default; a rate limit/outage fails over, never loses material). Still no
+     challenge bypass and no bundled key. Tests: `tests/test_v2_ai_providers.py`;
+     opt-in live probe `tests/test_kilo_free_vision_live.py`
+     (`TCMS_LIVE_KILO_VISION=1`).
 2. **Target Language — COMPLETE.** `backend/app/services/content_language.py`,
    migration `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`,
    `tests/test_target_language.py`.

@@ -81,6 +81,23 @@ FREE_PROVIDER_DEFAULTS: tuple[FreeProviderDefault, ...] = (
         ),
     ),
     FreeProviderDefault(
+        provider="kilo_gateway",
+        kind="kilo_gateway",
+        model="dots-studio/dots-3-note-preview:free",
+        base_url="https://api.kilo.ai/api/gateway/v1",
+        cost="free",
+        capabilities=Capability(text=True, image=True),
+        # Off by default: it is the one keyless-free *image understanding* path,
+        # but it is a best-effort third-party gateway, so the owner opts in.
+        enabled=False,
+        priority=60,
+        note=(
+            "Бесплатный без ключа (api.kilo.ai, модель :free) — понимает "
+            "изображения. Проверено 11.10.2026. Best-effort; запросы идут через "
+            "сторонний шлюз. Включите, чтобы использовать."
+        ),
+    ),
+    FreeProviderDefault(
         provider="ollama",
         kind="ollama",
         model="llama3.2",

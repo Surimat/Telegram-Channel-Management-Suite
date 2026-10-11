@@ -5,6 +5,31 @@ Dates are ISO-8601.
 
 ---
 
+## [Unreleased]
+
+**Keyless free image understanding via the Kilo Gateway (D-122).** Additive,
+through the existing AI Gateway — no new architecture and no new endpoint.
+
+### Added
+- **`KiloGatewayProvider`** (`backend/app/ai/gateway/providers/__init__.py`), an
+  `OpenAICompatibleProvider` for `api.kilo.ai/api/gateway/v1` using the free
+  model `dots-studio/dots-3-note-preview:free`. It needs **no API key and no
+  account** and genuinely describes an image (verified 2026-10-11 on two distinct
+  generated PNGs, reproduced 3×).
+- **`kilo_gateway` registry kind** (`ai/gateway/registry.py`) and a `catalog.py`
+  entry marked `verified` for `image_understanding` only.
+- **Provisioning default** (`ai/gateway/provisioning.py`) — shipped but
+  **disabled by default** (opt-in, best-effort).
+- **Tests:** `tests/test_v2_ai_providers.py` (keyless, image part, `:free` model,
+  failover-without-loss) and the opt-in live probe
+  `tests/test_kilo_free_vision_live.py` (`TCMS_LIVE_KILO_VISION=1`).
+
+### Notes
+- Honesty unchanged: a key is required only for an `api_key` provider with no
+  key; the paid `kilo-auto/*` router is never requested; a rate limit/outage
+  fails over and never loses material. No challenge is bypassed and no key is
+  bundled. `tests/test_meta_audit.py` still forbids unproven free-vision prose.
+
 ## [2.0.0] — 2026-10-09
 
 **v2.0.0 — the three agreed v2.0 stages (additive).** AI Gateway + free

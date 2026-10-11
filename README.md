@@ -11,7 +11,8 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 
 **Current stable release: `v2.0.0`.** It completes the three agreed v2.0 stages:
 an **AI Gateway** over many providers (including keyless-free **text** and
-**image generation** ones) and
+**image generation** ones, plus a keyless-free **image understanding** path via
+the Kilo Gateway, D-122) and
 browser **web wrappers**, a per-content **Target Language**, **mass
 bot-to-channel onboarding**, and **Content Operations 2.0** — all with a
 **hidden (windowless) background launch** and honest capabilities. It adds no
@@ -20,9 +21,9 @@ account registration and no Telegram-limit bypass.
 **AI Gateway** that routes across many providers (OpenAI-compatible,
 OpenRouter, Google, Anthropic, DeepSeek, local Ollama) and browser **web
 wrappers**. The verified keyless-free surface is **text** and **image
-generation**; free keyless **image understanding** (vision) is **not** offered —
-it was probed and refused upstream (D-119), so a text-only provider never serves
-an image request. It adds a per-content **Target Language**, **mass
+generation**, and — verified 2026-10-11 — free keyless **image understanding**
+(vision) through the **Kilo Gateway** free model (opt-in, best-effort). It adds a
+per-content **Target Language**, **mass
 bot-to-channel onboarding** (a durable, restart-safe queue where `ready` means
 Telegram confirms the bot's rights), **Content Operations 2.0** (one content
 pipeline with AI profiles, a mini-AI classifier, moderation and declarative
@@ -92,9 +93,9 @@ catalog** (RU/EN, single-sourced in `core/i18n.py`). See Status below.
   circuit breaker and automatic failover. Keys are sealed and write-only; the
   journal stores metadata only; no account registration and no CAPTCHA/MFA/
   regional-block or Telegram-limit bypass. The **verified keyless-free** surface
-  is **text** (Pollinations, llm7) and **image generation** (Pollinations Flux,
-  off by default); keyless **image understanding** is **not** claimed (probed
-  and refused, D-119).
+  is **text** (Pollinations, llm7), **image generation** (Pollinations Flux,
+  off by default) and **image understanding** via the keyless **Kilo Gateway**
+  free model (opt-in, best-effort, verified 2026-10-11, D-122).
 - **Manager Bot** — control the suite from Telegram (admin whitelist, notifications).
 - **Managed Bots** — add/health/remove Telegram bots; tokens sealed at rest.
 - **Bot Factory** — plan a set of worker bots, check usernames with Telegram,

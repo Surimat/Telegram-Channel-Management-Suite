@@ -25,6 +25,7 @@ from backend.app.ai.gateway import catalog, registry
 from backend.app.ai.gateway.http import FakeHttpTransport, HttpResponse
 from backend.app.ai.gateway.preflight import STEP_MISSING, STEP_OK, BrowserPreflight, PrepStep
 from backend.app.ai.gateway.providers import (
+    KiloGatewayProvider,
     Llm7Provider,
     PollinationsImageProvider,
     PollinationsProvider,
@@ -80,10 +81,27 @@ def test_models_supporting_returns_honest_vision_list() -> None:
 
 
 def test_keyless_providers_are_never_verified_for_vision() -> None:
-    """Honesty: no free, keyless provider may claim verified image understanding."""
+    """Honesty: the only keyless provider verified for image understanding is Kilo.
+
+    D-119 locked the free surface to text + image generation; D-122 records that
+    the keyless Kilo Gateway free model was actually exercised for image
+    understanding. Every *other* keyless entry must stay unverified for vision.
+    """
     for model in catalog.MODEL_CATALOG:
-        if model.auth == catalog.AUTH_NONE:
+        if model.auth == catalog.AUTH_NONE and model.provider != "kilo_gateway":
             assert catalog.OP_IMAGE not in model.verified_operations, model.provider
+
+
+def test_kilo_gateway_is_keyless_and_verified_for_image_understanding() -> None:
+    m = next(x for x in catalog.MODEL_CATALOG if x.provider == "kilo_gateway")
+    assert m.auth == catalog.AUTH_NONE
+    assert m.availability == catalog.AVAIL_READY
+    assert m.cost == "free"
+    assert m.verified is True
+    # Verified for the operation that was actually probed — nothing more.
+    assert m.verified_operations == (catalog.OP_IMAGE,)
+    assert catalog.OP_IMAGE in m.operations
+    assert "kilo_gateway" in {x.provider for x in catalog.verified_models(catalog.OP_IMAGE)}
 
 
 def test_llm7_is_keyless_and_verified_for_text() -> None:
@@ -183,6 +201,112 @@ async def test_llm7_refuses_image_honestly() -> None:
     )
     resp = await provider.chat(req)
     assert resp.ok is False and resp.error
+
+
+# ---------------------------------------------------------------------------
+# Kilo Gateway — the one verified keyless-free image-understanding path (D-122)
+# ---------------------------------------------------------------------------
+def _kilo_transport() -> FakeHttpTransport:
+    reply = HttpResponse(
+        status=200,
+        text='{"choices":[{"message":{"content":"красный и синий"}}]}',
+    )
+    return FakeHttpTransport({"api.kilo.ai": reply})
+
+
+async def test_kilo_needs_no_key_and_declares_vision() -> None:
+    provider = KiloGatewayProvider(transport=_kilo_transport())
+    info = provider.info
+    assert info.auth_mode == "no_auth"
+    assert info.auth_required is False
+    assert info.cost == "free"
+    assert info.capabilities.image is True and info.capabilities.text is True
+    assert provider.availability().usable is True
+
+
+async def test_kilo_sends_the_image_as_an_openai_image_url() -> None:
+    from backend.app.ai.gateway.types import MODALITY_IMAGE, Attachment
+
+    transport = _kilo_transport()
+    provider = KiloGatewayProvider(transport=transport)
+    req = _req(
+        "что на картинке",
+        requires=Capability(text=True, image=True),
+        messages=[
+            ChatMessage(
+                role="user",
+                content="что на картинке",
+                attachments=[
+                    Attachment(
+                        kind=MODALITY_IMAGE,
+                        reference="data:image/png;base64,AAAA",
+                    )
+                ],
+            )
+        ],
+    )
+    resp = await provider.chat(req)
+    assert resp.ok is True and resp.text == "красный и синий"
+    method, url, payload = transport.requests[-1]
+    assert method == "POST" and url.endswith("/chat/completions")
+    parts = payload["messages"][0]["content"]
+    assert any(p.get("type") == "image_url" for p in parts)
+    # Only the explicitly-chosen free model is ever requested.
+    assert payload["model"].endswith(":free")
+
+
+async def test_kilo_failure_is_honest_and_fails_over_without_losing_the_task() -> None:
+    """A rate limit/outage must not lose the request: the router fails over."""
+    from backend.app.ai.gateway.providers import FakeProvider
+
+    limited = FakeHttpTransport(
+        {
+            "api.kilo.ai": HttpResponse(
+                status=429, text='{"error":{"message":"Rate limit exceeded"}}'
+            )
+        }
+    )
+    kilo = KiloGatewayProvider(transport=limited)
+    backup = FakeProvider(
+        provider="vision_backup",
+        capabilities=Capability(text=True, image=True),
+        reply="резервный ответ",
+    )
+    req = _req("что на картинке", requires=Capability(text=True, image=True), strategy="manual")
+    resp = await AIRouter(max_attempts=2).route(req, [kilo, backup])
+    assert resp.ok is True
+    assert resp.provider_used == "vision_backup"
+    assert resp.fallback_used is True
+
+
+async def test_kilo_text_only_request_is_not_offered_to_vision_pin() -> None:
+    """A text-only request must not be routed to a vision-only intent."""
+    provider = KiloGatewayProvider(transport=_kilo_transport())
+    resp = await provider.chat(_req("привет"))
+    assert resp.ok is True and resp.text == "красный и синий"
+
+
+def test_registry_maps_kilo_kind() -> None:
+    from backend.app.ai.gateway.registry import ProviderConfig, build_provider
+
+    kilo = build_provider(
+        ProviderConfig(provider="kilo_gateway", kind="kilo_gateway", enabled=True),
+        transport=_kilo_transport(),
+    )
+    assert kilo.name == "kilo_gateway"
+    assert kilo.info.auth_required is False
+    assert kilo.info.capabilities.image is True
+    assert registry.KIND_KILO in registry.ALL_KINDS
+
+
+def test_provision_includes_kilo_but_disabled() -> None:
+    defaults = {d.provider: d for d in __import__(
+        "backend.app.ai.gateway.provisioning", fromlist=["FREE_PROVIDER_DEFAULTS"]
+    ).FREE_PROVIDER_DEFAULTS}
+    kilo = defaults["kilo_gateway"]
+    # Best-effort third-party gateway: shipped, but opt-in.
+    assert kilo.enabled is False
+    assert kilo.capabilities.image is True
 
 
 async def test_pollinations_image_generates_and_needs_no_key() -> None:
@@ -439,6 +563,29 @@ async def test_api_provision_then_operations(client: AsyncClient) -> None:
         i for i in ops.json()["items"] if i["operation"] == "image_generation"
     )
     assert gen["available"] is False
+
+
+async def test_api_kilo_enabled_makes_image_understanding_available(client: AsyncClient) -> None:
+    """When the owner enables the keyless Kilo path, vision is honestly available."""
+    await client.post("/api/v1/ai-gateway/provision")
+    up = await client.post(
+        "/api/v1/ai-gateway/providers",
+        json={
+            "provider": "kilo_gateway",
+            "kind": "kilo_gateway",
+            "model": "dots-studio/dots-3-note-preview:free",
+            "base_url": "https://api.kilo.ai/api/gateway/v1",
+            "enabled": True,
+            "capabilities": {"text": True, "image": True},
+        },
+    )
+    assert up.status_code in (200, 201)
+    ops = await client.get("/api/v1/ai-gateway/operations")
+    vision = next(
+        i for i in ops.json()["items"] if i["operation"] == "image_understanding"
+    )
+    assert vision["available"] is True
+    assert "kilo_gateway" in vision["providers"]
 
 
 async def test_api_browser_preflight_no_launch(client: AsyncClient) -> None:

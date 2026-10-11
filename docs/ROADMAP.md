@@ -286,21 +286,26 @@ All three stages shipped as **v2.0.0** (PR #23, merge `926a3b3`, tag `v2.0.0`).
      - **Deliberately not done:** bypassing an anti-bot JS challenge (e.g.
        Duck.ai) or unverified third-party keys — those stay browser-session-only
        or unavailable, reported honestly.
-   - **Stage 2 — free vision (image understanding): probed 2026-10-09; no keyless
-     vision provider confirmed (D-119).** Live probes on 2026-10-09 found
-     **no genuinely free, keyless image-understanding endpoint**:
-     - `api.llm7.io` anonymous: text works (`gpt-oss:20b`), but every keyless
-       model refused an image request (`400 "does not support vision input"`);
-       `gemini-*`/`llama-*` want a key.
-     - `gen.pollinations.ai` anonymous: text works, but the vision-capable models
-       (`…-vision-exp`, `ling-3.0-flash-vl`, `gemma-4-31b-it`) return `401`
-       without a key.
-     - `api.airforce` → paid-only (`402`); DuckDuckGo → anti-bot challenge (never
-       bypassed, D-117).
-     The only confirmed keyless-free path beyond text is **image generation** (Stage
-     1, `pollinations_image`); vision stays on keyed providers (Google/Anthropic)
-     or an owner's own logged-in browser session. Re-check only when a real,
-     keyless, non-bypass vision endpoint is confirmed.
+   - **Stage 2 — free vision (image understanding): CONFIRMED 2026-10-11 (D-122),
+     unreleased `develop` work.** A re-probe found **one** genuine keyless-free
+     image-understanding path: the **Kilo Gateway** free pool
+     (`api.kilo.ai/api/gateway`, OpenAI-compatible, model
+     `dots-studio/dots-3-note-preview:free`). No key and no account; it described
+     two distinct generated PNGs correctly and reproduced 3× identically.
+     - Integrated **additively through the existing gateway**:
+       `KiloGatewayProvider` (an `OpenAICompatibleProvider`), the `kilo_gateway`
+       registry kind, a `catalog` entry (`verified` for `image_understanding`
+       only) and a provisioning default.
+     - **Opt-in and best-effort:** disabled by default; a rate limit/upstream
+       outage is an honest failure and the router fails over, so no material is
+       lost. The paid `kilo-auto/*` router is never requested
+       (`PAID_MODEL_AUTH_REQUIRED`).
+     - Still not possible: `api.llm7.io` keyless refuses an image (`400`);
+       `gen.pollinations.ai` vision needs a key (`401`); `api.airforce` is paid
+       (`402`); DuckDuckGo is an anti-bot challenge (never bypassed, D-117). No
+       key is bundled and no challenge is bypassed.
+     - Tests: `tests/test_v2_ai_providers.py`; opt-in live probe
+       `tests/test_kilo_free_vision_live.py` (`TCMS_LIVE_KILO_VISION=1`).
 2. **Mass connection of created bots to channels.** Implemented (released in
    v2.0.0) —
    see the Mass Bot-to-Channel Onboarding section below (D-120).
