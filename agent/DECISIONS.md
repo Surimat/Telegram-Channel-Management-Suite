@@ -2747,4 +2747,4 @@ losing the task. `tests/test_kilo_free_vision_live.py` is an **opt-in** live pro
 (`test_docs_do_not_claim_unverified_free_vision`) still forbids any *unproven*
 free-vision prose; naming Kilo/D-122 is honest narration.
 
-**Release.** Shipped as **v2.0.1** (patch over v2.0.0) via a reviewed `develop → main` PR #__PR__ (merge `__MAINSHA__`), tag `v2.0.1`; the Release workflow attached the Windows portable ZIP + `.sha256` (D-060). No schema change. See `agent/CHANGELOG.md` / `agent/CURRENT_STATE.md`.
+**Release.** Shipped as **v2.0.1** (patch over v2.0.0) via a reviewed `develop → main` PR #24 (merge `21f2d01`), tag `v2.0.1`; the Release workflow attached the Windows portable ZIP + `.sha256` (D-060). No schema change. See `agent/CHANGELOG.md` / `agent/CURRENT_STATE.md`.

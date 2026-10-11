@@ -6,11 +6,12 @@
 **Updated:** 2026-10-11
 **Status:** **v2.0.1 is RELEASED (2026-10-11).** It is a patch over v2.0.0 that adds a keyless-free **image understanding** (vision) path through the **Kilo Gateway** free model (D-122), integrated additively through the existing AI Gateway — **opt-in and off by default**, best-effort, with an honest failover so a rate limit or outage never loses material. It completes the three agreed v2.0 stages (an **AI Gateway** over many providers including keyless-free **text**, **image generation** and now **image understanding**; browser **web wrappers**; a per-content **Target Language**; **mass bot-to-channel onboarding**; **Content Operations 2.0**; and a **hidden (windowless) background launch**). Additive only — no account registration and no Telegram-limit bypass. Version string is **2.0.1**.
 
-Released via a reviewed `develop → main` PR #__PR__ (merge `__MAINSHA__`), tag
-`v2.0.1`; the Release workflow (run `__RUN__`) created the GitHub Release and attached
-the Windows portable ZIP (__ZIP__ bytes, sha256 `__SHA__…`) + `.sha256` (D-060).
-`main` HEAD = `__MAINSHA__` (= `origin/main`, tag `v2.0.1`); `develop` = `__MAINSHA__`
-(re-synced). Release ZIP scan: no `.session`/TDATA/DB/model. No schema change.
+Released via a reviewed `develop → main` PR #24 (merge `21f2d01`), tag
+`v2.0.1`; the Release workflow (run `38133537061`) created the GitHub Release and attached
+the Windows portable ZIP (24979298 bytes, sha256 `fd92bf2c…`) + `.sha256` (D-060).
+`main` HEAD = `21f2d01` (= `origin/main`, tag `v2.0.1`); `develop` is re-synced
+from `main` and then advanced by a documentation/memory-only commit (no code
+change). Release ZIP scan: no `.session`/TDATA/DB/model. No schema change.
 
 Version string is **2.0.1** across `backend/app/__init__.py`, `pyproject.toml`,
 `frontend/package.json` + lock.
@@ -21,7 +22,7 @@ Version string is **2.0.1** across `backend/app/__init__.py`, `pyproject.toml`,
 cycle is complete. Cut a release only when the owner asks (D-060): branch from
 `develop`, then a reviewed `develop → main` PR + tag.
 
-**Free Vision (D-122) is now shipped in v2.0.1 (commit `af2f44b`, PR #__PR__).** A
+**Free Vision (D-122) is now shipped in v2.0.1 (commit `af2f44b`, PR #24).** A
 free keyless image-understanding provider (the Kilo Gateway free pool) was found and
 verified and integrated additively through the existing AI Gateway —
 `KiloGatewayProvider`, the `kilo_gateway` registry kind, a `catalog` entry verified
