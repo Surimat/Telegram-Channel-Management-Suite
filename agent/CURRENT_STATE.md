@@ -4,7 +4,7 @@
 > file + git + code alone.** Update this after every major phase.
 
 **Last updated:** 2026-10-09
-**Current phase:** **v2.0.0 — the three agreed v2.0 stages (AI Gateway + free multimodal providers, Target Language, mass bot-to-channel onboarding, Content Operations 2.0, hidden windowless launch) — RELEASED (2026-10-09).** Shipped via a reviewed `develop → main` PR #23 (merge `926a3b3`), tag `v2.0.0`; the Release workflow (run `37982855350`) created the GitHub Release and attached the Windows portable ZIP (24 977 686 bytes, sha256 `4d62a52f…bd649`) + `.sha256` (D-060). Release ZIP scan: no `.session`/TDATA/DB/model. Additive migrations `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py`, `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`, `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`. Version strings read **2.0.0** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
+**Current phase:** **v2.0.0 — the three agreed v2.0 stages (AI Gateway + free text & image-generation providers, Target Language, mass bot-to-channel onboarding, Content Operations 2.0, hidden windowless launch) — RELEASED (2026-10-09).** Shipped via a reviewed `develop → main` PR #23 (merge `926a3b3`), tag `v2.0.0`; the Release workflow (run `37982855350`) created the GitHub Release and attached the Windows portable ZIP (24 977 686 bytes, sha256 `4d62a52f…bd649`) + `.sha256` (D-060). Release ZIP scan: no `.session`/TDATA/DB/model. Additive migrations `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py`, `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`, `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`. Version strings read **2.0.0** across `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
 **v1.8.2 RELEASED (2026-10-08) — Web Wrapper Hub practical verification (D-115).** The v1.8.1 wrapper work was "architecturally implemented" but not exercised on practical scenarios end to end. A verification pass over the real engine→provider→router pipeline found a **real defect in the genuine Playwright runtime**: `extract()` read `href` from the matched node itself, so extracting a container (`li.link`, `tr.row`) returned empty links (only visible when the real browser ran). Fixed: extraction now prefers a nested `<a>`; `WrapperDefinition.extract_attrs` configures which attributes are read; the `diagnostics()` `"wrapers"` typo is fixed to `"wrappers"`. Added a deterministic **local fixture site** (`tests/support/web_fixtures.py`), a **benchmark** (`tests/web_wrapper_bench.py`, 7/7), CI-safe verification tests and an optional real-Chromium test (skips when Playwright/Chromium is absent). Released via reviewed PR #21 (merge `8542d4c`), tag `v1.8.2`; Release workflow run `37747125558`, ZIP 24 906 383 bytes, sha256 `f0c6984d…f619`. No schema change.
 **v1.8.1 RELEASED (2026-10-08).** AI Gateway verification patch (D-114) shipped via a reviewed `develop ‚Üí main` PR #20 (merge `bc8382b`), tag `v1.8.1`; the Release workflow (run `37705225761`) created the GitHub Release and attached the Windows portable ZIP (24 905 404 bytes, sha256 `0ec6aca1‚Ä¶a9d4`) + `.sha256`. An independent verification of the v1.8.0 **AI Gateway + Web Wrapper Hub** proved it *works* (not just compiles) and fixed two real defects plus a version drift ‚Äî no new features. (1) A `web` provider whose `wrapper_id` has no matching `WrapperDefinition` was reported `available` and lost its configured name; it is now forced `unavailable` with an explicit reason and keeps its configured name so a pinned provider still routes. (2) `AIRouter._attempt` returned a transient *response* without retrying (only raised errors were retried); it now retries both, bounded by the retry budget. (3) `frontend/package-lock.json` read `1.7.0` while the app read `1.8.0` ‚Äî synced + locked by an assertion. New independent gateway behaviour tests (retry/failover/availability/identity/e2e web answer) and three runtime meta-audit cases (capability dependency, orphan provider class, unwired control). Additive only ‚Äî no account registration and no CAPTCHA/MFA/regional-block or Telegram-limit bypass. Version strings read **1.8.1**; full suite green (909 passed); `ruff` clean; `vue-tsc` + `npm run build` clean; meta-audit **30/30, 100%, 0 false positives**.
 **v1.7.0 RELEASED (2026-10-08).** Bot Factory creation queue (D-109/D-110) shipped via a reviewed `develop ‚Üí main` PR #18 (merge `48eecdc`), tag `v1.7.0`; the Release workflow (run `37634439503`) created the GitHub Release and attached the Windows portable ZIP (24 853 898 bytes, sha256 `a444bb55‚Ä¶e5af`) + `.sha256`.
@@ -1076,8 +1076,8 @@ additive).
 ## 2j. v2.0 cycle — owner-approved priorities (released in v2.0.0)
 
 The owner approved a v2.0 cycle worked sequentially in separately verifiable
-stages (Этапы). Priorities, in order: (1) **Web Wrappers + free multimodal AI
-providers** — MAIN; (2) mass connection of created bots to channels; (3) Complete
+stages (Этапы). Priorities, in order: (1) **Web Wrappers + free text &
+image-generation AI providers** — MAIN; (2) mass connection of created bots to channels; (3) Complete
 Content Operations with target-language translation. No release is cut from this
 cycle until the owner asks.
 
@@ -1118,13 +1118,13 @@ Committed on `develop` (`feat(ai-gateway)` stage; `backend/app/ai/gateway/`):
 - **Tests** — `tests/test_v2_ai_providers.py` (keyless honesty, text-only vs
   vision routing, image generation, provisioning, preflight, registry kinds).
 
-### Priority 1 — Stage 2 (free multimodal / vision): probed 2026-10-09, none confirmed
+### Priority 1 — Stage 2 (free vision / image understanding): probed 2026-10-09, none confirmed
 Probed keyless endpoints honestly (D-119): `api.llm7.io` keyless models refuse an
 image (`400`); `gen.pollinations.ai` vision models need a key (`401`);
 `api.airforce` is paid (`402`); DuckDuckGo is an anti-bot challenge (never
 bypassed). **No genuinely free, keyless image-understanding endpoint exists**, so
-none is claimed. The confirmed free multimodal path is **image generation**
-(Stage 1). Vision stays on keyed providers (Google/Anthropic) or the owner's own
+none is claimed. The only confirmed keyless-free path beyond **text** is
+**image generation** (Stage 1). Vision stays on keyed providers (Google/Anthropic) or the owner's own
 logged-in browser session. Re-check only when a real, keyless, non-bypass vision
 endpoint is confirmed.
 

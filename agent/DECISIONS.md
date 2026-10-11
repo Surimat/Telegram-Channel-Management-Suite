@@ -2671,7 +2671,7 @@ capability unanchored. No release is cut from the v2.0 cycle until the owner ask
 **Decision.** The **v2.0 cycle** is released as **v2.0.0** (minor over v1.9.0).
 It carries the three owner-approved stages, all additive:
 1. **AI Gateway + free providers (D-117…D-119):** free-first routing with
-   verified free multimodal **generation** and honest capability claims (a
+   verified keyless-free **text and image generation** and honest capability claims (a
    text-only provider never serves an image request; a key is required only for
    an `api_key` provider with no key; a session expiry is failover, never a
    bypass).

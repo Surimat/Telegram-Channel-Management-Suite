@@ -4,7 +4,7 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-09
-**Status:** **v2.0.0 is RELEASED (2026-10-09).** The three agreed v2.0 stages are shipped: an **AI Gateway** over many providers (including **free multimodal** ones) and browser **web wrappers** with free-first routing and honest capabilities (D-117…D-119); a per-content **Target Language**; **mass bot-to-channel onboarding** as a durable, restart-safe queue where `ready` means Telegram confirms the bot's rights (D-120); **Content Operations 2.0** (D-116); and a **hidden (windowless) background launch**. Additive only — no account registration and no Telegram-limit bypass. Version string is **2.0.0**.
+**Status:** **v2.0.0 is RELEASED (2026-10-09).** The three agreed v2.0 stages are shipped: an **AI Gateway** over many providers (including keyless-free **text** and **image generation** ones) and browser **web wrappers** with free-first routing and honest capabilities (D-117…D-119); a per-content **Target Language**; **mass bot-to-channel onboarding** as a durable, restart-safe queue where `ready` means Telegram confirms the bot's rights (D-120); **Content Operations 2.0** (D-116); and a **hidden (windowless) background launch**. Additive only — no account registration and no Telegram-limit bypass. Version string is **2.0.0**.
 
 Released via a reviewed `develop → main` PR #23 (merge `926a3b3`), tag `v2.0.0`;
 the Release workflow (run `37982855350`) created the GitHub Release and attached the
@@ -32,7 +32,7 @@ post-v1.9.0 memory reconciliation added release-hygiene guards in
 
 ### Завершённые этапы v2.0 (released in v2.0.0)
 
-1. **Web Wrappers + free multimodal AI providers — COMPLETE.**
+1. **Web Wrappers + free text & image-generation AI providers — COMPLETE.**
    - **Stage 1 — free-first providers + honest capabilities (D-117/D-118).**
      `PollinationsProvider` (keyless free text), `Llm7Provider` (llm7.io),
      `PollinationsImageProvider` (`pollinations_image`, keyless free image
@@ -41,10 +41,11 @@ post-v1.9.0 memory reconciliation added release-hygiene guards in
      browser preflight. Honesty: a key is required only for an `api_key` provider
      with no key; session expiry is failover, not a bypass. `GET /operations`
      reports `image_generation` by kind. Tests: `tests/test_v2_ai_providers.py`.
-   - **Stage 2 — verified free multimodal (vision) providers: probed 2026-10-09,
-     none confirmed (D-119).** Keyless endpoints refused an image upstream,
+   - **Stage 2 — free vision (image understanding): probed 2026-10-09; no keyless
+     vision provider confirmed (D-119).** Keyless endpoints refused an image upstream,
      required a key or were paid/challenged. No free keyless image-understanding
-     endpoint is claimed; the confirmed free multimodal path is image generation.
+     endpoint is claimed; the only confirmed keyless-free path beyond text is
+     image generation.
      Never bypass a challenge or bundle an unverified key.
 2. **Target Language — COMPLETE.** `backend/app/services/content_language.py`,
    migration `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`,

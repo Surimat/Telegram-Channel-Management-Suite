@@ -934,3 +934,54 @@ def test_latest_release_anchors_name_the_shipped_version() -> None:
         if current not in match:
             offenders.append(f"{name}: {prefix!r} does not name {current}")
     assert not offenders, "stale latest-release anchor:\n" + "\n".join(offenders)
+
+
+# ---------------------------------------------------------------------------
+# 7. Honest free-AI claims: text + image generation, never unverified vision
+# ---------------------------------------------------------------------------
+#: Prose that would advertise a *free* capability beyond the two the catalog
+#: actually verified (keyless text and keyless image generation, D-119). The
+#: pattern is anchored on "free multimodal" and on "free/free keyless vision",
+#: deliberately NOT on a bare "multimodal" (that legitimately describes the
+#: gateway and the owner's own logged-in browser session) and NOT on a bare
+#: "vision" (keyed Google/Anthropic providers legitimately declare it).
+_FREE_VISION_CLAIM_RE = re.compile(
+    r"free\s+multimodal|free(?:\s+keyless)?\s+vision", re.IGNORECASE
+)
+
+#: A line that names the decision which forbids the claim, or that plainly says
+#: the capability is absent/unverified, is honest narration, not a claim.
+_VISION_CLAIM_EXEMPT_RE = re.compile(
+    r"D-11[0-9]|D-12[0-9]|not\s+(?:offered|claimed|confirmed|available|verified)"
+    r"|none\s+confirmed|refus|\u043d\u0435\s+\u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434|\u043d\u0435\s+\u0437\u0430\u044f\u0432\u043b|probed|"
+    r"no\s+keyless|\u043e\u0442\u043a\u0430\u0437|\u0431\u0435\u0437\s+\u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434|\u043d\u0435\s+\u043f\u0440\u0435\u0434\u043b\u0430\u0433|"
+    r"\u043d\u0435\s+\u043f\u043e\u0434\u0434\u0435\u0440\u0436|\u043d\u0435\s+\u043f\u043e\u043d\u0438\u043c|unverified|not\s+proof|no\s+free",
+    re.IGNORECASE,
+)
+
+
+def test_docs_do_not_claim_unverified_free_vision() -> None:
+    """No doc may advertise free vision / free multimodal understanding.
+
+    D-119 locked the honest free surface to **text** and **image generation**:
+    every keyless image-understanding endpoint was probed on 2026-10-09 and
+    refused upstream, so free vision must never be claimed. The catalog tests
+    (``tests/test_v2_ai_providers.py``) already guard the *code*; this guard
+    stops the *prose* from re-introducing the overstatement the owner flagged in
+    README.md ("free multimodal providers verified ...").
+    """
+    offenders: list[str] = []
+    for path in sorted(REPO_ROOT.rglob("*.md")):
+        if any(part.startswith(".openhands") for part in path.parts):
+            continue
+        for lineno, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), start=1
+        ):
+            if _FREE_VISION_CLAIM_RE.search(line) and not _VISION_CLAIM_EXEMPT_RE.search(
+                line
+            ):
+                offenders.append(f"{path.relative_to(REPO_ROOT)}:{lineno}: {line.strip()[:160]}")
+    assert not offenders, (
+        "docs advertise a free capability beyond verified text/image-generation "
+        "(D-119) without stating it is unverified:\n" + "\n".join(offenders)
+    )

@@ -76,7 +76,7 @@ account registration and no Telegram-limit bypass.
 | Gate | v2.0.0 | Notes |
 | --- | --- | --- |
 | Version consistency (`2.0.0` everywhere) | ✅ | app / pyproject / frontend / lock (`test_repo_version_is_consistent`) |
-| AI Gateway + free providers | ✅ | free multimodal providers verified against the real pipeline; honest capability claims (D-117…D-119); `tests/test_v2_ai_providers.py` |
+| AI Gateway + free providers | ✅ | keyless-free **text** + **image generation** verified against the real pipeline; free keyless **image understanding** is **not** claimed (D-119); `tests/test_v2_ai_providers.py` |
 | Target Language | ✅ | per-source/channel/item/publication; additive migration `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`; `tests/test_target_language.py` |
 | Mass bot-to-channel onboarding | ✅ | durable restart-safe queue; `ready` = Telegram confirms rights (D-120); migration `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`; `tests/test_bot_onboarding.py` + e2e |
 | Content Operations 2.0 | ✅ | one pipeline; AI profiles as data; mini-AI classifies (never an emoji); migration `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py` (D-116) |

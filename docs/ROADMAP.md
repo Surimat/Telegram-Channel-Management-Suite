@@ -248,7 +248,7 @@ Owner-approved priorities, worked sequentially in separately verifiable stages
 (**Этапы**). Do not invent new directions and do not revisit implemented work.
 All three stages shipped as **v2.0.0** (PR #23, merge `926a3b3`, tag `v2.0.0`).
 
-1. **Web Wrappers and free multimodal AI providers — MAIN priority.**
+1. **Web Wrappers and free text & image-generation AI providers — MAIN priority.**
    - **Stage 1 — free-first providers and honest capabilities (implemented;
      released in v2.0.0).** Free-first providers and honest capability
      reporting for the AI Gateway:
@@ -286,8 +286,8 @@ All three stages shipped as **v2.0.0** (PR #23, merge `926a3b3`, tag `v2.0.0`).
      - **Deliberately not done:** bypassing an anti-bot JS challenge (e.g.
        Duck.ai) or unverified third-party keys — those stay browser-session-only
        or unavailable, reported honestly.
-   - **Stage 2 — verified free *multimodal* (vision) providers (probed
-     2026-10-09; no keyless vision confirmed).** Live probes on 2026-10-09 found
+   - **Stage 2 — free vision (image understanding): probed 2026-10-09; no keyless
+     vision provider confirmed (D-119).** Live probes on 2026-10-09 found
      **no genuinely free, keyless image-understanding endpoint**:
      - `api.llm7.io` anonymous: text works (`gpt-oss:20b`), but every keyless
        model refused an image request (`400 "does not support vision input"`);
@@ -297,7 +297,7 @@ All three stages shipped as **v2.0.0** (PR #23, merge `926a3b3`, tag `v2.0.0`).
        without a key.
      - `api.airforce` → paid-only (`402`); DuckDuckGo → anti-bot challenge (never
        bypassed, D-117).
-     The free multimodal path that *is* confirmed is **image generation** (Stage
+     The only confirmed keyless-free path beyond text is **image generation** (Stage
      1, `pollinations_image`); vision stays on keyed providers (Google/Anthropic)
      or an owner's own logged-in browser session. Re-check only when a real,
      keyless, non-bypass vision endpoint is confirmed.
@@ -338,7 +338,8 @@ token is never part of any request or response. Additive migration
 ## Release
 
 - **v2.0.0 (2026-10-09):** the three agreed v2.0 stages. An **AI Gateway** over
-  many providers (including **free multimodal** ones) and browser **web wrappers**
+  many providers (including keyless-free **text** and **image generation** ones)
+  and browser **web wrappers**
   with verified free-first routing and honest capabilities (D-117…D-119); a
   per-content **Target Language** (D-v2 Part 1); **mass bot-to-channel onboarding**
   as a durable, restart-safe queue where `ready` means Telegram confirms the bot's

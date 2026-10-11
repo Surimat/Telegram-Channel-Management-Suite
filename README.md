@@ -10,7 +10,8 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > end users) and on a VPS via Docker, without a separate "server version".
 
 **Current stable release: `v2.0.0`.** It completes the three agreed v2.0 stages:
-an **AI Gateway** over many providers (including **free multimodal** ones) and
+an **AI Gateway** over many providers (including keyless-free **text** and
+**image generation** ones) and
 browser **web wrappers**, a per-content **Target Language**, **mass
 bot-to-channel onboarding**, and **Content Operations 2.0** — all with a
 **hidden (windowless) background launch** and honest capabilities. It adds no
@@ -18,9 +19,10 @@ account registration and no Telegram-limit bypass.
 **v2.0.0 (this release)** completes the three agreed v2.0 stages. It adds an
 **AI Gateway** that routes across many providers (OpenAI-compatible,
 OpenRouter, Google, Anthropic, DeepSeek, local Ollama) and browser **web
-wrappers**, with **free multimodal** providers verified against the real
-pipeline and honest capability claims (a text-only provider never serves an
-image request). It adds a per-content **Target Language**, **mass
+wrappers**. The verified keyless-free surface is **text** and **image
+generation**; free keyless **image understanding** (vision) is **not** offered —
+it was probed and refused upstream (D-119), so a text-only provider never serves
+an image request. It adds a per-content **Target Language**, **mass
 bot-to-channel onboarding** (a durable, restart-safe queue where `ready` means
 Telegram confirms the bot's rights), **Content Operations 2.0** (one content
 pipeline with AI profiles, a mini-AI classifier, moderation and declarative
@@ -89,7 +91,10 @@ catalog** (RU/EN, single-sourced in `core/i18n.py`). See Status below.
   (free-first / cheapest / fastest / best-quality), bounded retries, a per-provider
   circuit breaker and automatic failover. Keys are sealed and write-only; the
   journal stores metadata only; no account registration and no CAPTCHA/MFA/
-  regional-block or Telegram-limit bypass.
+  regional-block or Telegram-limit bypass. The **verified keyless-free** surface
+  is **text** (Pollinations, llm7) and **image generation** (Pollinations Flux,
+  off by default); keyless **image understanding** is **not** claimed (probed
+  and refused, D-119).
 - **Manager Bot** — control the suite from Telegram (admin whitelist, notifications).
 - **Managed Bots** — add/health/remove Telegram bots; tokens sealed at rest.
 - **Bot Factory** — plan a set of worker bots, check usernames with Telegram,
