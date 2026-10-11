@@ -810,6 +810,29 @@ def test_next_task_release_anchors_match_git() -> None:
     assert tag in text, f"agent/NEXT_TASK.md does not name the current tag {tag}"
 
 
+def test_current_state_release_anchors_match_git() -> None:
+    """CURRENT_STATE's stated ``main`` HEAD and tag must match the real repo.
+
+    The "Factual git state" line is one of the first things a resuming agent
+    reads, so a stale SHA there misleads it about what has shipped. The parallel
+    NEXT_TASK guard covers that file; this closes the same hole for CURRENT_STATE.
+    If git cannot answer (shallow clone), the check is skipped rather than failing.
+    """
+    text = (REPO_ROOT / "agent" / "CURRENT_STATE.md").read_text(encoding="utf-8")
+    head = _git_output("rev-parse", "--short", "main")
+    tag = _git_output("describe", "--tags", "--exact-match", "main")
+    if head is None or tag is None:  # pragma: no cover - shallow clone
+        pytest.skip("git cannot resolve main/tag in this checkout")
+    if tag != f"v{__version__}":  # pragma: no cover - pre-release branch state
+        pytest.skip(f"main is not tagged v{__version__} (tag={tag!r})")
+    assert f"`main` HEAD = `{head}`" in text, (
+        f"agent/CURRENT_STATE.md does not state the real main HEAD {head}"
+    )
+    assert tag in text, (
+        f"agent/CURRENT_STATE.md does not name the current tag {tag}"
+    )
+
+
 def test_next_task_names_the_latest_tag() -> None:
     """NEXT_TASK.md must name the repository's latest release tag.
 
@@ -827,6 +850,37 @@ def test_next_task_names_the_latest_tag() -> None:
     text = (REPO_ROOT / "agent" / "NEXT_TASK.md").read_text(encoding="utf-8")
     assert latest in text, (
         f"agent/NEXT_TASK.md does not name the latest release tag {latest}"
+    )
+
+
+def test_readme_current_release_matches_latest_tag() -> None:
+    """README's "Current stable release" anchor must name the latest tag.
+
+    Reproduces the drift the owner reported: the GitHub Release is Latest and the
+    tag points at the merge commit, yet a reader of the repository front page
+    still sees the previous version. ``test_readme_states_the_current_release``
+    only asserts the shipped version appears *somewhere* in README.md, so a stale
+    "Current stable release" anchor slips past it. This pins the anchor line to
+    the newest tag by version (the published release). Skipped when git cannot
+    list tags (shallow/tagless checkout), where the version guard still applies.
+    """
+    tags = _git_output("tag", "--sort=-v:refname")
+    if not tags:  # pragma: no cover - shallow clone
+        pytest.skip("git cannot list tags in this checkout")
+    latest = tags.splitlines()[0]
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    line = next(
+        (
+            ln
+            for ln in readme.splitlines()
+            if ln.strip().startswith("**Current stable release:")
+        ),
+        None,
+    )
+    assert line is not None, "README.md lost its 'Current stable release' anchor"
+    assert latest in line, (
+        f"README.md 'Current stable release' does not name the latest tag "
+        f"{latest}: {line[:140]!r}"
     )
 
 
@@ -880,3 +934,57 @@ def test_latest_release_anchors_name_the_shipped_version() -> None:
         if current not in match:
             offenders.append(f"{name}: {prefix!r} does not name {current}")
     assert not offenders, "stale latest-release anchor:\n" + "\n".join(offenders)
+
+
+# ---------------------------------------------------------------------------
+# 7. Honest free-AI claims: text + image generation, never unverified vision
+# ---------------------------------------------------------------------------
+#: Prose that would advertise a *free* capability beyond the two the catalog
+#: actually verified (keyless text and keyless image generation, D-119). The
+#: pattern is anchored on "free multimodal" and on "free/free keyless vision",
+#: deliberately NOT on a bare "multimodal" (that legitimately describes the
+#: gateway and the owner's own logged-in browser session) and NOT on a bare
+#: "vision" (keyed Google/Anthropic providers legitimately declare it).
+_FREE_VISION_CLAIM_RE = re.compile(
+    r"free\s+multimodal|free(?:\s+keyless)?\s+vision", re.IGNORECASE
+)
+
+#: A line that names the decision which forbids the claim, or that plainly says
+#: the capability is absent/unverified, is honest narration, not a claim.
+_VISION_CLAIM_EXEMPT_RE = re.compile(
+    r"D-11[0-9]|D-12[0-9]|kilo|not\s+(?:offered|claimed|confirmed|available|verified)"
+    r"|none\s+confirmed|refus|\u043d\u0435\s+\u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434|\u043d\u0435\s+\u0437\u0430\u044f\u0432\u043b|probed|"
+    r"no\s+keyless|\u043e\u0442\u043a\u0430\u0437|\u0431\u0435\u0437\s+\u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434|\u043d\u0435\s+\u043f\u0440\u0435\u0434\u043b\u0430\u0433|"
+    r"\u043d\u0435\s+\u043f\u043e\u0434\u0434\u0435\u0440\u0436|\u043d\u0435\s+\u043f\u043e\u043d\u0438\u043c|unverified|not\s+proof|no\s+free",
+    re.IGNORECASE,
+)
+
+
+def test_docs_do_not_claim_unverified_free_vision() -> None:
+    """No doc may advertise free vision / free multimodal understanding *unproven*.
+
+    D-119 locked the honest free surface to **text** and **image generation**.
+    D-122 then recorded that the keyless **Kilo Gateway** free model was actually
+    exercised for image understanding, so prose naming Kilo (or D-122) may state
+    it honestly. Any *other* free-vision claim — one that does not name the
+    verified provider/decision, and does not say it is unverified/absent — is
+    still an overstatement and fails. The catalog tests
+    (``tests/test_v2_ai_providers.py``) guard the *code*; this guard stops the
+    *prose* from re-introducing the overstatement the owner flagged in README.md
+    ("free multimodal providers verified ...").
+    """
+    offenders: list[str] = []
+    for path in sorted(REPO_ROOT.rglob("*.md")):
+        if any(part.startswith(".openhands") for part in path.parts):
+            continue
+        for lineno, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), start=1
+        ):
+            if _FREE_VISION_CLAIM_RE.search(line) and not _VISION_CLAIM_EXEMPT_RE.search(
+                line
+            ):
+                offenders.append(f"{path.relative_to(REPO_ROOT)}:{lineno}: {line.strip()[:160]}")
+    assert not offenders, (
+        "docs advertise a free capability beyond verified text/image-generation "
+        "(D-119) without stating it is unverified:\n" + "\n".join(offenders)
+    )

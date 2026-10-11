@@ -9,18 +9,24 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v2.0.0`.** It completes the three agreed v2.0 stages:
-an **AI Gateway** over many providers (including **free multimodal** ones) and
+**Current stable release: `v2.0.1`.** This is a patch over v2.0.0 that adds a
+keyless-free **image understanding** (vision) path through the **Kilo Gateway**
+free model (D-122) — **opt-in and off by default**, best-effort, with an honest
+failover so a rate limit or outage never loses material. It completes the three
+agreed v2.0 stages: an **AI Gateway** over many providers (including keyless-free
+**text**, **image generation** and — new in this patch — keyless-free **image
+understanding**) and
 browser **web wrappers**, a per-content **Target Language**, **mass
 bot-to-channel onboarding**, and **Content Operations 2.0** — all with a
 **hidden (windowless) background launch** and honest capabilities. It adds no
 account registration and no Telegram-limit bypass.
-**v2.0.0 (this release)** completes the three agreed v2.0 stages. It adds an
+**v2.0.0** completed the three agreed v2.0 stages. It adds an
 **AI Gateway** that routes across many providers (OpenAI-compatible,
 OpenRouter, Google, Anthropic, DeepSeek, local Ollama) and browser **web
-wrappers**, with **free multimodal** providers verified against the real
-pipeline and honest capability claims (a text-only provider never serves an
-image request). It adds a per-content **Target Language**, **mass
+wrappers**. The verified keyless-free surface is **text** and **image
+generation**, and — verified 2026-10-11 — free keyless **image understanding**
+(vision) through the **Kilo Gateway** free model (opt-in, best-effort). It adds a
+per-content **Target Language**, **mass
 bot-to-channel onboarding** (a durable, restart-safe queue where `ready` means
 Telegram confirms the bot's rights), **Content Operations 2.0** (one content
 pipeline with AI profiles, a mini-AI classifier, moderation and declarative
@@ -89,7 +95,10 @@ catalog** (RU/EN, single-sourced in `core/i18n.py`). See Status below.
   (free-first / cheapest / fastest / best-quality), bounded retries, a per-provider
   circuit breaker and automatic failover. Keys are sealed and write-only; the
   journal stores metadata only; no account registration and no CAPTCHA/MFA/
-  regional-block or Telegram-limit bypass.
+  regional-block or Telegram-limit bypass. The **verified keyless-free** surface
+  is **text** (Pollinations, llm7), **image generation** (Pollinations Flux,
+  off by default) and **image understanding** via the keyless **Kilo Gateway**
+  free model (opt-in, best-effort, verified 2026-10-11, D-122).
 - **Manager Bot** — control the suite from Telegram (admin whitelist, notifications).
 - **Managed Bots** — add/health/remove Telegram bots; tokens sealed at rest.
 - **Bot Factory** — plan a set of worker bots, check usernames with Telegram,
@@ -272,7 +281,7 @@ and no Telegram-limit bypass.
 static detectors — an **unused DB field** (N), a **backend service without a
 caller** (O) and a **frontend control without behaviour** (P) — proven by the
 **runtime mutation engine**, which computes the kill rate from real executions:
-**100% (25/25 seeded defects), 0 critical or high misses, 0 false positives**.
+**100% (32/32 seeded defects), 0 critical or high misses, 0 false positives**.
 `KNOWN_GAP_IDS` is now empty. It adds no account registration and no
 Telegram-limit bypass.
 **v1.5.3** closed two high-impact **Consistency Auditor** gaps with static

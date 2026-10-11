@@ -12,12 +12,14 @@ Each :class:`ModelCapability` states, per model:
 ``verified`` is **False** for anything that was not actually exercised end to end
 in this repository's environment. The entries marked verified are the keyless
 Pollinations text endpoint and the keyless llm7.io gateway (both probed on
-2026-10-08/09) and the keyless Pollinations image generation endpoint (probed
-2026-10-09) — see ``docs/ARCHITECTURE.md`` §25.7 and ``agent/DECISIONS.md``
-D-119. Everything else is a declared capability
+2026-10-08/09), the keyless Pollinations image generation endpoint (probed
+2026-10-09) and the keyless Kilo Gateway free model (probed 2026-10-11 for
+**image understanding**, D-122) — see ``docs/ARCHITECTURE.md`` §25.7 and
+``agent/DECISIONS.md`` D-119/D-122. Everything else is a declared capability
 the owner must enable and probe; a README or a reachable URL is never treated as
-proof. In particular, keyless *vision* was probed and refused upstream, so no
-free provider is marked verified for ``image_understanding``.
+proof. Earlier keyless vision attempts (Pollinations legacy text, llm7,
+gen.pollinations, api.airforce) were refused upstream and stay unverified; only
+the Kilo Gateway free model was actually exercised for image understanding.
 
 Nothing here performs network calls — it is the *matrix* the router and the UI
 consult. Real enforcement lives in :class:`ProviderInfo.capabilities` and the
@@ -113,8 +115,9 @@ class ModelCapability:
 #:
 #: IMPORTANT: only the entries carrying ``verified=True`` — and only for the
 #: operations actually probed — are proven here. Do not set ``verified=True`` for
-#: a model that merely compiles or whose homepage is reachable, and do not mark a
-#: free provider verified for vision: keyless vision was refused upstream.
+#: a model that merely compiles or whose homepage is reachable. Keyless vision is
+#: verified **only** for the Kilo Gateway free model (probed 2026-10-11); the
+#: other keyless endpoints were refused upstream for image input.
 MODEL_CATALOG: tuple[ModelCapability, ...] = (
     ModelCapability(
         provider="pollinations",
@@ -276,6 +279,24 @@ MODEL_CATALOG: tuple[ModelCapability, ...] = (
         availability=AVAIL_NEEDS_BROWSER,
         cost="free",
         note="Через вашу браузерную сессию Copilot; требуется вход владельца.",
+    ),
+    ModelCapability(
+        provider="kilo_gateway",
+        model="dots-studio/dots-3-note-preview:free",
+        kind="kilo_gateway",
+        source="api",
+        operations=(OP_TEXT, OP_IMAGE),
+        auth=AUTH_NONE,
+        availability=AVAIL_READY,
+        cost="free",
+        #: Verified for image_understanding only — the operation actually probed.
+        verified=True,
+        verified_operations=(OP_IMAGE,),
+        note=(
+            "Бесплатный шлюз без ключа (api.kilo.ai, модель :free). Проверено "
+            "11.10.2026 на реальном изображении: понимает картинку. Best-effort, "
+            "необязательный путь; запросы идут через сторонний шлюз."
+        ),
     ),
 )
 

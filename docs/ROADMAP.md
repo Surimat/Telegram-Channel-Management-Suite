@@ -242,15 +242,15 @@ git commit. Phases are large vertical slices (backend + DB + UI + tests).
 
 ---
 
-## v2.0 cycle — owner-approved priorities (in progress)
+## v2.0 cycle — owner-approved priorities (released in v2.0.0)
 
 Owner-approved priorities, worked sequentially in separately verifiable stages
 (**Этапы**). Do not invent new directions and do not revisit implemented work.
-No release is cut from this section until the owner asks.
+All three stages shipped as **v2.0.0** (PR #23, merge `926a3b3`, tag `v2.0.0`).
 
-1. **Web Wrappers and free multimodal AI providers — MAIN priority.**
-   - **Stage 1 — free-first providers and honest capabilities (implemented,
-     unreleased; awaiting owner-requested release).** Free-first providers and honest capability
+1. **Web Wrappers and free text & image-generation AI providers — MAIN priority.**
+   - **Stage 1 — free-first providers and honest capabilities (implemented;
+     released in v2.0.0).** Free-first providers and honest capability
      reporting for the AI Gateway:
      - Keyless free text provider **`pollinations`** (`PollinationsProvider`,
        OpenAI-compatible `POST /openai/chat/completions`); it is **text only**
@@ -286,27 +286,33 @@ No release is cut from this section until the owner asks.
      - **Deliberately not done:** bypassing an anti-bot JS challenge (e.g.
        Duck.ai) or unverified third-party keys — those stay browser-session-only
        or unavailable, reported honestly.
-   - **Stage 2 — verified free *multimodal* (vision) providers (probed
-     2026-10-09; no keyless vision confirmed).** Live probes on 2026-10-09 found
-     **no genuinely free, keyless image-understanding endpoint**:
-     - `api.llm7.io` anonymous: text works (`gpt-oss:20b`), but every keyless
-       model refused an image request (`400 "does not support vision input"`);
-       `gemini-*`/`llama-*` want a key.
-     - `gen.pollinations.ai` anonymous: text works, but the vision-capable models
-       (`…-vision-exp`, `ling-3.0-flash-vl`, `gemma-4-31b-it`) return `401`
-       without a key.
-     - `api.airforce` → paid-only (`402`); DuckDuckGo → anti-bot challenge (never
-       bypassed, D-117).
-     The free multimodal path that *is* confirmed is **image generation** (Stage
-     1, `pollinations_image`); vision stays on keyed providers (Google/Anthropic)
-     or an owner's own logged-in browser session. Re-check only when a real,
-     keyless, non-bypass vision endpoint is confirmed.
-2. **Mass connection of created bots to channels.** Implemented (unreleased) —
+   - **Stage 2 — free vision (image understanding): CONFIRMED 2026-10-11 (D-122),
+     released in v2.0.1.** A re-probe found **one** genuine keyless-free
+     image-understanding path: the **Kilo Gateway** free pool
+     (`api.kilo.ai/api/gateway`, OpenAI-compatible, model
+     `dots-studio/dots-3-note-preview:free`). No key and no account; it described
+     two distinct generated PNGs correctly and reproduced 3× identically.
+     - Integrated **additively through the existing gateway**:
+       `KiloGatewayProvider` (an `OpenAICompatibleProvider`), the `kilo_gateway`
+       registry kind, a `catalog` entry (`verified` for `image_understanding`
+       only) and a provisioning default.
+     - **Opt-in and best-effort:** disabled by default; a rate limit/upstream
+       outage is an honest failure and the router fails over, so no material is
+       lost. The paid `kilo-auto/*` router is never requested
+       (`PAID_MODEL_AUTH_REQUIRED`).
+     - Still not possible: `api.llm7.io` keyless refuses an image (`400`);
+       `gen.pollinations.ai` vision needs a key (`401`); `api.airforce` is paid
+       (`402`); DuckDuckGo is an anti-bot challenge (never bypassed, D-117). No
+       key is bundled and no challenge is bypassed.
+     - Tests: `tests/test_v2_ai_providers.py`; opt-in live probe
+       `tests/test_kilo_free_vision_live.py` (`TCMS_LIVE_KILO_VISION=1`).
+2. **Mass connection of created bots to channels.** Implemented (released in
+   v2.0.0) —
    see the Mass Bot-to-Channel Onboarding section below (D-120).
 3. **Complete Content Operations with target-language translation.** Implemented
-   (unreleased) — see the Target Language section below.
+   (released in v2.0.0) — see the Target Language section below.
 
-### v2.0 implementation notes (unreleased)
+### v2.0 implementation notes (released in v2.0.0)
 
 **Target-language translation (D-118).** The Content Studio gains an explicit
 language stage: a **source language** (auto-detected or set per source) and a
@@ -336,8 +342,17 @@ token is never part of any request or response. Additive migration
 
 ## Release
 
+- **v2.0.1 (2026-10-11):** a patch over v2.0.0 that adds the keyless-free
+  **image understanding** (vision) path through the **Kilo Gateway** free model
+  (`api.kilo.ai/api/gateway`, `dots-studio/dots-3-note-preview:free`), integrated
+  additively through the existing AI Gateway (D-122). It is **opt-in and off by
+  default**; a rate limit or upstream outage is an honest failure and the router
+  fails over, so material is never lost. The verified free surface is now **text +
+  image generation + image understanding**; no key is bundled and no challenge is
+  bypassed. Released via a reviewed `develop → main` PR, tag `v2.0.1`.
 - **v2.0.0 (2026-10-09):** the three agreed v2.0 stages. An **AI Gateway** over
-  many providers (including **free multimodal** ones) and browser **web wrappers**
+  many providers (including keyless-free **text** and **image generation** ones)
+  and browser **web wrappers**
   with verified free-first routing and honest capabilities (D-117…D-119); a
   per-content **Target Language** (D-v2 Part 1); **mass bot-to-channel onboarding**
   as a durable, restart-safe queue where `ready` means Telegram confirms the bot's
@@ -408,8 +423,9 @@ token is never part of any request or response. Additive migration
 - **v1.5.4 (2026-10-06):** the last three **Consistency Auditor** coverage gaps
   (N, O, P) are closed with pure static checks ‚Äî an unused ORM column, a public
   service class no module references, and a Vue control whose handler is undefined
-  or empty. The runtime mutation engine now detects **every** seeded defect:
-  **25/25, 100%, 0 false positives**, and `KNOWN_GAP_IDS` is empty. Additive only;
+  or empty. The runtime mutation engine now detects **every** seeded defect: at that
+  release **25/25** (the engine reports **32/32, 100%, 0 false positives**
+  today), and `KNOWN_GAP_IDS` is empty. Additive only;
   no new phases; no account registration and no Telegram-limit bypass.
 - **v1.5.3 (2026-10-06):** two high-impact **Consistency Auditor** gaps (M, Q)
   closed statically ‚Äî a setting saved but never read, and a channel-aware module

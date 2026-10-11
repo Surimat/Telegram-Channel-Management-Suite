@@ -457,6 +457,69 @@ class Llm7Provider(OpenAICompatibleProvider):
         return await super().chat(request)
 
 
+class KiloGatewayProvider(OpenAICompatibleProvider):
+    """Keyless, free image understanding via the Kilo Gateway (v2.0).
+
+    ``api.kilo.ai/api/gateway`` serves a pool of ``:free`` models with **no API
+    key and no account** (anonymous traffic is IP rate-limited). Unlike the
+    keyless text-only endpoints, several of those models genuinely accept an
+    image and describe it — verified here on 2026-10-11 with two distinct
+    generated images (a container of coloured bars and a green-circle/yellow-
+    square scene), each described correctly and reproducibly.
+
+    Honesty rules baked in:
+
+    * it needs no key, so it reports ``auth_required=False``;
+    * only the explicitly chosen free model is used — the paid ``kilo-auto/*``
+      router is never requested, because it answers ``PAID_MODEL_AUTH_REQUIRED``;
+    * it is **best-effort, never a critical dependency**: a rate limit, an
+      upstream outage or a refused request becomes an honest failure and the
+      router fails over to another provider (the material is never lost);
+    * when no image is attached it behaves like an ordinary text provider, but
+      its catalogue ``verified`` set is only ``image_understanding`` because
+      that is the operation actually probed.
+
+    Prompts/images are routed through a third-party gateway (Kilo warns it may
+    route to providers that log prompts), so it is opt-in for the owner and
+    carries a visible note — never the only path.
+    """
+
+    #: The exact free model probed for image understanding (never ``:free``-less).
+    DEFAULT_MODEL = "dots-studio/dots-3-note-preview:free"
+
+    def __init__(
+        self,
+        *,
+        model: str = DEFAULT_MODEL,
+        transport: HttpTransport,
+        base_url: str = "https://api.kilo.ai/api/gateway/v1",
+        cost: str = "free",
+        priority: int = 60,
+    ) -> None:
+        super().__init__(
+            provider="kilo_gateway",
+            model=model,
+            base_url=base_url,
+            api_key="",
+            transport=transport,
+            capabilities=Capability(text=True, image=True, verified=False),
+            cost=cost,
+            priority=priority,
+            note=(
+                "Бесплатный шлюз без ключа (api.kilo.ai), модель "
+                f"«{model}». Проверено на реальном изображении (11.10.2026): "
+                "понимает картинку. Best-effort: лимит/сбой → честный отказ и "
+                "переход к другому провайдеру. Запросы идут через сторонний шлюз "
+                "(может логировать промпты) — необязательный путь, не "
+                "единственный."
+            ),
+        )
+        self.auth_mode = AUTH_NONE
+        self._info = replace(
+            self._info, auth_mode=AUTH_NONE, auth_required=False, cost="free"
+        )
+
+
 class PollinationsImageProvider(_BaseApiProvider):
     """Keyless Pollinations image generation (v2.0, ``image_generation``).
 

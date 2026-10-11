@@ -5,6 +5,43 @@ Dates are ISO-8601.
 
 ---
 
+## [2.0.1] — 2026-10-11
+
+**v2.0.1 — keyless free image understanding via the Kilo Gateway (D-122, patch
+over v2.0.0).** Additive, through the existing AI Gateway — no new architecture
+and no new endpoint. Version strings read **2.0.1** across
+`backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
+Opt-in and **off by default**; a rate limit or upstream outage is an honest
+failure and the router fails over, so material is never lost. No key is bundled
+and no challenge is bypassed.
+
+**Released** via a reviewed `develop → main` PR, tag `v2.0.1`; the Release
+workflow (`.github/workflows/release.yml`) created the GitHub Release and attached
+the Windows portable ZIP + `.sha256` (D-060). Release ZIP scan: no
+`.session`/TDATA/DB/model. Gates: full suite green (**1054 passed**, 3 skipped),
+`ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit 32/32 (0 missed,
+0 false positives), browser CI (real Playwright/Chromium) green.
+
+### Added
+- **`KiloGatewayProvider`** (`backend/app/ai/gateway/providers/__init__.py`), an
+  `OpenAICompatibleProvider` for `api.kilo.ai/api/gateway/v1` using the free
+  model `dots-studio/dots-3-note-preview:free`. It needs **no API key and no
+  account** and genuinely describes an image (verified 2026-10-11 on two distinct
+  generated PNGs, reproduced 3×).
+- **`kilo_gateway` registry kind** (`ai/gateway/registry.py`) and a `catalog.py`
+  entry marked `verified` for `image_understanding` only.
+- **Provisioning default** (`ai/gateway/provisioning.py`) — shipped but
+  **disabled by default** (opt-in, best-effort).
+- **Tests:** `tests/test_v2_ai_providers.py` (keyless, image part, `:free` model,
+  failover-without-loss) and the opt-in live probe
+  `tests/test_kilo_free_vision_live.py` (`TCMS_LIVE_KILO_VISION=1`).
+
+### Notes
+- Honesty unchanged: a key is required only for an `api_key` provider with no
+  key; the paid `kilo-auto/*` router is never requested; a rate limit/outage
+  fails over and never loses material. No challenge is bypassed and no key is
+  bundled. `tests/test_meta_audit.py` still forbids unproven free-vision prose.
+
 ## [2.0.0] — 2026-10-09
 
 **v2.0.0 — the three agreed v2.0 stages (additive).** AI Gateway + free
@@ -14,12 +51,15 @@ Additive only: no account registration and no Telegram-limit bypass
 (D-006/D-065/D-070). Version strings read **2.0.0** across
 `backend/app/__init__.py`, `pyproject.toml`, `frontend/package.json` + lock.
 
-**Released** via a reviewed `develop → main` PR; tag `v2.0.0`; the Release
-workflow (`.github/workflows/release.yml`) created the GitHub Release and attached
-the Windows portable ZIP + `.sha256` (D-060). Release ZIP scan: no
-`.session`/TDATA/DB/model. Gates: full suite green (**1035 passed, 10 skipped**),
-`ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit 32/32 (0 missed,
-0 false positives).
+**Released** via a reviewed `develop → main` PR #23 (merge `926a3b3`), tag
+`v2.0.0`; the Release workflow (`.github/workflows/release.yml`, run
+`37982855350`) created the GitHub Release (published 2026-10-09T20:06:51Z) and
+attached the Windows portable ZIP (24 977 686 bytes, sha256
+`4d62a52f…bd649`) + `.sha256` (D-060). Release ZIP scan: no
+`.session`/TDATA/DB/model. Gates: full suite green (**1035 passed**, 10 skipped
+at the PR head; the reconciled tree collects **1046** incl. the real
+Playwright/Chromium browser tests), `ruff` clean, `vue-tsc` + `npm run build`
+clean, meta-audit 32/32 (0 missed, 0 false positives).
 
 ### Added
 - **AI Gateway — free-first providers with honest capabilities (D-117…D-119).**

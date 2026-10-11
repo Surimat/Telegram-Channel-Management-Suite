@@ -68,6 +68,28 @@ PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_R
 
 ## 6. Release verification (fill in per release)
 
+### v2.0.1 (Keyless free image understanding — Kilo Gateway, 2026-10-11, D-122)
+
+Patch over v2.0.0: adds an opt-in, keyless-free **image understanding** (vision)
+path through the **Kilo Gateway** free model, integrated additively through the
+existing AI Gateway (D-122). No new architecture, no new endpoint, no key bundled,
+no challenge bypassed. Version bump only; no schema change.
+
+| Gate | v2.0.1 | Notes |
+| --- | --- | --- |
+| Version consistency (`2.0.1` everywhere) | ✅ | app / pyproject / frontend / lock (`test_repo_version_is_consistent`) |
+| Kilo Gateway is opt-in | ✅ | disabled by default; `test_provision_includes_kilo_but_disabled` |
+| Capability claims only verified image understanding | ✅ | only `kilo_gateway` verified for vision in the catalog; `test_kilo_gateway_is_keyless_and_verified_for_image_understanding` |
+| Honest fallback (material never lost) | ✅ | rate limit/outage fails over; `test_kilo_failure_is_honest_and_fails_over_without_losing_the_task` |
+| No secrets (repo/artifacts/logs/Config Sync) | ✅ | keyless; secret scan of the diff + ZIP clean |
+| Tests (`pytest` / `ruff`) | ✅ | full suite **1054 passed, 3 skipped**; ruff clean |
+| Frontend build | ✅ | `vue-tsc --noEmit` + `npm run build` clean |
+| Meta-audit engine (runtime) | ✅ | 32 total, 32 detected, 0 missed, 0 false positives |
+| Browser CI (`browser-tests`) | ✅ | real Playwright/Chromium; 0 skipped |
+| Artifact scan | ✅ | no `.session`/TDATA/DB/model in the ZIP; runtime dirs empty |
+| Git merge (`develop → main`) | ✅ | reviewed `develop → main` PR |
+| Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v2.0.1` (D-060) |
+
 ### v2.0.0 (v2.0 stages: AI Gateway + Target Language + Bot Onboarding + Content Ops, 2026-10-09)
 
 Minor over v1.9.0: completes the three agreed v2.0 stages. Additive migrations; no
@@ -76,7 +98,7 @@ account registration and no Telegram-limit bypass.
 | Gate | v2.0.0 | Notes |
 | --- | --- | --- |
 | Version consistency (`2.0.0` everywhere) | ✅ | app / pyproject / frontend / lock (`test_repo_version_is_consistent`) |
-| AI Gateway + free providers | ✅ | free multimodal providers verified against the real pipeline; honest capability claims (D-117…D-119); `tests/test_v2_ai_providers.py` |
+| AI Gateway + free providers | ✅ | keyless-free **text** + **image generation** verified against the real pipeline; free keyless **image understanding** is **not** claimed (D-119); `tests/test_v2_ai_providers.py` |
 | Target Language | ✅ | per-source/channel/item/publication; additive migration `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`; `tests/test_target_language.py` |
 | Mass bot-to-channel onboarding | ✅ | durable restart-safe queue; `ready` = Telegram confirms rights (D-120); migration `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`; `tests/test_bot_onboarding.py` + e2e |
 | Content Operations 2.0 | ✅ | one pipeline; AI profiles as data; mini-AI classifies (never an emoji); migration `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py` (D-116) |

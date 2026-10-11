@@ -2671,7 +2671,7 @@ capability unanchored. No release is cut from the v2.0 cycle until the owner ask
 **Decision.** The **v2.0 cycle** is released as **v2.0.0** (minor over v1.9.0).
 It carries the three owner-approved stages, all additive:
 1. **AI Gateway + free providers (D-117…D-119):** free-first routing with
-   verified free multimodal **generation** and honest capability claims (a
+   verified keyless-free **text and image generation** and honest capability claims (a
    text-only provider never serves an image request; a key is required only for
    an `api_key` provider with no key; a session expiry is failover, never a
    bypass).
@@ -2698,3 +2698,53 @@ attached them to the GitHub Release. `develop` was then re-synced to `main`.
 place. Version strings read **2.0.0** everywhere (guarded by
 `test_repo_version_is_consistent`). No account registration and no Telegram-limit
 bypass. A release is only ever cut when the owner asks (D-060).
+
+
+---
+
+## D-122 — 2026-10-11 — Keyless free image understanding exists (Kilo Gateway); it is opt-in and best-effort — LOCKED
+
+**Context.** D-119 recorded that on 2026-10-09 every probed keyless endpoint
+refused image input, so free vision was not claimed. The owner asked to re-check
+and, if a genuine keyless vision path existed, connect it **through the existing
+AI Gateway** without new architecture.
+
+**Decision.** One genuine keyless-free **image understanding** path was found and
+verified, so D-119's blanket "not claimed" is narrowed (not overturned): the
+verified free surface is now **text + image generation + image understanding**.
+
+1. **What works (verified 2026-10-11).** `api.kilo.ai/api/gateway` (OpenAI-
+   compatible) serves `:free` models with **no API key and no account**.
+   `dots-studio/dots-3-note-preview:free` was sent two distinct locally-generated
+   PNGs — a red/blue bar container and a green-circle/yellow-square scene — and
+   returned a correct description of each, reproduced identically across three
+   repeats. Other `:free` models with image input exist
+   (`thinkingmachines/inkling-small:free`, `nvidia/nemotron-3-nano-omni-*:free`),
+   but the `nvidia` omni pool was exhausted (`502`) at probe time.
+2. **What still does not work.** `api.llm7.io` keyless models refuse an image
+   (`400`); `gen.pollinations.ai` vision needs a key (`401`); `api.airforce` is
+   paid (`402`); DuckDuckGo is an anti-bot challenge (never bypassed, D-117). The
+   paid `kilo-auto/*` router answers `PAID_MODEL_AUTH_REQUIRED` and is never
+   requested.
+3. **Integration is additive, through the existing gateway.** A new
+   `KiloGatewayProvider` (an `OpenAICompatibleProvider`), the `kilo_gateway`
+   registry kind, a `catalog` entry (`verified` for `image_understanding` only)
+   and a `provisioning` default. No new architecture, no new endpoint.
+4. **Opt-in and best-effort — never a critical dependency.** The provider is
+   **disabled by default** (the owner enables it), and its catalogue note states
+   that prompts/images are routed through a third-party gateway that may log
+   prompts. A rate limit or outage is an **honest failure** and the router fails
+   over, so material is never lost. No key is bundled and no challenge is
+   bypassed. Kilo Code is MIT-licensed open source (`github.com/Kilo-Org/kilocode`);
+   the gateway is a free hosted service with no SLA.
+
+**Consequences.** `tests/test_v2_ai_providers.py` asserts the catalog marks only
+`kilo_gateway` verified for vision (every other keyless entry stays unverified),
+that the provider needs no key, that an image is sent as an OpenAI `image_url`
+part, that a `:free` model is requested, and that a rate limit fails over without
+losing the task. `tests/test_kilo_free_vision_live.py` is an **opt-in** live probe
+(`TCMS_LIVE_KILO_VISION=1`). `tests/test_meta_audit.py`
+(`test_docs_do_not_claim_unverified_free_vision`) still forbids any *unproven*
+free-vision prose; naming Kilo/D-122 is honest narration.
+
+**Release.** Shipped as **v2.0.1** (patch over v2.0.0) via a reviewed `develop → main` PR #__PR__ (merge `__MAINSHA__`), tag `v2.0.1`; the Release workflow attached the Windows portable ZIP + `.sha256` (D-060). No schema change. See `agent/CHANGELOG.md` / `agent/CURRENT_STATE.md`.
