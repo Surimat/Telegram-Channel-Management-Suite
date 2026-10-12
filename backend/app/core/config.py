@@ -94,9 +94,14 @@ class Settings(BaseSettings):
     # Tasks processed per scheduler tick (keeps memory/CPU low on weak machines).
     invite_batch_size: int = 5
     # Safety caps when a job does not specify its own. Non-zero by default so a
-    # fresh install can never launch an unbounded bulk invite (D-006).
-    invite_max_total: int = 500
-    invite_max_per_account: int = 50
+    # fresh install can never launch an unbounded bulk invite (D-006). Kept
+    # deliberately small for a *personal* (MTProto) account: these are the per-job
+    # ceilings, and a caller-supplied value can never exceed them.
+    invite_max_total: int = 100
+    invite_max_per_account: int = 20
+    # Rolling 24-hour ceiling per personal account, enforced at execution time
+    # (a job cap alone resets with every job, so it is not a rate limit).
+    invite_max_per_day: int = 50
 
     # --- Scheduler ---
     scheduler_enabled: bool = True

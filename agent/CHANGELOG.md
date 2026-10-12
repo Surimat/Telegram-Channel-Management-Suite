@@ -18,13 +18,19 @@ impossible unless the owner opts in. Not yet released; work is on `develop`.
 - **Mass-action switch `invites_enabled` (default OFF).** Requires the master
   switch too; gates invite `preview`/`create_job`/`start_job`/`resume_job`, and
   `run_tick` pauses a running job instead of inviting when it is turned off.
-- **Bounded invites by default.** `invite_max_total=500`, `invite_max_per_account=50`;
-  `_effective_caps()` never returns an unbounded (`<=0`) value.
+- **Bounded invites by default, and rate-limited over time.** `invite_max_total=100`,
+  `invite_max_per_account=20`; `_effective_caps()` never returns an unbounded (`<=0`)
+  value and **clamps a job/API value to the configured ceiling**. A per-job cap is
+  not a rate limit, so a rolling **24-hour per-account** ceiling
+  `invite_max_per_day=50` is enforced at execution time across all jobs; reaching it
+  pauses the job with an honest wait time (checked per task, no batch overshoot).
 - **Refuse before touching state.** Every gate runs before a DB row, session file
   or provider is created, so a blocked operation leaves no orphan account.
 - **Honest auth UX.** `AuthStartResult.code_delivery` reports where Telegram
   actually sent the code (often in-app, not SMS); auth errors keep the account in
   the wizard; `PersonalAccountDisabledError` maps to a friendly 403 envelope.
+- **Migration.** `20261015_0900_f6a7b8c9d0e1` adds the display-only
+  `invite_jobs.rate_limited_at` (additive; an existing database upgrades in place).
 
 Gates: `pytest` full suite green, `ruff` clean, `vue-tsc` + `npm run build` clean,
 meta-audit 32/32 (0 false positives). Guards:

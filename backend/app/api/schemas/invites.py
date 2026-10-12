@@ -95,6 +95,7 @@ class InviteJobOut(BaseModel):
     error_count: int = 0
     waiting_account_id: str = ""
     wait_until: datetime | None = None
+    rate_limited_at: datetime | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
     last_error: str = ""

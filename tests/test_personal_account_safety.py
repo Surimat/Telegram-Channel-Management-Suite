@@ -12,6 +12,7 @@ import pytest
 import pytest_asyncio
 
 from backend.app.db.models.audience import AudienceUser
+from backend.app.db.models.invite import InviteJobStatus
 from backend.app.db.models.session import SessionStatus, UserSession
 from backend.app.providers.fake_session import FakeSessionProvider
 from backend.app.services.invite_service import (
@@ -361,3 +362,163 @@ async def test_api_returns_friendly_403_when_disabled(client) -> None:
     assert "личн" in body["error"]["message"].lower()
     assert body["error"]["hint"]
     assert body["error"]["code"] == "forbidden"
+
+
+# --- rolling 24-hour rate limit (the caps alone are not a rate limit) ---------
+async def _first_account_id() -> str:
+    from sqlalchemy import select
+
+    from backend.app.db.models.session import UserSession
+    from backend.app.db.session import session_scope
+
+    async with session_scope() as session:
+        return (await session.execute(select(UserSession.id))).scalars().first()
+
+
+async def _seed_prior_invites(account_id: str, count: int, *, completed_at) -> None:
+    """Insert real (non-dry-run) INVITED tasks, as a previous job would leave."""
+    from backend.app.db.models.invite import InviteJob, InviteJobStatus, InviteStatus, InviteTask
+    from backend.app.db.session import session_scope
+
+    async with session_scope() as session:
+        job = InviteJob(
+            name="prior",
+            target="@prior",
+            status=InviteJobStatus.COMPLETED,
+            dry_run=False,
+        )
+        session.add(job)
+        await session.flush()
+        for i in range(count):
+            session.add(
+                InviteTask(
+                    job_id=job.id,
+                    user_id=f"prior{i}",
+                    telegram_user_id=900000 + i,
+                    account_id=account_id,
+                    status=InviteStatus.INVITED,
+                    completed_at=completed_at,
+                )
+            )
+        await session.flush()
+
+
+def test_invite_caps_are_conservative_by_default() -> None:
+    """The shipped defaults are small, and there is a rolling daily ceiling."""
+    from backend.app.core.config import Settings
+
+    assert Settings.model_fields["invite_max_total"].default == 100
+    assert Settings.model_fields["invite_max_per_account"].default == 20
+    assert Settings.model_fields["invite_max_per_day"].default == 50
+
+
+async def test_job_caps_cannot_exceed_the_configured_ceiling(db) -> None:
+    """A caller may lower a cap but never raise it above the configured limit."""
+    from backend.app.core.config import Settings
+    from backend.app.db.session import session_scope
+
+    await _set_flag("personal_account_enabled", True)
+    await _set_flag("invites_enabled", True)
+    settings = Settings(invite_max_total=100, invite_max_per_account=20)
+    async with session_scope() as session:
+        service = InviteService(
+            session, settings=settings, session_provider_factory=_factory(FakeSessionProvider())
+        )
+        job = await service.create_job(
+            target="@target", max_total=100000, max_per_account=100000
+        )
+        assert job.max_total == 100
+        assert job.max_per_account == 20
+
+
+async def test_daily_rate_limit_pauses_and_is_not_reset_by_a_new_job(db) -> None:
+    """A job cap resets per job; the 24-hour ceiling must not (D-006/D-123)."""
+    from backend.app.core.config import Settings
+    from backend.app.db.base import utcnow
+    from backend.app.db.session import session_scope
+
+    await _set_flag("personal_account_enabled", True)
+    await _set_flag("invites_enabled", True)
+    account_id = await _first_account_id()
+    settings = Settings(
+        invite_max_per_day=2, invite_max_total=50, invite_max_per_account=50
+    )
+    # The account already invited 2 people in the last 24 hours (a previous job).
+    await _seed_prior_invites(account_id, 2, completed_at=utcnow())
+
+    provider = FakeSessionProvider()
+    async with session_scope() as session:
+        service = InviteService(
+            session, settings=settings, session_provider_factory=_factory(provider)
+        )
+        job = await service.create_job(
+            target="@target", per_account_delay_min=0, per_account_delay_max=0
+        )
+        await service.confirm_and_start(job.id)
+        action, delay = await service.run_tick(job.id)
+        assert action == "paused"
+        assert delay == 0.0
+        job = await service.jobs.get(job.id)
+        assert job.status == InviteJobStatus.PAUSED
+        assert job.rate_limited_at is not None
+        assert job.wait_until is not None
+    # Nothing new was sent: the rolling ceiling was already reached.
+    assert provider.invite.record == []
+
+
+async def test_daily_rate_limit_does_not_overshoot_within_a_batch(db) -> None:
+    """The ceiling is checked per task, so a batch cannot blow past it."""
+    from backend.app.core.config import Settings
+    from backend.app.db.session import session_scope
+
+    await _set_flag("personal_account_enabled", True)
+    await _set_flag("invites_enabled", True)
+    settings = Settings(
+        invite_max_per_day=2,
+        invite_max_total=50,
+        invite_max_per_account=50,
+        invite_batch_size=5,
+    )
+    provider = FakeSessionProvider()
+    async with session_scope() as session:
+        service = InviteService(
+            session, settings=settings, session_provider_factory=_factory(provider)
+        )
+        job = await service.create_job(
+            target="@target", per_account_delay_min=0, per_account_delay_max=0
+        )
+        await service.confirm_and_start(job.id)
+        action, _ = await service.run_tick(job.id)
+        assert action == "paused"
+        job = await service.jobs.get(job.id)
+        assert job.status == InviteJobStatus.PAUSED
+    # Exactly the ceiling, never a whole batch more.
+    assert len(provider.invite.record) == 2
+
+
+async def test_daily_rate_limit_allows_up_to_the_ceiling(db) -> None:
+    """Below the ceiling the run completes normally."""
+    from backend.app.core.config import Settings
+    from backend.app.db.session import session_scope
+
+    await _set_flag("personal_account_enabled", True)
+    await _set_flag("invites_enabled", True)
+    settings = Settings(
+        invite_max_per_day=5, invite_max_total=50, invite_max_per_account=50
+    )
+    provider = FakeSessionProvider()
+    async with session_scope() as session:
+        service = InviteService(
+            session, settings=settings, session_provider_factory=_factory(provider)
+        )
+        job = await service.create_job(
+            target="@target", per_account_delay_min=0, per_account_delay_max=0
+        )
+        await service.confirm_and_start(job.id)
+        action = "more"
+        for _ in range(20):
+            action, _delay = await service.run_tick(job.id)
+            if action in {"done", "paused"}:
+                break
+        assert action == "done"
+    assert len(provider.invite.record) == 5

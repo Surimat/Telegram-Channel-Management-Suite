@@ -2771,9 +2771,17 @@ the refusal is enforced at a single chokepoint.
    switch; `require_invites_enabled()` requires *both*. It gates `preview`,
    `create_job`, `start_job`/`resume_job`, and `run_tick` pauses a running job
    instead of inviting when the switch is turned off mid-run.
-3. **Bounded by default.** `invite_max_total` (500) and `invite_max_per_account`
-   (50) are non-zero, and `_effective_caps()` never returns an unbounded (`<=0`)
-   value, so a fresh install cannot launch an unbounded bulk invite (D-006).
+3. **Bounded by default, and rate-limited over time.** `invite_max_total` (**100**)
+   and `invite_max_per_account` (**20**) are non-zero *per-job* ceilings, and
+   `_effective_caps()` now **clamps** a job/API value to the configured ceiling —
+   a caller may lower a cap but never raise it above it. A per-job cap resets with
+   every job, so it is **not** a rate limit: a new `invite_max_per_day` (**50**)
+   rolling **24-hour per-account** ceiling is enforced at execution time in
+   `run_tick`/`_execute_task`, counting the invites an account *actually* sent
+   across all jobs (real, non-dry-run `INVITED` tasks). Reaching it **pauses** the
+   job with an honest `wait_until` (oldest invite in the window + 24h) and an
+   event, so an unattended loop cannot invite without bound. Checked per task, so
+   a batch never overshoots the ceiling. `0` disables the window.
 4. **Refuse before touching state.** Every gate runs *before* a DB row, session
    file or provider is created, so a blocked operation leaves no orphan account or
    artifact. `start_auth` in particular checks the policy before creating the
@@ -2790,9 +2798,11 @@ the refusal is enforced at a single chokepoint.
 **Consequences.** `tests/test_personal_account_safety.py` proves the switches
 default to OFF, that the master switch blocks `start_auth` without creating an
 account, that both switches are required for invites, that a mid-run switch-off
-pauses the job without inviting, that the caps are bounded, and that the API
-answers a friendly 403. `tests/conftest.py` enables both switches for the MTProto
-test flows. Docs/memory only otherwise; no schema change.
+pauses the job without inviting, that the caps are bounded **and clamped**, that
+the rolling 24-hour ceiling pauses a run without overshooting and is **not** reset
+by a new job, and that the API answers a friendly 403. `tests/conftest.py` enables
+both switches for the MTProto test flows. Additive migration
+`20261015_0900_f6a7b8c9d0e1` adds the display-only `invite_jobs.rate_limited_at`.
 
 **Status.** In progress on `develop` (not yet released). Do not cut a release for
 it until the owner asks (D-060).

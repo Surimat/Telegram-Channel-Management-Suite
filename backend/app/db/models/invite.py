@@ -127,6 +127,13 @@ class InviteJob(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     waiting_account_id: Mapped[str] = mapped_column(String(32), default="", nullable=False)
     wait_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Honest rolling-window report: when the run last hit the 24-hour per-account
+    # invite ceiling, so the UI can say *when* it may continue (D-006). Display
+    # only — the scheduler reads the real invite history from the tasks.
+    rate_limited_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     queue_job_id: Mapped[str] = mapped_column(String(32), default="", nullable=False)
 
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

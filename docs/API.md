@@ -381,6 +381,15 @@ A run never starts without confirmation (`confirm` records `confirmed_at`). On
 restart, running jobs are paused rather than silently resumed. Responses never
 contain tokens, session contents, `api_hash` or raw phone numbers.
 
+**Limits (D-123).** `max_total`/`max_per_account` on create may only *lower* the
+configured ceiling (`invite_max_total`/`invite_max_per_account`); a larger value is
+clamped, never accepted. On top of the per-job caps, a rolling **24-hour
+per-account** ceiling (`invite_max_per_day`) is enforced at execution time across
+all jobs; when an account reaches it the job is **paused** with an honest
+`wait_until` (and `rate_limited_at` on the job) instead of inviting. The suite
+never bypasses Telegram FloodWait/limits (D-006) and never promises a safe invite
+count.
+
 ---
 
 ## Mini App authentication (PHASE 9 — implemented)

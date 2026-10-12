@@ -491,10 +491,15 @@ that impossible unless the owner opts in.
   or provider is created, so a blocked operation leaves no orphan account or
   artifact. A blocked action answers a friendly **403** (`code`/`message`/`hint`)
   and never a stack trace or a secret.
-- **Bounded mass actions.** Invite caps are non-zero by default
-  (`invite_max_total=500`, `invite_max_per_account=50`) and `_effective_caps()`
-  never returns an unbounded value. Turning `invites_enabled` off mid-run makes
-  `run_tick` pause the job instead of inviting.
+- **Bounded mass actions, and rate-limited over time.** Invite caps are non-zero
+  and deliberately small by default (`invite_max_total=100`,
+  `invite_max_per_account=20`), `_effective_caps()` never returns an unbounded
+  value **and clamps a job/API value to the configured ceiling** (a caller may
+  lower a cap, never raise it). A per-job cap resets with every job, so a rolling
+  **24-hour per-account** ceiling (`invite_max_per_day=50`) is enforced at
+  execution time, counting real invites across all jobs; reaching it pauses the
+  job with an honest wait time instead of continuing. Turning `invites_enabled`
+  off mid-run makes `run_tick` pause the job instead of inviting.
 - **Honest login.** The login code is often delivered inside the Telegram app, not
   by SMS; `AuthStartResult.code_delivery` reports where it was actually sent. The
   suite never bypasses Telegram verification, FloodWait, privacy or identity

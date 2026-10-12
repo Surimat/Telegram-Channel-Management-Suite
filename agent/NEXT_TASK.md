@@ -35,8 +35,13 @@ until the owner asks (D-060).
   requires both switches; it gates invite `preview`/`create_job`/`start_job`/
   `resume_job`, and `run_tick` **pauses** a running job instead of inviting when the
   switch is turned off mid-run.
-- **Bounded invites by default.** `invite_max_total=500`, `invite_max_per_account=50`;
-  `_effective_caps()` never returns an unbounded (`<=0`) value.
+- **Bounded invites by default, and rate-limited over time.** `invite_max_total=100`,
+  `invite_max_per_account=20`; `_effective_caps()` never returns an unbounded (`<=0`)
+  value and **clamps a job/API value to the configured ceiling** (a caller may lower
+  a cap, never raise it). A per-job cap is not a rate limit, so a rolling **24-hour
+  per-account** ceiling `invite_max_per_day=50` is enforced at execution time in
+  `run_tick`/`_execute_task` across all jobs; reaching it **pauses** the job with an
+  honest `wait_until` (checked per task, so a batch never overshoots).
 - **Refuse before touching state.** Every gate runs before a DB row, session file or
   provider is created (notably `start_auth` checks the policy before creating the
   `UserSession`), so a blocked operation leaves no orphan account.
