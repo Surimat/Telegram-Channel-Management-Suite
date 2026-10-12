@@ -94,7 +94,9 @@ async def test_add_verify_default_and_modules() -> None:
         modules = await svc.modules_of(refreshed)
         assert modules["reactions"] is True
         assert modules["invites"] is True
-        assert modules["audience"] is False
+        # D-124: a never-disabled module stays connected — enabling two modules
+        # must not silently disconnect the others on a fresh channel.
+        assert modules["audience"] is True
 
 
 async def test_duplicate_reference_rejected() -> None:

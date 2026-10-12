@@ -6,8 +6,6 @@ and never expose secrets.
 
 from __future__ import annotations
 
-import json
-
 from fastapi import APIRouter, Depends, Query
 
 from backend.app.api.deps import get_channel_service
@@ -23,6 +21,7 @@ from backend.app.api.schemas.channels import (
     ChannelVerifyIn,
 )
 from backend.app.db.models.channel import ChannelKind, ChannelStatus
+from backend.app.services.channel_modules import effective_modules, parse_modules
 from backend.app.services.channel_service import ChannelService, ChannelServiceError
 
 router = APIRouter(prefix="/channels", tags=["channels"])
@@ -33,11 +32,9 @@ def _raise(exc: ChannelServiceError) -> None:
 
 
 def _to_out(service: ChannelService, channel) -> ChannelOut:  # type: ignore[no-untyped-def]
-    modules = {}
-    try:
-        modules = json.loads(channel.modules or "{}")
-    except (ValueError, TypeError):
-        modules = {}
+    # Expose the effective map: a never-configured channel reports every module
+    # enabled, so the UI toggles reflect what the server will actually allow.
+    modules = effective_modules(parse_modules(channel.modules))
     return ChannelOut(
         id=channel.id,
         reference=channel.reference,

@@ -1011,6 +1011,53 @@ def test_next_task_active_task_is_not_declared_released() -> None:
     )
 
 
+def test_next_task_active_task_state_matches_git() -> None:
+    """An active task that claims uncommitted work must really be uncommitted.
+
+    NEXT_TASK's active section once said the Personal Account Safety code was
+    "uncommitted at the time of writing" while it *also* cited the three commits
+    that implement it (``9295d9c``, ``622053c``, ``43e1cca``) — all already in
+    ``develop``'s history. A commit SHA that resolves to a real commit is proof
+    the work is committed, so an "uncommitted / in progress" claim next to it is
+    false. Checking the cited SHAs (rather than only the working-tree status)
+    makes the guard independent of unrelated local edits. It also fires if the
+    tree is completely clean while the claim is made (nothing left uncommitted).
+    Skipped when git cannot answer (not a checkout / shallow clone).
+    """
+    text = (REPO_ROOT / "agent" / "NEXT_TASK.md").read_text(encoding="utf-8")
+    heading = re.search(
+        r"^#+\s*Active task\b.*$", text, flags=re.MULTILINE | re.IGNORECASE
+    )
+    assert heading is not None, "agent/NEXT_TASK.md lost its 'Active task' heading"
+    rest = text[heading.end():]
+    next_heading = re.search(r"^#+\s", rest, flags=re.MULTILINE)
+    body = heading.group(0) + (rest[: next_heading.start()] if next_heading else rest)
+    if re.search(
+        r"uncommitted|not yet committed|in progress on", body, flags=re.IGNORECASE
+    ) is None:
+        return
+
+    cited = re.findall(r"`?\b([0-9a-f]{7,40})\b`?", body)
+    committed: list[str] = []
+    for sha in cited:
+        if _git_output("rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}"):
+            committed.append(sha)
+    if committed:
+        raise AssertionError(
+            "agent/NEXT_TASK.md 'Active task' calls the work uncommitted / in "
+            "progress, yet it cites commit(s) that already exist in git history: "
+            f"{', '.join(sorted(set(committed)))}"
+        )
+
+    status = _git_output("status", "--porcelain")
+    if status is None:  # pragma: no cover - not a git checkout
+        pytest.skip("git cannot report status in this checkout")
+    assert status.strip(), (
+        "agent/NEXT_TASK.md 'Active task' claims uncommitted / in-progress work, "
+        "but the git working tree is clean (the work is already committed)"
+    )
+
+
 #: Lines that claim what the *latest release* is, as ``(file, stripped_prefix)``.
 #: These must name the shipped version; older versions may still appear later on
 #: the same line (a "Previous release:" clause), so the mid-line stale-version
@@ -1094,3 +1141,57 @@ def test_docs_do_not_claim_unverified_free_vision() -> None:
         "docs advertise a free capability beyond verified text/image-generation "
         "(D-119) without stating it is unverified:\n" + "\n".join(offenders)
     )
+
+
+# ---------------------------------------------------------------------------
+# 8. An already-finished task never stays in NEXT_TASK as active (D-124)
+# ---------------------------------------------------------------------------
+#: The server-side module registry (D-124). When this implementation exists in
+#: the tree, NEXT_TASK.md must not keep advertising it as pending/in-progress
+#: work — the exact drift the owner had to repair by hand (a completed feature
+#: left in the "active task" slot, so a resuming agent would rebuild it).
+_MODULE_REGISTRY_MARKERS = (
+    "channel_modules.py",
+    "ChannelModuleGuard",
+)
+_MODULE_REGISTRY_IMPL = (
+    REPO_ROOT / "backend" / "app" / "services" / "channel_modules.py"
+)
+
+
+def _active_task_body(text: str) -> str | None:
+    """Return the body of the first 'Active task' section, or None."""
+    heading = re.search(
+        r"^#+\s*Active task\b.*$", text, flags=re.MULTILINE | re.IGNORECASE
+    )
+    if heading is None:
+        return None
+    rest = text[heading.end():]
+    next_heading = re.search(r"^#+\s", rest, flags=re.MULTILINE)
+    return rest[: next_heading.start()] if next_heading else rest
+
+
+def test_next_task_does_not_advertise_a_finished_feature_as_active() -> None:
+    """A task that is already implemented must not remain in the active slot.
+
+    NEXT_TASK.md is the single place a resuming agent looks for work. If it
+    advertises the module registry as active/pending while the registry is
+    already implemented and wired (D-124), the agent rebuilds finished work.
+    The guard activates only when both the file and the implementation markers
+    are present, so it never fires on a checkout that predates the feature.
+    """
+    text = (REPO_ROOT / "agent" / "NEXT_TASK.md").read_text(encoding="utf-8")
+    if not all(marker in text for marker in _MODULE_REGISTRY_MARKERS):
+        return  # NEXT_TASK does not mention the registry; nothing to guard.
+    assert _MODULE_REGISTRY_IMPL.exists(), (
+        "agent/NEXT_TASK.md advertises a module registry, but "
+        "backend/app/services/channel_modules.py does not exist"
+    )
+    body = _active_task_body(text)
+    assert body is not None, "agent/NEXT_TASK.md lost its 'Active task' heading"
+    pending = re.search(r"module\s+registr\w*", body, flags=re.IGNORECASE)
+    assert pending is None, (
+        "agent/NEXT_TASK.md still advertises the module registry "
+        f"({pending.group(0)!r}) as active work, but it is implemented (D-124)"
+    )
+

@@ -69,6 +69,10 @@ from backend.app.rules.engine import (
     RulesEngine,
     RuleSpec,
 )
+from backend.app.services.channel_modules import (
+    MODULE_REACTIONS,
+    ChannelModuleGuard,
+)
 from backend.app.services.events_service import EventsService
 from backend.app.services.queue_service import QueueService
 from backend.app.services.reaction_intent import intent_narrows
@@ -764,6 +768,12 @@ class ReactionService:
                     how_to_fix="Обновите список каналов на странице «Каналы».",
                     status_code=404,
                 )
+            # Ingesting a post is part of the reactions module: refuse it when the
+            # owner switched reactions off for this channel (D-124), before the
+            # post row is written.
+            await ChannelModuleGuard(self.session).require(
+                registry_channel_id, MODULE_REACTIONS
+            )
             channel_username = channel.username or channel.reference
             if channel_id is None and channel.telegram_id is not None:
                 channel_id = channel.telegram_id
@@ -818,6 +828,11 @@ class ReactionService:
 
     async def plan_post(self, post: Post, *, seed: int | None = None) -> list[ReactionJob]:
         """Create durable reaction jobs for an already-stored post."""
+        # The reactions module must be connected to the post's channel (D-124).
+        # Checked first so no job row is created for a switched-off channel.
+        await ChannelModuleGuard(self.session).require(
+            post.registry_channel_id, MODULE_REACTIONS
+        )
         profile = await self.get_active_profile()
         if profile is None or not profile.enabled:
             raise ReactionServiceError(
@@ -960,6 +975,27 @@ class ReactionService:
         bot = await self.bots.get(job.bot_id)
         if post is None or bot is None:
             raise ReactionServiceError("Пост или бот задания не найден.", status_code=404)
+        # If the owner switched the reactions module off for this channel, do not
+        # apply the reaction: finalize the job as skipped so the durable queue can
+        # retire it without touching Telegram (D-124).
+        #
+        # A post may carry the registry link (new posts) or only the channel
+        # username (legacy/auto-ingested posts); resolve the registry channel from
+        # the username so the gate also covers the durable reaction tick.
+        post_channel_ref = post.registry_channel_id
+        if not post_channel_ref and post.channel_username:
+            linked = await ChannelRepository(self.session).find_by_username(
+                post.channel_username
+            )
+            if linked is not None:
+                post_channel_ref = linked.id
+        if not await ChannelModuleGuard(self.session).is_enabled(
+            post_channel_ref, MODULE_REACTIONS
+        ):
+            job.status = ReactionJobStatus.SKIPPED
+            job.error = "Модуль «Реакции» отключён для этого канала."
+            await self.session.flush()
+            return
         if post.telegram_message_id is None or post.channel_id is None:
             raise ReactionServiceError(
                 "У поста нет идентификатора сообщения в Telegram — реакция невозможна.",

@@ -53,6 +53,10 @@ from backend.app.providers.errors import (
     TelegramProviderError,
 )
 from backend.app.providers.session_base import SessionProvider
+from backend.app.services.channel_modules import (
+    MODULE_INVITES,
+    ChannelModuleGuard,
+)
 from backend.app.services.events_service import EventsService
 from backend.app.services.personal_account import PersonalAccountPolicy
 from backend.app.services.queue_service import QueueService
@@ -258,6 +262,8 @@ class InviteService:
         """Dry-run: count the audience slice and describe the planned run."""
         # Preparing a bulk invite requires the explicit switch (preview included).
         await self._policy().require_invites_enabled()
+        # ...and the invites module must be connected to the chosen channel (D-124).
+        await ChannelModuleGuard(self.session).require(channel_id, MODULE_INVITES)
         if channel_id:
             channel = await ChannelRepository(self.session).get(channel_id)
             if channel is None:
@@ -343,6 +349,8 @@ class InviteService:
     ) -> InviteJob:
         # A bulk invite is only prepared when the owner has explicitly enabled it.
         await self._policy().require_invites_enabled()
+        # ...and the invites module must be connected to the chosen channel (D-124).
+        await ChannelModuleGuard(self.session).require(channel_id, MODULE_INVITES)
         # A channel chosen from the shared registry supplies the target and its
         # display title, so the owner does not retype it (decision D-051).
         channel_ref = ""
@@ -484,6 +492,8 @@ class InviteService:
         # Never start (or resume) a bulk run while the owner has it switched off.
         await self._policy().require_invites_enabled()
         job = await self._require_job(job_id)
+        # Block a run for a channel whose invites module is switched off (D-124).
+        await ChannelModuleGuard(self.session).require(job.channel_id, MODULE_INVITES)
         if job.confirmed_at is None:
             raise InviteServiceError(
                 "Задание не подтверждено.",
@@ -572,6 +582,15 @@ class InviteService:
         # If the owner switched invitations off mid-run, stop honestly: pause the
         # job (never keep inviting) and let the operator resume deliberately.
         if not await self._policy().invites_allowed():
+            job.status = InviteJobStatus.PAUSED
+            await self.session.commit()
+            return "done", 0.0
+
+        # Same for the invites module on this channel (D-124): switching it off
+        # mid-run pauses the job instead of continuing to invite.
+        if not await ChannelModuleGuard(self.session).is_enabled(
+            job.channel_id, MODULE_INVITES
+        ):
             job.status = InviteJobStatus.PAUSED
             await self.session.commit()
             return "done", 0.0

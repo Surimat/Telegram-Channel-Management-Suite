@@ -2804,6 +2804,64 @@ by a new job, and that the API answers a friendly 403. `tests/conftest.py` enabl
 both switches for the MTProto test flows. Additive migration
 `20261015_0900_f6a7b8c9d0e1` adds the display-only `invite_jobs.rate_limited_at`.
 
-**Status.** In progress on `develop` (not yet released). Do not cut a release for
-it until the owner asks (D-060).
+**Status.** Committed on `develop` (commits `9295d9c`, `622053c`, `43e1cca`) but
+**not yet released**. Do not cut a release for it until the owner asks (D-060).
+
+
+
+## D-124 — 2026-10-12 — Module Registry is server-side and gates every launch path; it never replaces a safety gate — LOCKED
+
+**Context.** The Channels UI could persist a per-channel module map
+(`channels.modules` JSON: `reactions`, `audience`, `invites`, `analytics`) but the
+flag only reached a few API guards. Disabling a module did **not** stop the real
+work: the durable reaction queue, the audience background scan and the invite
+resume path could still touch Telegram. That made the control look functional
+while it was not (production functionally unavailable for the "switch it off"
+promise).
+
+**Decision — the registry is authoritative server-side.**
+1. **One service owns the truth.** `services/channel_modules.py`
+   (`parse_modules`, `effective_modules`, `ChannelModuleGuard`) resolves the
+   module map; `ChannelService.modules_of`/`set_modules` read and write it. A
+   channel that was never configured has **every** module enabled (no silent
+   lock-out), and an unknown module name is ignored, never enabled by accident.
+2. **Every launch path is gated — API, service and durable/background ticks.**
+   The gate is enforced in the **services**, not only at the router, so the
+   scheduler handlers (`_handle_reaction`, `_handle_scan`, `_handle_invite`), the
+   background ticks and direct service calls are covered too:
+   - **reactions:** `ingest_post`, `plan_post`, and `execute_reaction_job` (the
+     durable tick; `ingest_post` is the only path that writes a post row). Because
+     a post may carry only the channel **username** (legacy/auto-ingested), the job
+     path resolves the registry channel from that username before deciding.
+   - **audience:** `add_source`, `update_source`, `start_scan`/`resume_scan`, and
+     the read-only probes `check_source`/`preview_scan` (a dry-run still resolves
+     the account provider).
+   - **invites:** `preview`, `create_job`, `start_job`/`resume_job` and `run_tick`.
+   - **analytics:** the analytics endpoints gate on the channel they read.
+3. **Refuse before touching state.** The gate runs **before** a DB row, queue job
+   or provider is created, so a blocked call leaves no orphan. A blocked durable
+   job is retired honestly (reaction -> `SKIPPED` with a clear
+   `Модуль «Реакции» отключён` message; scan -> `PAUSED`) without contacting
+   Telegram.
+4. **Friendly Russian errors, never a 500.** `ChannelModuleDisabledError` is
+   mapped by a global handler to a `403` envelope (`code/message/hint`) naming the
+   module and how to turn it back on.
+5. **The registry never replaces a real check.** A connected module is a
+   *permission to operate*, not a grant of rights: the personal-account safety
+   switches (D-123) still gate MTProto work, and the real Telegram permission
+   probe (bot rights) still decides whether an action is actually allowed. Turning
+   a module **on** never weakens a safety gate; turning it off only narrows what
+   may run.
+
+**Consequences.** `tests/test_channel_modules.py` proves per-channel isolation,
+the absence of a 500, and that the HTTP invite resume path returns a friendly 403
+once the module is switched off; `tests/test_reaction_service.py` proves the
+durable reaction tick is retired (skipped, no Telegram contact) for a
+switched-off channel; the audience scheduler handler pauses a switched-off scan.
+Meta-audit `tests/test_meta_audit.py` gains a guard that fails if
+`agent/NEXT_TASK.md` ever advertises "module registry" work as in progress again,
+so an already-finished task cannot stay in the queue.
+
+**Status.** On `develop`, unreleased — no version bump. Do not cut a release until
+the owner asks (D-060).
 

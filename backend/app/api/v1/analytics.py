@@ -18,6 +18,7 @@ from backend.app.api.schemas.analytics import (
 )
 from backend.app.db.session import get_session
 from backend.app.services.analytics_service import AnalyticsService
+from backend.app.services.channel_modules import MODULE_ANALYTICS, ChannelModuleGuard
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -28,12 +29,24 @@ _CHANNEL = Query(
 )
 
 
+async def _require_analytics_module(channel_id: str, session: AsyncSession) -> None:
+    """Refuse a channel-scoped report when analytics is off for that channel.
+
+    Global aggregates (empty ``channel_id``) stay available. A channel the owner
+    removed analytics from returns a friendly 403 instead of silently reporting
+    numbers for a module that is supposed to be disconnected (D-124).
+    """
+    if channel_id:
+        await ChannelModuleGuard(session).require(channel_id, MODULE_ANALYTICS)
+
+
 @router.get("/overview", response_model=AnalyticsOverviewOut)
 async def analytics_overview(
     days: int = _DAYS,
     channel_id: str = _CHANNEL,
     session: AsyncSession = Depends(get_session),
 ) -> AnalyticsOverviewOut:
+    await _require_analytics_module(channel_id, session)
     return AnalyticsOverviewOut(
         **await AnalyticsService(session).overview(days=days, channel_id=channel_id or None)
     )
@@ -45,6 +58,7 @@ async def analytics_content(
     channel_id: str = _CHANNEL,
     session: AsyncSession = Depends(get_session),
 ) -> ContentAnalyticsOut:
+    await _require_analytics_module(channel_id, session)
     return ContentAnalyticsOut(
         **await AnalyticsService(session).content(days=days, channel_id=channel_id or None)
     )
@@ -56,6 +70,7 @@ async def analytics_reactions(
     channel_id: str = _CHANNEL,
     session: AsyncSession = Depends(get_session),
 ) -> ReactionsAnalyticsOut:
+    await _require_analytics_module(channel_id, session)
     return ReactionsAnalyticsOut(
         **await AnalyticsService(session).reactions(days=days, channel_id=channel_id or None)
     )
@@ -67,6 +82,7 @@ async def analytics_audience(
     channel_id: str = _CHANNEL,
     session: AsyncSession = Depends(get_session),
 ) -> AudienceAnalyticsOut:
+    await _require_analytics_module(channel_id, session)
     return AudienceAnalyticsOut(
         **await AnalyticsService(session).audience(days=days, channel_id=channel_id or None)
     )

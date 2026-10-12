@@ -13,13 +13,16 @@ import pytest
 
 from backend.app.db.base import utcnow
 from backend.app.db.models.bot import Bot, BotHealth, BotKind
+from backend.app.db.models.channel import Channel, ChannelKind
 from backend.app.db.models.job import Job, JobStatus
 from backend.app.db.models.post import Post, PostStatus
 from backend.app.db.models.reaction import ReactionJob, ReactionJobStatus
 from backend.app.db.repositories.bots import BotRepository
+from backend.app.db.repositories.channels import ChannelRepository
 from backend.app.db.session import init_models, session_scope
 from backend.app.providers.errors import FloodWaitError
 from backend.app.providers.fake_bot import FakeTelegramBotProvider
+from backend.app.services.channel_modules import ChannelModuleDisabledError
 from backend.app.services.queue_service import QueueService
 from backend.app.services.reaction_service import (
     REACTION_JOB_KIND,
@@ -355,3 +358,105 @@ async def test_scheduler_executes_reaction_queue_job() -> None:
         rj = await session.get(ReactionJob, reaction_job_id)
         assert rj is not None and rj.status == ReactionJobStatus.DONE
     assert any(r.emoji == "🔥" for p in record for r in p.reactions)
+
+
+# ---------------------------------------------------------------------------
+# Operational Module Registry (D-124): reactions gate on real launch points
+# ---------------------------------------------------------------------------
+async def _seed_registry_channel(channel_id: str, username: str, *, reactions: bool) -> None:
+    import json
+
+    async with session_scope() as session:
+        await ChannelRepository(session).add(
+            Channel(
+                id=channel_id,
+                reference=f"@{username}",
+                username=username,
+                kind=ChannelKind.CHANNEL,
+                modules=json.dumps({"reactions": reactions}),
+            )
+        )
+
+
+async def test_ingest_refused_when_reactions_module_disabled() -> None:
+    """The API ingest launch point is refused for a channel with reactions off."""
+    await _seed_registry_channel("ch-off", "reactsoff", reactions=False)
+    async with session_scope() as session:
+        service = await _service(session)
+        with pytest.raises(ChannelModuleDisabledError):
+            await service.ingest_post(
+                text="новость", registry_channel_id="ch-off", seed=1
+            )
+        # No post row may be left behind.
+        assert await service.posts.latest() is None
+
+
+async def test_plan_post_refused_when_reactions_module_disabled() -> None:
+    """Planning jobs is refused before any job row is created."""
+    await _seed_registry_channel("ch-off2", "reactsoff2", reactions=False)
+    async with session_scope() as session:
+        service = await _service(session)
+        post = Post(
+            text="x",
+            category="neutral",
+            status=PostStatus.CLASSIFIED,
+            registry_channel_id="ch-off2",
+        )
+        session.add(post)
+        await session.flush()
+        with pytest.raises(ChannelModuleDisabledError):
+            await service.plan_post(post)
+        assert await service.jobs.for_post(post.id) == []
+
+
+async def test_durable_reaction_tick_skips_when_module_disabled() -> None:
+    """The scheduler reaction handler retires the job without touching Telegram.
+
+    The post carries only the channel username (legacy/auto-ingested shape), so
+    the guard must resolve the registry channel from the username — this is the
+    exact durable/background launch point the registry has to control.
+    """
+    record: list[FakeTelegramBotProvider] = []
+    await _seed_registry_channel("ch-bg", "reactsoffbg", reactions=False)
+    async with session_scope() as session:
+        bot = await _add_bot(session, username="reactor-bg", telegram_id=900)
+        post = Post(
+            text="x",
+            category="neutral",
+            status=PostStatus.PLANNED,
+            channel_username="reactsoffbg",
+            channel_id=-100555,
+            telegram_message_id=42,
+        )
+        session.add(post)
+        await session.flush()
+        job = ReactionJob(
+            post_id=post.id, bot_id=bot.id, reaction="👍",
+            status=ReactionJobStatus.SCHEDULED,
+            scheduled_at=utcnow() - timedelta(seconds=1),
+        )
+        session.add(job)
+        await session.flush()
+        queue_job = await QueueService(session).enqueue(
+            kind=REACTION_JOB_KIND,
+            payload={"reaction_job_id": job.id},
+            scheduled_at=utcnow() - timedelta(seconds=1),
+        )
+        job.queue_job_id = queue_job.id
+        job_id = job.id
+
+    from backend.app.scheduler.handlers import _handle_reaction
+    from backend.app.scheduler.scheduler import Scheduler
+
+    scheduler = Scheduler()
+    scheduler.register(REACTION_JOB_KIND, _handle_reaction)
+    await scheduler._tick()
+
+    async with session_scope() as session:
+        refreshed = await session.get(ReactionJob, job_id)
+        assert refreshed is not None
+        assert refreshed.status == ReactionJobStatus.SKIPPED
+        assert "отключён" in refreshed.error.lower()
+    # Telegram was never contacted for the switched-off channel.
+    assert not any(p.reactions for p in record)
+

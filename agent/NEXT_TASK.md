@@ -1,29 +1,31 @@
-# NEXT TASK — Telegram Channel Management Suite
+# NEXT TASK ‚Äî Telegram Channel Management Suite
 
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-11
-**Status:** **v2.0.1 is RELEASED (2026-10-11).** It is a patch over v2.0.0 that adds a keyless-free **image understanding** (vision) path through the **Kilo Gateway** free model (D-122), integrated additively through the existing AI Gateway — **opt-in and off by default**, best-effort, with an honest failover so a rate limit or outage never loses material. It completes the three agreed v2.0 stages (an **AI Gateway** over many providers including keyless-free **text**, **image generation** and now **image understanding**; browser **web wrappers**; a per-content **Target Language**; **mass bot-to-channel onboarding**; **Content Operations 2.0**; and a **hidden (windowless) background launch**). Additive only — no account registration and no Telegram-limit bypass. Version string is **2.0.1**.
+**Status:** **v2.0.1 is RELEASED (2026-10-11).** It is a patch over v2.0.0 that adds a keyless-free **image understanding** (vision) path through the **Kilo Gateway** free model (D-122), integrated additively through the existing AI Gateway ‚Äî **opt-in and off by default**, best-effort, with an honest failover so a rate limit or outage never loses material. It completes the three agreed v2.0 stages (an **AI Gateway** over many providers including keyless-free **text**, **image generation** and now **image understanding**; browser **web wrappers**; a per-content **Target Language**; **mass bot-to-channel onboarding**; **Content Operations 2.0**; and a **hidden (windowless) background launch**). Additive only ‚Äî no account registration and no Telegram-limit bypass. Version string is **2.0.1**.
 
-Released via a reviewed `develop → main` PR #24 (merge `21f2d01`), tag
+Released via a reviewed `develop ‚Üí main` PR #24 (merge `21f2d01`), tag
 `v2.0.1`; the Release workflow (run `38133537061`) created the GitHub Release and attached
-the Windows portable ZIP (24979298 bytes, sha256 `fd92bf2c…`) + `.sha256` (D-060).
-`main` HEAD = `21f2d01` (= `origin/main`, tag `v2.0.1`); `develop` is re-synced
-from `main` and then advanced by a documentation/memory-only commit (no code
-change). Release ZIP scan: no `.session`/TDATA/DB/model. No schema change.
+the Windows portable ZIP (24979298 bytes, sha256 `fd92bf2c‚Ä¶`) + `.sha256` (D-060).
+`main` HEAD = `21f2d01` (= `origin/main`, tag `v2.0.1`); `develop` HEAD = `43e1cca`
+(`== origin/develop`) ‚Äî re-synced from `main` and advanced by the v2.0.1
+memory commit plus the Personal Account Safety work below (real code change, D-123).
+Release ZIP scan: no `.session`/TDATA/DB/model. No schema change.
 
 Version string is **2.0.1** across `backend/app/__init__.py`, `pyproject.toml`,
 `frontend/package.json` + lock.
 
-### Active task — Personal Account Safety (in progress on `develop`, D-123)
+### Active task ‚Äî Personal Account Safety (committed on `develop`, not released, D-123)
 
 **Goal:** make an accidental action through the owner's personal Telegram (MTProto)
-account — and any unsafe mass action — impossible unless the owner explicitly opts
+account ‚Äî and any unsafe mass action ‚Äî impossible unless the owner explicitly opts
 in. **Do not** add new large features beyond this stage and do **not** cut a release
 until the owner asks (D-060).
 
-**Implemented (code, on `develop`, uncommitted at the time of writing):**
+**Implemented and committed on `develop` (commits `9295d9c`, `622053c`,
+`43e1cca`; D-123):**
 
 - **Master switch `personal_account_enabled` (default OFF).** Stored as a
   UI-editable setting (`services/personal_account.py`, seeded at startup by
@@ -49,24 +51,54 @@ until the owner asks (D-060).
   (`describe_code_delivery`) says where Telegram actually sent the code (often
   in-app, not SMS); auth errors keep the account in the wizard;
   `PersonalAccountDisabledError` maps to a 403 envelope (`code/message/hint`).
-- **UI.** Settings gains a «Личный аккаунт (безопасность)» card; a
+- **UI.** Settings gains a ¬´–õ–∏—á–Ω—ã–π –∞–∫–∫–∞—É–Ω—Ç (–±–µ–∑–æ–ø–∞—Å–Ω–æ—Å—Ç—å)¬ª card; a
   `personal_account_safety` help topic explains it.
 
-**Remaining:** commit/push on `develop` (the owner's call), then a normal reviewed
-`develop → main` release when asked. Guards live in
-`tests/test_personal_account_safety.py`; `tests/conftest.py` enables both switches
-for the MTProto test flows.
+**Remaining:** the code is committed and pushed on `develop` (tip `43e1cca`,
+`== origin/develop`); the stage is **not released yet**. When the owner asks
+(D-060), review a `develop ‚Üí main` PR from the current `develop` tip, tag the
+merge commit, and let the Release workflow attach the Windows portable ZIP.
+Guards live in `tests/test_personal_account_safety.py`; `tests/conftest.py`
+enables both switches for the MTProto test flows.
 
-### Completed stage — v2.0.1 shipped (2026-10-11)
+### Completed stage — Operational Module Registry (D-124, on `develop`, not released)
 
-**v2.0.1 is RELEASED (2026-10-11).** It is a patch over v2.0.0 that adds a keyless-free **image understanding** (vision) path through the **Kilo Gateway** free model (D-122), integrated additively through the existing AI Gateway — **opt-in and off by default**, best-effort, with an honest failover so a rate limit or outage never loses material. It completes the three agreed v2.0 stages (an **AI Gateway** over many providers including keyless-free **text**, **image generation** and now **image understanding**; browser **web wrappers**; a per-content **Target Language**; **mass bot-to-channel onboarding**; **Content Operations 2.0**; and a **hidden (windowless) background launch**). Additive only — no account registration and no Telegram-limit bypass. Version string is **2.0.1**.
+**The per-channel module registry is now authoritative server-side.** It was
+partially wired before; disabling a module did not actually stop the work. It is
+now enforced on **every** launch path, not just a few API guards:
+
+- **Service of record:** `backend/app/services/channel_modules.py`
+  (`ChannelModuleGuard`, `effective_modules`, `parse_modules`), read/written by
+  `ChannelService.modules_of`/`set_modules`. A never-configured channel keeps all
+  modules enabled; an unknown module name is ignored.
+- **Gated paths:** reactions (`ingest_post`, `plan_post`, and the durable
+  `execute_reaction_job` tick — which also resolves the registry channel from the
+  post's channel username for legacy/auto-ingested posts); audience (`add_source`,
+  `update_source`, `start_scan`/`resume_scan`, plus the `check_source`/`preview_scan`
+  probes);
+  invites (`preview`, `create_job`, `start_job`/`resume_job`, `run_tick`);
+  analytics.
+- **Retire, don't crash:** a blocked durable job is retired honestly (reaction →
+  `SKIPPED`, scan → `PAUSED`) without contacting Telegram; a blocked call is a
+  friendly `403` envelope, never a 500.
+- **Never replaces a real check:** the D-123 personal-account switches and the
+  real Telegram permission probe still decide whether an action is allowed.
+
+Guards: `tests/test_channel_modules.py`, `tests/test_reaction_service.py`. See
+D-124 in `agent/DECISIONS.md`.
+
+
+
+### Completed stage ‚Äî v2.0.1 shipped (2026-10-11)
+
+**v2.0.1 is RELEASED (2026-10-11).** It is a patch over v2.0.0 that adds a keyless-free **image understanding** (vision) path through the **Kilo Gateway** free model (D-122), integrated additively through the existing AI Gateway ‚Äî **opt-in and off by default**, best-effort, with an honest failover so a rate limit or outage never loses material. It completes the three agreed v2.0 stages (an **AI Gateway** over many providers including keyless-free **text**, **image generation** and now **image understanding**; browser **web wrappers**; a per-content **Target Language**; **mass bot-to-channel onboarding**; **Content Operations 2.0**; and a **hidden (windowless) background launch**). Additive only ‚Äî no account registration and no Telegram-limit bypass. Version string is **2.0.1**.
 
 ### Next stage (factual)
 
-**The next stage is the Personal Account Safety work above (D-123), which is in
-progress on `develop`.** Finish it (commit/push on `develop` when the owner is
-ready), keep the gates green, then release only when the owner asks (D-060):
-branch/review a `develop → main` PR from the current `develop` tip, tag the merge
+**The next stage is the Personal Account Safety work above (D-123), which is
+committed on `develop` (tip `43e1cca`) but not yet released.** Keep the gates
+green, then release only when the owner asks (D-060):
+branch/review a `develop ‚Üí main` PR from the current `develop` tip, tag the merge
 commit, and let the Release workflow attach the Windows portable ZIP. The
 non-blocking optional items (a full automated BotFather Mini App flow, richer
 analytics, additional AI backends, a permissively-licensed TDATA converter, D-070)
@@ -77,14 +109,14 @@ and `tests/test_bot_onboarding_e2e.py` (end-to-end integration), a separate
 `browser-tests` CI job (Playwright + Chromium, must not skip), and
 `tests/test_windows_hidden_console.py` (the no-console Windows launch). A
 post-v1.9.0 memory reconciliation added release-hygiene guards in
-`tests/test_meta_audit.py` §6; the meta-audit prose in `docs/ARCHITECTURE.md`
+`tests/test_meta_audit.py` ¬ß6; the meta-audit prose in `docs/ARCHITECTURE.md`
 (32 mutations / 8 controls) is guarded by
 `test_architecture_doc_meta_audit_counts_match_report`.
 
-### Завершённые этапы v2.0 (released in v2.0.0)
+### –ó–∞–≤–µ—Ä—à—ë–Ω–Ω—ã–µ —ç—Ç–∞–ø—ã v2.0 (released in v2.0.0)
 
-1. **Web Wrappers + free text & image-generation AI providers — COMPLETE.**
-   - **Stage 1 — free-first providers + honest capabilities (D-117/D-118).**
+1. **Web Wrappers + free text & image-generation AI providers ‚Äî COMPLETE.**
+   - **Stage 1 ‚Äî free-first providers + honest capabilities (D-117/D-118).**
      `PollinationsProvider` (keyless free text), `Llm7Provider` (llm7.io),
      `PollinationsImageProvider` (`pollinations_image`, keyless free image
      generation, off by default), the model-capability catalog
@@ -92,34 +124,34 @@ post-v1.9.0 memory reconciliation added release-hygiene guards in
      browser preflight. Honesty: a key is required only for an `api_key` provider
      with no key; session expiry is failover, not a bypass. `GET /operations`
      reports `image_generation` by kind. Tests: `tests/test_v2_ai_providers.py`.
-   - **Stage 2 — free vision (image understanding): CONFIRMED 2026-10-11 (D-122).**
+   - **Stage 2 ‚Äî free vision (image understanding): CONFIRMED 2026-10-11 (D-122).**
      A keyless-free image-understanding path exists: the **Kilo Gateway** free
      pool (`api.kilo.ai/api/gateway`, model `dots-studio/dots-3-note-preview:free`)
-     describes an image with **no key and no account** — verified on two distinct
-     generated PNGs and reproduced 3×. It is integrated **additively through the
+     describes an image with **no key and no account** ‚Äî verified on two distinct
+     generated PNGs and reproduced 3√ó. It is integrated **additively through the
      existing gateway** (`KiloGatewayProvider` + `kilo_gateway` registry kind +
      catalog entry + provisioning default), **opt-in and best-effort** (disabled
      by default; a rate limit/outage fails over, never loses material). Still no
      challenge bypass and no bundled key. Tests: `tests/test_v2_ai_providers.py`;
      opt-in live probe `tests/test_kilo_free_vision_live.py`
      (`TCMS_LIVE_KILO_VISION=1`).
-2. **Target Language — COMPLETE.** `backend/app/services/content_language.py`,
+2. **Target Language ‚Äî COMPLETE.** `backend/app/services/content_language.py`,
    migration `20261013_0900_d4e5f6a7b8c9_v2_0_target_language.py`,
    `tests/test_target_language.py`.
-3. **Mass Bot-to-Channel Onboarding — COMPLETE (D-120).**
+3. **Mass Bot-to-Channel Onboarding ‚Äî COMPLETE (D-120).**
    `services/bot_onboarding.py`, migration
    `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`, scheduler job
    `bot_onboarding.tick`; UI `BotOnboardingView.vue`; `tests/test_bot_onboarding.py`
    + `tests/test_bot_onboarding_e2e.py`.
-4. **Content Operations 2.0 — COMPLETE (D-116).** One pipeline; AI profiles as
+4. **Content Operations 2.0 ‚Äî COMPLETE (D-116).** One pipeline; AI profiles as
    data; mini-AI classifies (never an emoji); migration
    `20261012_0900_c3d4e5f6a7b8_v1_9_content_operations.py`.
 
 ### Following cycle (only when the owner asks)
 
-Branch from `develop`, then a reviewed `develop → main` PR + tag (D-060).
+Branch from `develop`, then a reviewed `develop ‚Üí main` PR + tag (D-060).
 
-### Завершённая задача — v1.9.0 RELEASED
+### –ó–∞–≤–µ—Ä—à—ë–Ω–Ω–∞—è –∑–∞–¥–∞—á–∞ ‚Äî v1.9.0 RELEASED
 
 **v1.9.0 is RELEASED and verified.** The quality gate was run and passed before
 the release:
@@ -136,20 +168,20 @@ release-hygiene guards and the v2.0 stages; those v2.0 stages shipped as
 **v2.0.0** (PR #23, merge `926a3b3`), and `develop` is now re-synced to `main`.
 
 **Prior release:** **v1.8.1 (AI Gateway verification patch, D-114) is RELEASED**
-via a reviewed `develop → main` PR #20 (merge `bc8382b`), tag `v1.8.1`; the
+via a reviewed `develop ‚Üí main` PR #20 (merge `bc8382b`), tag `v1.8.1`; the
 Release workflow (run `37705225761`) created the GitHub Release and attached the
-Windows portable ZIP (24 905 404 bytes, sha256 `0ec6aca1…a9d4`) + `.sha256`.
+Windows portable ZIP (24 905 404 bytes, sha256 `0ec6aca1‚Ä¶a9d4`) + `.sha256`.
 `main` HEAD = `bc8382b`; `develop` re-synced to `bc8382b`.
 An independent verification of the v1.8.0 **AI Gateway + Web Wrapper Hub** proved
 it *works* (routing, retry, failover, wrapper engine, availability, secret
 safety), not merely that it compiles, and fixed two real defects plus a version
-drift — **no new features**. (1) A `web` provider whose `wrapper_id` has no
+drift ‚Äî **no new features**. (1) A `web` provider whose `wrapper_id` has no
 matching `WrapperDefinition` was reported `available` and lost its configured
 name; it is now forced `unavailable` with an explicit reason and keeps its
 configured name so a pinned provider still routes by name. (2) `AIRouter._attempt`
 returned a transient *response* without retrying (only raised errors were
 retried); it now retries both, bounded by the retry budget, then fails over.
-(3) `frontend/package-lock.json` read `1.7.0` while the app read `1.8.0` — synced
+(3) `frontend/package-lock.json` read `1.7.0` while the app read `1.8.0` ‚Äî synced
 to the app version and locked by an assertion. New independent gateway behaviour
 tests (retry/failover/availability/identity/e2e web answer) and three runtime
 meta-audit cases (capability dependency, orphan provider class, unwired control).
@@ -158,10 +190,10 @@ Telegram-limit bypass. Version strings read **1.8.1**; full suite green (909
 passed); `ruff` clean; frontend `vue-tsc` + `npm run build` clean; meta-audit
 **30/30, 100%, 0 false positives**.
 
-**Prior release:** **v1.8.0 (AI Gateway + Web Wrapper Hub, D-111…D-113) is
-RELEASED** via a reviewed `develop → main` PR #19 (merge `d8c62c1`), tag `v1.8.0`;
+**Prior release:** **v1.8.0 (AI Gateway + Web Wrapper Hub, D-111‚Ä¶D-113) is
+RELEASED** via a reviewed `develop ‚Üí main` PR #19 (merge `d8c62c1`), tag `v1.8.0`;
 the Release workflow (run `37653661662`) created the GitHub Release and attached
-the Windows portable ZIP (24 904 789 bytes, sha256 `9bb39e4b…d353c`) + `.sha256`.
+the Windows portable ZIP (24 904 789 bytes, sha256 `9bb39e4b‚Ä¶d353c`) + `.sha256`.
 `main` HEAD = `d8c62c1`. One access layer over many AI
 providers (OpenAI-compatible, OpenRouter, Google, Anthropic, DeepSeek, local
 Ollama) plus browser **web wrappers** that drive the owner's own logged-in
@@ -170,21 +202,21 @@ breaker and automatic failover. Keys are sealed and write-only; the request
 journal stores metadata only; the wrapper engine stops at a login wall.
 
 **Previous release:** **v1.7.0 (Bot Factory creation queue) is RELEASED** via a
-reviewed `develop → main` PR #18 (merge `48eecdc`), tag `v1.7.0`; the Release
+reviewed `develop ‚Üí main` PR #18 (merge `48eecdc`), tag `v1.7.0`; the Release
 workflow (run `37634439503`) created the GitHub Release and attached the Windows
-portable ZIP (24 853 898 bytes, sha256 `a444bb55…e5af`) + `.sha256`. The Bot
+portable ZIP (24 853 898 bytes, sha256 `a444bb55‚Ä¶e5af`) + `.sha256`. The Bot
 Factory batch is now a **durable creation queue** (D-109): the scheduler job
 `bot_factory.create` creates the free candidates **one operation per tick**, so a
 batch is restart-resumable and can be stopped/resumed; a failed candidate can be
 retried or skipped; already-created bots are never rolled back. A display-only
-`token_mask` (`1234…xyz`) is derived from the **non-secret numeric bot id**
+`token_mask` (`1234‚Ä¶xyz`) is derived from the **non-secret numeric bot id**
 (D-110). Deep-link batches are not background-ticked. Additive: no account
 registration and no Telegram-limit bypass.
 
 **Previous release:** **v1.6.1** (verification patch) via a reviewed
-`develop → main` PR #17 (merge `a38823d`), tag `v1.6.1`; the Release workflow (run
+`develop ‚Üí main` PR #17 (merge `a38823d`), tag `v1.6.1`; the Release workflow (run
 `37601801598`) attached the Windows portable ZIP (24 846 601 bytes, sha256
-`8b6d7c18…f519`) + `.sha256`. v1.6.1 is a patch over v1.6.0 (Owner Auth + Config
+`8b6d7c18‚Ä¶f519`) + `.sha256`. v1.6.1 is a patch over v1.6.0 (Owner Auth + Config
 Sync, D-105/D-106); it fixed the owner-guard path-normalisation weakness, the
 `config_sync` capability state and the Google Drive `/owner` UI wiring (D-107).
 
@@ -193,26 +225,26 @@ The meta-audit remains a *runtime mutation engine* (D-102) and still detects
 positives, 0 critical/high misses** (`status: clean`); `KNOWN_GAP_IDS` is empty.
 
 Previous release: **v1.5.4** (auditor gaps N/O/P closed, D-104) via a reviewed
-`develop → main` PR #15 (merge `b219341`), tag `v1.5.4`; the Release workflow (run
+`develop ‚Üí main` PR #15 (merge `b219341`), tag `v1.5.4`; the Release workflow (run
 `37522394131`) attached the Windows portable ZIP (24 807 288 bytes, sha256
-`ff01f787…dc67a`) + `.sha256`.
-Previous: **v1.5.1 forensic-audit fixes are released** — reviewed `develop → main`
+`ff01f787‚Ä¶dc67a`) + `.sha256`.
+Previous: **v1.5.1 forensic-audit fixes are released** ‚Äî reviewed `develop ‚Üí main`
 PR #12 (merge `f41ebc8`), tag `v1.5.1`; the Release workflow (run `37453582161`)
 attached the Windows portable ZIP + `.sha256` (D-060). It fixes five confirmed
-discrepancies (D-095…D-098): false `available` capabilities; a consistency check
+discrepancies (D-095‚Ä¶D-098): false `available` capabilities; a consistency check
 that raised being silently swallowed; a write-only `language` preference;
 source-unavailable checks reported as info in the runtime image; and `README.md`
 version drift. Previous: **v1.5.0 Capability graph + i18n + Consistency Auditor is
-released** (PR #11, merge `ad24bc6`, tag `v1.5.0`). The roadmap (PHASE 0–11) is
+released** (PR #11, merge `ad24bc6`, tag `v1.5.0`). The roadmap (PHASE 0‚Äì11) is
 complete.
 
 ---
 
-## Legacy notes: v1.8.0 release (historical — superseded by v1.8.2 at the top)
+## Legacy notes: v1.8.0 release (historical ‚Äî superseded by v1.8.2 at the top)
 
-**v1.8.0 was RELEASED** via a reviewed `develop → main` PR #19 (merge `d8c62c1`),
+**v1.8.0 was RELEASED** via a reviewed `develop ‚Üí main` PR #19 (merge `d8c62c1`),
 tag `v1.8.0`; the Release workflow (run `37653661662`) created the GitHub Release
-and attached the Windows portable ZIP (24 904 789 bytes, sha256 `9bb39e4b…d353c`)
+and attached the Windows portable ZIP (24 904 789 bytes, sha256 `9bb39e4b‚Ä¶d353c`)
 + `.sha256`. `main` HEAD = `d8c62c1`; `develop` re-synced to `d8c62c1`. Nothing is
 required to follow up. Do **not** add new large features.
 
@@ -232,7 +264,7 @@ required to follow up. Do **not** add new large features.
   (+ repository), migration `20261008_1200_b2c3d4e5f6a7_v1_8_ai_gateway.py`.
 - **Service + API:** `services/ai_gateway_service.py`,
   `api/v1/ai_gateway.py` (injected via `api/deps.py::get_ai_gateway_service`).
-- **UI:** `AiGatewayView.vue` (`/ai-gateway`, "Центр ИИ") + nav entry + two help
+- **UI:** `AiGatewayView.vue` (`/ai-gateway`, "–¶–µ–Ω—Ç—Ä –ò–ò") + nav entry + two help
   topics (`ai_gateway`, `ai_gateway_wrapper`).
 - **Guardrails:** `ai_gateway` capability + consistency anchor, i18n keys,
   meta-audit mutations `V_gateway_capability_anchor` and
@@ -249,9 +281,9 @@ PYTHONPATH=. python tests/meta_audit/engine.py         # 27/27, 100%
 
 ## Previous release: v1.7.0 (Bot Factory creation queue)
 
-**v1.7.0 is RELEASED** via a reviewed `develop → main` PR #18 (merge `48eecdc`),
+**v1.7.0 is RELEASED** via a reviewed `develop ‚Üí main` PR #18 (merge `48eecdc`),
 tag `v1.7.0`; the Release workflow (run `37634439503`) created the GitHub Release
-and attached the Windows portable ZIP (24 853 898 bytes, sha256 `a444bb55…e5af`).
+and attached the Windows portable ZIP (24 853 898 bytes, sha256 `a444bb55‚Ä¶e5af`).
 `main` HEAD = `48eecdc`; `develop` re-synced to `48eecdc`.
 
 ### What shipped (additive)
@@ -276,11 +308,11 @@ ruff check backend tests         # clean
 cd frontend && npx vue-tsc --noEmit && npm run build   # clean
 ```
 
-## Active task (previous): none — v1.6.1 released
+## Active task (previous): none ‚Äî v1.6.1 released
 
-**v1.6.1 is RELEASED** via a reviewed `develop → main` PR #17 (merge `a38823d`),
+**v1.6.1 is RELEASED** via a reviewed `develop ‚Üí main` PR #17 (merge `a38823d`),
 tag `v1.6.1`; the Release workflow (run `37601801598`) created the GitHub Release
-and attached the Windows portable ZIP (24 846 601 bytes, sha256 `8b6d7c18…f519`).
+and attached the Windows portable ZIP (24 846 601 bytes, sha256 `8b6d7c18‚Ä¶f519`).
 `main` HEAD = `a38823d`; `develop` = `a38823d` (re-synced). Nothing is required to
 follow up. Do not add new features.
 
@@ -289,16 +321,16 @@ follow up. Do not add new features.
 The v1.6.0 Owner Auth + Config Sync slice was independently verified (D-107). Two
 defects and one unwired control were fixed, **additively and with no new features**:
 
-1. **Owner guard path normalisation** — a leading `//` (`//api/v1/...`) skipped the
+1. **Owner guard path normalisation** ‚Äî a leading `//` (`//api/v1/...`) skipped the
    guard while the router still matched it; `is_protected` now normalises slashes
    and dot segments and matches the allowlist by segment boundary. Verified on a
    real server with `curl --path-as-is`.
-2. **`config_sync` capability** — dropped `minimal=(owner_auth,)`; it is
+2. **`config_sync` capability** ‚Äî dropped `minimal=(owner_auth,)`; it is
    `needs_setup` (never `partial`) until a provider is connected.
-3. **Google Drive `/owner` UI** — added the missing token field + "save token"
+3. **Google Drive `/owner` UI** ‚Äî added the missing token field + "save token"
    button calling the existing `syncGoogleConnect` endpoint.
 
-Released as **v1.6.1** (patch) via a reviewed `develop → main` PR and tag; the
+Released as **v1.6.1** (patch) via a reviewed `develop ‚Üí main` PR and tag; the
 Release workflow builds the Windows portable ZIP. After the merge, re-sync
 `develop` to the merge commit and record the facts here.
 
@@ -311,19 +343,19 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # clean
 PYTHONPATH=. python tests/meta_audit/engine.py         # 25/25, 100%
 ```
 
-## Active task: none — v1.6.1 released
+## Active task: none ‚Äî v1.6.1 released
 
 There is **no required next task**. v1.6.1 is released (PR #17, tag `v1.6.1`) and
 the meta-audit still reaches **100% (25/25, 0 false positives)**.
 
-1. **Optional follow-up (next cycle):** only if the owner asks — e.g. a remote
+1. **Optional follow-up (next cycle):** only if the owner asks ‚Äî e.g. a remote
    job-dispatch + worker-execution loop over `MeshTransport`, a reliable
    permissively-licensed TDATA converter, or a dependency-free Windows toast
    backend. Record a decision first.
 
 Do **not** add new large features and do **not** open a new PHASE.
 
-### Owner Auth + Config Sync (v1.6) — implemented, do not rebuild
+### Owner Auth + Config Sync (v1.6) ‚Äî implemented, do not rebuild
 
 - **Owner Auth:** `core/owner_security.py` (PBKDF2 verifier + bundle key),
   `services/owner_auth_service.py`, `db/models/owner.py`,
@@ -341,13 +373,13 @@ Do **not** add new large features and do **not** open a new PHASE.
 - **Tests:** `tests/test_owner_auth.py`, `tests/test_config_sync.py`,
   `tests/test_owner_api.py`.
 
-### Meta-audit engine (D-102) — implemented, do not rebuild
+### Meta-audit engine (D-102) ‚Äî implemented, do not rebuild
 
-- **Engine:** `tests/meta_audit/engine.py` — `MutationSandbox` (isolated copy),
+- **Engine:** `tests/meta_audit/engine.py` ‚Äî `MutationSandbox` (isolated copy),
   `run_mutation`, `run_suite`, `SuiteResult` (derived `detected`/`missed`/
   `kill_rate`/`false_positives`/`critical_misses`/`high_misses`), `write_report`,
   `regression_against`, and a CLI (`python tests/meta_audit/engine.py`).
-- **Registry:** `tests/meta_audit/mutations.py` — 25 mutations + 8 negative
+- **Registry:** `tests/meta_audit/mutations.py` ‚Äî 25 mutations + 8 negative
   controls. No `detected` field anywhere; `KNOWN_GAP_IDS` is empty (all gaps
   closed).
 - **Tests:** `tests/test_consistency_mutations.py` (per-mutation runtime
@@ -374,23 +406,23 @@ python -m pytest tests/test_consistency_mutations.py tests/test_meta_audit.py -q
 
 ### What v1.5.1 adds (do not rebuild)
 
-1. **False capability** — `config_sync` returned `available` on an empty install
+1. **False capability** ‚Äî `config_sync` returned `available` on an empty install
    with no implementation; `media_conversion` was listed with no ffmpeg tooling.
-   Fixed: `Capability.implemented=False` → `STATE_NOT_IMPLEMENTED`
-   ("Не реализовано"), mirrored through the API; `check_capability_implementation()`
+   Fixed: `Capability.implemented=False` ‚Üí `STATE_NOT_IMPLEMENTED`
+   ("–ù–µ —Ä–µ–∞–ª–∏–∑–æ–≤–∞–Ω–æ"), mirrored through the API; `check_capability_implementation()`
    fails CI if any capability claims `implemented` without code.
-2. **Silent failure** — `ConsistencyAuditor._runtime_findings` and
+2. **Silent failure** ‚Äî `ConsistencyAuditor._runtime_findings` and
    `run_static_checks` used `except Exception: continue`. Fixed: a raising check
    now emits an `error` finding `audit.check_failed.<name>`.
-3. **Write-only language preference** — the `language` setting and i18n catalog
+3. **Write-only language preference** ‚Äî the `language` setting and i18n catalog
    were never consumed. Fixed: `GET /api/v1/capability-graph` resolves the saved
    preference; Settings gained an RU/EN selector; the help store exposes
    `language`/`availableLanguages`.
-4. **Runtime-image false failure** — the Docker smoke surfaced that the honest
+4. **Runtime-image false failure** ‚Äî the Docker smoke surfaced that the honest
    no-silent-failure runner reported `overall: fail` in the runtime image (no
    `frontend/`/`docs/` source). Fixed: source-comparison checks report
    `audit.source_unavailable.<name>` as **info** and are skipped; Docker is `pass`.
-5. **Doc drift** — `README.md` said "Current stable release: `v1.4.0`". Fixed.
+5. **Doc drift** ‚Äî `README.md` said "Current stable release: `v1.4.0`". Fixed.
 
 ### Verification for this change
 
@@ -406,42 +438,42 @@ cd frontend && npx vue-tsc --noEmit && npm run build   # clean
   (`context_from_db`, `evaluate_all`, `CapabilityState`),
   `api/v1/capability_graph.py` + `api/schemas/capability.py`
   (`GET /api/v1/capability-graph`), embedded in `WizardState.capabilities` and
-  rendered on the Dashboard ("Что уже доступно").
+  rendered on the Dashboard ("–ß—Ç–æ —É–∂–µ –¥–æ—Å—Ç—É–ø–Ω–æ").
 - **i18n** (D-093): `core/i18n.py` (RU/EN catalog, `translate`,
   `normalize_language`, `missing_keys`), `services/ui_prefs.py` (`language`
   preference on `/api/v1/help/prefs`).
 - **Consistency Auditor** (D-094): `services/consistency_types.py`,
   `services/consistency_checks.py` (static), `services/consistency.py` (runtime),
   `api/v1/consistency.py` + `api/schemas/consistency.py`
-  (`GET /api/v1/consistency`), Diagnostics "Проверка целостности" panel. Static
+  (`GET /api/v1/consistency`), Diagnostics "–ü—Ä–æ–≤–µ—Ä–∫–∞ —Ü–µ–ª–æ—Å—Ç–Ω–æ—Å—Ç–∏" panel. Static
   checks also run in `pytest` (`tests/test_architecture_consistency.py`).
 
 ### 1. Release v1.5.0 (done)
 
-Merged via a reviewed PR #11 (`develop → main`, merge `ad24bc6`), tagged `v1.5.0`;
+Merged via a reviewed PR #11 (`develop ‚Üí main`, merge `ad24bc6`), tagged `v1.5.0`;
 the Release workflow (run `37442056281`) created the GitHub Release and attached
 the Windows portable ZIP + `.sha256` (D-060). `develop` was synced back to the
-merge commit. No direct push to `main`; the `v1.0.0`–`v1.4.0` tags were not moved
+merge commit. No direct push to `main`; the `v1.0.0`‚Äì`v1.4.0` tags were not moved
 (D-050).
 
 ### 2. Release history (done)
 
-v1.4.0 merged via reviewed PR #10 (`develop → main`, merge `306672e`), tagged
-`v1.4.0`. v1.3.0 merged via reviewed PR #9 (`develop → main`, merge `7788125`),
-tagged `v1.3.0`. v1.2.0 merged via reviewed PR #8 (`develop → main`, merge
+v1.4.0 merged via reviewed PR #10 (`develop ‚Üí main`, merge `306672e`), tagged
+`v1.4.0`. v1.3.0 merged via reviewed PR #9 (`develop ‚Üí main`, merge `7788125`),
+tagged `v1.3.0`. v1.2.0 merged via reviewed PR #8 (`develop ‚Üí main`, merge
 `ea6c161`), tagged `v1.2.0`. v1.1.0 via PR #7 (merge `3438305`), tag `v1.1.0`.
-v1.0.5 via PR #6 (merge `496598f`) → tag `v1.0.5` → Release workflow created the
+v1.0.5 via PR #6 (merge `496598f`) ‚Üí tag `v1.0.5` ‚Üí Release workflow created the
 GitHub Release and attached the Windows portable ZIP + `.sha256`. No manual step.
 (v1.0.4: PR #5, merge `3f42c3d`, tag `v1.0.4`; v1.0.3: PR #4, merge `f18f53a`,
 tag `v1.0.3`.)
 
-### 3. Worker Mesh verification (done — verified 2026-10-05)
+### 3. Worker Mesh verification (done ‚Äî verified 2026-10-05)
 
 **Status: PARTIAL.** The LAN Mesh ships the *worker primitives* (the `WORKER`
 role, capability advertisement/matching, fencing-token leases that a worker can
 acquire/complete, `reclaim_expired`, coordinator election, and the
 coordinator-only poller guard in `main.py`), but there is **no remote
-job-dispatch + worker-execution loop** — `MeshTransport` is used only for the
+job-dispatch + worker-execution loop** ‚Äî `MeshTransport` is used only for the
 `/api/v1/mesh/ping` liveness probe, and leases are acquired/completed locally via
 `/api/v1/mesh/leases/*`. `MeshMode.VPS_WORKER` is a declared enum/config value
 only; there is no PostgreSQL control plane (D-002). So the LAN Mesh is a real
@@ -451,7 +483,7 @@ Do not claim remote worker execution until a dispatch + execution loop exists.
 ### 4. Maintenance / optional extensions (only if the owner asks)
 
 - A remote job-dispatch + worker-execution loop over `MeshTransport` (turning the
-  PARTIAL Worker Mesh primitives into real remote execution) — only if the owner
+  PARTIAL Worker Mesh primitives into real remote execution) ‚Äî only if the owner
   asks; record a decision first.
 - A fully automated @BotFather Mini App flow (the one-click menu-button
   registration exists, D-054).
@@ -466,8 +498,8 @@ Do not claim remote worker execution until a dispatch + execution loop exists.
 
 ### What exists (do not rebuild)
 
-- PHASE 0–11 complete; `agent/CURRENT_STATE.md` lists what is done (§2, §2a–§2h).
-- **v1.4.0 Notification Center + Tray Agent + Editorial Workspace (D-084…D-091):**
+- PHASE 0‚Äì11 complete; `agent/CURRENT_STATE.md` lists what is done (¬ß2, ¬ß2a‚Äì¬ß2h).
+- **v1.4.0 Notification Center + Tray Agent + Editorial Workspace (D-084‚Ä¶D-091):**
   `/api/v1/notifications/*` (settings, history, dashboard, test, read) +
   `/api/v1/editorial/*` (rooms, check, members, board, items, move, reorder,
   audit); models `NotificationRecord`/`NotificationDelivery`/`EditorialRoom`/
@@ -475,19 +507,19 @@ Do not claim remote worker execution until a dispatch + execution loop exists.
   `20261006_1000_e7a1c9d2f4b8`; the `tray/` package
   (`python -m backend.app.tray.agent`); two RU-first UI pages (`/notifications`,
   `/editorial`).
-- **v1.3.0 Bot Factory + LAN Mesh (D-077…D-083):** `/api/v1/bot-factory/*`
+- **v1.3.0 Bot Factory + LAN Mesh (D-077‚Ä¶D-083):** `/api/v1/bot-factory/*`
   (templates, dashboard, batches, check, create, adopt, tokens, bind) +
   `/api/v1/mesh/*` (status, discover, peers, pairing-code, pair, unpair, probe,
   elect, leases) and two RU-first UI pages (`/bot-factory`, `/mesh`). Models
   `BotBatch`/`BotCandidate`/`MeshNode`/`MeshPeer`/`PairingCode`/`MeshLease`;
   migration `20261005_1600_d5b2e9c3f7a1`; the `mesh.tick` durable maintenance job.
-- **v1.2.0 Content Studio (D-071…D-076):** `/api/v1/content/*` (sources, grab,
+- **v1.2.0 Content Studio (D-071‚Ä¶D-076):** `/api/v1/content/*` (sources, grab,
   items, clean, rewrite, rights, buttons, plan, schedule, publish, retry,
   calendar, dashboard, tick) + the `/content` RU-first UI page. Models
   `ContentSource`/`ContentItem`/`MediaAsset`/`Publication`/`ButtonSet`/
   `CommentPlan`; migration `20261005_1200_c4a1f8b2e6d9`. The `content.posting`
   durable periodic tick drives due work.
-- **v1.1.0 (D-065…D-070):** `/api/v1/proxies` (network routes), `/api/v1/discovery`
+- **v1.1.0 (D-065‚Ä¶D-070):** `/api/v1/proxies` (network routes), `/api/v1/discovery`
   (donor discovery), the lightweight encoder + `/api/v1/ai/encoder/*`, the Account
   Hub importer (`/api/v1/sessions/import/detect`, `/import/artifact`,
   `/{id}/risk`), intent-narrowed reactions, bot-only analytics and the adaptive
@@ -496,7 +528,7 @@ Do not claim remote worker execution until a dispatch + execution loop exists.
 - **Diagnostics** (v1.0.3, D-061): `/api/v1/diagnostics` + `/diagnostics` page,
   redacted report (json/txt/zip), safe actions.
 - Versioned Alembic migrations (D-052); Channel Registry (D-051/D-055);
-  manager-bot runtime + permission probe (D-047–D-049); reproducible portable
+  manager-bot runtime + permission probe (D-047‚ÄìD-049); reproducible portable
   build + Release workflow (D-056/D-059/D-060).
 - Product slice (D-064): `/api/v1/bindings`, `/api/v1/capabilities`,
   `/api/v1/campaigns`, `/api/v1/donors`, `/api/v1/backup/destinations`,

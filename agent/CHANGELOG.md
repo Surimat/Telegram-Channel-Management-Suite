@@ -5,11 +5,31 @@ Dates are ISO-8601.
 
 ---
 
-## [Unreleased] — Personal Account Safety (in progress on `develop`)
+## [Unreleased] — Personal Account Safety + Operational Module Registry (committed on `develop`, unreleased)
+
+**Operational Module Registry (D-124, additive).** The per-channel module map
+(`channels.modules`: `reactions`, `audience`, `invites`, `analytics`) is now
+enforced **server-side on every launch path**, not just at a few API guards.
+Disabling a module truly gates the work: switching it off stops the API call, the
+direct service call, the durable reaction queue tick, the audience background scan
+and the invite resume path — before any DB row, queue job or provider is created.
+A blocked durable job is retired honestly (a reaction job → `SKIPPED`, a scan →
+`PAUSED`) without contacting Telegram. A channel that was never configured keeps
+**all** modules enabled (no silent lock-out), and an unknown module name is
+ignored. A switched-off module answers a friendly Russian `403` envelope
+(`ChannelModuleDisabledError` → `code/message/hint`), never a 500. The registry
+never replaces a real check: the personal-account safety switches (D-123) and the
+real Telegram permission probe still decide whether an action is actually allowed.
+No schema change, no version bump; unreleased.
+
+- Tests: `tests/test_channel_modules.py` (per-channel isolation, no-500, HTTP
+  invite resume → 403, bot rights not fabricated, D-123 switch still wins),
+  `tests/test_reaction_service.py` (durable tick skips a switched-off channel).
 
 **Personal Account Safety (D-123, additive).** A safety stage that makes an
 accidental action through the owner's personal Telegram (MTProto) account
-impossible unless the owner opts in. Not yet released; work is on `develop`.
+impossible unless the owner opts in. Not yet released; the code is committed on
+`develop` (`9295d9c`, `622053c`, `43e1cca`).
 
 - **Master switch `personal_account_enabled` (default OFF).** While off, no
   MTProto provider is built: `SessionService.provider_for()` refuses at a single
