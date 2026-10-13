@@ -258,7 +258,7 @@ async def enqueue_batch(
         batch = await service.get_batch(batch_id)
         progress = await service.queue_progress(batch_id)
         if progress["queued"] > 0:
-            await QueueService(service.session).enqueue(
+            await QueueService(service.session).enqueue_unique(
                 kind=BOT_FACTORY_JOB_KIND,
                 payload={"batch_id": batch.id, "via_deeplink": via_deeplink},
                 group_key=batch.id,

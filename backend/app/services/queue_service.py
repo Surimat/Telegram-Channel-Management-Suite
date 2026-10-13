@@ -42,6 +42,40 @@ class QueueService:
         )
         return await self.repo.add(job)
 
+    async def enqueue_unique(
+        self,
+        *,
+        kind: str,
+        payload: dict[str, Any] | None = None,
+        scheduled_at: datetime | None = None,
+        priority: int = 0,
+        group_key: str = "",
+        max_attempts: int = 3,
+        exclude_id: str = "",
+    ) -> Job | None:
+        """Enqueue ``kind``/``group_key`` unless one is already active.
+
+        Returns the existing job when one is already queued/running, otherwise
+        the newly created job. This is what stops a lifecycle batch from
+        accumulating duplicate create/onboarding jobs when the owner presses
+        "start" again or two triggers fire at once (T-125). A caller that is
+        itself the running job passes ``exclude_id`` to schedule its own
+        follow-up.
+        """
+        existing = await self.repo.find_active(
+            kind=kind, group_key=group_key, exclude_id=exclude_id
+        )
+        if existing is not None:
+            return existing
+        return await self.enqueue(
+            kind=kind,
+            payload=payload,
+            scheduled_at=scheduled_at,
+            priority=priority,
+            group_key=group_key,
+            max_attempts=max_attempts,
+        )
+
     async def get(self, job_id: str) -> Job | None:
         return await self.repo.get(job_id)
 

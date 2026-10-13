@@ -2865,3 +2865,41 @@ so an already-finished task cannot stay in the queue.
 **Status.** On `develop`, unreleased — no version bump. Do not cut a release until
 the owner asks (D-060).
 
+
+## D-125 — 2026-10-12 — Bot lifecycle has one recovery + adoption owner; a deep-link bot is adopted, never re-searched — LOCKED
+
+**Context.** The Bot Factory creation queue and the Bot Onboarding queue are both
+durable and one-operation-per-tick, but each tracks its in-flight row separately:
+the factory uses `QUEUED → RUNNING → SUCCESS|FAILED` (`QueueState`) and onboarding
+uses `QUEUED → VERIFYING → READY|FAILED` (`OnboardingStatus`). `run_queue_once` only
+ever picks a `QUEUED` row, so a row left mid-flight by a crash would hang the
+queue forever. Separately, a bot created through the official deep link
+(`t.me/newbot`) is announced to the manager bot by a `managed_bot` update, but
+nothing routed that creation into its batch, so the batch silently stayed
+“created by hand, never registered”.
+
+**Decision.** One service, `backend/app/services/bot_lifecycle.py`
+(`BotLifecycleService`), owns both halves:
+
+1. **Recovery.** `recover()` calls the recover method each queue already owns
+   (`BotFactoryService.recover()`: `RUNNING` → `QUEUED`;
+   `BotOnboardingService.recover()`: `VERIFYING` → `QUEUED`) and the lifespan hook
+   in `backend/app/main.py` runs it once on startup, so no lifecycle stage is left
+   unrecovered after a restart.
+2. **Adoption.** `adopt_managed_bot()` delegates to
+   `BotFactoryService.adopt_managed_bot(telegram_id, username=..., title=...)`
+   (`AdoptionResult`) and `ManagerBotRuntime._handle_managed_bot()` calls it for a
+   `managed_bot` update, then settles the deep-link batch once no candidate remains
+   waiting. Adoption is **idempotent** (a duplicate update is a no-op; no duplicate
+   `Bot` row, no inflated counter) and only ever adopts an id announced by Telegram
+   for a username already in the batch — it **never searches for, downloads or
+   imports a third-party account** (D-070). A secret-free “bot created”
+   notification is emitted best-effort.
+
+**Consequences.** `tests/test_bot_lifecycle_consolidation.py` (14 tests) proves
+duplicate-queue prevention, idempotent adoption (no duplicate `Bot` rows), crash
+recovery and the runtime handler path. The enqueue-unless-active helper in
+`backend/app/services/queue_service.py` prevents double-queuing.
+
+**Status.** Uncommitted on `develop` at the time of writing; no version bump. Do
+not cut a release until the owner asks (D-060).

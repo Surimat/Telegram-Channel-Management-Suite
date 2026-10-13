@@ -1195,3 +1195,107 @@ def test_next_task_does_not_advertise_a_finished_feature_as_active() -> None:
         f"({pending.group(0)!r}) as active work, but it is implemented (D-124)"
     )
 
+
+
+# ---------------------------------------------------------------------------
+# 9. Post-release drift guards (D-125): a release must not leave a stale moving
+#    develop SHA, a stale active task, or an undefined decision reference.
+# ---------------------------------------------------------------------------
+#: A pinned ``develop`` SHA in persistent memory goes stale the moment the next
+#: commit lands (this repository de-pinned it once already, commit ``dbec4b1``).
+#: ``main`` is the released, immutable line, so only ``main`` may be pinned to a
+#: SHA; ``develop`` must be described relatively ("ahead of ``main`` only by ...").
+_DEVELOP_SHA_PIN_RE = re.compile(r"`develop`\s*HEAD\s*=\s*`[0-9a-f]{7,40}`")
+
+
+def test_memory_files_do_not_pin_a_moving_develop_sha() -> None:
+    """Persistent memory must not pin ``develop`` to a SHA that will move.
+
+    A pinned ``develop`` HEAD is stale after the very next commit, so a resuming
+    agent reads a SHA that no longer exists. Only the immutable released ``main``
+    line may be pinned; ``develop`` must be described relatively. This reproduces
+    the drift the repository had to repair by hand.
+    """
+    offenders: list[str] = []
+    for name in (
+        "agent/CURRENT_STATE.md",
+        "agent/NEXT_TASK.md",
+        "agent/CHANGELOG.md",
+        "agent/DECISIONS.md",
+    ):
+        text = (REPO_ROOT / name).read_text(encoding="utf-8", errors="replace")
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            if _DEVELOP_SHA_PIN_RE.search(line):
+                offenders.append(f"{name}:{lineno}: {line.strip()[:140]}")
+    assert not offenders, (
+        "persistent memory pins the moving `develop` SHA (only `main` may be "
+        "pinned):\n" + "\n".join(offenders)
+    )
+
+
+#: The implementation file whose presence means the D-125 work exists in the
+#: tree. When it exists, NEXT_TASK must not still advertise it as pending under a
+#: *different* feature - the exact drift this task repaired.
+_LIFECYCLE_IMPL = REPO_ROOT / "backend" / "app" / "services" / "bot_lifecycle.py"
+
+
+def test_next_task_active_task_matches_the_tree() -> None:
+    """The active task's cited artifacts must exist (a finished task is stale).
+
+    NEXT_TASK.md is the single place a resuming agent looks for work. Its active
+    section must cite artifacts that are actually present in the tree - a
+    reference to a file that does not exist means the section describes work that
+    is not there (already finished or never started). Activates only once the
+    lifecycle implementation exists, so it never fires on an older checkout.
+    """
+    if not _LIFECYCLE_IMPL.exists():
+        pytest.skip("bot_lifecycle.py not present (pre-D-125 checkout)")
+    text = (REPO_ROOT / "agent" / "NEXT_TASK.md").read_text(
+        encoding="utf-8", errors="replace"
+    )
+    body = _active_task_body(text)
+    assert body is not None, "agent/NEXT_TASK.md lost its 'Active task' heading"
+    prefixes = (
+        "backend/",
+        "frontend/",
+        "tests/",
+        "docs/",
+        "agent/",
+        "migrations/",
+        "scripts/",
+    )
+    cited = [
+        p
+        for p in re.findall(r"`([A-Za-z0-9_./-]+\.(?:py|vue|json|md))`", body)
+        if p.startswith(prefixes)
+    ]
+    missing = sorted({p for p in cited if not (REPO_ROOT / p).exists()})
+    assert not missing, (
+        "agent/NEXT_TASK.md active task cites artifacts that do not exist: "
+        + ", ".join(missing)
+    )
+
+
+def test_next_task_active_task_references_defined_decisions() -> None:
+    """Every ``D-nnn`` cited by the active task must exist in DECISIONS.md.
+
+    A dangling decision reference (an id that was never written down) means the
+    active section points at a decision a resuming agent cannot read - the drift
+    left when D-125 was implemented but its decision entry was not yet recorded.
+    """
+    decisions = (REPO_ROOT / "agent" / "DECISIONS.md").read_text(
+        encoding="utf-8", errors="replace"
+    )
+    defined = set(re.findall(r"^## (D-\d+) ", decisions, flags=re.MULTILINE))
+    assert defined, "agent/DECISIONS.md lost its '## D-nnn' headings"
+    text = (REPO_ROOT / "agent" / "NEXT_TASK.md").read_text(
+        encoding="utf-8", errors="replace"
+    )
+    body = _active_task_body(text)
+    assert body is not None, "agent/NEXT_TASK.md lost its 'Active task' heading"
+    cited = set(re.findall(r"\bD-\d+\b", body))
+    missing = sorted(cited - defined)
+    assert not missing, (
+        "agent/NEXT_TASK.md active task cites undefined decision(s): "
+        + ", ".join(missing)
+    )

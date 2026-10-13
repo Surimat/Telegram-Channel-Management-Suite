@@ -3,63 +3,82 @@
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
-**Updated:** 2026-10-11
+**Updated:** 2026-10-12
 **Status:** **v2.0.1 is RELEASED (2026-10-11).** It is a patch over v2.0.0 that adds a keyless-free **image understanding** (vision) path through the **Kilo Gateway** free model (D-122), integrated additively through the existing AI Gateway ‚Äî **opt-in and off by default**, best-effort, with an honest failover so a rate limit or outage never loses material. It completes the three agreed v2.0 stages (an **AI Gateway** over many providers including keyless-free **text**, **image generation** and now **image understanding**; browser **web wrappers**; a per-content **Target Language**; **mass bot-to-channel onboarding**; **Content Operations 2.0**; and a **hidden (windowless) background launch**). Additive only ‚Äî no account registration and no Telegram-limit bypass. Version string is **2.0.1**.
 
 Released via a reviewed `develop ‚Üí main` PR #24 (merge `21f2d01`), tag
 `v2.0.1`; the Release workflow (run `38133537061`) created the GitHub Release and attached
 the Windows portable ZIP (24979298 bytes, sha256 `fd92bf2c‚Ä¶`) + `.sha256` (D-060).
-`main` HEAD = `21f2d01` (= `origin/main`, tag `v2.0.1`); `develop` HEAD = `43e1cca`
-(`== origin/develop`) ‚Äî re-synced from `main` and advanced by the v2.0.1
-memory commit plus the Personal Account Safety work below (real code change, D-123).
+`main` HEAD = `21f2d01` (= `origin/main`, tag `v2.0.1`); `develop` is ahead of
+`main` only by documentation/memory and in-progress commits (the Personal Account
+Safety work D-123 and the Operational Module Registry D-124 are committed; the
+Bot-lifecycle recovery and adoption work D-125 is uncommitted in the working tree).
 Release ZIP scan: no `.session`/TDATA/DB/model. No schema change.
 
 Version string is **2.0.1** across `backend/app/__init__.py`, `pyproject.toml`,
 `frontend/package.json` + lock.
 
-### Active task ‚Äî Personal Account Safety (committed on `develop`, not released, D-123)
+### Active task — Bot-lifecycle recovery and adoption (uncommitted on `develop`, D-125)
 
-**Goal:** make an accidental action through the owner's personal Telegram (MTProto)
-account ‚Äî and any unsafe mass action ‚Äî impossible unless the owner explicitly opts
-in. **Do not** add new large features beyond this stage and do **not** cut a release
-until the owner asks (D-060).
+**Goal:** one place owns the bot lifecycle after a restart and when a bot appears,
+so a crash mid-flight cannot hang a durable queue and a bot created through the
+official deep link is registered into its batch instead of silently staying
+“created by hand, never registered”. **Do not** add new large features beyond this
+stage and do **not** cut a release until the owner asks (D-060).
 
-**Implemented and committed on `develop` (commits `9295d9c`, `622053c`,
-`43e1cca`; D-123):**
+**Implemented (uncommitted on `develop`, D-125):**
 
-- **Master switch `personal_account_enabled` (default OFF).** Stored as a
-  UI-editable setting (`services/personal_account.py`, seeded at startup by
-  `ensure_personal_account_settings`; an owner choice is never overwritten). While
-  off, **no MTProto provider is built**: `SessionService.provider_for()` refuses at
-  the single chokepoint, blocking the API, the scheduler and background tasks. The
-  Telegram **Bot API** is unaffected.
-- **Mass-action switch `invites_enabled` (default OFF).** `require_invites_enabled()`
-  requires both switches; it gates invite `preview`/`create_job`/`start_job`/
-  `resume_job`, and `run_tick` **pauses** a running job instead of inviting when the
-  switch is turned off mid-run.
-- **Bounded invites by default, and rate-limited over time.** `invite_max_total=100`,
-  `invite_max_per_account=20`; `_effective_caps()` never returns an unbounded (`<=0`)
-  value and **clamps a job/API value to the configured ceiling** (a caller may lower
-  a cap, never raise it). A per-job cap is not a rate limit, so a rolling **24-hour
-  per-account** ceiling `invite_max_per_day=50` is enforced at execution time in
-  `run_tick`/`_execute_task` across all jobs; reaching it **pauses** the job with an
-  honest `wait_until` (checked per task, so a batch never overshoots).
-- **Refuse before touching state.** Every gate runs before a DB row, session file or
-  provider is created (notably `start_auth` checks the policy before creating the
-  `UserSession`), so a blocked operation leaves no orphan account.
-- **Honest auth UX + friendly 403.** `AuthStartResult.code_delivery`
-  (`describe_code_delivery`) says where Telegram actually sent the code (often
-  in-app, not SMS); auth errors keep the account in the wizard;
-  `PersonalAccountDisabledError` maps to a 403 envelope (`code/message/hint`).
-- **UI.** Settings gains a ¬´–õ–∏—á–Ω—ã–π –∞–∫–∫–∞—É–Ω—Ç (–±–µ–∑–æ–ø–∞—Å–Ω–æ—Å—Ç—å)¬ª card; a
-  `personal_account_safety` help topic explains it.
+- **Recovery service.** `backend/app/services/bot_lifecycle.py`
+  (`BotLifecycleService.recover()` → `LifecycleRecoveryResult`) calls the recover
+  method each durable queue already owns: `BotFactoryService.recover()` puts a
+  `RUNNING` factory row back to `QUEUED`, and `BotOnboardingService.recover()` puts
+  a `VERIFYING` onboarding row back to `QUEUED`. The lifespan hook in
+  `backend/app/main.py` runs it once on startup, so a killed factory creation or
+  onboarding verification resumes instead of hanging.
+- **Adoption service.** `BotLifecycleService.adopt_managed_bot()` delegates to
+  `BotFactoryService.adopt_managed_bot(telegram_id, username=..., title=...)`
+  (→ `AdoptionResult`), which adopts the Telegram id into the matching candidate
+  and **never creates a duplicate `Bot` row**. A duplicate `managed_bot` update is
+  a no-op; an unknown username is ignored (never searched for or imported, D-070).
+- **Runtime handler.** `ManagerBotRuntime._handle_managed_bot()` in
+  `backend/app/manager/runtime.py` routes a `managed_bot` update through the
+  adoption service and settles the deep-link batch once no candidate remains
+  waiting.
+- **Secret-free notification.** `BotLifecycleService._emit_adopted()` publishes a
+  best-effort “bot created” notification (no token, no id leak).
+- **Queue helper.** An enqueue-unless-active helper in
+  `backend/app/services/queue_service.py` returns the existing active job instead
+  of double-queuing.
+- **Provider seam.** `backend/app/providers/aiogram_bot.py` + `backend/app/providers/types.py`
+  surface the `managed_bot` update (aiogram `ManagedBotCreated`/`Updated`, field
+  alias `bot_user`/`bot`).
+- **UI wiring.** `frontend/src/views/BotFactoryView.vue` wires the previously-unused
+  `api.adoptFactoryBot` into a deep-link **confirmation** form (owner enters the
+  created bot's `@username` + numeric id; then the bot is registered, its token
+  fetched and it is bound to the selected channel).
+- **Fixed a pre-existing defect.** `BotFactoryService.__init__` stored the injected
+  binding service in `self._binding_service`, shadowing the `_binding_service()`
+  method, so `bind_created()` raised `TypeError` and `/batches/{id}/bind` was dead
+  at runtime; the field is renamed `_binding_override`.
 
-**Remaining:** the code is committed and pushed on `develop` (tip `43e1cca`,
-`== origin/develop`); the stage is **not released yet**. When the owner asks
-(D-060), review a `develop ‚Üí main` PR from the current `develop` tip, tag the
-merge commit, and let the Release workflow attach the Windows portable ZIP.
-Guards live in `tests/test_personal_account_safety.py`; `tests/conftest.py`
-enables both switches for the MTProto test flows.
+**Remaining:** run the full suite green (`pytest`, `ruff`, `vue-tsc`/`npm run
+build`, meta-audit), then commit the work on `develop`. Guards live in
+`tests/test_bot_lifecycle_consolidation.py` (14 tests: duplicate-queue prevention,
+idempotent adoption, crash recovery, and the runtime handler path) and
+`tests/test_bot_factory_api.py::test_deeplink_adopt_registers_then_tokens_and_binds`
+(adopt → token → bind over the real HTTP API). The stage is **not released**;
+release only when the owner asks (D-060).
+
+### Completed stage — Personal Account Safety (D-123, on `develop`, not released)
+
+A safety stage that makes an accidental action through the owner's personal
+Telegram (MTProto) account impossible unless the owner opts in. Committed on
+`develop` (`9295d9c`, `622053c`, `43e1cca`), not yet released. Master switch
+`personal_account_enabled` (default **OFF**) blocks all MTProto work at the single
+chokepoint `SessionService.provider_for()`; `invites_enabled` (default **OFF**)
+gates bulk invitations and a rolling 24-hour per-account ceiling pauses a run
+without overshooting. Additive migration `20261015_0900_f6a7b8c9d0e1`.
+Guards: `tests/test_personal_account_safety.py`. See D-123 in `agent/DECISIONS.md`.
 
 ### Completed stage — Operational Module Registry (D-124, on `develop`, not released)
 
@@ -95,9 +114,10 @@ D-124 in `agent/DECISIONS.md`.
 
 ### Next stage (factual)
 
-**The next stage is the Personal Account Safety work above (D-123), which is
-committed on `develop` (tip `43e1cca`) but not yet released.** Keep the gates
-green, then release only when the owner asks (D-060):
+**The next stage is the Bot-lifecycle recovery and adoption work above (D-125),
+which is uncommitted on `develop` at the time of writing.**
+Keep the gates green, then commit it on `develop`; release only when the owner asks
+(D-060):
 branch/review a `develop ‚Üí main` PR from the current `develop` tip, tag the merge
 commit, and let the Release workflow attach the Windows portable ZIP. The
 non-blocking optional items (a full automated BotFather Mini App flow, richer

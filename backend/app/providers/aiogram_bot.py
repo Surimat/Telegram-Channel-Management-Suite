@@ -197,6 +197,28 @@ class AiogramBotProvider:
         updates = await self._call(self._bot.get_updates(**kwargs))
         result: list[BotUpdate] = []
         for update in updates or []:
+            managed = getattr(update, "managed_bot", None)
+            if managed is not None:
+                # ``ManagedBotCreated``/``ManagedBotUpdated`` carry the bot user
+                # under the ``bot``/``bot_user`` field. Record the creation so the
+                # Bot Factory adopts the bot the owner just made via a deep link.
+                bot_user = getattr(managed, "bot_user", None) or getattr(
+                    managed, "bot", None
+                )
+                result.append(
+                    BotUpdate(
+                        update_id=int(update.update_id),
+                        kind="managed_bot",
+                        managed_bot_user_id=getattr(bot_user, "id", None),
+                        managed_bot_username=str(
+                            getattr(bot_user, "username", "") or ""
+                        ),
+                        managed_bot_first_name=str(
+                            getattr(bot_user, "first_name", "") or ""
+                        ),
+                    )
+                )
+                continue
             callback = getattr(update, "callback_query", None)
             if callback is not None:
                 message = getattr(callback, "message", None)

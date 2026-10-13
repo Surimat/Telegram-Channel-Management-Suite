@@ -123,6 +123,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             if paused:
                 logger.info("Paused %d interrupted invite run(s) after restart", paused)
 
+    # Recover the whole bot lifecycle: a factory creation or an onboarding
+    # verification that was killed mid-flight is re-queued so the durable queue
+    # resumes instead of hanging (D-125).
+    with contextlib.suppress(Exception):
+        from backend.app.db.session import session_scope
+        from backend.app.services.bot_lifecycle import BotLifecycleService
+
+        async with session_scope() as session:
+            recovered = await BotLifecycleService(session).recover()
+            if recovered.total:
+                logger.info(
+                    "Recovered %d bot lifecycle operation(s) after restart "
+                    "(creation=%d, onboarding=%d)",
+                    recovered.total,
+                    recovered.bot_factory,
+                    recovered.bot_onboarding,
+                )
+
     # Seed the recurring Content Studio posting tick (v1.2). The handler
     # re-schedules itself every POSTING_TICK_SECONDS, so a publication scheduled
     # for later still fires without a restart.

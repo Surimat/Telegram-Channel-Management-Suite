@@ -212,7 +212,7 @@ class BotUpdate:
     """
 
     update_id: int
-    kind: str = "message"  # "message" | "other" | "callback"
+    kind: str = "message"  # "message" | "other" | "callback" | "managed_bot"
     chat_id: int | None = None
     user_id: int | None = None
     username: str = ""
@@ -222,6 +222,13 @@ class BotUpdate:
     callback_query_id: str = ""
     callback_data: str = ""
     message_id: int | None = None
+    # D-125: a ``managed_bot`` update announces a bot created through the official
+    # managed-bot flow (e.g. a ``t.me/newbot`` deep link). ``managed_bot_*`` carry
+    # the created bot's numeric id, @username and display name so the Bot Factory
+    # can register ("adopt") it without a separate, fragile update track.
+    managed_bot_user_id: int | None = None
+    managed_bot_username: str = ""
+    managed_bot_first_name: str = ""
 
 
 # --- Bot ↔ channel administration (product slice: bot-only mode) -------------

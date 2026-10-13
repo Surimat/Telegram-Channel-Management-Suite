@@ -5,7 +5,46 @@ Dates are ISO-8601.
 
 ---
 
-## [Unreleased] — Personal Account Safety + Operational Module Registry (committed on `develop`, unreleased)
+## [Unreleased] — Bot-lifecycle recovery and adoption (D-125) + Personal Account Safety (D-123) + Operational Module Registry (D-124) (on `develop`, unreleased)
+
+**Bot-lifecycle recovery and adoption (D-125, additive).** One service,
+`backend/app/services/bot_lifecycle.py` (`BotLifecycleService`), now owns the bot
+lifecycle after a restart and when a bot appears. **Recovery:** `recover()` calls
+the recover method each durable queue already owns
+(`BotFactoryService.recover()`: `RUNNING` → `QUEUED`;
+`BotOnboardingService.recover()`: `VERIFYING` → `QUEUED`); the lifespan hook in
+`backend/app/main.py` runs it once on startup, so a crash mid-flight cannot hang
+the queue forever. **Adoption:** a bot created through the official deep link
+(`t.me/newbot`) arrives as a `managed_bot` update;
+`ManagerBotRuntime._handle_managed_bot()` routes it through
+`BotFactoryService.adopt_managed_bot()` (`AdoptionResult`) into its batch
+**idempotently** (a duplicate update is a no-op — no duplicate `Bot` row, no
+inflated counter), then settles the batch once no candidate remains waiting. An
+unknown username is ignored, never searched for or imported (D-070). A
+secret-free “bot created” notification is emitted best-effort. The provider
+seam (`backend/app/providers/aiogram_bot.py`, `backend/app/providers/types.py`)
+surfaces the `managed_bot` update. Additive only: no new account registration and
+no Telegram-limit bypass. No schema change, no version bump; unreleased.
+
+- **UI.** `frontend/src/views/BotFactoryView.vue` gains a deep-link
+  **confirmation** form (the previously-unused `api.adoptFactoryBot` is now wired):
+  the owner enters the created bot's `@username` + numeric id, and only then is the
+  bot registered, its token fetched and it is bound to the selected channel —
+  success is reported only after the real registration call returns a bot id.
+- **Fixed a pre-existing defect (surfaced by the new test).**
+  `BotFactoryService.__init__` stored the injected binding service in
+  `self._binding_service`, shadowing the `_binding_service()` *method*, so
+  `bind_created()` raised `TypeError: 'BindingService' object is not callable` and
+  the whole “connect created bots to a channel” step was dead at runtime. The field
+  is renamed `_binding_override`; `/batches/{id}/bind` now works.
+- **Optional-browser guard honesty.** `tests/test_web_wrapper_playwright_integration.py`
+  now skips when Chromium is absent (it probes a real launch) instead of failing on
+  a missing binary, matching its documented behaviour.
+
+- Tests: `tests/test_bot_lifecycle_consolidation.py` (14 tests: duplicate-queue
+  prevention, idempotent adoption, crash recovery, runtime handler path) plus
+  `tests/test_bot_factory_api.py::test_deeplink_adopt_registers_then_tokens_and_binds`
+  (adopt → token → bind over the real HTTP API).
 
 **Operational Module Registry (D-124, additive).** The per-channel module map
 (`channels.modules`: `reactions`, `audience`, `invites`, `analytics`) is now

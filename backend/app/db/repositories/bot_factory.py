@@ -62,6 +62,30 @@ class BotCandidateRepository:
         stmt = select(BotCandidate).order_by(BotCandidate.created_at.desc()).limit(limit)
         return list((await self.session.execute(stmt)).scalars().all())
 
+    async def list_for_username(self, username: str) -> list[BotCandidate]:
+        """Candidates across all batches with a given suggested username.
+
+        Used to adopt a bot the owner just created via a deep link: the incoming
+        ``managed_bot`` update carries only the @username, so we locate the
+        candidate(s) that generated that link.
+        """
+        clean = (username or "").lstrip("@")
+        if not clean:
+            return []
+        stmt = select(BotCandidate).where(BotCandidate.suggested_username == clean)
+        return list((await self.session.execute(stmt)).scalars().all())
+
+    async def list_unadopted_for_batch(self, batch_id: str) -> list[BotCandidate]:
+        """Candidates in deep-link mode that are waiting to be adopted."""
+        stmt = (
+            select(BotCandidate)
+            .where(BotCandidate.batch_id == batch_id)
+            .where(BotCandidate.bot_id == "")
+            .where(BotCandidate.deep_link != "")
+            .order_by(BotCandidate.index)
+        )
+        return list((await self.session.execute(stmt)).scalars().all())
+
     async def count_by_queue_state(self, batch_id: str) -> dict[str, int]:
         stmt = (
             select(BotCandidate.queue_state, func.count())

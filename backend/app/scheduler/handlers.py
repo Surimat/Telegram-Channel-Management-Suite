@@ -131,12 +131,13 @@ async def _handle_bot_factory(session: AsyncSession, job: Job) -> None:
     # Deep-link batches are completed by the owner in Telegram, so there is
     # nothing for the queue to keep ticking on.
     if progress["queued"] > 0 and not via_deeplink:
-        await QueueService(session).enqueue(
+        await QueueService(session).enqueue_unique(
             kind=BOT_FACTORY_JOB_KIND,
             payload={"batch_id": batch_id, "via_deeplink": via_deeplink},
             scheduled_at=utcnow() + timedelta(seconds=BOT_FACTORY_TICK_SECONDS),
             group_key=batch_id,
             max_attempts=1,
+            exclude_id=job.id,
         )
 
 
@@ -152,12 +153,13 @@ async def _handle_bot_onboarding(session: AsyncSession, job: Job) -> None:
     await service.run_queue_once(batch_id)
     progress = await service.queue_progress(batch_id)
     if progress.active > 0 and not progress.paused:
-        await QueueService(session).enqueue(
+        await QueueService(session).enqueue_unique(
             kind=BOT_ONBOARDING_JOB_KIND,
             payload={"batch_id": batch_id},
             scheduled_at=utcnow() + timedelta(seconds=BOT_ONBOARDING_TICK_SECONDS),
             group_key=batch_id,
             max_attempts=1,
+            exclude_id=job.id,
         )
 
 

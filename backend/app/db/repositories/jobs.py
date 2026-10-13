@@ -51,6 +51,39 @@ class JobRepository:
         total = int((await self.session.execute(count_stmt)).scalar_one())
         return rows, total
 
+    async def find_active(
+        self,
+        *,
+        kind: str,
+        group_key: str,
+        exclude_id: str = "",
+    ) -> Job | None:
+        """Return an already-queued/running job for ``kind``/``group_key``.
+
+        Guards the lifecycle against duplicate durable jobs: the API re-enqueues
+        the same creation/onboarding job whenever the owner presses a button, and
+        a second job for the same batch would process it concurrently (T-125).
+        ``PENDING``/``SCHEDULED``/``RUNNING`` all count as "already scheduled";
+        ``exclude_id`` lets a running handler ignore its own row so it can still
+        schedule its legitimate follow-up tick.
+        """
+        if not group_key:
+            return None
+        stmt = (
+            select(Job)
+            .where(Job.kind == kind)
+            .where(Job.group_key == group_key)
+            .where(
+                Job.status.in_(
+                    [JobStatus.PENDING, JobStatus.SCHEDULED, JobStatus.RUNNING]
+                )
+            )
+        )
+        if exclude_id:
+            stmt = stmt.where(Job.id != exclude_id)
+        stmt = stmt.limit(1)
+        return (await self.session.execute(stmt)).scalars().first()
+
     async def due(self, now: datetime | None = None, limit: int = 50) -> list[Job]:
         """Jobs that are ready to run (pending or scheduled and due)."""
         now = now or utcnow()

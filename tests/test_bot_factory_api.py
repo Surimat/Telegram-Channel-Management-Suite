@@ -124,6 +124,68 @@ async def test_deeplink_creation_without_account(factory_client: AsyncClient) ->
     assert candidate["deep_link"].startswith("https://t.me/newbot/")
 
 
+async def test_deeplink_adopt_registers_then_tokens_and_binds(
+    factory_client: AsyncClient,
+) -> None:
+    """D-125: confirmation → adoption → token → binding, over the real HTTP API.
+
+    The manual deep-link flow is completed by the owner confirming the bot they
+    created by hand; only then is the bot registered, its token fetched and it is
+    bound to a channel. Nothing here uses a personal MTProto session (D-123).
+    """
+    manager = await factory_client.post(
+        "/api/v1/bots", json={"token": "101010:MANAGER", "kind": "manager"}
+    )
+    manager_id = manager.json()["id"]
+    created = await factory_client.post(
+        "/api/v1/bot-factory/batches",
+        json={"prefix": "Mix", "count": 1, "manager_bot_id": manager_id},
+    )
+    batch_id = created.json()["batch"]["id"]
+    deep = await factory_client.post(
+        f"/api/v1/bot-factory/batches/{batch_id}/create?via_deeplink=true"
+    )
+    candidate = deep.json()["candidates"][0]
+    assert candidate["deep_link"].startswith("https://t.me/newbot/")
+    assert candidate["bot_id"] == ""  # nothing exists until the owner confirms
+
+    adopted = await factory_client.post(
+        f"/api/v1/bot-factory/batches/{batch_id}/adopt",
+        json={"username": "mix_1_bot", "telegram_id": 1500150},
+    )
+    assert adopted.status_code == 200, adopted.text
+    assert adopted.json()["bot_id"]
+    assert adopted.json()["creation_status"] == "created"
+
+    # Idempotent: re-confirming the same bot creates no duplicate.
+    again = await factory_client.post(
+        f"/api/v1/bot-factory/batches/{batch_id}/adopt",
+        json={"username": "mix_1_bot", "telegram_id": 1500150},
+    )
+    assert again.status_code == 200, again.text
+    assert again.json()["bot_id"] == adopted.json()["bot_id"]
+    detail = await factory_client.get(f"/api/v1/bot-factory/batches/{batch_id}")
+    assert detail.json()["batch"]["created_count"] == 1
+
+    tokens = await factory_client.post(f"/api/v1/bot-factory/batches/{batch_id}/tokens")
+    assert tokens.status_code == 200, tokens.text
+    assert tokens.json()["imported"] == 1
+
+    channel = await factory_client.post(
+        "/api/v1/channels", json={"reference": "@adoptchan"}
+    )
+    assert channel.status_code in (200, 201), channel.text
+    channel_id = channel.json()["id"]
+    bound = await factory_client.post(
+        f"/api/v1/bot-factory/batches/{batch_id}/bind",
+        json={"channel_id": channel_id, "function": "reactions"},
+    )
+    assert bound.status_code == 200, bound.text
+    results = bound.json()
+    assert len(results) == 1
+    assert results[0]["bot_id"] == adopted.json()["bot_id"]
+
+
 async def test_delete_batch_over_api(factory_client: AsyncClient) -> None:
     created = await factory_client.post(
         "/api/v1/bot-factory/batches", json={"prefix": "Mix", "count": 1}

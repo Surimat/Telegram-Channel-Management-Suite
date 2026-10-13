@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import re
+from dataclasses import dataclass, field
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -68,6 +69,16 @@ MAX_BATCH_SIZE = 50
 
 #: Queue sizes the UI offers (v1.7). 10/20/50, bounded by MAX_BATCH_SIZE.
 QUEUE_SIZES = (10, 20, 50)
+
+
+@dataclass(slots=True)
+class AdoptionResult:
+    """Outcome of adopting an incoming managed-bot creation into a batch."""
+
+    adopted: bool
+    duplicate: bool = False
+    candidate_id: str = ""
+    batch_ids: list[str] = field(default_factory=list)
 
 
 def mask_token(token: str) -> str:
@@ -217,7 +228,7 @@ class BotFactoryService:
         self.events = EventsService(session)
         self._session_factory = session_provider_factory
         self._bots_override = bot_service
-        self._binding_service = binding_service
+        self._binding_override = binding_service
 
     def _bot_service(self) -> BotService:
         if self._bots_override is not None:
@@ -225,8 +236,8 @@ class BotFactoryService:
         return BotService(self.session)
 
     def _binding_service(self) -> BindingService:
-        if self._binding_service is not None:
-            return self._binding_service
+        if self._binding_override is not None:
+            return self._binding_override
         return BindingService(self.session)
 
     async def _session_provider(self, account_id: str = ""):  # type: ignore[no-untyped-def]
@@ -568,7 +579,13 @@ class BotFactoryService:
     async def adopt_created(
         self, batch_id: str, username: str, telegram_id: int, *, title: str = ""
     ) -> BotCandidate:
-        """Register a bot the owner created via a deep link (manager update)."""
+        """Register a bot the owner created via a deep link (manager update).
+
+        Idempotent: a second delivery of the same ``managed_bot`` update (Telegram
+        may repeat an update, or two callers may race) must not register a second
+        bot, inflate ``created_count`` or double-count a candidate. When the
+        candidate already points at a bot, the existing row is returned as-is.
+        """
         batch = await self.get_batch(batch_id)
         rows = await self.candidates.list_for_batch(batch_id)
         row = next(
@@ -576,15 +593,87 @@ class BotFactoryService:
         )
         if row is None:
             raise BotFactoryError("Кандидат с таким именем не найден.", status_code=404)
+        if row.bot_id or row.creation_status in (
+            CandidateStatus.CREATED,
+            CandidateStatus.TOKEN_IMPORTED,
+        ):
+            # Already adopted — never create a duplicate bot or bump a counter.
+            return row
         bot = await self._bot_service().register_managed_bot(
             telegram_id, username=username.lstrip("@"), title=title or row.suggested_name
         )
         row.telegram_id = telegram_id
         row.bot_id = bot.id
         row.creation_status = CandidateStatus.CREATED
-        batch.created_count += 1
+        row.queue_state = QueueState.SUCCESS.value
+        row.error = ""
+        # Reconcile from the real rows instead of a blind increment, so a retried
+        # or out-of-order adoption cannot drift the counter (T-125).
+        batch.created_count = sum(
+            1
+            for r in rows
+            if r.creation_status
+            in (CandidateStatus.CREATED, CandidateStatus.TOKEN_IMPORTED)
+        )
         await self.session.commit()
         return row
+
+    async def adopt_managed_bot(
+        self, telegram_id: int, *, username: str = "", title: str = ""
+    ) -> AdoptionResult:
+        """Adopt a bot announced by a ``managed_bot`` update into its batch.
+
+        Locates the candidate by username across all batches (deduplicated),
+        then delegates to the batch-local, idempotent :meth:`adopt_created`. An
+        unknown username means the bot is not ours and is ignored.
+        """
+        clean = (username or "").lstrip("@")
+        rows = await self.candidates.list_for_username(clean)
+        if not rows:
+            return AdoptionResult(adopted=False)
+        # A username may appear in more than one batch; prefer one not yet adopted.
+        row = next((r for r in rows if not r.bot_id), None)
+        batch_ids = list(dict.fromkeys(r.batch_id for r in rows))
+        if row is None:
+            return AdoptionResult(adopted=False, duplicate=True, batch_ids=batch_ids)
+        adopted_row = await self.adopt_created(
+            row.batch_id, clean, telegram_id, title=title
+        )
+        return AdoptionResult(
+            adopted=True,
+            candidate_id=adopted_row.id,
+            batch_ids=[adopted_row.batch_id],
+        )
+
+    async def adopt_unadopted_in_batch(
+        self,
+        batch_id: str,
+        telegram_id: int,
+        *,
+        username: str = "",
+        title: str = "",
+    ) -> AdoptionResult:
+        """Adopt into one explicit batch (used when the owner names the batch).
+
+        Binds the incoming creation to the *first* not-yet-adopted candidate in
+        that batch, so a manual "this update belongs to batch X" call works even
+        if several batches share a username.
+        """
+        clean = (username or "").lstrip("@")
+        rows = await self.candidates.list_unadopted_for_batch(batch_id)
+        row = next(
+            (r for r in rows if not clean or r.suggested_username == clean), None
+        )
+        if row is None:
+            return AdoptionResult(adopted=False)
+        adopted_row = await self.adopt_created(
+            batch_id, row.suggested_username, telegram_id, title=title or row.suggested_name
+        )
+        return AdoptionResult(
+            adopted=True,
+            candidate_id=adopted_row.id,
+            batch_ids=[batch_id],
+        )
 
     # --- token registration --------------------------------------------------
     async def register_tokens(self, batch_id: str) -> dict[str, int]:
@@ -812,6 +901,29 @@ class BotFactoryService:
         batch.failed_count = progress["failed"]
         await self.session.commit()
         return batch
+
+    async def recover(self) -> int:
+        """Re-queue candidates stuck ``RUNNING`` after a crash (T-125).
+
+        ``run_queue_once`` only ever picks a ``QUEUED`` row, so an operation that
+        died mid-create (the process was killed between marking it ``RUNNING``
+        and committing a result) would otherwise hang the batch forever. On
+        startup we put such rows back to ``QUEUED`` so the durable scheduler
+        resumes them — the same recovery the onboarding queue already has. A
+        partial external effect is possible, but re-running is safe: creation and
+        adoption are idempotent, so no bot is created twice.
+        """
+        revived = 0
+        for batch in (await self.batches.list_all(limit=500))[0]:
+            for row in await self.candidates.list_for_batch(batch.id):
+                if row.queue_state == QueueState.RUNNING.value:
+                    row.queue_state = QueueState.QUEUED.value
+                    if row.creation_status is CandidateStatus.CREATING:
+                        row.creation_status = CandidateStatus.READY
+                    revived += 1
+        if revived:
+            await self.session.commit()
+        return revived
 
     # --- channel binding -----------------------------------------------------
     async def bind_created(

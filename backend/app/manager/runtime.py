@@ -87,6 +87,9 @@ class ManagerBotRuntime:
                     if getattr(update, "kind", "") == "callback":
                         await self._handle_editorial_callback(session, provider, update)
                         continue
+                    if getattr(update, "kind", "") == "managed_bot":
+                        await self._handle_managed_bot(session, update)
+                        continue
                     result = await service.handle_update(update)
                     chat_id = getattr(update, "chat_id", None)
                     if result.handled and result.reply and chat_id is not None:
@@ -123,6 +126,29 @@ class ManagerBotRuntime:
                 await provider.answer_callback_query(
                     callback_id, text=result.answer or result.message
                 )
+
+    async def _handle_managed_bot(self, session, update) -> None:  # type: ignore[no-untyped-def]
+        """Adopt a bot the owner created through a deep link (D-125).
+
+        Telegram announces a bot created via the official managed-bot flow
+        (``t.me/newbot``) with a ``managed_bot`` update. Routing it here closes
+        the lifecycle loop: the bot is registered into its Bot Factory batch, the
+        batch is settled once no candidate remains waiting, and the owner is
+        notified — so a deep-link batch completes and is reported instead of
+        silently staying "created by hand, never registered". A bot with an
+        unknown username is ignored, never searched for or imported (D-070); the
+        same update delivered twice is a no-op.
+        """
+        from backend.app.services.bot_lifecycle import BotLifecycleService
+
+        user_id = getattr(update, "managed_bot_user_id", None)
+        username = getattr(update, "managed_bot_username", "") or ""
+        if not user_id or not username:
+            return
+        title = getattr(update, "managed_bot_first_name", "") or ""
+        await BotLifecycleService(session).adopt_managed_bot(
+            username=username, telegram_id=int(user_id), title=title
+        )
 
     async def _flush_notifications(self, session, provider) -> None:  # type: ignore[no-untyped-def]
         """Route queued notifications through the Notification Center."""
