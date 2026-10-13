@@ -8,13 +8,14 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 
-from backend.app.api.deps import get_channel_service
+from backend.app.api.deps import get_channel_overview_service, get_channel_service
 from backend.app.api.errors import ApiError
 from backend.app.api.schemas.channels import (
     ChannelCreate,
     ChannelListOut,
     ChannelModulesIn,
     ChannelOut,
+    ChannelOverviewOut,
     ChannelSummaryOut,
     ChannelUpdate,
     ChannelVerificationOut,
@@ -22,6 +23,7 @@ from backend.app.api.schemas.channels import (
 )
 from backend.app.db.models.channel import ChannelKind, ChannelStatus
 from backend.app.services.channel_modules import effective_modules, parse_modules
+from backend.app.services.channel_overview import ChannelOverviewService
 from backend.app.services.channel_service import ChannelService, ChannelServiceError
 
 router = APIRouter(prefix="/channels", tags=["channels"])
@@ -111,6 +113,14 @@ async def channels_summary(
         default_channel_id=default.id if default else None,
         default_channel_label=(default.title or default.reference) if default else "",
     )
+
+
+@router.get("/overview", response_model=ChannelOverviewOut)
+async def channels_overview(
+    service: ChannelOverviewService = Depends(get_channel_overview_service),
+) -> ChannelOverviewOut:
+    """Unified per-channel state across every module (D-127, read-only)."""
+    return ChannelOverviewOut.model_validate(await service.build())
 
 
 @router.post("", response_model=ChannelOut, status_code=201)

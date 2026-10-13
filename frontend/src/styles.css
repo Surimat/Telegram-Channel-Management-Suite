@@ -107,6 +107,7 @@ a {
 }
 
 .status-ok { background: var(--ok); }
+.status-info { background: var(--primary); }
 .status-warning { background: var(--warning); }
 .status-error { background: var(--error); }
 .status-unknown { background: var(--text-muted); }

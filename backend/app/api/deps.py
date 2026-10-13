@@ -28,6 +28,7 @@ from backend.app.services.bot_onboarding import BotOnboardingService
 from backend.app.services.bot_service import BotService, ProviderFactory
 from backend.app.services.campaign_service import CampaignService
 from backend.app.services.capability_service import CapabilityService
+from backend.app.services.channel_overview import ChannelOverviewService
 from backend.app.services.channel_service import ChannelService
 from backend.app.services.consistency import ConsistencyAuditor
 from backend.app.services.content_pipeline import ContentPipelineService
@@ -246,6 +247,13 @@ def get_channel_service(
     provider_factory: SessionProviderFactory = Depends(get_session_provider_factory),
 ) -> ChannelService:
     return ChannelService(session, session_provider_factory=provider_factory)
+
+
+def get_channel_overview_service(
+    session: AsyncSession = Depends(get_session),
+) -> ChannelOverviewService:
+    """Read-only unified channel state overview (D-127)."""
+    return ChannelOverviewService(session)
 
 
 def get_diagnostics_service(

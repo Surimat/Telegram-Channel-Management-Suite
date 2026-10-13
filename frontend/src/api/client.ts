@@ -1079,6 +1079,62 @@ export interface ChannelVerification {
   retry_after: number | null
 }
 
+// Channel Overview (D-127): one read-only view of a channel's state across modules.
+export interface OverviewSection {
+  status: 'ok' | 'info' | 'warning' | 'error'
+  label: string
+  counts: Record<string, number>
+  items: string[]
+}
+
+export interface Attention {
+  level: 'ok' | 'info' | 'warning' | 'error'
+  label: string
+  reason: string
+}
+
+export interface ChannelModuleState {
+  id: string
+  title: string
+  enabled: boolean
+}
+
+export interface ChannelOverviewItem {
+  id: string
+  title: string
+  username: string
+  reference: string
+  kind: string
+  status: string
+  is_default: boolean
+  attention: Attention
+  modules: ChannelModuleState[]
+  bindings: OverviewSection
+  audience: OverviewSection
+  invites: OverviewSection
+  bots: OverviewSection
+  content: OverviewSection
+  pipeline: OverviewSection
+  queue: OverviewSection
+}
+
+export interface ChannelOverviewTotals {
+  channels: number
+  ok: number
+  info: number
+  warning: number
+  error: number
+  needs_attention: number
+}
+
+export interface ChannelOverview {
+  generated_at: string
+  totals: ChannelOverviewTotals
+  attention: Attention
+  events: OverviewSection
+  channels: ChannelOverviewItem[]
+}
+
 // Product slice: bot↔channel bindings + channel reaction capabilities.
 export interface Binding {
   id: string
@@ -2977,6 +3033,7 @@ export const api = {
     request<ChannelList>('/api/v1/channels?' + new URLSearchParams(params).toString()),
   channel: (id: string) => request<Channel>(`/api/v1/channels/${id}`),
   channelsSummary: () => request<ChannelSummary>('/api/v1/channels/summary'),
+  channelOverview: () => request<ChannelOverview>('/api/v1/channels/overview'),
   addChannel: (payload: {
     reference: string
     title?: string

@@ -137,3 +137,4 @@ desktop.ini
 
 # --- Agent local temp ---
 .agent_tmp/
+.openhands/

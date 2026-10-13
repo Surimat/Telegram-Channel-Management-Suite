@@ -53,6 +53,7 @@ onMounted(() => {
         <RouterLink class="nav-item" to="/bot-onboarding">Подключение ботов</RouterLink>
         <RouterLink class="nav-item" to="/mesh">Компьютеры</RouterLink>
         <RouterLink class="nav-item" to="/channels">Каналы</RouterLink>
+        <RouterLink class="nav-item" to="/channel-overview">Сводка по каналам</RouterLink>
         <RouterLink class="nav-item" to="/sessions">Аккаунты</RouterLink>
         <RouterLink class="nav-item" to="/sources">Источники</RouterLink>
         <RouterLink class="nav-item" to="/content">Content Studio</RouterLink>
