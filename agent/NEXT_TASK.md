@@ -3,30 +3,78 @@
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
-**Updated:** 2026-10-12
-**Status:** **v2.0.1 is RELEASED (2026-10-11).** It is a patch over v2.0.0 that adds a keyless-free **image understanding** (vision) path through the **Kilo Gateway** free model (D-122), integrated additively through the existing AI Gateway ‚Äî **opt-in and off by default**, best-effort, with an honest failover so a rate limit or outage never loses material. It completes the three agreed v2.0 stages (an **AI Gateway** over many providers including keyless-free **text**, **image generation** and now **image understanding**; browser **web wrappers**; a per-content **Target Language**; **mass bot-to-channel onboarding**; **Content Operations 2.0**; and a **hidden (windowless) background launch**). Additive only ‚Äî no account registration and no Telegram-limit bypass. Version string is **2.0.1**.
+**Updated:** 2026-10-13
+**Status:** **v2.0.1 is RELEASED (2026-10-11); `develop` is ahead of it by three
+committed, unreleased stages — D-123 (Personal Account Safety), D-124 (Operational
+Module Registry) and D-125 (Bot-lifecycle recovery and adoption) — plus the active
+D-126 (Content Pipeline Consolidation).** v2.0.1 is a patch over v2.0.0 that adds a
+keyless-free **image understanding** (vision) path through the **Kilo Gateway** free
+model (D-122), integrated additively through the existing AI Gateway — **opt-in and
+off by default**, best-effort, with an honest failover so a rate limit or outage
+never loses material. Version string is **2.0.1**.
 
-Released via a reviewed `develop ‚Üí main` PR #24 (merge `21f2d01`), tag
+Released via a reviewed `develop → main` PR #24 (merge `21f2d01`), tag
 `v2.0.1`; the Release workflow (run `38133537061`) created the GitHub Release and attached
-the Windows portable ZIP (24979298 bytes, sha256 `fd92bf2c‚Ä¶`) + `.sha256` (D-060).
+the Windows portable ZIP (24979298 bytes, sha256 `fd92bf2c…`) + `.sha256` (D-060).
 `main` HEAD = `21f2d01` (= `origin/main`, tag `v2.0.1`); `develop` is ahead of
-`main` only by documentation/memory and in-progress commits (the Personal Account
-Safety work D-123 and the Operational Module Registry D-124 are committed; the
-Bot-lifecycle recovery and adoption work D-125 is uncommitted in the working tree).
-Release ZIP scan: no `.session`/TDATA/DB/model. No schema change.
+`main` by three committed, unreleased stages (D-123 Personal Account Safety, D-124
+Operational Module Registry, D-125 Bot-lifecycle recovery and adoption) plus the
+active D-126 Content Pipeline Consolidation, and is deliberately not pinned to a
+SHA because it moves with every commit. Release ZIP scan: no `.session`/TDATA/DB/model. No
+schema change in v2.0.1.
 
 Version string is **2.0.1** across `backend/app/__init__.py`, `pyproject.toml`,
 `frontend/package.json` + lock.
 
-### Active task — Bot-lifecycle recovery and adoption (uncommitted on `develop`, D-125)
+### Active task — Content Pipeline Consolidation (D-126, in progress on `develop`)
 
-**Goal:** one place owns the bot lifecycle after a restart and when a bot appears,
-so a crash mid-flight cannot hang a durable queue and a bot created through the
-official deep link is registered into its batch instead of silently staying
-“created by hand, never registered”. **Do not** add new large features beyond this
-stage and do **not** cut a release until the owner asks (D-060).
+**Goal:** eliminate the duplication between `backend/app/services/content_service.py`
+and `backend/app/services/content_pipeline.py` and leave a **single authoritative
+content-processing process**. Do **not** add new features and do **not** cut a
+release until the owner asks (D-060).
 
-**Implemented (uncommitted on `develop`, D-125):**
+**Architecture study (verified from real code + git, section 1 «Изучи архитектуру»):**
+
+- **`ContentService`** (`content_service.py`) owns **receive**: sources CRUD,
+  `grab` (the one dedup path: source hash / source message id / content hash /
+  media hash), items, `clean_preview/apply_clean/revert_clean`, rights/attribution
+  (`rights_warning`, `effective_text`, `attribution_block`, `publish_text`),
+  moderation settings (blocked keywords + quiet hours) and the dashboard.
+  FastAPI dependency `get_content_service` wires the Telegram `SessionProvider`
+  resolver; the per-request session is shared with the pipeline service.
+- **`ContentPipelineService`** (`content_pipeline.py`) owns **processing**:
+  `classify`, `detect_language`, `translate`, `process` (AI Gateway + failover),
+  `moderate`, `apply_rule_actions` and the secret-free `content_operations` audit.
+- **`PostingService`** (`posting_service.py`) owns **publish**: `plan`/`schedule`/
+  `calendar`/`publish`/`retry`/`tick`/comment/auto-delete; it already reuses
+  `ContentService.publish_text` via `_effective_text`.
+- **Real duplication found:** two AI text-transformation paths — the legacy
+  `ContentService.rewrite_preview/apply_rewrite` (local `ContentRewriteService`)
+  and the pipeline (`process`/`translate`) — both setting `cleaned_text` +
+  `content_hash`, i.e. two implementations of "transform item text". Also two
+  item-load helpers (`get_item` vs `_require_item`) with different error types.
+
+**Consolidation decision (respects LOCKED D-116):**
+
+1. **`ContentPipelineService` is the single content-processing engine** — all AI
+   text transformation lives there. The v1.2 `rewrite_preview`/`apply_rewrite`
+   moved into it (the local `ContentRewriteService` is unchanged and still the
+   honest "Рерайт недоступен" source).
+2. **`ContentService.rewrite_preview`/`apply_rewrite` now delegate** to the
+   pipeline and map `PipelineError` → `ContentError`, so the two engines cannot
+   drift while the v1.2 API contract (`/rewrite`, `/rewrite/apply`, error
+   semantics, mode titles) stays exactly the same.
+3. `ContentService` stays the **receive/dedup owner** (`grab`) and `PostingService`
+   stays the **publish owner** — a legitimate split that D-116 already blesses, not
+   duplication. Neither engine is deleted.
+
+**Guards:** `tests/test_content_consolidation.py` (7 tests) proves the single path
+(the `/rewrite` contract delegates — monkeypatched spy), the whole path
+(grab → process → plan → tick → publish uses the processed text), restart
+idempotency, translation/target survival, AI-failure recovery, the v1.2 API
+contract and the D-124 module gate. Not released; release only when the owner asks.
+
+### Completed stage — Bot-lifecycle recovery and adoption (D-125, committed `e4002f0` on `develop`, not released)
 
 - **Recovery service.** `backend/app/services/bot_lifecycle.py`
   (`BotLifecycleService.recover()` → `LifecycleRecoveryResult`) calls the recover
@@ -61,8 +109,8 @@ stage and do **not** cut a release until the owner asks (D-060).
   method, so `bind_created()` raised `TypeError` and `/batches/{id}/bind` was dead
   at runtime; the field is renamed `_binding_override`.
 
-**Remaining:** run the full suite green (`pytest`, `ruff`, `vue-tsc`/`npm run
-build`, meta-audit), then commit the work on `develop`. Guards live in
+**Remaining:** nothing — D-125 is committed on `develop` (`e4002f0`) and the full
+suite is green. Guards live in
 `tests/test_bot_lifecycle_consolidation.py` (14 tests: duplicate-queue prevention,
 idempotent adoption, crash recovery, and the runtime handler path) and
 `tests/test_bot_factory_api.py::test_deeplink_adopt_registers_then_tokens_and_binds`
@@ -114,15 +162,18 @@ D-124 in `agent/DECISIONS.md`.
 
 ### Next stage (factual)
 
-**The next stage is the Bot-lifecycle recovery and adoption work above (D-125),
-which is uncommitted on `develop` at the time of writing.**
-Keep the gates green, then commit it on `develop`; release only when the owner asks
-(D-060):
-branch/review a `develop ‚Üí main` PR from the current `develop` tip, tag the merge
+**The next stage is the Content Pipeline Consolidation work above (D-126), in
+progress on `develop`.** Keep the gates green, then commit it on `develop`; release
+only when the owner asks (D-060):
+branch/review a `develop → main` PR from the current `develop` tip, tag the merge
 commit, and let the Release workflow attach the Windows portable ZIP. The
 non-blocking optional items (a full automated BotFather Mini App flow, richer
 analytics, additional AI backends, a permissively-licensed TDATA converter, D-070)
 remain, but only if the owner asks.
+
+Three committed, unreleased stages are already sitting on `develop` (D-123 Personal
+Account Safety, D-124 Operational Module Registry, D-125 Bot-lifecycle recovery and
+adoption); a future release window rolls them up together with D-126.
 
 **v2.0 completion gates added this cycle:** `tests/test_content_pipeline_e2e.py`
 and `tests/test_bot_onboarding_e2e.py` (end-to-end integration), a separate

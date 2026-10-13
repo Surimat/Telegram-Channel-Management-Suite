@@ -45,6 +45,10 @@ from backend.app.services.content_language import (
     ContentLanguageService,
     normalize_language,
 )
+from backend.app.services.content_rewrite import (
+    ContentRewriteService,
+    RewriteResult,
+)
 from backend.app.services.content_service import ContentError, content_hash
 from backend.app.services.events_service import EventsService
 
@@ -232,6 +236,41 @@ class ContentPipelineService:
         )
         await self.session.commit()
         return item
+
+    # --- legacy rewrite (v1.2) — delegated here, single owner ---------------
+    # The v1.2 ``/rewrite`` endpoints used to call ``ContentService``; they now
+    # delegate to this service so there is exactly one text-transformation
+    # implementation (D-126). The local ``ContentRewriteService`` is unchanged and
+    # still reports "Рерайт недоступен" honestly when no generative model exists.
+
+    async def rewrite_preview(self, item_id: str, *, mode: str) -> RewriteResult:
+        """Preview a rewrite ``mode`` without touching the item (v1.2, D-126)."""
+        item = await self._require_item(item_id)
+        text = item.cleaned_text or item.text
+        service = ContentRewriteService(settings=self.settings)
+        return service.rewrite(text, mode=mode)
+
+    async def apply_rewrite(
+        self, item_id: str, *, mode: str
+    ) -> tuple[ContentItem, RewriteResult]:
+        """Apply a rewrite to the item's ``cleaned_text`` (v1.2, D-126)."""
+        item = await self._require_item(item_id)
+        result = await self.rewrite_preview(item_id, mode=mode)
+        if result.ok and result.mode != "none":
+            item.cleaned_text = result.text
+            item.content_hash = content_hash(result.text)
+            await self.record(
+                stage="ai",
+                status="rewrite",
+                item_id=item.id,
+                model=result.used_model,
+                detail=result.mode,
+            )
+            await self.events.info(
+                MODULE, "Материал переработан ИИ.", operation="rewrite"
+            )
+        await self.session.commit()
+        return item, result
 
     # --- generation (existing AI Gateway) -----------------------------------
     async def process(self, item_id: str, *, profile_key: str = "") -> ContentItem:

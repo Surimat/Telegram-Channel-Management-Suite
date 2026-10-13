@@ -990,6 +990,51 @@ def test_readme_current_release_matches_latest_tag() -> None:
     )
 
 
+def test_latest_release_anchors_name_the_latest_tag() -> None:
+    """The first release a 'latest release' anchor names must be the newest tag.
+
+    A release can leave the *narrative* around an anchor pointing at the previous
+    version while the anchor's own version is current — e.g. "Current stable
+    release: `vX` was a **verification patch** over `vPREV` …" accidentally written
+    as "over `vLATEST`", which reads as if ``vLATEST`` were merely patched by the
+    smaller ``vX``. ``test_latest_release_anchors_name_the_shipped_version`` only
+    checks that the shipped version appears somewhere on the anchor *line*, so
+    that slip passes it. This pins the *first* version token on the anchor line to
+    the newest tag by version. Skipped when git cannot list tags (shallow/tagless
+    checkout), and skipped while the current version is untagged (a version-bump
+    window) so it never demands a tag that does not exist yet.
+    """
+    tags = _git_output("tag", "--sort=-v:refname")
+    if not tags:  # pragma: no cover - shallow clone
+        pytest.skip("git cannot list tags in this checkout")
+    latest = tags.splitlines()[0]
+
+    # Only run once the current version is actually tagged: during a version-bump
+    # window (app bumped, tag not yet created) the shipped-tag comparison would be
+    # meaningless, so defer to the tag based check instead of demanding a tag that
+    # does not exist yet. The synthetic ``v99.0.0`` strings used by the mutation
+    # tests live in packaged source, so text alone cannot prove a bumped version.
+    tagged_current = _git_output(
+        "for-each-ref", f"refs/tags/v{__version__}", "--format=%(refname)"
+    )
+    if not tagged_current:
+        pytest.skip(f"current version v{__version__} is not tagged yet")
+
+    offenders: list[str] = []
+    for name, prefix in _LATEST_RELEASE_ANCHORS:
+        lines = (REPO_ROOT / name).read_text(encoding="utf-8").splitlines()
+        match = next((ln for ln in lines if ln.strip().startswith(prefix)), None)
+        assert match is not None, f"{name} lost its latest-release anchor {prefix!r}"
+        named = re.findall(r"v[0-9]+\.[0-9]+\.[0-9]+", match)
+        if not named:  # pragma: no cover - anchor without a version
+            offenders.append(f"{name}: {prefix!r} names no release version")
+        elif named[0] != latest:
+            offenders.append(
+                f"{name}: {prefix!r} leads with {named[0]!r}, latest tag is {latest!r}"
+            )
+    assert not offenders, "stale latest-release narrative:\n" + "\n".join(offenders)
+
+
 def test_next_task_active_task_is_not_declared_released() -> None:
     """An 'Active task' section must not describe already-released work.
 

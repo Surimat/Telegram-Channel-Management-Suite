@@ -567,11 +567,16 @@ or `SessionProvider` (expanded mode).
 - `providers/posting_base.py` + `providers/posting.py` — the `PostingProvider`
   protocol (`publish` / `delete` / `send_comment` / capabilities) and the bot /
   user implementations; neither imports aiogram or Telethon directly (D-001).
-- `services/content_service.py` — sources CRUD, `grab` (dedup + moderation),
-  items, cleaner preview/apply/revert, rights, rewrite (through the existing
-  generative LLM backend only — the ruBERT encoder is never used for generation,
-  D-068), moderation (blocked keywords + quiet hours), `release_held`,
-  `publish_text`, dashboard.
+- `services/content_service.py` — sources CRUD, `grab` (the one receive/dedup
+  path: source hash / source message id / content hash / media hash), items,
+  cleaner preview/apply/revert, rights/attribution, moderation (blocked keywords
+  + quiet hours), `release_held`, `publish_text` and the dashboard. It owns
+  **receive**; the *processing* stage (including the v1.2 rewrite, below) is owned
+  by `services/content_pipeline.py`, to which `rewrite_preview`/`apply_rewrite`
+  delegate so there is exactly one transformation implementation (D-126). Rewrite
+  itself runs through the existing generative LLM backend only — the ruBERT
+  encoder is never used for generation, D-068 — and reports “Рерайт недоступен”
+  honestly when no generative model exists.
 - `services/content_cleaner.py` — the deterministic, explainable, cancellable
   cleaner.
 - `services/content_markup.py` — `validate_markup`, `validate_buttons`,
@@ -1201,6 +1206,18 @@ provider/fallback/failure counts and recent metadata records (stage, status,
 provider, model, latency, attempts, detail) — never prompt text, keys or audience
 data. Comment and auto-delete are tracked by `comment_status`/`delete_status` so
 a lost step never marks a publication `failed`.
+
+### 26.5 One processing engine (D-126)
+
+`ContentPipelineService` is the single authoritative content-**processing** engine:
+every AI text transformation lives there (`classify`, `detect_language`,
+`translate`, `process`, `moderate`, `apply_rule_actions`, and the v1.2
+`rewrite_preview`/`apply_rewrite`). The v1.2 `ContentService` keeps only **receive**
+(`grab` dedup, sources, items, cleaner, rights) and its `rewrite_preview`/
+`apply_rewrite` now **delegate** to the pipeline (mapping `PipelineError` →
+`ContentError`), so the v1.2 routes are unchanged while the two engines can no
+longer drift. `PostingService` remains the single **publish** engine (it already
+reuses `ContentService.publish_text`). Guard: `tests/test_content_consolidation.py`.
 
 ## 27. Free-first AI providers and honest capabilities (v2.0.0, D-117…D-119, D-122)
 

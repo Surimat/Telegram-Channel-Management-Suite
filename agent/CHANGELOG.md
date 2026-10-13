@@ -5,7 +5,26 @@ Dates are ISO-8601.
 
 ---
 
-## [Unreleased] — Bot-lifecycle recovery and adoption (D-125) + Personal Account Safety (D-123) + Operational Module Registry (D-124) (on `develop`, unreleased)
+## [Unreleased] — Content Pipeline Consolidation (D-126) + Bot-lifecycle recovery and adoption (D-125) + Personal Account Safety (D-123) + Operational Module Registry (D-124) (on `develop`, unreleased)
+
+**Content Pipeline Consolidation (D-126, no behaviour change).** The duplicated
+content **processing** path is removed without adding a feature and without
+touching the v1.2 API contract. `ContentPipelineService`
+(`backend/app/services/content_pipeline.py`) is now the single authoritative
+content-processing engine: it gains the v1.2 `rewrite_preview` / `apply_rewrite`
+(built on the unchanged local `ContentRewriteService`, which still reports
+“Рерайт недоступен” honestly when no generative model exists) and records a
+secret-free `content_operations` record for a successful rewrite.
+`ContentService.rewrite_preview` / `apply_rewrite`
+(`backend/app/services/content_service.py`) now **delegate** to the pipeline and
+map `PipelineError` → `ContentError`, so `/rewrite` and `/rewrite/apply` (and
+their error semantics and `MODE_TITLES`) are byte-for-byte unchanged. The stage
+ownership stands — `ContentService` owns receive/dedup (`grab`), the pipeline owns
+processing, `PostingService` owns publish — so no engine is deleted and no schema
+changes. Guard: `tests/test_content_consolidation.py` (7 tests) locks the single
+path, the whole path (grab → process → moderate → plan → tick → publish), restart
+idempotency, translation/target survival, AI-failure recovery, the v1.2 API
+contract and the D-124 module gate. No version bump; unreleased.
 
 **Bot-lifecycle recovery and adoption (D-125, additive).** One service,
 `backend/app/services/bot_lifecycle.py` (`BotLifecycleService`), now owns the bot

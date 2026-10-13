@@ -2901,5 +2901,48 @@ duplicate-queue prevention, idempotent adoption (no duplicate `Bot` rows), crash
 recovery and the runtime handler path. The enqueue-unless-active helper in
 `backend/app/services/queue_service.py` prevents double-queuing.
 
-**Status.** Uncommitted on `develop` at the time of writing; no version bump. Do
+**Status.** Committed on `develop` (`e4002f0`); no version bump. Do
 not cut a release until the owner asks (D-060).
+
+
+## D-126 — 2026-10-13 — One content-processing engine; the v1.2 rewrite delegates to the pipeline — LOCKED
+
+**Context.** The Content Studio carries two engines, `ContentService`
+(`services/content_service.py`, v1.2) and `ContentPipelineService`
+(`services/content_pipeline.py`, v1.9/D-116). They are not fully separate: the
+legacy `ContentService.rewrite_preview`/`apply_rewrite` (through the local
+`ContentRewriteService`) and the pipeline's `process`/`translate` are **two
+implementations of the same operation** — transform an item's text and store it in
+`cleaned_text` + `content_hash` — and there are two item-load helpers
+(`get_item` vs `_require_item`) with different error types. Two implementations of
+one process can drift.
+
+**Decision.** Keep one authoritative owner per stage (the split that D-116 already
+blesses), and remove the duplicated processing path:
+
+1. **`ContentPipelineService` is the single content-processing engine.** All AI
+   text transformation lives there: `classify`, `detect_language`, `translate`,
+   `process` (AI Gateway + failover), `moderate`, `apply_rule_actions` **and the
+   moved v1.2 `rewrite_preview`/`apply_rewrite`**. The local
+   `ContentRewriteService` is unchanged and remains the honest
+   “Рерайт недоступен” source.
+2. **`ContentService.rewrite_preview`/`apply_rewrite` delegate** to the pipeline and
+   map `PipelineError` → `ContentError`, so the v1.2 API contract (`/rewrite`,
+   `/rewrite/apply`, error semantics, `MODE_TITLES`) is byte-for-byte the same and
+   the two engines cannot diverge.
+3. **`ContentService` stays the receive/dedup owner** (`grab`: source hash / source
+   message id / content hash / media hash) and **`PostingService` stays the publish
+   owner** (`plan`/`schedule`/`publish`/`tick`/comment/delete; it already reuses
+   `ContentService.publish_text`). Neither engine is deleted and no feature changes.
+
+**Consequences.** There is exactly one implementation of “transform item text”, the
+pipeline records a secret-free `content_operations` record for a successful rewrite,
+and `tests/test_content_consolidation.py` locks the contract (the v1.2 `/rewrite`
+contract delegates — spy; the whole path grab → process → moderate → plan → tick →
+publish uses the processed text; restart idempotency; translation/target survival;
+AI-failure recovery; the v1.2 API contract; the D-124 module gate). A future change
+that re-implements transformation in `ContentService`, deletes `grab` dedup, or
+moves publishing out of `PostingService` fails this decision.
+
+**Status.** In progress on `develop`; no version bump. Do not cut a release until
+the owner asks (D-060).
