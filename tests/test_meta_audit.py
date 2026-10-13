@@ -1216,6 +1216,47 @@ def _active_task_body(text: str) -> str | None:
     return rest[: next_heading.start()] if next_heading else rest
 
 
+def _headings_with_bodies(text: str) -> list[tuple[str, str]]:
+    """Return ``(heading_text, body)`` for every markdown heading in ``text``.
+
+    ``heading_text`` excludes the leading ``#`` markers; ``body`` runs to the
+    next heading of any level (or the end of the file).
+    """
+    matches = list(re.finditer(r"^#+[ \t]*(.*)$", text, flags=re.MULTILINE))
+    sections: list[tuple[str, str]] = []
+    for i, match in enumerate(matches):
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        sections.append((match.group(1), text[match.end(): end]))
+    return sections
+
+
+def test_next_task_does_not_leave_a_completed_stage_in_the_active_slot() -> None:
+    """An 'Active task' heading must not cite a commit that already exists.
+
+    The active slot once advertised Content Pipeline Consolidation (D-126) as
+    "in progress" while the commit that implements it (``0b65bf3``) was already
+    in ``develop``'s history. A commit that resolves in git is proof the work is
+    done, so a stage that sits under an 'Active task' heading (one that is not
+    an explicit "none" marker) and cites a real commit is stale and must move
+    under a completed heading. Skipped when git cannot answer.
+    """
+    text = (REPO_ROOT / "agent" / "NEXT_TASK.md").read_text(encoding="utf-8")
+    offenders: list[str] = []
+    for heading, body in _headings_with_bodies(text):
+        if re.match(r"Active task\b", heading, flags=re.IGNORECASE) is None:
+            continue
+        if re.search(r"\bnone\b", heading, flags=re.IGNORECASE):
+            continue  # an explicit "Active task — none" marker is the empty slot
+        for sha in re.findall(r"`?\b([0-9a-f]{7,40})\b`?", heading + body):
+            if _git_output("rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}"):
+                offenders.append(f"{heading.strip()!r} cites committed {sha}")
+    assert not offenders, (
+        "agent/NEXT_TASK.md leaves a completed stage under an 'Active task' "
+        "heading (the cited commit already exists in git history):\n"
+        + "\n".join(offenders)
+    )
+
+
 def test_next_task_does_not_advertise_a_finished_feature_as_active() -> None:
     """A task that is already implemented must not remain in the active slot.
 

@@ -4,9 +4,9 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-13
-**Status:** **v2.0.1 is RELEASED (2026-10-11); `develop` is ahead of it by three
+**Status:** **v2.0.1 is RELEASED (2026-10-11); `develop` is ahead of it by four
 committed, unreleased stages — D-123 (Personal Account Safety), D-124 (Operational
-Module Registry) and D-125 (Bot-lifecycle recovery and adoption) — plus the active
+Module Registry), D-125 (Bot-lifecycle recovery and adoption) and the completed
 D-126 (Content Pipeline Consolidation).** v2.0.1 is a patch over v2.0.0 that adds a
 keyless-free **image understanding** (vision) path through the **Kilo Gateway** free
 model (D-122), integrated additively through the existing AI Gateway — **opt-in and
@@ -17,16 +17,22 @@ Released via a reviewed `develop → main` PR #24 (merge `21f2d01`), tag
 `v2.0.1`; the Release workflow (run `38133537061`) created the GitHub Release and attached
 the Windows portable ZIP (24979298 bytes, sha256 `fd92bf2c…`) + `.sha256` (D-060).
 `main` HEAD = `21f2d01` (= `origin/main`, tag `v2.0.1`); `develop` is ahead of
-`main` by three committed, unreleased stages (D-123 Personal Account Safety, D-124
-Operational Module Registry, D-125 Bot-lifecycle recovery and adoption) plus the
-active D-126 Content Pipeline Consolidation, and is deliberately not pinned to a
+`main` by four committed, unreleased stages (D-123 Personal Account Safety, D-124
+Operational Module Registry, D-125 Bot-lifecycle recovery and adoption, D-126
+Content Pipeline Consolidation), and is deliberately not pinned to a
 SHA because it moves with every commit. Release ZIP scan: no `.session`/TDATA/DB/model. No
 schema change in v2.0.1.
 
 Version string is **2.0.1** across `backend/app/__init__.py`, `pyproject.toml`,
 `frontend/package.json` + lock.
 
-### Active task — Content Pipeline Consolidation (D-126, in progress on `develop`)
+### Active task — none
+
+**No stage is in progress.** The Content Pipeline Consolidation (D-126) is
+committed on `develop` (`0b65bf3`); the other committed, unreleased stages are
+D-125, D-124 and D-123. Release only when the owner asks (D-060).
+
+### Completed stage — Content Pipeline Consolidation (D-126, committed `0b65bf3` on `develop`, not released)
 
 **Goal:** eliminate the duplication between `backend/app/services/content_service.py`
 and `backend/app/services/content_pipeline.py` and leave a **single authoritative
@@ -162,8 +168,8 @@ D-124 in `agent/DECISIONS.md`.
 
 ### Next stage (factual)
 
-**The next stage is the Content Pipeline Consolidation work above (D-126), in
-progress on `develop`.** Keep the gates green, then commit it on `develop`; release
+**No stage is in progress.** The Content Pipeline Consolidation above (D-126) is
+already committed on `develop` (`0b65bf3`). Keep the gates green; release
 only when the owner asks (D-060):
 branch/review a `develop → main` PR from the current `develop` tip, tag the merge
 commit, and let the Release workflow attach the Windows portable ZIP. The
@@ -171,9 +177,10 @@ non-blocking optional items (a full automated BotFather Mini App flow, richer
 analytics, additional AI backends, a permissively-licensed TDATA converter, D-070)
 remain, but only if the owner asks.
 
-Three committed, unreleased stages are already sitting on `develop` (D-123 Personal
+Four committed, unreleased stages are already sitting on `develop` (D-123 Personal
 Account Safety, D-124 Operational Module Registry, D-125 Bot-lifecycle recovery and
-adoption); a future release window rolls them up together with D-126.
+adoption, D-126 Content Pipeline Consolidation); a future release window rolls them
+up together.
 
 **v2.0 completion gates added this cycle:** `tests/test_content_pipeline_e2e.py`
 and `tests/test_bot_onboarding_e2e.py` (end-to-end integration), a separate
