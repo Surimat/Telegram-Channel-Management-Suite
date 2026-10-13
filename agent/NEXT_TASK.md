@@ -4,10 +4,10 @@
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
 **Updated:** 2026-10-13
-**Status:** **v2.0.1 is RELEASED (2026-10-11); `develop` is ahead of it by four
+**Status:** **v2.0.1 is RELEASED (2026-10-11); `develop` is ahead of it by five
 committed, unreleased stages — D-123 (Personal Account Safety), D-124 (Operational
-Module Registry), D-125 (Bot-lifecycle recovery and adoption) and the completed
-D-126 (Content Pipeline Consolidation).** v2.0.1 is a patch over v2.0.0 that adds a
+Module Registry), D-125 (Bot-lifecycle recovery and adoption), D-126 (Content
+Pipeline Consolidation) and D-127 (Channel Overview).** v2.0.1 is a patch over v2.0.0 that adds a
 keyless-free **image understanding** (vision) path through the **Kilo Gateway** free
 model (D-122), integrated additively through the existing AI Gateway — **opt-in and
 off by default**, best-effort, with an honest failover so a rate limit or outage
@@ -17,10 +17,10 @@ Released via a reviewed `develop → main` PR #24 (merge `21f2d01`), tag
 `v2.0.1`; the Release workflow (run `38133537061`) created the GitHub Release and attached
 the Windows portable ZIP (24979298 bytes, sha256 `fd92bf2c…`) + `.sha256` (D-060).
 `main` HEAD = `21f2d01` (= `origin/main`, tag `v2.0.1`); `develop` is ahead of
-`main` by four committed, unreleased stages (D-123 Personal Account Safety, D-124
+`main` by five committed, unreleased stages (D-123 Personal Account Safety, D-124
 Operational Module Registry, D-125 Bot-lifecycle recovery and adoption, D-126
-Content Pipeline Consolidation), and is deliberately not pinned to a
-SHA because it moves with every commit. Release ZIP scan: no `.session`/TDATA/DB/model. No
+Content Pipeline Consolidation, D-127 Channel Overview), and is deliberately not
+pinned to a SHA because it moves with every commit. Release ZIP scan: no `.session`/TDATA/DB/model. No
 schema change in v2.0.1.
 
 Version string is **2.0.1** across `backend/app/__init__.py`, `pyproject.toml`,
@@ -28,9 +28,34 @@ Version string is **2.0.1** across `backend/app/__init__.py`, `pyproject.toml`,
 
 ### Active task — none
 
-**No stage is in progress.** The Content Pipeline Consolidation (D-126) is
-committed on `develop` (`0b65bf3`); the other committed, unreleased stages are
-D-125, D-124 and D-123. Release only when the owner asks (D-060).
+**No stage is in progress.** The latest completed stage is Channel Overview
+(D-127), committed on `develop`; the other committed, unreleased stages are D-126
+(Content Pipeline Consolidation), D-125, D-124 and D-123. Release only when the
+owner asks (D-060).
+
+### Completed stage — Channel Overview (D-127, committed on `develop`, not released)
+
+**Goal:** one **read-only** aggregation that answers “how is each channel doing?”
+across every module. `ChannelOverviewService`
+(`backend/app/services/channel_overview.py`) builds, per channel, its identity +
+verification status, the authoritative module map (D-124), bot↔channel bindings,
+audience sources, invite jobs, bot-onboarding batches, bot-factory batches,
+content items/publications, the content pipeline and the durable job queue into
+`OverviewSection`s, plus a suite-wide attention summary and a channel event
+section. It never writes a row, queues a job or calls a Telegram provider, and it
+reads the canonical channel identity via `ChannelRepository` (D-051/D-055).
+
+**Wiring.** API `GET /api/v1/channels/overview` (`ChannelOverviewOut` in
+`backend/app/api/schemas/channels.py`; DI `get_channel_overview_service` in
+`backend/app/api/deps.py`); UI `/channel-overview` page
+(`frontend/src/views/ChannelOverviewView.vue`, router + nav wired; types/method in
+`frontend/src/api/client.ts`). Each area carries an honest attention level
+(`ok`/`info`/`warning`/`error`) with a human reason (a `needs_review` item is a
+warning, a ready bot binding is `ok`).
+
+**Guard:** `tests/test_channel_overview.py` (20 tests) locks the attention levels,
+the section structure and that `/summary` is not shadowed by `/{id}`. No schema
+change, no version bump. See `agent/DECISIONS.md` D-127.
 
 ### Completed stage — Content Pipeline Consolidation (D-126, committed `0b65bf3` on `develop`, not released)
 

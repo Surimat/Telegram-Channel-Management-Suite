@@ -2946,3 +2946,41 @@ moves publishing out of `PostingService` fails this decision.
 
 **Status.** In progress on `develop`; no version bump. Do not cut a release until
 the owner asks (D-060).
+
+---
+
+## D-127 — 2026-10-13 — Channel Overview is a read-only aggregation; it never becomes a second channel writer — LOCKED
+
+**Context.** A channel's real state is spread across many modules — verification
+status, the per-channel module registry (D-124), bot↔channel bindings, audience
+sources, invite jobs, bot-onboarding batches, bot-factory batches, content items
+and publications, the content pipeline and the durable job queue. An owner has to
+open several pages to answer “is this channel healthy?”.
+
+**Decision.** Add one **read-only** aggregation, `ChannelOverviewService`
+(`backend/app/services/channel_overview.py`), exposed as
+`GET /api/v1/channels/overview` (`ChannelOverviewOut`) and rendered by the
+`/channel-overview` UI page (`ChannelOverviewView.vue`). It:
+
+1. **Reads only.** It builds a per-channel bucket (identity, verification, module
+   map, attention level) plus one `OverviewSection` per area (bindings, audience,
+   invites, bots, content, pipeline, queue) and a suite-wide attention + channel
+   event section. It never writes a row, never queues a job and never calls a
+   Telegram provider — no account action, no limit bypass.
+2. **Owns no domain state.** It reads through the existing repositories/services
+   (`ChannelRepository` — the canonical channel identity, D-051/D-055) and derives
+   labels; the module state comes from `channel_modules` (D-124), so the overview
+   can never disagree with the enforcement.
+3. **Reports honest attention.** `attention.level` is one of `ok`/`info`/`warning`/
+   `error` with a human reason; a `needs_review` item is `warning`, a ready bot
+   binding is `ok`, an AI-unavailable publication is surfaced rather than hidden.
+
+**Consequences.** `tests/test_channel_overview.py` locks the aggregation (attention
+levels, `needs_review` → warning, ready binding → ok, section structure, and that
+`/summary` is not shadowed by `/{id}`). Because the service is channel-aware it must
+use the canonical channel identity (it does), so the D-051/D-055 consistency check
+stays green. A future change that makes this endpoint write, or that duplicates the
+module map instead of reading `channel_modules`, fails this decision.
+
+**Status.** Committed on `develop`; no version bump. Do not cut a release until the
+owner asks (D-060).

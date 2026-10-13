@@ -146,6 +146,7 @@ Wording rule — instead of `BOT_TOKEN missing`, write:
 | `/` | `DashboardView` | 1 |
 | `/bots` | `BotsView` | 2 |
 | `/channels` | `ChannelsView` | hardening |
+| `/channel-overview` | `ChannelOverviewView` (Сводка по каналам) | v2.0 |
 | `/reactions` | `ReactionsView` | 3 |
 | `/sessions` | `SessionsView` (Account Hub + accounts + network routes / proxies) | 4 |
 | `/sources` | `SourcesView` (sources + donor discovery) | 5 |
@@ -165,6 +166,9 @@ Wording rule — instead of `BOT_TOKEN missing`, write:
 | `/mesh` | `MeshView` (Компьютеры) | v1.3 |
 | `/editorial` | `EditorialView` (Редакция) | v1.4 |
 | `/notifications` | `NotificationsView` (Центр уведомлений) | v1.4 |
+| `/content` | `ContentStudioView` (Content Studio) | v1.2 |
+| `/ai-gateway` | `AiGatewayView` (Центр ИИ) | v1.8 |
+| `/owner` | `OwnerView` (Владелец) | v1.6 |
 
 ### Audience & Sources pages (`SourcesView.vue`, `AudienceView.vue`, PHASE 5)
 
@@ -653,3 +657,23 @@ selects an emoji — it only narrows; the reaction profile decides.
 The «ИИ и правила» tab links to the new `content_operations` help topic, which
 explains in plain Russian why the pipeline exists and what the mini-AI can and
 cannot do.
+
+## 11i. Сводка по каналам / Channel Overview (`ChannelOverviewView.vue`, `/channel-overview`, D-127)
+
+One **read-only** page answers “how is each channel doing?” without opening every
+other page. It calls `GET /api/v1/channels/overview` and renders, per channel:
+
+- the channel identity (title / @username / reference), kind, status and whether
+  it is the default channel, with a **verification** badge;
+- the authoritative **module map** (D-124: reactions / audience / invites /
+  analytics) as enabled/disabled chips;
+- one line per area — **bindings**, **audience**, **invites**, **bots**,
+  **content**, **pipeline** and the durable **queue** — each with a status badge
+  and its counts, built from the existing repositories/services;
+- an **attention** level (`ok` / `info` / `warning` / `error`) with a human
+  reason, plus a suite-wide totals bar and a **channel events** section.
+
+The page is a pure aggregate: it never writes a row, queues a job or contacts
+Telegram, so opening it can never change state. The attention rules are honest —
+a `needs_review` item is a `warning`, a ready bot binding is `ok`, and an
+AI-unavailable publication is surfaced rather than hidden.

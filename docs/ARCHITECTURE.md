@@ -1269,3 +1269,22 @@ is never part of any request or response — only the public username and Telegr
 own `?startchannel` link are exposed. UI `BotOnboardingView.vue`; additive
 migration `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`; tests
 `tests/test_bot_onboarding.py`, `tests/test_bot_onboarding_e2e.py`.
+
+## 30. Channel Overview (v2.0, D-127)
+
+`services/channel_overview.py` (`ChannelOverviewService`) is a **read-only**
+aggregation of a channel's real state across every module. It reads through the
+existing repositories/services — `ChannelRepository` for the canonical channel
+identity (D-051/D-055) and `services/channel_modules.py` for the authoritative
+module map (D-124) — and derives, per channel, an identity/verification block, a
+module map, and one `OverviewSection` per area (bindings, audience, invites, bots,
+content, pipeline, queue) plus a suite-wide attention summary and a channel event
+section. It **never writes** a row, queues a job or contacts Telegram, so it
+cannot change state or bypass a limit.
+
+Each area carries an honest attention level (`ok`/`info`/`warning`/`error`) with a
+human reason (a `needs_review` item is a `warning`, a ready bot binding is `ok`).
+Exposed as `GET /api/v1/channels/overview` (`api/v1/channels.py`,
+`api/schemas/channels.py`, DI `get_channel_overview_service` in `api/deps.py`) and
+rendered by `ChannelOverviewView.vue` (`/channel-overview`). No schema change;
+tests `tests/test_channel_overview.py`.

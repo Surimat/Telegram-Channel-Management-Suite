@@ -496,6 +496,7 @@ bypasses Telegram limits.
 |--------|------|---------|
 | GET | `/api/v1/channels?search=&status=&limit=&offset=` | list channels |
 | GET | `/api/v1/channels/summary` | counts + default channel |
+| GET | `/api/v1/channels/overview` | read-only per-channel state across every module (D-127) |
 | GET | `/api/v1/channels/{id}` | one channel |
 | POST | `/api/v1/channels` | add (`reference`, optional `title`/`kind`/`make_default`/`note`) |
 | PATCH | `/api/v1/channels/{id}` | update editable fields |

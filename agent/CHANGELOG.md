@@ -5,7 +5,26 @@ Dates are ISO-8601.
 
 ---
 
-## [Unreleased] — Content Pipeline Consolidation (D-126) + Bot-lifecycle recovery and adoption (D-125) + Personal Account Safety (D-123) + Operational Module Registry (D-124) (on `develop`, unreleased)
+## [Unreleased] — Channel Overview (D-127) + Content Pipeline Consolidation (D-126) + Bot-lifecycle recovery and adoption (D-125) + Personal Account Safety (D-123) + Operational Module Registry (D-124) (on `develop`, unreleased)
+
+**Channel Overview (D-127, additive, read-only).** One place now answers “how is
+each channel doing?”. `ChannelOverviewService`
+(`backend/app/services/channel_overview.py`) aggregates, per channel, its identity
+and verification status, the authoritative module map (D-124), bot↔channel
+bindings, audience sources, invite jobs, bot-onboarding batches, bot-factory
+batches, content items/publications, the content pipeline and the durable job
+queue into `OverviewSection`s, plus a suite-wide attention summary and a channel
+event section. It is **read-only** — it never writes a row, queues a job or calls
+a Telegram provider. Exposed as `GET /api/v1/channels/overview`
+(`ChannelOverviewOut`, schemas in `backend/app/api/schemas/channels.py`, DI
+`get_channel_overview_service` in `backend/app/api/deps.py`) and rendered by the
+new `/channel-overview` page (`frontend/src/views/ChannelOverviewView.vue`,
+router + nav wired). Each area carries an honest attention level
+(`ok`/`info`/`warning`/`error`) with a human reason (a `needs_review` item is a
+warning, a ready bot binding is `ok`). It reads the canonical channel identity via
+`ChannelRepository` (D-051/D-055). Guard: `tests/test_channel_overview.py`
+(20 tests) locks the attention levels, the section structure and that `/summary`
+is not shadowed by `/{id}`. No schema change, no version bump; unreleased.
 
 **Content Pipeline Consolidation (D-126, no behaviour change).** The duplicated
 content **processing** path is removed without adding a feature and without
