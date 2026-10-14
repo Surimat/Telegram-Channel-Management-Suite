@@ -65,9 +65,12 @@ path. No account is registered and no Telegram limit is bypassed.
 UI `/setup-wizard` page (`frontend/src/views/SetupWizardView.vue`, router + nav
 wired; types/methods in `frontend/src/api/client.ts`).
 
-**Guard:** `tests/test_setup_wizard.py` (19 tests) locks the ordered steps, the
+**Guard:** `tests/test_setup_wizard.py` (20 tests) locks the ordered steps, the
 never-infer statuses, the module/channel readiness and the confirmed-only test
-publication. No version bump. See `agent/DECISIONS.md` D-128.
+publication, plus the test-publication happy path (a prepared item is published
+rather than re-grabbed). The full flow was verified end to end offline through the
+real `/setup-wizard` UI (7/7 steps, `ready=true`). No version bump. See
+`agent/DECISIONS.md` D-128.
 
 ### Completed stage — Channel Overview (D-127, committed on `develop`, not released)
 

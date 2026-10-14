@@ -611,6 +611,8 @@ _VERSION_HEADINGS = (
 _TEST_COUNT_RE = re.compile(r"(\d+) passed(?:, (\d+) skipped)?")
 _COLLECTED_RE = re.compile(r"(\d+) collected")
 _CHANGELOG_PASSED_RE = re.compile(r"full suite green \(\*\*(\d+) passed")
+#: A per-file guard claim, e.g. ``tests/test_setup_wizard.py (20 tests)``.
+_PER_FILE_COUNT_RE = re.compile(r"tests/([A-Za-z0-9_]+\.py)`?\s*\((\d+) tests?\)")
 
 
 def test_versioned_docs_lead_with_the_shipped_release() -> None:
@@ -775,6 +777,59 @@ def _full_suite_size() -> int:
         )
         _FULL_SUITE_SIZE = int(match.group(1))
     return _FULL_SUITE_SIZE
+
+
+def _collect_only_count(relative: str) -> int | None:
+    """Return the number of tests ``relative`` collects, or ``None`` if unknown."""
+    try:
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                relative,
+                "--collect-only",
+                "-o",
+                "addopts=",
+                "-q",
+            ],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    match = re.search(r"(\d+) tests? collected", result.stdout)
+    return int(match.group(1)) if match else None
+
+
+def test_memory_files_do_not_claim_a_stale_per_file_test_count() -> None:
+    """A ``tests/foo.py (N tests)`` guard claim must match the file's real size.
+
+    The full-suite guards only prove that a count does not *exceed* the whole
+    suite, so a per-file claim left at an older value after the file grew (the
+    classic "19 tests" copy-paste) slips through. This collects each named file
+    in isolation and fails if the documented count is wrong in either direction.
+    """
+    offenders: list[str] = []
+    seen: set[tuple[str, int]] = set()
+    for name in ("README.md", "agent/CHANGELOG.md", "agent/CURRENT_STATE.md",
+                 "agent/DECISIONS.md", "agent/NEXT_TASK.md"):
+        text = (REPO_ROOT / name).read_text(encoding="utf-8")
+        for match in _PER_FILE_COUNT_RE.finditer(text):
+            filename, claimed = match.group(1), int(match.group(2))
+            if (filename, claimed) in seen:
+                continue
+            seen.add((filename, claimed))
+            real = _collect_only_count(f"tests/{filename}")
+            if real is not None and real != claimed:
+                offenders.append(
+                    f"{name}: says tests/{filename} has {claimed} tests, real is {real}"
+                )
+    assert not offenders, "documented per-file test count is stale:\n" + "\n".join(
+        sorted(set(offenders))
+    )
 
 
 def test_memory_files_do_not_claim_a_stale_test_count() -> None:

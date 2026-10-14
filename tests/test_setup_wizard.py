@@ -11,6 +11,8 @@ from __future__ import annotations
 import pytest
 from httpx import AsyncClient
 
+from backend.app.core.config import get_settings, reset_settings_cache
+from backend.app.core.security import seal_secret
 from backend.app.db.base import new_id, utcnow
 from backend.app.db.models.binding import BindingStatus, BotChannelBinding
 from backend.app.db.models.bot import Bot, BotKind
@@ -25,6 +27,7 @@ from backend.app.db.models.content import (
 )
 from backend.app.db.models.job import Job, JobStatus
 from backend.app.db.session import init_models, session_scope
+from backend.app.services.content_service import content_hash, source_hash
 from backend.app.services.setup_wizard import (
     STATUS_FAILED,
     STATUS_PENDING,
@@ -309,6 +312,79 @@ async def test_test_publication_requires_explicit_confirmation(client: AsyncClie
 async def test_test_publication_refused_until_steps_verified(client: AsyncClient) -> None:
     resp = await client.post(f"{API}/test-publication", json={"confirmed": True})
     assert resp.status_code == 409
+
+
+async def test_test_publication_publishes_an_already_prepared_item(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The wizard's own test publication must publish the prepared material.
+
+    Regression: the test publication used to re-grab the source and take
+    ``item_ids[0]``; once the source was up to date a re-grab returned only a
+    duplicate, so the wizard asked the owner to prepare content and then refused
+    its own test publication with a 409. It must fall back to the prepared item.
+    """
+    monkeypatch.setenv("OFFLINE_MODE", "true")
+    reset_settings_cache()
+    settings = get_settings()
+
+    channel_id = await _seed_channel(modules='{"reactions": true}')
+    bot_id = new_id()
+    async with session_scope() as session:
+        session.add(
+            Bot(
+                id=bot_id,
+                kind=BotKind.MANAGED,
+                username="wiz_pub_bot",
+                title="Bot",
+                token_encrypted=seal_secret("111:AAA", settings),
+            )
+        )
+        session.add(
+            BotChannelBinding(
+                id=new_id(),
+                bot_id=bot_id,
+                channel_id=channel_id,
+                function="posting",
+                status=BindingStatus.READY,
+            )
+        )
+        source = ContentSource(
+            id=new_id(),
+            kind=ContentSourceKind.MANUAL,
+            title="Источник",
+            reference="Готовый текст для теста",
+            enabled=True,
+        )
+        session.add(source)
+        await session.flush()
+        text = "Готовый текст для теста"
+        session.add(
+            ContentItem(
+                id=new_id(),
+                source_id=source.id,
+                title="Материал",
+                text=text,
+                cleaned_text=text,
+                status=ContentItemStatus.READY,
+                source_hash=source_hash("manual", source.reference),
+                content_hash=content_hash(text),
+            )
+        )
+
+    for key in STEP_KEYS:
+        await _run(key)
+
+    resp = await client.post(f"{API}/test-publication", json={"confirmed": True})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["ok"] is True
+
+    # The UI re-runs the readiness gate after the confirmed test publication.
+    await _run("readiness")
+    async with session_scope() as session:
+        final = await SetupWizardService(session).state()
+    assert _step(final, "readiness").verified is True
+    assert final.ready is True
 
 
 async def test_state_never_leaks_secrets(client: AsyncClient) -> None:

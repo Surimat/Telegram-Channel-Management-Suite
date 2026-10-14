@@ -29,8 +29,20 @@ channel through the existing posting path. Exposed as `GET /api/v1/setup-wizard`
 `POST /api/v1/setup-wizard/test-publication` (`api/v1/setup_wizard.py`,
 `api/schemas/setup_wizard.py`, DI `get_setup_wizard_service` in `api/deps.py`) and
 rendered by the new `/setup-wizard` page (`frontend/src/views/SetupWizardView.vue`,
-router + nav wired). Guard: `tests/test_setup_wizard.py` (19 tests). No version
-bump; unreleased.
+router + nav wired). Guard: `tests/test_setup_wizard.py` (20 tests, including the
+test-publication happy-path regression). No version bump; unreleased.
+
+**Setup-wizard test-publication fix (D-128, defect).** The confirmed test
+publication refused its own prepared material with **HTTP 409**: it re-grabbed its
+source, and once that source was already up to date the grab returns only a
+duplicate, so there was nothing new to publish. It now publishes an
+already-prepared item. Found by driving the full ordered flow through the real
+`/setup-wizard` UI offline (fake providers) — a fresh install reached **7/7 steps
+verified, `ready=true`**. New regression
+`tests/test_setup_wizard.py::test_test_publication_publishes_an_already_prepared_item`
+(fails with 409 without the fix). The same change adds a regression guard for
+per-file guard claims (`tests/test_meta_audit.py`): a `tests/foo.py (N tests)`
+count must match what the file really collects, in either direction.
 
 **Channel Overview (D-127, additive, read-only).** One place now answers “how is
 each channel doing?”. `ChannelOverviewService`

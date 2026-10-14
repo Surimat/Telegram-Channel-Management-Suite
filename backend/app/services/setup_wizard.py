@@ -662,16 +662,30 @@ class SetupWizardService:
             )
 
         grab = await self._content.grab(source.id, limit=5)  # type: ignore[attr-defined]
-        if not grab.ok or not grab.item_ids:
+        item_id = await self._pick_publishable_item(grab.item_ids)
+        if item_id is None:
+            # A source that is already up to date yields no *new* material on a
+            # re-grab, but an already-prepared material must still be publishable:
+            # otherwise the wizard asks the owner to prepare content and then
+            # refuses its own test publication on a duplicate.
+            if not grab.ok and not grab.duplicates:
+                raise SetupWizardError(
+                    grab.message or "Источник не дал материала.",
+                    how_to_fix=grab.how_to_fix or "Проверьте источник в «Content Studio».",
+                    status_code=409,
+                )
             raise SetupWizardError(
-                grab.message or "Источник не дал материала.",
-                how_to_fix=grab.how_to_fix or "Проверьте источник в «Content Studio».",
+                "Нет подготовленного материала для тестовой публикации.",
+                how_to_fix=(
+                    "Соберите материал в «Content Studio» и переведите его в статус "
+                    "«Готов» (или «Одобрено»)."
+                ),
                 status_code=409,
             )
-        item_id = grab.item_ids[0]
         pubs = await self._posting.plan(  # type: ignore[attr-defined]
             item_id, [TargetSpec(channel_id=channel.id)]
         )
+
         if not pubs:
             raise SetupWizardError(
                 "Не удалось подготовить публикацию.",
@@ -699,6 +713,25 @@ class SetupWizardService:
     @staticmethod
     def _label(channel: Channel) -> str:
         return channel.title or channel.username or channel.reference or channel.id
+
+    async def _pick_publishable_item(self, item_ids: list[str]) -> str | None:
+        """Return the first freshly grabbed material, else an existing prepared one.
+
+        The first choice is the newest grabbed item; the fallback keeps the test
+        publication usable when the source is already up to date (a re-grab then
+        returns no new items) but a prepared material exists.
+        """
+        if item_ids:
+            return item_ids[0]
+        prepared = (
+            await self.session.execute(
+                select(ContentItem.id)
+                .where(ContentItem.status.in_(list(_READY_ITEM_STATUSES)))
+                .order_by(ContentItem.updated_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        return prepared
 
     async def _has_account(self) -> bool:
         from backend.app.db.models.session import SessionStatus

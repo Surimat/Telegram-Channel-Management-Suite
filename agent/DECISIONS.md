@@ -3016,9 +3016,16 @@ UI page (`SetupWizardView.vue`). It:
    the existing posting path. No account is registered and no Telegram limit is
    bypassed (D-006).
 
-**Consequences.** `tests/test_setup_wizard.py` (19 tests) locks the ordered step
+**Consequences.** `tests/test_setup_wizard.py` (20 tests) locks the ordered step
 keys, the never-infer statuses (a step is `verified` only after a real pass), the
-channel/module readiness derivation and the confirmed-only test publication. A
+channel/module readiness derivation and the confirmed-only test publication. The
+full ordered flow was verified end to end offline (fake providers) through the real
+`/setup-wizard` UI: a fresh install reached **7/7 steps verified, `ready=true`**
+after the confirmed test publication. That run found a real defect — the test
+publication re-grabbed its source and then failed with a **409** once the source
+was already up to date (a re-grab returns only a duplicate), so the wizard refused
+its own test publication; it now publishes an already-prepared item (the new
+happy-path regression test fails with 409 without the fix and passes with it). A
 future change that marks a step done without running its check, that duplicates a
 status system instead of reading `channel_overview`, or that publishes without the
 explicit confirmation, fails this decision.
