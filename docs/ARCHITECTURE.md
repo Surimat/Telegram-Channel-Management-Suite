@@ -1288,3 +1288,37 @@ Exposed as `GET /api/v1/channels/overview` (`api/v1/channels.py`,
 `api/schemas/channels.py`, DI `get_channel_overview_service` in `api/deps.py`) and
 rendered by `ChannelOverviewView.vue` (`/channel-overview`). No schema change;
 tests `tests/test_channel_overview.py`.
+
+## 31. End-to-end Setup Wizard (v2.0, D-128)
+
+`services/setup_wizard.py` (`SetupWizardService`) is a **guided, resumable** flow
+from a fresh install to a working existing channel. It **reuses** the existing
+services rather than reimplementing them: `services/setup_checks.py` for the
+local program checks, `ChannelRepository` for the canonical channel identity
+(D-051/D-055) and the authoritative module map (D-124), and the Content Studio
+services (`get_content_service` / the posting provider) only for the explicit test
+publication. The final readiness gate reads `services/channel_overview.py`
+(D-127) instead of inventing a second status system.
+
+**Status is stored, never inferred.** Each step's status is the persisted result
+of a real server check (`SetupWizardStep`, migration
+`20261016_0900_a7b8c9d0e1f2_v2_0_setup_wizard.py`): `verified` means the check
+ran and passed, `pending` means it ran and failed, `unchecked` means it was never
+run. Opening the state endpoint writes nothing and marks nothing done; a fix
+requires re-running the step. Missing data or a check that cannot run reports
+`unchecked`/`failed`, never `verified`, so the wizard cannot claim readiness it
+did not verify.
+
+**No hidden Telegram actions.** The wizard itself only *reads* state. The single
+action that contacts Telegram is `POST /api/v1/setup-wizard/test-publication`, and
+it refuses unless the request sets `confirmed` **and** the stored `bot` and
+`content` checks passed; it then grabs one material from the first enabled source,
+plans and publishes it to the default channel through the existing Content Studio
+posting path. No account is registered and no Telegram limit is bypassed (D-006).
+
+Exposed as `GET /api/v1/setup-wizard`, `POST /api/v1/setup-wizard/steps/{key}/run`
+and `POST /api/v1/setup-wizard/test-publication` (`api/v1/setup_wizard.py`,
+`api/schemas/setup_wizard.py`, DI `get_setup_wizard_service` in `api/deps.py`) and
+rendered by `SetupWizardView.vue` (`/setup-wizard`). Tests
+`tests/test_setup_wizard.py`.
+

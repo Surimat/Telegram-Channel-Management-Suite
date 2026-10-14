@@ -45,6 +45,7 @@ from backend.app.services.promotion_service import PromotionService
 from backend.app.services.reaction_service import ReactionService
 from backend.app.services.session_service import SessionProviderFactory, SessionService
 from backend.app.services.settings_service import SettingsService
+from backend.app.services.setup_wizard import SetupWizardService
 from backend.app.services.update_service import UpdateService
 
 
@@ -293,6 +294,32 @@ def get_destination_service(session: AsyncSession = Depends(get_session)) -> Des
 
 def get_promotion_service(session: AsyncSession = Depends(get_session)) -> PromotionService:
     return PromotionService(session)
+
+
+async def get_setup_wizard_service(
+    session: AsyncSession = Depends(get_session),
+    provider_factory: ProviderFactory = Depends(get_provider_factory),
+    session_provider_factory: SessionProviderFactory = Depends(get_session_provider_factory),
+) -> SetupWizardService:
+    """End-to-end Setup Wizard wired to the real content + posting services (D-128).
+
+    The wizard performs no Telegram action on its own; the injected services are
+    used only by the explicitly-confirmed test publication.
+    """
+    content_service = await get_content_service(
+        session=session, provider_factory=provider_factory
+    )
+    posting_service = await get_posting_service(
+        session=session,
+        provider_factory=provider_factory,
+        session_provider_factory=session_provider_factory,
+    )
+    return SetupWizardService(
+        session,
+        content_service=content_service,
+        posting_service=posting_service,
+        session_provider_factory=session_provider_factory,
+    )
 
 
 def get_update_service(

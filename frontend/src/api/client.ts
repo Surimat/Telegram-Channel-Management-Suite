@@ -1135,6 +1135,43 @@ export interface ChannelOverview {
   channels: ChannelOverviewItem[]
 }
 
+// End-to-end Setup Wizard (D-128): every step is the stored result of a real
+// server check, so a step is `verified` only after it actually passed.
+export interface SetupStep {
+  key: string
+  title: string
+  description: string
+  status: string
+  status_title: string
+  verified: boolean
+  message: string
+  how_to_fix: string
+  route: string
+  verified_at: string | null
+  attempts: number
+}
+
+export interface SetupWizardState {
+  steps: SetupStep[]
+  completed_steps: number
+  total_steps: number
+  ready: boolean
+  progress_percent: number
+  current_step: string
+  test_publication_available: boolean
+  test_publication_hint: string
+  notes: string[]
+}
+
+export interface TestPublicationResult {
+  ok: boolean
+  message: string
+  how_to_fix: string
+  publication_id: string
+  channel_id: string
+  channel_label: string
+}
+
 // Product slice: bot↔channel bindings + channel reaction capabilities.
 export interface Binding {
   id: string
@@ -3034,6 +3071,17 @@ export const api = {
   channel: (id: string) => request<Channel>(`/api/v1/channels/${id}`),
   channelsSummary: () => request<ChannelSummary>('/api/v1/channels/summary'),
   channelOverview: () => request<ChannelOverview>('/api/v1/channels/overview'),
+  setupWizard: () => request<SetupWizardState>('/api/v1/setup-wizard'),
+  runSetupStep: (key: string, accountId = '') =>
+    request<SetupWizardState>(`/api/v1/setup-wizard/steps/${key}/run`, {
+      method: 'POST',
+      body: JSON.stringify({ account_id: accountId }),
+    }),
+  setupTestPublication: (confirmed: boolean) =>
+    request<TestPublicationResult>('/api/v1/setup-wizard/test-publication', {
+      method: 'POST',
+      body: JSON.stringify({ confirmed }),
+    }),
   addChannel: (payload: {
     reference: string
     title?: string

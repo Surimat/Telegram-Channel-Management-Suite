@@ -37,6 +37,7 @@ from backend.app.api.v1 import (
     reactions,
     sessions,
     settings,
+    setup_wizard,
     system,
 )
 
@@ -74,6 +75,7 @@ api_router.include_router(miniapp.router)
 api_router.include_router(mesh.router)
 api_router.include_router(backup.router)
 api_router.include_router(product.router)
+api_router.include_router(setup_wizard.router)
 api_router.include_router(events.router)
 api_router.include_router(queue.router)
 

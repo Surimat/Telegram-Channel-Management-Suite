@@ -3,11 +3,12 @@
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
-**Updated:** 2026-10-13
-**Status:** **v2.0.1 is RELEASED (2026-10-11); `develop` is ahead of it by five
+**Updated:** 2026-10-14
+**Status:** **v2.0.1 is RELEASED (2026-10-11); `develop` is ahead of it by six
 committed, unreleased stages — D-123 (Personal Account Safety), D-124 (Operational
 Module Registry), D-125 (Bot-lifecycle recovery and adoption), D-126 (Content
-Pipeline Consolidation) and D-127 (Channel Overview).** v2.0.1 is a patch over v2.0.0 that adds a
+Pipeline Consolidation), D-127 (Channel Overview) and D-128 (End-to-end Setup
+Wizard).** v2.0.1 is a patch over v2.0.0 that adds a
 keyless-free **image understanding** (vision) path through the **Kilo Gateway** free
 model (D-122), integrated additively through the existing AI Gateway — **opt-in and
 off by default**, best-effort, with an honest failover so a rate limit or outage
@@ -17,9 +18,10 @@ Released via a reviewed `develop → main` PR #24 (merge `21f2d01`), tag
 `v2.0.1`; the Release workflow (run `38133537061`) created the GitHub Release and attached
 the Windows portable ZIP (24979298 bytes, sha256 `fd92bf2c…`) + `.sha256` (D-060).
 `main` HEAD = `21f2d01` (= `origin/main`, tag `v2.0.1`); `develop` is ahead of
-`main` by five committed, unreleased stages (D-123 Personal Account Safety, D-124
+`main` by six committed, unreleased stages (D-123 Personal Account Safety, D-124
 Operational Module Registry, D-125 Bot-lifecycle recovery and adoption, D-126
-Content Pipeline Consolidation, D-127 Channel Overview), and is deliberately not
+Content Pipeline Consolidation, D-127 Channel Overview, D-128 End-to-end Setup
+Wizard), and is deliberately not
 pinned to a SHA because it moves with every commit. Release ZIP scan: no `.session`/TDATA/DB/model. No
 schema change in v2.0.1.
 
@@ -28,10 +30,44 @@ Version string is **2.0.1** across `backend/app/__init__.py`, `pyproject.toml`,
 
 ### Active task — none
 
-**No stage is in progress.** The latest completed stage is Channel Overview
-(D-127), committed on `develop`; the other committed, unreleased stages are D-126
-(Content Pipeline Consolidation), D-125, D-124 and D-123. Release only when the
-owner asks (D-060).
+**No stage is in progress.** The latest completed stage is the **End-to-end Setup
+Wizard** (D-128), committed on `develop`; the other committed, unreleased stages
+are D-127 (Channel Overview), D-126 (Content Pipeline Consolidation), D-125, D-124
+and D-123. Release only when the owner asks (D-060).
+
+### Completed stage — End-to-end Setup Wizard (D-128, committed on `develop`, not released)
+
+**Goal:** one **guided, resumable** flow that takes a fresh install to a working
+existing channel, with a **real** per-step verification. `SetupWizardService`
+(`backend/app/services/setup_wizard.py`) renders the ordered steps `app` →
+`channel` → `bot` → `modules` → `content` → `queue` → `readiness`, **reusing** the
+existing services rather than reimplementing them: `services/setup_checks.py` for
+the local program checks, `ChannelRepository` for the canonical channel identity
+(D-051/D-055) and the authoritative module map (D-124), and the Content Studio
+services only for the explicit test publication. The final readiness gate reads
+`services/channel_overview.py` (D-127), so there is one status system, not two.
+
+**Honesty.** A step's status is the **stored result of a real server check**
+(`SetupWizardStep`, migration
+`20261016_0900_a7b8c9d0e1f2_v2_0_setup_wizard.py`): `verified` = the check ran and
+passed, `pending` = it ran and failed, `unchecked` = it was never run. Opening the
+state endpoint writes nothing and marks nothing done; missing data or an
+un-runnable check reports `unchecked`/`failed`, never `verified`. The wizard itself
+performs no Telegram action; the only publish is
+`POST /api/v1/setup-wizard/test-publication`, which refuses unless the request sets
+`confirmed` **and** the stored `bot` and `content` checks passed, then publishes
+one already-prepared material to the default channel through the existing posting
+path. No account is registered and no Telegram limit is bypassed.
+
+**Wiring.** API `GET /api/v1/setup-wizard`, `POST /api/v1/setup-wizard/steps/{key}/run`,
+`POST /api/v1/setup-wizard/test-publication` (`api/v1/setup_wizard.py`,
+`api/schemas/setup_wizard.py`, DI `get_setup_wizard_service` in `api/deps.py`);
+UI `/setup-wizard` page (`frontend/src/views/SetupWizardView.vue`, router + nav
+wired; types/methods in `frontend/src/api/client.ts`).
+
+**Guard:** `tests/test_setup_wizard.py` (19 tests) locks the ordered steps, the
+never-infer statuses, the module/channel readiness and the confirmed-only test
+publication. No version bump. See `agent/DECISIONS.md` D-128.
 
 ### Completed stage — Channel Overview (D-127, committed on `develop`, not released)
 

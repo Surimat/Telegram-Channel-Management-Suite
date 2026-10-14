@@ -147,6 +147,7 @@ Wording rule — instead of `BOT_TOKEN missing`, write:
 | `/bots` | `BotsView` | 2 |
 | `/channels` | `ChannelsView` | hardening |
 | `/channel-overview` | `ChannelOverviewView` (Сводка по каналам) | v2.0 |
+| `/setup-wizard` | `SetupWizardView` (Мастер настройки) | v2.0 |
 | `/reactions` | `ReactionsView` | 3 |
 | `/sessions` | `SessionsView` (Account Hub + accounts + network routes / proxies) | 4 |
 | `/sources` | `SourcesView` (sources + donor discovery) | 5 |
@@ -677,3 +678,29 @@ The page is a pure aggregate: it never writes a row, queues a job or contacts
 Telegram, so opening it can never change state. The attention rules are honest —
 a `needs_review` item is a `warning`, a ready bot binding is `ok`, and an
 AI-unavailable publication is surfaced rather than hidden.
+
+## 11j. Мастер настройки / End-to-end Setup Wizard (`SetupWizardView.vue`, `/setup-wizard`, D-128)
+
+One guided page takes a fresh install to a working existing channel. It calls
+`GET /api/v1/setup-wizard` and renders, in order, the steps `app` → `channel` →
+`bot` → `modules` → `content` → `queue` → `readiness`, each as a card with a
+status badge, the check's message, a "what to do" hint and a **Проверить шаг**
+button that runs the real server check. A progress bar shows
+`completed_steps / total_steps` and `ready` turns the flow green.
+
+Honesty rules surfaced in the UI:
+
+- opening the page never marks a step done — a step becomes **Проверено** only
+  after the server ran the check and it passed;
+- a step that was never run is **Не проверено**, not "done"; a step that was run
+  and failed is **Ошибка** with the fix hint;
+- a step links to the page where the owner fixes it (`route`), so the wizard
+  reuses the existing sections instead of duplicating them;
+- the final **readiness** step reads the read-only Channel Overview (D-127), so
+  there is one status system, not two.
+
+The page's only action that touches Telegram is the **test publication**, and it
+is disabled until the stored `bot` and `content` checks passed. Pressing it sends
+one already-prepared material to the default channel through the existing Content
+Studio posting path — no account is registered and no Telegram limit is bypassed.
+

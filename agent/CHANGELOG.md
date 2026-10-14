@@ -5,7 +5,32 @@ Dates are ISO-8601.
 
 ---
 
-## [Unreleased] — Channel Overview (D-127) + Content Pipeline Consolidation (D-126) + Bot-lifecycle recovery and adoption (D-125) + Personal Account Safety (D-123) + Operational Module Registry (D-124) (on `develop`, unreleased)
+## [Unreleased] — End-to-end Setup Wizard (D-128) + Channel Overview (D-127) + Content Pipeline Consolidation (D-126) + Bot-lifecycle recovery and adoption (D-125) + Personal Account Safety (D-123) + Operational Module Registry (D-124) (on `develop`, unreleased)
+
+**End-to-end Setup Wizard (D-128, additive, guided).** One resumable flow takes a
+fresh install to a working existing channel, with a **real** per-step
+verification. `SetupWizardService` (`backend/app/services/setup_wizard.py`) renders
+the ordered steps `app` → `channel` → `bot` → `modules` → `content` → `queue` →
+`readiness`, **reusing** the existing services: `services/setup_checks.py` for the
+local program checks, `ChannelRepository` for the canonical channel identity
+(D-051/D-055) and `channel_modules` (D-124), the Content Studio services only for
+the explicit test publication, and `channel_overview` (D-127) for the final
+readiness gate — so there is one status system, not two. A step's status is the
+**stored result of a real server check** (`SetupWizardStep`, migration
+`20261016_0900_a7b8c9d0e1f2_v2_0_setup_wizard.py`): `verified` = the check ran and
+passed, `pending` = it ran and failed, `unchecked` = it was never run. Opening the
+state endpoint writes nothing and marks nothing done; missing data or an
+un-runnable check reports `unchecked`/`failed`, never `verified`. The wizard only
+reads state; the single Telegram action is `POST /api/v1/setup-wizard/test-publication`,
+which refuses unless the request sets `confirmed` **and** the stored `bot` and
+`content` checks passed, then publishes one prepared material to the default
+channel through the existing posting path. Exposed as `GET /api/v1/setup-wizard`,
+`POST /api/v1/setup-wizard/steps/{key}/run` and
+`POST /api/v1/setup-wizard/test-publication` (`api/v1/setup_wizard.py`,
+`api/schemas/setup_wizard.py`, DI `get_setup_wizard_service` in `api/deps.py`) and
+rendered by the new `/setup-wizard` page (`frontend/src/views/SetupWizardView.vue`,
+router + nav wired). Guard: `tests/test_setup_wizard.py` (19 tests). No version
+bump; unreleased.
 
 **Channel Overview (D-127, additive, read-only).** One place now answers “how is
 each channel doing?”. `ChannelOverviewService`

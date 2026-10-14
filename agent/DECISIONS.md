@@ -2984,3 +2984,45 @@ module map instead of reading `channel_modules`, fails this decision.
 
 **Status.** Committed on `develop`; no version bump. Do not cut a release until the
 owner asks (D-060).
+
+## D-128 — 2026-10-14 — The setup wizard guides and verifies; it never infers a step and never acts on Telegram silently — LOCKED
+
+**Context.** A new owner had to assemble a working channel by hand across several
+pages (program checks, channels, bots/bindings, module registry, content sources,
+the durable queue). Nothing told them the ordered path, and nothing verified that
+the whole chain actually works end to end.
+
+**Decision.** Add one **guided, resumable** flow, `SetupWizardService`
+(`backend/app/services/setup_wizard.py`), exposed as `GET /api/v1/setup-wizard`,
+`POST /api/v1/setup-wizard/steps/{key}/run` and
+`POST /api/v1/setup-wizard/test-publication`, and rendered by the `/setup-wizard`
+UI page (`SetupWizardView.vue`). It:
+
+1. **Reuses, never reimplements.** The local program checks come from
+   `services/setup_checks.py`, the channel identity + module map from
+   `ChannelRepository` (D-051/D-055) and `channel_modules` (D-124), the content and
+   posting path from the existing Content Studio services, and the final readiness
+   gate from `channel_overview` (D-127) — so there is one status system, not two.
+2. **Stores status, never infers it.** Each step's status is the persisted result
+   of a real server check (`SetupWizardStep`, migration
+   `20261016_0900_a7b8c9d0e1f2_v2_0_setup_wizard.py`): `verified` = the check ran
+   and passed, `pending` = it ran and failed, `unchecked` = it was never run.
+   Opening the state endpoint writes nothing and marks nothing done; missing data
+   or an un-runnable check reports `unchecked`/`failed`, never `verified`.
+3. **Never acts on Telegram silently.** The wizard only reads state. The single
+   action that contacts Telegram is the test publication, and it refuses unless the
+   request sets `confirmed` **and** the stored `bot` and `content` checks passed;
+   it then publishes one already-prepared material to the default channel through
+   the existing posting path. No account is registered and no Telegram limit is
+   bypassed (D-006).
+
+**Consequences.** `tests/test_setup_wizard.py` (19 tests) locks the ordered step
+keys, the never-infer statuses (a step is `verified` only after a real pass), the
+channel/module readiness derivation and the confirmed-only test publication. A
+future change that marks a step done without running its check, that duplicates a
+status system instead of reading `channel_overview`, or that publishes without the
+explicit confirmation, fails this decision.
+
+**Status.** Committed on `develop`; no version bump. Do not cut a release until the
+owner asks (D-060).
+

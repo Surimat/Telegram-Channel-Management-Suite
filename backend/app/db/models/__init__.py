@@ -202,6 +202,7 @@ from backend.app.db.models.reaction import (
 )
 from backend.app.db.models.session import SessionStatus, UserSession
 from backend.app.db.models.setting import Setting
+from backend.app.db.models.setup_wizard import SetupWizardStep
 from backend.app.db.models.update_state import (
     UPDATE_APPLYING,
     UPDATE_AVAILABLE,
@@ -391,6 +392,7 @@ __all__ = [
     "ScanStatus",
     "SessionStatus",
     "Setting",
+    "SetupWizardStep",
     "SourceType",
     "SourceUserLink",
     "SyncProviderKind",

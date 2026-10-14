@@ -11,6 +11,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/bot-onboarding', name: 'bot-onboarding', component: () => import('@/views/BotOnboardingView.vue') },
   { path: '/channels', name: 'channels', component: () => import('@/views/ChannelsView.vue') },
   { path: '/channel-overview', name: 'channel-overview', component: () => import('@/views/ChannelOverviewView.vue') },
+  { path: '/setup-wizard', name: 'setup-wizard', component: () => import('@/views/SetupWizardView.vue') },
   { path: '/sessions', name: 'sessions', component: () => import('@/views/SessionsView.vue') },
   { path: '/sources', name: 'sources', component: () => import('@/views/SourcesView.vue') },
   { path: '/content', name: 'content', component: () => import('@/views/ContentStudioView.vue') },

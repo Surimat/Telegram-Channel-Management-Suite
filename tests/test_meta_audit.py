@@ -1385,3 +1385,73 @@ def test_next_task_active_task_references_defined_decisions() -> None:
         "agent/NEXT_TASK.md active task cites undefined decision(s): "
         + ", ".join(missing)
     )
+
+
+# ---------------------------------------------------------------------------
+# 10. Post-release memory drift guards (D-128): a finished stage must be
+#     recorded, dated from git, and consistent with the released version.
+# ---------------------------------------------------------------------------
+def _decision_ids(text: str) -> set[str]:
+    return set(re.findall(r"^## (D-\d+) ", text, flags=re.MULTILINE))
+
+
+def test_newest_decision_is_recorded_in_next_task_and_changelog() -> None:
+    """The newest DECISIONS entry must be reflected in the memory it governs.
+
+    A stage is not finished until its decision exists *and* the files a resuming
+    agent reads name it. The D-128 Setup Wizard was implemented, tested and wired
+    while NEXT_TASK.md and CHANGELOG.md still stopped at D-127, so an agent would
+    not learn the stage was done. This pins the newest decision id in all three
+    files together, so a future stage that records its decision but forgets the
+    memory (or vice versa) fails here.
+    """
+    decisions = (REPO_ROOT / "agent" / "DECISIONS.md").read_text(encoding="utf-8")
+    ids = _decision_ids(decisions)
+    assert ids, "agent/DECISIONS.md lost its '## D-nnn' headings"
+    newest = max(ids, key=lambda d: int(d.split("-")[1]))
+    for name in ("agent/NEXT_TASK.md", "agent/CHANGELOG.md"):
+        text = (REPO_ROOT / name).read_text(encoding="utf-8")
+        assert newest in text, (
+            f"{name} does not name the newest decision {newest} recorded in "
+            "agent/DECISIONS.md — the stage's memory was not finished"
+        )
+
+
+#: A release line that *asserts a release date*, as ``(version, date)``:
+#: ``**vX.Y.Z RELEASED (YYYY-MM-DD)`` in the memory files. The date must equal
+#: the tag's own date — the immutable record of when the release shipped.
+_MEMORY_RELEASE_DATE_RE = re.compile(
+    r"\*\*v(\d+\.\d+\.\d+) RELEASED \((\d{4}-\d{2}-\d{2})\)"
+)
+
+
+def test_memory_release_dates_match_their_git_tags() -> None:
+    """A memory release-date line must equal its git tag's date.
+
+    The date guard covers the versioned *headings* in CHANGELOG/checklist/roadmap;
+    the memory files carry the same claim inline ("**v1.8.1 RELEASED (2026-10-08)",
+    "**v1.8.2 RELEASED (2026-10-11)"). Those drifted too, so they are pinned here
+    as well. The match requires the ``RELEASED (date)`` anchor so a bare
+    "released in vX" prose (no date) is left alone. Skipped when git cannot
+    resolve the tag (shallow/tagless checkout).
+    """
+    offenders: list[str] = []
+    for name in ("agent/CURRENT_STATE.md", "agent/NEXT_TASK.md"):
+        text = (REPO_ROOT / name).read_text(encoding="utf-8")
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            for match in _MEMORY_RELEASE_DATE_RE.finditer(line):
+                version, documented = match.group(1), match.group(2)
+                tagged = _git_output(
+                    "for-each-ref",
+                    f"refs/tags/v{version}",
+                    "--format=%(taggerdate:short)",
+                )
+                if tagged and tagged != documented:
+                    offenders.append(
+                        f"{name}:{lineno} v{version} documented {documented}, "
+                        f"tag is {tagged}"
+                    )
+    assert not offenders, (
+        "memory release-date line != tag date:\n" + "\n".join(offenders)
+    )
+

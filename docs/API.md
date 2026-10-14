@@ -644,6 +644,37 @@ it is. Without a user session, session-gated steps are `optional`, not required.
 
 ---
 
+## End-to-end Setup Wizard (v2.0, D-128)
+
+A single, resumable flow from a fresh install to a working existing channel:
+program checks → channel → bots and rights → modules → a minimal content process →
+queue health → a final readiness gate and an explicitly-confirmed test
+publication.
+
+The status of a step is the **stored result of a real server check**: opening the
+page never marks a step done, and a fix requires re-running the step. Missing data
+or an un-runnable check reports `unchecked`/`failed`, never `ready`. The final
+readiness gate reads the read-only Channel Overview (D-127) rather than inventing
+a second status system. The wizard performs no Telegram action on its own; the
+only publish is the explicit test publication.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/setup-wizard` | current wizard state (steps, progress, `ready`) |
+| POST | `/api/v1/setup-wizard/steps/{key}/run` | run one step's real check (optional `account_id`) |
+| POST | `/api/v1/setup-wizard/test-publication` | publish one prepared material (requires `confirmed`) |
+
+Step keys, in order: `app`, `channel`, `bot`, `modules`, `content`, `queue`,
+`readiness`. A step's `status` is one of `verified`, `pending`, `failed`,
+`unchecked`; `verified` means the server ran the check and it passed.
+
+The test publication refuses unless the `confirmed` flag is set **and** the stored
+`bot` and `content` checks passed; it grabs one material from the first enabled
+source, plans and publishes it to the default channel through the existing Content
+Studio posting path, and never registers an account or bypasses a Telegram limit.
+
+---
+
 ## Auto-update (conservative)
 
 Checks GitHub Releases for a newer version and can stage a **verified** file
