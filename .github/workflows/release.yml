@@ -107,7 +107,13 @@ jobs:
             echo "Release $tag already exists — updating assets."
           else
             echo "Creating release $tag."
-            gh release create "$tag" --verify-tag \
+            # A hyphenated tag (e.g. v2.1.0-rc.1) is a release candidate and must
+            # be published as a GitHub Pre-release, never as the Latest release.
+            prerelease=()
+            case "$tag" in
+              *-*) prerelease=(--prerelease) ;;
+            esac
+            gh release create "$tag" --verify-tag "${prerelease[@]}" \
               --title "Telegram Channel Management Suite $tag" \
               --notes-file /tmp/release-notes.md
           fi

@@ -3,39 +3,35 @@
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
-**Updated:** 2026-10-14
-**Status:** **v2.0.1 is RELEASED (2026-10-11); `develop` is ahead of it by six
-committed, unreleased stages — D-123 (Personal Account Safety), D-124 (Operational
-Module Registry), D-125 (Bot-lifecycle recovery and adoption), D-126 (Content
-Pipeline Consolidation), D-127 (Channel Overview) and D-128 (End-to-end Setup
-Wizard).** v2.0.1 is a patch over v2.0.0 that adds a
-keyless-free **image understanding** (vision) path through the **Kilo Gateway** free
-model (D-122), integrated additively through the existing AI Gateway — **opt-in and
-off by default**, best-effort, with an honest failover so a rate limit or outage
-never loses material. Version string is **2.0.1**.
+**Updated:** 2026-10-15
+**Status:** **v2.1.0 is published as a GitHub Pre-release (candidate tag
+`v2.1.0-rc.1`, 2026-10-15); the latest stable release is v2.0.1 (2026-10-11).**
+This candidate ships the six committed stages **D-123…D-128** on top of v2.0.1 —
+D-123 (Personal Account Safety), D-124 (Operational Module Registry), D-125
+(Bot-lifecycle recovery and adoption), D-126 (Content Pipeline Consolidation),
+D-127 (Channel Overview) and D-128 (End-to-end Setup Wizard). It is built from
+`develop` and published as a **pre-release for testing**, not as the Latest
+release; the previous stable `v2.0.1` is unchanged. Version string is **2.1.0**.
+The pre-release candidate itself is recorded as **D-129**.
 
-Released via a reviewed `develop → main` PR #24 (merge `21f2d01`), tag
-`v2.0.1`; the Release workflow (run `38133537061`) created the GitHub Release and attached
-the Windows portable ZIP (24979298 bytes, sha256 `fd92bf2c…`) + `.sha256` (D-060).
-`main` HEAD = `21f2d01` (= `origin/main`, tag `v2.0.1`); `develop` is ahead of
-`main` by six committed, unreleased stages (D-123 Personal Account Safety, D-124
-Operational Module Registry, D-125 Bot-lifecycle recovery and adoption, D-126
-Content Pipeline Consolidation, D-127 Channel Overview, D-128 End-to-end Setup
-Wizard), and is deliberately not
-pinned to a SHA because it moves with every commit. Release ZIP scan: no `.session`/TDATA/DB/model. No
-schema change in v2.0.1.
+Released as a GitHub **Pre-release** from `develop` (tag `v2.1.0-rc.1`); the
+Release workflow builds and attaches the Windows portable ZIP + `.sha256`
+(D-060). `main` HEAD = `21f2d01` (= `origin/main`, tag `v2.0.1`, the latest stable
+release); `develop` carries D-123…D-128 and is deliberately not pinned to a SHA
+because it moves with every commit. Release ZIP scan: no `.session`/TDATA/DB/model.
 
-Version string is **2.0.1** across `backend/app/__init__.py`, `pyproject.toml`,
+Version string is **2.1.0** across `backend/app/__init__.py`, `pyproject.toml`,
 `frontend/package.json` + lock.
 
 ### Active task — none
 
 **No stage is in progress.** The latest completed stage is the **End-to-end Setup
-Wizard** (D-128), committed on `develop`; the other committed, unreleased stages
+Wizard** (D-128), committed on `develop`; the other committed stages
 are D-127 (Channel Overview), D-126 (Content Pipeline Consolidation), D-125, D-124
-and D-123. Release only when the owner asks (D-060).
+and D-123 — all six are shipped in the `v2.1.0-rc.1` pre-release. Release only when
+the owner asks (D-060).
 
-### Completed stage — End-to-end Setup Wizard (D-128, committed on `develop`, not released)
+### Completed stage — End-to-end Setup Wizard (D-128, shipped in the v2.1.0-rc.1 pre-release)
 
 **Goal:** one **guided, resumable** flow that takes a fresh install to a working
 existing channel, with a **real** per-step verification. `SetupWizardService`
@@ -72,7 +68,7 @@ rather than re-grabbed). The full flow was verified end to end offline through t
 real `/setup-wizard` UI (7/7 steps, `ready=true`). No version bump. See
 `agent/DECISIONS.md` D-128.
 
-### Completed stage — Channel Overview (D-127, committed on `develop`, not released)
+### Completed stage — Channel Overview (D-127, shipped in the v2.1.0-rc.1 pre-release)
 
 **Goal:** one **read-only** aggregation that answers “how is each channel doing?”
 across every module. `ChannelOverviewService`
@@ -96,7 +92,7 @@ warning, a ready bot binding is `ok`).
 the section structure and that `/summary` is not shadowed by `/{id}`. No schema
 change, no version bump. See `agent/DECISIONS.md` D-127.
 
-### Completed stage — Content Pipeline Consolidation (D-126, committed `0b65bf3` on `develop`, not released)
+### Completed stage — Content Pipeline Consolidation (D-126, committed `0b65bf3` on `develop`, shipped in the v2.1.0-rc.1 pre-release)
 
 **Goal:** eliminate the duplication between `backend/app/services/content_service.py`
 and `backend/app/services/content_pipeline.py` and leave a **single authoritative
@@ -144,7 +140,7 @@ release until the owner asks (D-060).
 idempotency, translation/target survival, AI-failure recovery, the v1.2 API
 contract and the D-124 module gate. Not released; release only when the owner asks.
 
-### Completed stage — Bot-lifecycle recovery and adoption (D-125, committed `e4002f0` on `develop`, not released)
+### Completed stage — Bot-lifecycle recovery and adoption (D-125, committed `e4002f0` on `develop`, shipped in the v2.1.0-rc.1 pre-release)
 
 - **Recovery service.** `backend/app/services/bot_lifecycle.py`
   (`BotLifecycleService.recover()` → `LifecycleRecoveryResult`) calls the recover
@@ -184,10 +180,10 @@ suite is green. Guards live in
 `tests/test_bot_lifecycle_consolidation.py` (14 tests: duplicate-queue prevention,
 idempotent adoption, crash recovery, and the runtime handler path) and
 `tests/test_bot_factory_api.py::test_deeplink_adopt_registers_then_tokens_and_binds`
-(adopt → token → bind over the real HTTP API). The stage is **not released**;
-release only when the owner asks (D-060).
+(adopt → token → bind over the real HTTP API). The stage is shipped in the
+`v2.1.0-rc.1` pre-release; release only when the owner asks (D-060).
 
-### Completed stage — Personal Account Safety (D-123, on `develop`, not released)
+### Completed stage — Personal Account Safety (D-123, on `develop`, shipped in the v2.1.0-rc.1 pre-release)
 
 A safety stage that makes an accidental action through the owner's personal
 Telegram (MTProto) account impossible unless the owner opts in. Committed on
@@ -198,7 +194,7 @@ gates bulk invitations and a rolling 24-hour per-account ceiling pauses a run
 without overshooting. Additive migration `20261015_0900_f6a7b8c9d0e1`.
 Guards: `tests/test_personal_account_safety.py`. See D-123 in `agent/DECISIONS.md`.
 
-### Completed stage — Operational Module Registry (D-124, on `develop`, not released)
+### Completed stage — Operational Module Registry (D-124, on `develop`, shipped in the v2.1.0-rc.1 pre-release)
 
 **The per-channel module registry is now authoritative server-side.** It was
 partially wired before; disabling a module did not actually stop the work. It is
@@ -228,23 +224,24 @@ D-124 in `agent/DECISIONS.md`.
 
 ### Completed stage ‚Äî v2.0.1 shipped (2026-10-11)
 
-**v2.0.1 is RELEASED (2026-10-11).** It is a patch over v2.0.0 that adds a keyless-free **image understanding** (vision) path through the **Kilo Gateway** free model (D-122), integrated additively through the existing AI Gateway ‚Äî **opt-in and off by default**, best-effort, with an honest failover so a rate limit or outage never loses material. It completes the three agreed v2.0 stages (an **AI Gateway** over many providers including keyless-free **text**, **image generation** and now **image understanding**; browser **web wrappers**; a per-content **Target Language**; **mass bot-to-channel onboarding**; **Content Operations 2.0**; and a **hidden (windowless) background launch**). Additive only ‚Äî no account registration and no Telegram-limit bypass. Version string is **2.0.1**.
+**Previous release — v2.0.1 RELEASED (2026-10-11).** It is a patch over v2.0.0 that adds a keyless-free **image understanding** (vision) path through the **Kilo Gateway** free model (D-122), integrated additively through the existing AI Gateway ‚Äî **opt-in and off by default**, best-effort, with an honest failover so a rate limit or outage never loses material. It completes the three agreed v2.0 stages (an **AI Gateway** over many providers including keyless-free **text**, **image generation** and now **image understanding**; browser **web wrappers**; a per-content **Target Language**; **mass bot-to-channel onboarding**; **Content Operations 2.0**; and a **hidden (windowless) background launch**). Additive only ‚Äî no account registration and no Telegram-limit bypass. Version strings read **2.0.1**.
 
 ### Next stage (factual)
 
-**No stage is in progress.** The Content Pipeline Consolidation above (D-126) is
-already committed on `develop` (`0b65bf3`). Keep the gates green; release
-only when the owner asks (D-060):
-branch/review a `develop → main` PR from the current `develop` tip, tag the merge
-commit, and let the Release workflow attach the Windows portable ZIP. The
-non-blocking optional items (a full automated BotFather Mini App flow, richer
-analytics, additional AI backends, a permissively-licensed TDATA converter, D-070)
-remain, but only if the owner asks.
+**No stage is in progress.** The six stages above (D-123…D-128) are committed on
+`develop` and shipped in the `v2.1.0-rc.1` pre-release. Keep the gates green; for a
+**stable** release (only when the owner asks, D-060): branch/review a
+`develop → main` PR from the current `develop` tip, tag the merge commit, and let
+the Release workflow attach the Windows portable ZIP. The non-blocking optional
+items (a full automated BotFather Mini App flow, richer analytics, additional AI
+backends, a permissively-licensed TDATA converter, D-070) remain, but only if the
+owner asks.
 
-Four committed, unreleased stages are already sitting on `develop` (D-123 Personal
-Account Safety, D-124 Operational Module Registry, D-125 Bot-lifecycle recovery and
-adoption, D-126 Content Pipeline Consolidation); a future release window rolls them
-up together.
+Six committed stages are sitting on `develop` (D-123 Personal Account Safety,
+D-124 Operational Module Registry, D-125 Bot-lifecycle recovery and adoption,
+D-126 Content Pipeline Consolidation, D-127 Channel Overview, D-128 End-to-end
+Setup Wizard) and are rolled up into the `v2.1.0-rc.1` pre-release; a future stable
+release window promotes them.
 
 **v2.0 completion gates added this cycle:** `tests/test_content_pipeline_e2e.py`
 and `tests/test_bot_onboarding_e2e.py` (end-to-end integration), a separate

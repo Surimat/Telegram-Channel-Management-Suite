@@ -421,6 +421,19 @@ verification these stages still need before a release.
 
 ## Release
 
+- **v2.1.0 (2026-10-15):** a **release candidate** (`v2.1.0-rc.1`) published as a
+  GitHub **Pre-release** built from `develop`. It rolls up the six committed stages
+  D-123…D-128: **Personal Account Safety** (personal MTProto accounts opt-in and
+  off by default, bounded invite caps plus a rolling 24-hour per-account ceiling,
+  D-123); the **Operational Module Registry** (the per-channel module map gates
+  every launch path, D-124); **bot-lifecycle recovery and deep-link adoption**
+  (D-125); **Content Pipeline Consolidation** (one content-processing engine,
+  D-126); the read-only **Channel Overview** (D-127); and the end-to-end **Setup
+  Wizard** with real, server-verified per-step checks (D-128). It is a testing
+  pre-release — it is **not** the Latest release and does not replace the stable
+  `v2.0.1`. Migrations
+  `20261015_0900_f6a7b8c9d0e1_v2_0_invite_rate_limit.py` and
+  `20261016_0900_a7b8c9d0e1f2_v2_0_setup_wizard.py`.
 - **v2.0.1 (2026-10-11):** a patch over v2.0.0 that adds the keyless-free
   **image understanding** (vision) path through the **Kilo Gateway** free model
   (`api.kilo.ai/api/gateway`, `dots-studio/dots-3-note-preview:free`), integrated

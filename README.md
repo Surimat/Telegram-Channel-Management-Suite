@@ -9,7 +9,18 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v2.0.1`.** This is a patch over v2.0.0 that adds a
+**Current stable release: `v2.1.0-rc.1` (pre-release release candidate; the
+previous stable release is `v2.0.1`).** This candidate ships the six committed
+stages **D-123…D-128**: **Personal Account Safety** (personal Telegram accounts
+are opt-in and off by default, with bounded invites), the **Operational Module
+Registry** (per-channel modules enforced on every launch path), **bot-lifecycle
+recovery and deep-link adoption**, **one content-processing engine** (the v1.2
+rewrite delegates to the pipeline), a read-only **Channel Overview**, and an
+end-to-end **guided Setup Wizard** with a real, server-verified per-step check.
+It is published as a GitHub **Pre-release** for testing, not as a stable release;
+integrations are labelled honestly and unverified ones are not claimed as
+verified. Version string is `v2.1.0`.
+**v2.0.1** is a patch over v2.0.0 that adds a
 keyless-free **image understanding** (vision) path through the **Kilo Gateway**
 free model (D-122) — **opt-in and off by default**, best-effort, with an honest
 failover so a rate limit or outage never loses material. It completes the three

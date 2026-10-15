@@ -36,6 +36,21 @@ a {
   min-height: 100vh;
 }
 
+/* Demo/test build banner (rendered only when the server reports environment
+   "demo"). Fixed at the top so it is visible on every page. */
+.demo-banner {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--warning);
+  color: #ffffff;
+  text-align: center;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 7px 12px;
+  letter-spacing: 0.2px;
+}
+
 .sidebar {
   width: 240px;
   background: var(--surface);

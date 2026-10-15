@@ -1,13 +1,19 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { RouterView, RouterLink } from 'vue-router'
 import { storeToRefs } from 'pinia'
+import { api } from '@/api/client'
 import { useMiniAppStore } from '@/stores/miniapp'
 import { useHelpStore } from '@/stores/help'
 
 const mini = useMiniAppStore()
 const { inTelegram, loading, authenticated, error, hint, user } = storeToRefs(mini)
 const help = useHelpStore()
+
+// Demo/test build indicator: the server reports its environment, so the SPA
+// shows a banner without needing a build-time flag (the same build runs in
+// production and in the demo kit).
+const isDemo = ref(false)
 
 // Shown at the bottom inside Telegram (mobile-first). The desktop sidebar keeps
 // the full list; the Mini App shows the sections required by the brief.
@@ -27,10 +33,21 @@ const mobileNav = [
 onMounted(() => {
   mini.bootstrap()
   help.load()
+  api
+    .systemInfo()
+    .then((info) => {
+      isDemo.value = info.environment === 'demo'
+    })
+    .catch(() => {
+      isDemo.value = false
+    })
 })
 </script>
 
 <template>
+  <div v-if="isDemo" class="demo-banner">
+    ДЕМО-СБОРКА — тестовые данные. Не для работы с настоящим каналом.
+  </div>
   <div v-if="inTelegram && loading" class="miniapp-gate">
     <div class="card">Проверяем вход через Telegram…</div>
   </div>

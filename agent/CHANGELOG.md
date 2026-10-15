@@ -5,7 +5,24 @@ Dates are ISO-8601.
 
 ---
 
-## [Unreleased] — End-to-end Setup Wizard (D-128) + Channel Overview (D-127) + Content Pipeline Consolidation (D-126) + Bot-lifecycle recovery and adoption (D-125) + Personal Account Safety (D-123) + Operational Module Registry (D-124) (on `develop`, unreleased)
+## [2.1.0] — 2026-10-15
+
+**v2.1.0 release candidate `v2.1.0-rc.1` (GitHub Pre-release).** This candidate
+ships the six committed stages **D-123…D-128** on top of v2.0.1 — Personal
+Account Safety, the Operational Module Registry, bot-lifecycle recovery and
+deep-link adoption, one content-processing engine, Channel Overview and the
+end-to-end Setup Wizard. It is published as a **GitHub Pre-release** for testing
+before a stable release; it is **not** the Latest release and does not overwrite
+`v2.0.1`. Integrations are labelled honestly; unverified ones are not claimed as
+verified. Version strings read **2.1.0**.
+
+**Release candidate (additive, no schema change to `main`).** The build is the
+same code that CI and the meta-audit run; migrations
+`20261015_0900_f6a7b8c9d0e1_v2_0_invite_rate_limit.py` and
+`20261016_0900_a7b8c9d0e1f2_v2_0_setup_wizard.py` are included and applied on
+first launch. Gates: full suite green (**1170 collected — 1166 passed, 4 skipped**),
+`ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit 32/32 (0 missed, 0
+false positives). The pre-release candidate itself is recorded as **D-129**.
 
 **End-to-end Setup Wizard (D-128, additive, guided).** One resumable flow takes a
 fresh install to a working existing channel, with a **real** per-step
@@ -30,7 +47,7 @@ channel through the existing posting path. Exposed as `GET /api/v1/setup-wizard`
 `api/schemas/setup_wizard.py`, DI `get_setup_wizard_service` in `api/deps.py`) and
 rendered by the new `/setup-wizard` page (`frontend/src/views/SetupWizardView.vue`,
 router + nav wired). Guard: `tests/test_setup_wizard.py` (20 tests, including the
-test-publication happy-path regression). No version bump; unreleased.
+test-publication happy-path regression). Included in the v2.1.0-rc.1 candidate.
 
 **Setup-wizard test-publication fix (D-128, defect).** The confirmed test
 publication refused its own prepared material with **HTTP 409**: it re-grabbed its
@@ -61,7 +78,7 @@ router + nav wired). Each area carries an honest attention level
 warning, a ready bot binding is `ok`). It reads the canonical channel identity via
 `ChannelRepository` (D-051/D-055). Guard: `tests/test_channel_overview.py`
 (20 tests) locks the attention levels, the section structure and that `/summary`
-is not shadowed by `/{id}`. No schema change, no version bump; unreleased.
+is not shadowed by `/{id}`. No schema change; included in the v2.1.0-rc.1 candidate.
 
 **Content Pipeline Consolidation (D-126, no behaviour change).** The duplicated
 content **processing** path is removed without adding a feature and without
@@ -80,7 +97,7 @@ processing, `PostingService` owns publish — so no engine is deleted and no sch
 changes. Guard: `tests/test_content_consolidation.py` (7 tests) locks the single
 path, the whole path (grab → process → moderate → plan → tick → publish), restart
 idempotency, translation/target survival, AI-failure recovery, the v1.2 API
-contract and the D-124 module gate. No version bump; unreleased.
+contract and the D-124 module gate. Included in the v2.1.0-rc.1 candidate.
 
 **Bot-lifecycle recovery and adoption (D-125, additive).** One service,
 `backend/app/services/bot_lifecycle.py` (`BotLifecycleService`), now owns the bot
@@ -99,7 +116,7 @@ unknown username is ignored, never searched for or imported (D-070). A
 secret-free “bot created” notification is emitted best-effort. The provider
 seam (`backend/app/providers/aiogram_bot.py`, `backend/app/providers/types.py`)
 surfaces the `managed_bot` update. Additive only: no new account registration and
-no Telegram-limit bypass. No schema change, no version bump; unreleased.
+no Telegram-limit bypass. No schema change; included in the v2.1.0-rc.1 candidate.
 
 - **UI.** `frontend/src/views/BotFactoryView.vue` gains a deep-link
   **confirmation** form (the previously-unused `api.adoptFactoryBot` is now wired):
@@ -134,7 +151,7 @@ ignored. A switched-off module answers a friendly Russian `403` envelope
 (`ChannelModuleDisabledError` → `code/message/hint`), never a 500. The registry
 never replaces a real check: the personal-account safety switches (D-123) and the
 real Telegram permission probe still decide whether an action is actually allowed.
-No schema change, no version bump; unreleased.
+No schema change; included in the v2.1.0-rc.1 candidate.
 
 - Tests: `tests/test_channel_modules.py` (per-channel isolation, no-500, HTTP
   invite resume → 403, bot rights not fabricated, D-123 switch still wins),

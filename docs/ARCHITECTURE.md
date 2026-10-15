@@ -1,6 +1,6 @@
 # Architecture — Telegram Channel Management Suite
 
-Status: **v2.0.1 — see `agent/CURRENT_STATE.md` for the current phase and what exists now.**
+Status: **v2.1.0 (release candidate `v2.1.0-rc.1`) — see `agent/CURRENT_STATE.md` for the current phase and what exists now.**
 This document is the single source of truth for the system architecture.
 If it disagrees with the code, the code wins — then fix this document.
 

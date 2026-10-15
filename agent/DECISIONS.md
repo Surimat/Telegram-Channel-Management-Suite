@@ -3033,3 +3033,41 @@ explicit confirmation, fails this decision.
 **Status.** Committed on `develop`; no version bump. Do not cut a release until the
 owner asks (D-060).
 
+
+## D-129 — 2026-10-15 — The next version is published as a pre-release candidate, never as Latest — LOCKED
+
+**Context.** The six stages D-123…D-128 were committed on `develop` but never
+shipped: `main` still stood at the stable `v2.0.1`. The owner asked to cut the
+next version as a **GitHub Pre-release** built from the actual current `develop`,
+so the real Windows Portable build containing D-123…D-128 can be downloaded and
+tried — while the stable release stays untouched.
+
+**Decision.** Publish the next version as a **release candidate**, `v2.1.0-rc.1`,
+from `develop`:
+
+1. **The candidate tag is hyphenated and annotated**, so the release is
+   unambiguously a pre-release and sorts *above* the stable line without
+   superseding it (`git tag --sort=-v:refname` is the repository's notion of
+   "latest tag", so the candidate is the newest tag while `v2.0.1` remains the
+   latest *stable* release).
+2. **The Release workflow publishes a hyphenated tag as a GitHub Pre-release**
+   (`.github/workflows/release.yml` passes `--prerelease` for a `*-*` tag), so it
+   is never marked Latest and the Windows Portable ZIP + `.sha256` are attached to
+   it automatically (D-060). This is the only workflow change; no production code
+   changed for the release.
+3. **The version string is bumped to `2.1.0`** in `backend/app/__init__.py`,
+   `pyproject.toml`, `frontend/package.json` and `frontend/package-lock.json`
+   (guarded by `test_repo_version_is_consistent`), and every versioned doc/memory
+   file is updated in the same commit so the release-hygiene guards stay green.
+4. **The stable line is not moved.** `main`, `v2.0.1` and its GitHub Release are
+   unchanged; the candidate is built from and tagged on `develop`. A stable
+   release still requires a reviewed `develop → main` PR + tag when the owner asks.
+
+**Consequences.** The owner can download and try the real Windows Portable build of
+D-123…D-128 immediately, and the release-hygiene guards
+(`tests/test_meta_audit.py` §4–§10) keep the current version, the latest tag, the
+latest release narrative, the test counts and the NEXT_TASK active slot from going
+stale. Do not mark the candidate Latest and do not delete the stable release.
+
+**Status.** Locked.
+
