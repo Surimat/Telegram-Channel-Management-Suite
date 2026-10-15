@@ -20,7 +20,7 @@ verified. Version strings read **2.1.0**.
 same code that CI and the meta-audit run; migrations
 `20261015_0900_f6a7b8c9d0e1_v2_0_invite_rate_limit.py` and
 `20261016_0900_a7b8c9d0e1f2_v2_0_setup_wizard.py` are included and applied on
-first launch. Gates: full suite green (**1170 collected — 1166 passed, 4 skipped**),
+first launch. Gates: full suite green (**1166 passed, 4 skipped**; 1170 collected),
 `ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit 32/32 (0 missed, 0
 false positives). The pre-release candidate itself is recorded as **D-129**.
 
