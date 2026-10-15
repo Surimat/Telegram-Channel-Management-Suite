@@ -340,6 +340,85 @@ token is never part of any request or response. Additive migration
 
 ---
 
+## Unreleased on `develop` (D-123…D-128)
+
+Six owner-approved stages are **merged on `develop` and not yet released** (the
+latest tag is `v2.0.1`). They are additive; the version string still reads `2.0.1`
+until the owner decides to release (D-060). Worked sequentially, each with its own
+locked decision and tests. Nothing here is released — do not tag it until asked.
+
+- **D-123 — Personal Account Safety (2026-10-11, unreleased).** Acting through a
+  personal Telegram (MTProto) account is refused unless the owner opts in.
+  `services/personal_account.py` (`PersonalAccountPolicy`) reads two UI-editable
+  switches — `personal_account_enabled` (master, default **OFF**) and
+  `invites_enabled` (mass invitations, default **OFF**) — seeded at startup by
+  `ensure_personal_account_settings()`. The master switch blocks every MTProto
+  provider at one chokepoint (`SessionService.provider_for()`), so the API, the
+  scheduler and background tasks are all refused while the Telegram **Bot API**
+  keeps working. Mass invites require both switches, are capped and **clamped**
+  (`invite_max_total=100`, `invite_max_per_account=20`) and are bounded by a rolling
+  24-hour per-account ceiling (`invite_max_per_day=50`) that **pauses** a job with an
+  honest `wait_until` instead of inviting. A blocked action answers a friendly `403`
+  (`code/message/hint`). Additive migration `20261015_0900_f6a7b8c9d0e1`
+  (`invite_jobs.rate_limited_at`); tests `tests/test_personal_account_safety.py`.
+- **D-124 — Operational Module Registry (2026-10-12, unreleased).** A per-channel
+  module map (`reactions`, `audience`, `invites`, `analytics`) becomes authoritative
+  server-side. `services/channel_modules.py` (`parse_modules`, `effective_modules`,
+  `ChannelModuleGuard`) is enforced in the **services** (not only the router), so
+  the durable reaction tick, the audience scan and the invite resume path are all
+  gated; a blocked durable job is retired honestly (`SKIPPED`/`PAUSED`) without
+  contacting Telegram. An unconfigured channel has every module enabled (no silent
+  lock-out) and an unknown name is ignored. The registry is a *permission to
+  operate*, never a replacement for the D-123 safety gates or the real bot-rights
+  probe. Friendly `403` (`ChannelModuleDisabledError`). Tests
+  `tests/test_channel_modules.py`, `tests/test_reaction_service.py`.
+- **D-125 — Bot Lifecycle Recovery and Adoption (2026-10-12, unreleased).**
+  `services/bot_lifecycle.py` (`BotLifecycleService`) owns recovery and adoption
+  over the two existing durable queues. `recover()` re-queues rows left mid-flight
+  by a crash (`BotFactoryService.recover()`: `RUNNING → QUEUED`;
+  `BotOnboardingService.recover()`: `VERIFYING → QUEUED`) and runs once at startup,
+  so a queue cannot hang forever. `adopt_managed_bot()` routes a Telegram
+  `managed_bot` update (the official `t.me/newbot` deep link) into its Bot Factory
+  batch **idempotently** and settles the batch once no candidate remains waiting; a
+  duplicate update is a no-op and a username that is not already a candidate is
+  ignored — never searched for or imported (D-070). Tests
+  `tests/test_bot_lifecycle_consolidation.py`. No schema change.
+- **D-126 — Content Pipeline Consolidation (2026-10-13, unreleased).**
+  `ContentPipelineService` (`services/content_pipeline.py`) is the single
+  content-processing engine: the v1.2 `ContentService.rewrite_preview`/
+  `apply_rewrite` **delegate** to it and map `PipelineError → ContentError`, so the
+  v1.2 `/rewrite` contract is unchanged and the two engines cannot diverge.
+  `ContentService` stays the receive/dedup owner (`grab`) and `PostingService` stays
+  the publish owner. No feature change, no schema change. Tests
+  `tests/test_content_consolidation.py`.
+- **D-127 — Channel Overview (2026-10-13, unreleased).**
+  `services/channel_overview.py` (`ChannelOverviewService`) is a **read-only**
+  aggregation of a channel's real state across every module (identity/verification,
+  module map, bindings, audience, invites, bots, content, pipeline, queue) with an
+  honest attention level (`ok`/`info`/`warning`/`error`). It reads through the
+  existing repositories and the D-124 module map, never writes a row, queues a job
+  or calls Telegram. `GET /api/v1/channels/overview`, UI `/channel-overview`
+  (`ChannelOverviewView.vue`). No schema change; tests `tests/test_channel_overview.py`.
+- **D-128 — End-to-End Setup Wizard (2026-10-14, unreleased).**
+  `services/setup_wizard.py` (`SetupWizardService`) is a **guided, resumable** flow
+  from a fresh install to a working channel. A step's status is the **stored** result
+  of a real server check (`SetupWizardStep`), never inferred: `verified` means the
+  check ran and passed, `pending` means it failed, `unchecked` means it never ran.
+  Opening the state endpoint writes nothing. The only step that contacts Telegram is
+  `POST /api/v1/setup-wizard/test-publication`, which refuses unless the request sets
+  `confirmed` **and** the stored `bot` and `content` checks passed; it then publishes
+  one material through the existing Content Studio posting path. Exposed as
+  `GET /api/v1/setup-wizard`, `POST /api/v1/setup-wizard/steps/{key}/run` and
+  `POST /api/v1/setup-wizard/test-publication`; UI `/setup-wizard`
+  (`SetupWizardView.vue`). Additive migration
+  `20261016_0900_a7b8c9d0e1f2_v2_0_setup_wizard.py`; tests
+  `tests/test_setup_wizard.py`.
+
+See `docs/REAL_TELEGRAM_VERIFICATION_CHECKLIST.md` for the isolated-environment
+verification these stages still need before a release.
+
+---
+
 ## Release
 
 - **v2.0.1 (2026-10-11):** a patch over v2.0.0 that adds the keyless-free

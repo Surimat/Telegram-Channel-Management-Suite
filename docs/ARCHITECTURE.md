@@ -1270,6 +1270,84 @@ own `?startchannel` link are exposed. UI `BotOnboardingView.vue`; additive
 migration `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`; tests
 `tests/test_bot_onboarding.py`, `tests/test_bot_onboarding_e2e.py`.
 
+## 29a. Personal Account Safety (v2.1, D-123, unreleased on `develop`)
+
+A personal Telegram (MTProto) account acts *as the owner*, so an accidental login
+or an unattended bulk invite is indistinguishable from the owner's own action.
+`services/personal_account.py` makes that impossible unless the owner opts in.
+
+- **Two switches, off by default.** `PersonalAccountPolicy` reads
+  `personal_account_enabled` (master) and `invites_enabled` (mass invitations) from
+  the settings store; both default to **off** and are seeded at startup by
+  `ensure_personal_account_settings()` (a missing row is created with its safe
+  default; an existing owner choice is never overwritten). `_as_bool` treats
+  anything that is not an explicit truthy token as `False`, so an unset or mistyped
+  switch can never read as enabled.
+- **One chokepoint.** Every MTProto provider is built through
+  `SessionService.provider_for()`, which calls `require_enabled()` **before**
+  constructing a provider — so the API, the scheduler and background tasks are all
+  refused while the master switch is off. The Telegram **Bot API** never consults
+  the policy, so ordinary bot work continues. `SessionService` gates
+  `start_auth`/`confirm_code`/`confirm_password`/import and identity checks, and
+  refuses **before** writing a DB row or a session file, so a blocked operation
+  leaves no orphan account or artifact.
+- **Bounded, clamped, and rate-limited over time.** Invite caps
+  (`invite_max_total=100`, `invite_max_per_account=20`) are non-zero and
+  `_effective_caps()` only *lowers* a value to the configured ceiling — a caller can
+  never raise it. Because a per-job cap resets with every job, a rolling
+  **24-hour per-account** ceiling (`invite_max_per_day=50`) is enforced at execution
+  time across all jobs; reaching it **pauses** the job with an honest `wait_until`
+  (and `rate_limited_at` on the job) instead of inviting. `require_invites_enabled()`
+  requires **both** switches and gates `preview`, `create_job` and `start_job`, and
+  `run_tick` pauses a running job when the switch is turned off mid-run. The suite
+  never bypasses Telegram FloodWait/limits (D-006) and never promises a safe invite
+  count.
+- **Friendly, secret-free failure.** `PersonalAccountDisabledError` is mapped by a
+  global handler (`api/errors.py`) to a `403` envelope (`code`/`message`/`hint`)
+  naming the switch to turn on — never a stack trace or a secret.
+- **Honest auth UX.** The login code is often delivered inside the app, not by SMS;
+  `AuthStartResult.code_delivery` reports where the code was actually sent and the
+  UI never promises an SMS.
+
+Additive migration `20261015_0900_f6a7b8c9d0e1` (display-only
+`invite_jobs.rate_limited_at`); settings/UI wiring in `SettingsView.vue`; tests
+`tests/test_personal_account_safety.py`. See `docs/SECURITY.md` for the policy
+rationale.
+
+## 29b. Bot Lifecycle Recovery and Adoption (v2.1, D-125, unreleased on `develop`)
+
+The Bot Factory creation queue (`QUEUED → RUNNING → SUCCESS|FAILED`, `QueueState`)
+and the Bot Onboarding queue (`QUEUED → VERIFYING → READY|FAILED`,
+`OnboardingStatus`) are both durable and one-operation-per-tick, but each tracks its
+in-flight row separately. `run_queue_once` only ever picks a `QUEUED` row, so a row
+left mid-flight by a crash would hang the queue forever. Separately, a bot created
+through the official deep link (`t.me/newbot`) is announced to the manager bot by a
+`managed_bot` update, but nothing routed that creation into its batch.
+
+`services/bot_lifecycle.py` (`BotLifecycleService`) owns both halves:
+
+1. **Recovery.** `recover()` calls the recover method each queue already owns
+   (`BotFactoryService.recover()`: `RUNNING → QUEUED`, and it also resets a
+   `CREATING` candidate to `READY`; `BotOnboardingService.recover()`:
+   `VERIFYING → QUEUED`) and returns a `LifecycleRecoveryResult` with the counts per
+   stage. The lifespan hook in `backend/app/main.py` runs it once on startup, so no
+   lifecycle stage is left unrecovered after a restart. Re-running is safe: creation
+   and adoption are idempotent, so a partial external effect is never duplicated.
+2. **Adoption.** `adopt_managed_bot()` delegates to
+   `BotFactoryService.adopt_managed_bot(telegram_id, username=…, title=…)`
+   (`AdoptionResult`) and `ManagerBotRuntime._handle_managed_bot()` calls it for a
+   `managed_bot` update; `_settle_if_complete()` then marks the deep-link batch
+   `COMPLETED` once no candidate remains waiting (idempotently). Adoption is
+   **idempotent** — a duplicate update is a no-op (no duplicate `Bot` row, no
+   inflated counter; `created_count` is reconciled from the real rows) — and it only
+   adopts an id Telegram announced for a username already in the batch. A username
+   that is not a candidate is ignored, **never searched for, downloaded or imported**
+   (D-070). A secret-free "bot created" notification is emitted best-effort.
+
+No schema change; the enqueue-unless-active helper in
+`services/queue_service.py` prevents double-queuing. Tests
+`tests/test_bot_lifecycle_consolidation.py`.
+
 ## 30. Channel Overview (v2.0, D-127)
 
 `services/channel_overview.py` (`ChannelOverviewService`) is a **read-only**
