@@ -14,11 +14,13 @@ D-127 (Channel Overview) and D-128 (End-to-end Setup Wizard). It is built from
 release; the previous stable `v2.0.1` is unchanged. Version string is **2.1.0**.
 The pre-release candidate itself is recorded as **D-129**.
 
-Released as a GitHub **Pre-release** from `develop` (tag `v2.1.0-rc.1`); the
-Release workflow builds and attaches the Windows portable ZIP + `.sha256`
-(D-060). `main` HEAD = `21f2d01` (= `origin/main`, tag `v2.0.1`, the latest stable
-release); `develop` carries D-123…D-128 and is deliberately not pinned to a SHA
-because it moves with every commit. Release ZIP scan: no `.session`/TDATA/DB/model.
+Released as a GitHub **Pre-release** from `develop` (tag `v2.1.0-rc.1`, commit
+`a148d7a`); the Release workflow (run `38720969696`) created the Pre-release and
+attached the Windows portable ZIP (**25 032 877 bytes**, sha256
+`8f9624a1…6644`) + `.sha256`. `main` HEAD = `21f2d01` (= `origin/main`, tag
+`v2.0.1`, the latest stable release); `develop` carries D-123…D-128 and is
+deliberately not pinned to a SHA because it moves with every commit. Release ZIP
+scan: no `.session`/TDATA/DB/model.
 
 Version string is **2.1.0** across `backend/app/__init__.py`, `pyproject.toml`,
 `frontend/package.json` + lock.
