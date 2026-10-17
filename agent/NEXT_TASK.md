@@ -3,7 +3,7 @@
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
-**Updated:** 2026-10-15
+**Updated:** 2026-10-17
 **Status:** **v2.1.0 is published as a GitHub Pre-release (candidate tag
 `v2.1.0-rc.1`, 2026-10-15); the latest stable release is v2.0.1 (2026-10-11).**
 This candidate ships the six committed stages **D-123…D-128** on top of v2.0.1 —
@@ -13,6 +13,12 @@ D-127 (Channel Overview) and D-128 (End-to-end Setup Wizard). It is built from
 `develop` and published as a **pre-release for testing**, not as the Latest
 release; the previous stable `v2.0.1` is unchanged. Version string is **2.1.0**.
 The pre-release candidate itself is recorded as **D-129**.
+
+After the candidate, **D-130 (Reaction Manager channel-post fix)** was committed
+on `develop`: the manager bot now reads real `channel_post` updates, stores the
+post with its real Telegram `chat_id`/`message_id` and plans the reactions; a post
+without a real message id is never queued. Additive; it changes no version, tag,
+PR or release.
 
 Released as a GitHub **Pre-release** from `develop` (tag `v2.1.0-rc.1`, commit
 `a148d7a`); the Release workflow (run `38720969696`) created the Pre-release and
@@ -27,11 +33,12 @@ Version string is **2.1.0** across `backend/app/__init__.py`, `pyproject.toml`,
 
 ### Active task — none
 
-**No stage is in progress.** The latest completed stage is the **End-to-end Setup
-Wizard** (D-128), committed on `develop`; the other committed stages
-are D-127 (Channel Overview), D-126 (Content Pipeline Consolidation), D-125, D-124
-and D-123 — all six are shipped in the `v2.1.0-rc.1` pre-release. Release only when
-the owner asks (D-060).
+**No stage is in progress.** The latest completed stage is the **Reaction Manager
+channel-post source** (D-130), committed on `develop` after the `v2.1.0-rc.1`
+pre-release; before it, the **End-to-end Setup Wizard** (D-128), Channel Overview
+(D-127), Content Pipeline Consolidation (D-126), D-125, D-124 and D-123 — the six
+D-123…D-128 stages are shipped in the `v2.1.0-rc.1` pre-release and D-130 is not
+in any tag. Release only when the owner asks (D-060).
 
 ### Completed stage — End-to-end Setup Wizard (D-128, shipped in the v2.1.0-rc.1 pre-release)
 

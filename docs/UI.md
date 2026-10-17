@@ -356,6 +356,13 @@ Four owner-facing additions, all RU-first and consistent with §1–§4:
   table now has a **«Бот и реакции»** column: connect a bot to the channel, verify
   its rights, and probe the channel's available reactions — all **bot-only**, no
   user account required.
+- **Reactions page** (`ReactionsView.vue`, `/reactions`): profiles, rules,
+  simulation and the reaction queue. New channel posts arrive **automatically**
+  when the manager bot is a channel administrator (Telegram `channel_post`), so
+  the owner normally does nothing. The manual «Добавить пост и запланировать»
+  control needs the real Telegram message number; without it the app explains why
+  a reaction is impossible instead of silently queuing a job that cannot run
+  (D-130).
 - **Permission probe** (Sessions page): pick an account + a channel and press
   "Проверить доступ". The result is a plain-language status (`ok`, `partial`,
   `no_access`, `auth_required`, `admin_required`, `privacy_restricted`,

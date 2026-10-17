@@ -3071,3 +3071,48 @@ stale. Do not mark the candidate Latest and do not delete the stable release.
 
 **Status.** Locked.
 
+
+## D-130 — 2026-10-17 — The Reaction Manager reads real channel posts; a post with no Telegram id is never queued — LOCKED
+
+**Context.** The Reaction Manager never reacted to a real channel post, and an
+owner report confirmed it: automatic reactions did not appear. Diagnosis (no code
+change) found the pipeline had **no post source**. The manager-bot runtime parsed
+only `message`/`callback`/`managed_bot`, the aiogram provider had no
+`channel_post` branch (a real post arrived as `kind="other"` and was dropped),
+`get_updates` never requested `channel_post`, and the manual API path stored a
+post with no Telegram `message_id`, so its reaction job could never execute. The
+owner then asked to implement the fix.
+
+**Decision.** Give the pipeline a real post source, and make the manual path
+honest, without changing the version, tag, PRs or releases:
+
+1. **Read `channel_post`.** The manager bot is a channel administrator, so
+   Telegram delivers each new post as a `channel_post` update
+   (`edited_channel_post` on edit). The provider parses it into
+   `BotUpdate(kind="channel_post")` carrying the real chat id, message id, text
+   and username, and the poller passes `MANAGER_ALLOWED_UPDATES` as
+   `allowed_updates` — without `channel_post` Telegram never sends posts.
+2. **Store real ids and plan.** `ManagerBotRuntime` dispatches the kind to
+   `ReactionService.ingest_channel_post()`, which resolves the channel in the
+   registry, requires the `reactions` module (D-124), stores the post with its
+   real `chat_id`/`telegram_message_id` and plans the reaction jobs. Redelivery
+   is a no-op (deduplicated by chat id + message id); an edit refreshes the text
+   but never re-plans.
+3. **No unrunnable job.** `plan_post()` refuses a post without a real message id
+   and `ingest_post()` stores it as `skipped`; the Reactions UI requires the
+   message number and explains why a reaction is impossible. A Telegram refusal
+   fails the job with its real message instead of failing silently.
+4. **No bypass.** This adds no account registration and no Telegram-limit
+   bypass; a reaction still requires the reacting bots to be channel admins with
+   the reaction right.
+
+**Consequences.** Reactions now appear on real channel posts as soon as the
+manager bot is a channel administrator and the channel's `reactions` module is
+on. The fix is additive and lives on `develop`; `v2.1.0-rc.1` and the stable
+`v2.0.1` are unchanged. Guards: `tests/test_reaction_channel_post_repro.py`
+(15 tests) and `tests/test_reaction_channel_post_pipeline.py` (12 tests, the
+end-to-end path plus a negative control that fails if the `channel_post` branch
+is removed). A read-only plain-language check lives at `scripts/check_reactions.py`.
+
+**Status.** Locked.
+

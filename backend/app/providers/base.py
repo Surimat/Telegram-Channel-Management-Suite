@@ -94,12 +94,18 @@ class TelegramBotProvider(Protocol):
         ...
 
     async def get_updates(
-        self, *, offset: int | None = None, timeout: int = 0
+        self,
+        *,
+        offset: int | None = None,
+        timeout: int = 0,
+        allowed_updates: list[str] | None = None,
     ) -> list[BotUpdate]:
         """Return pending incoming updates for the manager bot.
 
         ``offset`` acknowledges everything with a smaller ``update_id``. A
-        ``timeout`` of 0 returns immediately (used by the short-poll loop). The
+        ``timeout`` of 0 returns immediately (used by the short-poll loop).
+        ``allowed_updates`` restricts which update types Telegram delivers
+        (D-130) — without it the poller never receives ``channel_post``. The
         fake provider serves updates from a scripted queue so the whole command
         loop can be tested without Telegram.
         """

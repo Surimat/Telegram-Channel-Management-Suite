@@ -31,6 +31,7 @@ const simSeed = ref<number | ''>(42)
 const simulating = ref(false)
 const channels = ref<Channel[]>([])
 const ingestChannelId = ref('')
+const ingestMessageId = ref<number | ''>('')
 
 // Profile editor state.
 const editingProfile = ref<Partial<ReactionProfile> | null>(null)
@@ -200,11 +201,20 @@ async function runSimulation() {
 }
 
 async function ingestPost() {
+  const raw = ingestMessageId.value
+  const messageId = raw === '' ? null : Number(raw)
+  if (messageId === null || Number.isNaN(messageId)) {
+    error.value =
+      'Укажите номер сообщения в Telegram — без него реакцию поставить нельзя. ' +
+      'Новые посты канала добавляются автоматически, если менеджер-бот — администратор канала.'
+    return
+  }
   try {
     await api.createPost({
       text: simText.value,
       plan: true,
       registry_channel_id: ingestChannelId.value || undefined,
+      telegram_message_id: messageId,
     })
     notice.value = 'Пост добавлен, реакции запланированы.'
     await load()
@@ -539,6 +549,15 @@ onMounted(load)
             </option>
           </select>
         </label>
+        <label class="field">
+          <span>Номер сообщения в Telegram (обязателен для реакции)</span>
+          <input type="number" v-model.number="ingestMessageId" placeholder="например 1234" />
+        </label>
+        <p class="muted">
+          Новые посты канала добавляются автоматически, если менеджер-бот — администратор
+          канала. Ручное добавление нужно только для уже опубликованного поста, и ему
+          требуется настоящий номер сообщения.
+        </p>
         <div class="actions">
           <button class="primary" :disabled="simulating" @click="runSimulation">
             {{ simulating ? 'Считаем…' : 'Запустить симуляцию' }}

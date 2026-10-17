@@ -340,12 +340,15 @@ token is never part of any request or response. Additive migration
 
 ---
 
-## Unreleased on `develop` (D-123…D-128)
+## Unreleased on `develop` (D-123…D-128, D-130)
 
-Six owner-approved stages are **merged on `develop` and not yet released** (the
-latest tag is `v2.0.1`). They are additive; the version string still reads `2.0.1`
-until the owner decides to release (D-060). Worked sequentially, each with its own
-locked decision and tests. Nothing here is released — do not tag it until asked.
+Seven owner-approved stages are **merged on `develop` and not in a stable
+release**. The six stages D-123…D-128 are shipped in the `v2.1.0-rc.1`
+**pre-release** (2026-10-15); the latest **stable** tag remains `v2.0.1`. D-130
+(the Reaction Manager channel-post fix) came after the pre-release and is not in
+any tag yet. They are additive; the version string reads `2.1.0` until the owner
+decides to cut a stable release (D-060). Worked sequentially, each with its own
+locked decision and tests. Do not tag anything here until asked.
 
 - **D-123 — Personal Account Safety (2026-10-11, unreleased).** Acting through a
   personal Telegram (MTProto) account is refused unless the owner opts in.
@@ -413,6 +416,16 @@ locked decision and tests. Nothing here is released — do not tag it until aske
   (`SetupWizardView.vue`). Additive migration
   `20261016_0900_a7b8c9d0e1f2_v2_0_setup_wizard.py`; tests
   `tests/test_setup_wizard.py`.
+- **D-130 — Reaction Manager channel-post source (2026-10-17, unreleased).**
+  The manager bot now reads real **`channel_post`** / `edited_channel_post`
+  updates (`MANAGER_ALLOWED_UPDATES` is passed as `allowed_updates`), and
+  `ReactionService.ingest_channel_post()` stores the post with its real Telegram
+  `chat_id`/`message_id` and plans the reaction jobs (idempotently; an edit never
+  re-plans). `plan_post()` refuses a post without a real message id, so the manual
+  UI path can no longer create an unrunnable job. Additive; no version, tag, PR or
+  release change. Tests `tests/test_reaction_channel_post_repro.py` (15) and
+  `tests/test_reaction_channel_post_pipeline.py` (12, end-to-end + a negative
+  control); plain-language check `scripts/check_reactions.py`.
 
 See `docs/REAL_TELEGRAM_VERIFICATION_CHECKLIST.md` for the isolated-environment
 verification these stages still need before a release.

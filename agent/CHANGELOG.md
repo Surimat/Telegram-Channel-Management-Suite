@@ -187,6 +187,38 @@ Gates: `pytest` full suite green, `ruff` clean, `vue-tsc` + `npm run build` clea
 meta-audit 32/32 (0 false positives). Guards:
 `tests/test_personal_account_safety.py`.
 
+### Reaction Manager — real channel-post source (D-130, on `develop` after `v2.1.0-rc.1`)
+
+**Fixed a real defect.** The Reaction Manager never reacted to a real channel
+post: nothing fed the pipeline. The manager-bot runtime parsed only
+`message`/`callback`/`managed_bot`, the aiogram provider had no `channel_post`
+branch, `get_updates` never requested `channel_post`, and the manual API path
+stored a post with no Telegram `message_id`, so its job could never execute.
+
+- **Channel-post source.** `providers/aiogram_bot.py` parses
+  `channel_post`/`edited_channel_post` into `BotUpdate(kind="channel_post")`
+  carrying the real chat id, message id, text and username;
+  `MANAGER_ALLOWED_UPDATES` is passed as `allowed_updates` (without
+  `channel_post` Telegram never sends posts).
+- **Ingestion.** `manager/runtime.py` dispatches the kind to the new
+  `ReactionService.ingest_channel_post()`, which resolves the channel in the
+  registry, requires the `reactions` module (D-124), stores the post with its
+  real ids and plans the reaction jobs. Redelivery is a no-op (deduplicated by
+  chat id + message id); an edit refreshes the text without re-planning.
+- **Honest manual path.** `plan_post()` refuses a post without a real message id
+  and `ingest_post()` stores it as `skipped`; the Reactions UI requires the
+  message number and explains why a reaction is impossible.
+- **Errors.** A Telegram refusal fails the job with its real message instead of
+  failing silently.
+
+Additive; no version, tag, PR or release changed. Guards:
+`tests/test_reaction_channel_post_repro.py` (15 tests) and
+`tests/test_reaction_channel_post_pipeline.py` (12 tests, end-to-end plus a
+negative control that fails if the `channel_post` branch is removed). A
+read-only plain-language check lives at `scripts/check_reactions.py`. Gates on
+`develop`: `pytest` **1197 collected, 1185 passed, 12 skipped**, `ruff` clean,
+`vue-tsc` + `npm run build` clean.
+
 ## [2.0.1] — 2026-10-11
 
 **v2.0.1 — keyless free image understanding via the Kilo Gateway (D-122, patch

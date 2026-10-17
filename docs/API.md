@@ -268,6 +268,15 @@ A rule carries: `category`, `keywords`, `phrases`, `regexes`, `exclusions`,
 Each reaction job stores `post_id`, `bot_id`, `reaction`, `scheduled_at`,
 `status`, `attempts`, `error`, `completed_at` — and a matching durable queue row.
 
+Real channel posts arrive **without an API call**: when the manager bot is a
+channel administrator, Telegram delivers each new post as a `channel_post`
+update, the runtime stores it with its real numeric `chat_id`/`message_id` and
+plans the reactions (D-130). `POST /api/v1/reactions/posts` is the manual path for
+an already-published post and now requires the real Telegram
+`telegram_message_id`; a post without it is stored as `skipped` and
+`POST /api/v1/reactions/posts/{id}/plan` refuses it (409), because a reaction
+cannot be placed without a real message id.
+
 ---
 
 ## AI classifier (optional) — PHASE 7 (implemented)

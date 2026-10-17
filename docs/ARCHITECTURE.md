@@ -409,6 +409,29 @@ The scheduler **never fires all reactions at once** — it spreads them using th
 configured randomized delays. Jobs are persisted so an app restart can resume
 pending work (`pending`/`scheduled` rows are re-hydrated on startup).
 
+### 9a. Channel-post source (v2.1, D-130)
+
+A reaction needs a real post: Telegram's numeric `chat_id` and `message_id`.
+The manager bot is a channel administrator, so Telegram delivers every new post
+as a **`channel_post`** update (`edited_channel_post` on edit). The chain is:
+
+- `providers/aiogram_bot.py` parses `channel_post`/`edited_channel_post` into a
+  `BotUpdate(kind="channel_post")` carrying the real chat id, message id, text
+  and chat username.
+- `providers/types.py` declares `MANAGER_ALLOWED_UPDATES`; the poller passes it
+  as `allowed_updates`, because without `channel_post` Telegram never sends
+  posts.
+- `manager/runtime.py` dispatches that kind to
+  `ReactionService.ingest_channel_post()`.
+- `services/reaction_service.py` resolves the channel in the registry, requires
+  the `reactions` module (D-124), stores the post with its real ids and plans the
+  reaction jobs. Redelivery is a no-op (deduplicated by chat id + message id);
+  an edit refreshes the stored text but never re-plans.
+
+A post typed into the UI cannot carry a real message id, so `plan_post()` refuses
+it and `ingest_post()` stores it as `skipped` — an honest "nothing to react to"
+instead of a job that always fails.
+
 ---
 
 ## 10. Reliability principles

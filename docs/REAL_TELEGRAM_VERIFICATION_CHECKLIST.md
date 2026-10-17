@@ -2,7 +2,7 @@
 
 > **This is a plan, not an automated test. Do not run it as part of CI and do not
 > run it against a production channel.** It is a manual, owner-supervised
-> checklist for verifying the six unreleased stages (D-123…D-128, see
+> checklist for verifying the seven unreleased stages (D-123…D-128 and D-130, see
 > `docs/ROADMAP.md`) against a **throwaway** Telegram test bot and a **private**
 > test channel, before a release is cut (D-060).
 >
@@ -86,6 +86,17 @@
 | 6.1 | Read-only | Open `/channel-overview` for the test channel. | It renders identity, module map and per-area sections. |
 | 6.2 | No side effects | Watch the job queue and logs while opening the page repeatedly. | **No** row written, **no** job queued, **no** Telegram call. |
 | 6.3 | Honest attention | Put one item into `needs_review`. | The section shows `warning`, not `ok`; a ready binding shows `ok`. |
+
+## 6a. D-130 — Reaction Manager channel-post source
+
+| # | Check | How | Expected |
+|---|-------|-----|----------|
+| 6a.1 | Real post is seen | Make the **manager bot** an administrator of the private test channel, then publish a post there. | Within one poll interval the post appears in the reaction queue with its real message id. |
+| 6a.2 | Reactions are planned | Open `/reactions` and look at the queue for that post. | Reaction jobs are planned for the channel's reacting bots (no manual step). |
+| 6a.3 | Redelivery is a no-op | Wait for a repeat `channel_post` delivery (or re-send the same update). | No duplicate post and no duplicate job. |
+| 6a.4 | Edit does not re-plan | Edit the post text. | The stored text refreshes; **no** new reaction jobs are planned. |
+| 6a.5 | Manual path is honest | On `/reactions`, use «Добавить пост и запланировать» **without** a message number. | Refused with a clear reason; no unrunnable job is created. |
+| 6a.6 | Refusal is honest | Remove the reacting bots' reaction right, then let a job run. | The job fails with Telegram's real reason; nothing is silently swallowed. |
 
 ## 7. D-128 — End-to-end Setup Wizard
 
