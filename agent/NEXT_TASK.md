@@ -18,7 +18,10 @@ After the candidate, **D-130 (Reaction Manager channel-post fix)** was committed
 on `develop`: the manager bot now reads real `channel_post` updates, stores the
 post with its real Telegram `chat_id`/`message_id` and plans the reactions; a post
 without a real message id is never queued. Additive; it changes no version, tag,
-PR or release.
+PR or release. The owner verifies it by double-clicking `CHECK_REACTIONS.bat` in
+the portable build — plain-language PASS/FAIL, runs on the embedded Python, no
+terminal and nothing to install. `.github/workflows/portable-dev.yml` builds that
+test ZIP from `develop` and uploads it as an Actions artifact (no tag/PR/release).
 
 Released as a GitHub **Pre-release** from `develop` (tag `v2.1.0-rc.1`, commit
 `a148d7a`); the Release workflow (run `38720969696`) created the Pre-release and

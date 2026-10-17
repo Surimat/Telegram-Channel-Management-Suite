@@ -10,6 +10,10 @@
     source .venv/bin/activate
     python scripts/check_reactions.py
 
+В портативной сборке для Windows это делает файл CHECK_REACTIONS.bat —
+достаточно дважды щёлкнуть по нему, встроенный Python уже внутри. Скрипт
+использует только библиотеки самой программы (pytest не нужен).
+
 Что проверяется (по шагам):
 
   1. Обновление от Telegram вида ``channel_post`` разбирается (а не теряется).
@@ -28,6 +32,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import importlib
 import json
 import os
 import sys
@@ -179,16 +184,49 @@ def _fake_factory(provider: FakeTelegramBotProvider):  # type: ignore[no-untyped
     return _make
 
 
-async def main() -> int:
-    from pytest import MonkeyPatch
+_UNSET = object()
 
+
+class _Patcher:
+    """A tiny stand-in for pytest's MonkeyPatch so this check runs anywhere.
+
+    The portable Windows build ships only the application's runtime
+    dependencies — ``pytest`` is not among them — so the check cannot depend on
+    pytest just to patch a few module attributes for the duration of the run.
+    The API mirrors the small subset used here (``setattr`` / ``undo``).
+    """
+
+    def __init__(self) -> None:
+        self._undo: list = []
+
+    def setattr(self, target, name, value=_UNSET):  # type: ignore[no-untyped-def]
+        if isinstance(target, str):
+            module_name, _, attr = target.rpartition(".")
+            module = importlib.import_module(module_name)
+            # Mirrors pytest: for the string form the second positional is the
+            # value (``setattr("pkg.mod.attr", value)``).
+            if value is _UNSET:
+                value = name
+            name = attr
+        else:
+            module = target
+        self._undo.append((module, name, getattr(module, name)))
+        setattr(module, name, value)
+
+    def undo(self) -> None:
+        for module, name, original in reversed(self._undo):
+            setattr(module, name, original)
+        self._undo.clear()
+
+
+async def main() -> int:
     problems = 0
     print("=" * 70)
     print("Проверка Reaction Manager (D-130): реакции на посты канала")
     print("=" * 70)
 
     await init_models()
-    monkeypatch = MonkeyPatch()
+    monkeypatch = _Patcher()
     monkeypatch.setattr(
         "backend.app.services.reaction_service.open_secret",
         lambda value, settings: "123456:FAKE-TOKEN",
@@ -316,9 +354,28 @@ async def main() -> int:
 
     monkeypatch.undo()
     print("\n" + "=" * 70)
+    print("КОРОТКО ДЛЯ ВЛАДЕЛЬЦА")
+    print("=" * 70)
+    print("Что проверено: путь реакции целиком — без интернета и без настоящего")
+    print("Telegram (используется встроенный тестовый «двойник» Telegram):")
+    print("  • пост канала принимается и разбирается (channel_post);")
+    print("  • у Telegram запрашиваются именно посты канала;")
+    print("  • пост сохраняется с настоящими id канала и сообщения;")
+    print("  • создаётся задание реакции и задание в очереди;")
+    print("  • планировщик ставит реакцию на нужный пост;")
+    print("  • повтор не создаёт второй пост;")
+    print("  • ошибка Telegram честно помечает задание «failed».")
     if problems:
-        print(f"ИТОГ: НЕ ПРОЙДЕНО — проблем: {problems}")
+        print("")
+        print(f"Что сломано: {problems} проверок не прошло (строки [ОШИБКА] выше).")
+        print("Причина: исправление D-130 (приём постов канала) не применено")
+        print("или повреждено в этой сборке.")
+        print("ИТОГ: НЕ ПРОЙДЕНО")
         return 1
+    print("")
+    print("Что работает: всё перечисленное — реакции на посты канала работают.")
+    print("Что сломано: ничего.")
+    print("Причина: приём постов канала (channel_post) включён — исправление D-130.")
     print("ИТОГ: ПРОЙДЕНО — реакции на посты канала работают целиком")
     return 0
 

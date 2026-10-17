@@ -216,8 +216,20 @@ Additive; no version, tag, PR or release changed. Guards:
 `tests/test_reaction_channel_post_pipeline.py` (12 tests, end-to-end plus a
 negative control that fails if the `channel_post` branch is removed). A
 read-only plain-language check lives at `scripts/check_reactions.py`. Gates on
-`develop`: `pytest` **1197 collected, 1185 passed, 12 skipped**, `ruff` clean,
+`develop`: `pytest` **1200 collected, 1188 passed, 12 skipped**, `ruff` clean,
 `vue-tsc` + `npm run build` clean.
+
+**Owner-facing Windows check (no terminal, no install).** The non-programmer
+owner runs the check by double-clicking `CHECK_REACTIONS.bat` in the portable
+ZIP; it calls `scripts/check_reactions.py` with the **embedded** Windows Python
+and prints a plain-language summary ("что проверено / что работает / что сломано
+/ причина", ending in `ИТОГ: ПРОЙДЕНО`). The script no longer imports `pytest`
+(the embedded runtime does not ship it) — it carries a tiny local patcher — and
+`scripts/build_portable.sh` bundles the script and the launcher.
+`tests/test_reaction_windows_check.py` guards both (runs the check with
+`import pytest` blocked, asserts no module-level pytest import, asserts the
+bundling). `.github/workflows/portable-dev.yml` builds the test ZIP from
+`develop` and uploads it as an Actions artifact — no tag, PR or release.
 
 ## [2.0.1] — 2026-10-11
 

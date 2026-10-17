@@ -1,0 +1,104 @@
+name: Portable (develop test build)
+
+# Test-only portable build for the `develop` branch.
+#
+# It produces the self-contained Windows portable ZIP (embedded CPython +
+# win_amd64 wheels + built SPA) INCLUDING the D-130 fix and the double-click
+# CHECK_REACTIONS.bat, and uploads it as a downloadable GitHub Actions artifact
+# on this workflow's permanent run page.
+#
+# It deliberately does NOT create a tag, a PR, a GitHub Release, and never
+# touches `main` or the version number. It is a test build only.
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portable-dev-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  portable-dev:
+    name: Windows portable test build (develop)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements-dev.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build portable distribution (embedded Windows runtime)
+        env:
+          PYTHON: python
+        run: bash scripts/build_portable.sh dist/TCMS
+
+      - name: Verify the reaction check is bundled
+        run: |
+          set -euo pipefail
+          test -f dist/TCMS/CHECK_REACTIONS.bat
+          test -f dist/TCMS/app/scripts/check_reactions.py
+          test -f dist/TCMS/run.bat
+          test -f dist/TCMS/runtime/python.exe
+          echo "CHECK_REACTIONS.bat, scripts/check_reactions.py and runtime/python.exe are present"
+
+      - name: Verify the diagnostic file runs (staged layout)
+        env:
+          PYTHONPATH: ${{ github.workspace }}/dist/TCMS/app
+        run: |
+          set -o pipefail
+          python dist/TCMS/app/scripts/check_reactions.py 2>&1 | tee /tmp/check.log
+          grep -q "ИТОГ: ПРОЙДЕНО" /tmp/check.log
+
+      - name: Verify the application starts from the staged layout
+        env:
+          PYTHONPATH: ${{ github.workspace }}/dist/TCMS/app
+        run: |
+          set -euo pipefail
+          python -m backend.app.main > /tmp/app.log 2>&1 &
+          app_pid=$!
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8000/health > /tmp/health.json 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          cat /tmp/health.json
+          grep -q '"status"' /tmp/health.json
+          kill "$app_pid" 2>/dev/null || true
+
+      - name: Assert no secrets or personal data in the archive
+        run: |
+          set -euo pipefail
+          if unzip -l dist/*.zip | grep -E '\.env$|\.session$|\.db$|tdata/|sessions/.*\.session'; then
+            echo "::error::the archive contains a forbidden secret/data file"
+            exit 1
+          fi
+          echo "No .env / .session / .db / tdata files in the archive"
+
+      - name: Show artifact
+        run: ls -lh dist/*.zip dist/*.sha256
+
+      - name: Upload test-build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-portable-develop
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error

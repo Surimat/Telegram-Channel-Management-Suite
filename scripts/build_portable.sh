@@ -121,6 +121,14 @@ cp "$ROOT/portable/open_when_ready.ps1" "$OUT/open_when_ready.ps1"
 cp "$ROOT/portable/README.txt" "$OUT/README.txt"
 cp "$ROOT/.env.example" "$OUT/.env.example"
 
+# 4a. Ship the double-click Reaction Manager check (D-130): the owner runs
+#     CHECK_REACTIONS.bat, which calls the bundled scripts/check_reactions.py
+#     with the embedded Python. Read-only, no network, no real reactions.
+echo "==> Staging reaction check (CHECK_REACTIONS.bat)"
+mkdir -p "$OUT/app/scripts"
+cp "$ROOT/scripts/check_reactions.py" "$OUT/app/scripts/check_reactions.py"
+cp "$ROOT/portable/CHECK_REACTIONS.bat" "$OUT/CHECK_REACTIONS.bat"
+
 # 4b. Copy the ready-to-run DEMO kit (D-123..D-128). The owner double-clicks
 #     demo/DEMO_run.bat to try the program with seeded test data, no setup.
 mkdir -p "$OUT/demo"
