@@ -18,8 +18,8 @@ from backend.app.providers.base import TelegramBotProvider
 from backend.app.providers.errors import TelegramProviderError
 from backend.app.providers.registry import build_bot_provider
 from backend.app.services.backup_backends.base import (
-    ProviderInfo,
-    ProviderStatus,
+    BackupProviderInfo,
+    BackupProviderStatus,
     UploadResult,
 )
 
@@ -58,21 +58,21 @@ class TelegramBackupProvider:
             token, provider_name=self._bot.provider_name, settings=self.settings
         )
 
-    def check(self) -> ProviderStatus:
+    def check(self) -> BackupProviderStatus:
         if not self.chat_id:
-            return ProviderStatus(
+            return BackupProviderStatus(
                 configured=False,
                 reachable=False,
                 message="Не указан чат для резервных копий.",
             )
         provider = self._provider()
         if provider is None:
-            return ProviderStatus(
+            return BackupProviderStatus(
                 configured=False,
                 reachable=False,
                 message="Управляющий бот недоступен для отправки копии.",
             )
-        return ProviderStatus(
+        return BackupProviderStatus(
             configured=True,
             reachable=True,
             message="Чат для резервных копий настроен.",
@@ -118,8 +118,8 @@ class TelegramBackupProvider:
         return UploadResult(ok=True, message="Копия отправлена в Telegram.", location=self.chat_id)
 
 
-def info() -> ProviderInfo:
-    return ProviderInfo(
+def info() -> BackupProviderInfo:
+    return BackupProviderInfo(
         name="telegram",
         title="Telegram (через бота)",
         requires_credentials=False,

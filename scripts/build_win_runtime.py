@@ -45,7 +45,7 @@ def _log(msg: str) -> None:
 
 def _download(url: str, dest: Path) -> None:
     _log(f"Downloading {url}")
-    with urllib.request.urlopen(url) as resp, open(dest, "wb") as fh:  # noqa: S310
+    with urllib.request.urlopen(url) as resp, open(dest, "wb") as fh:
         shutil.copyfileobj(resp, fh)
 
 

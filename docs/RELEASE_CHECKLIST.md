@@ -78,7 +78,7 @@ D-123…D-128; the only change for the release itself is the version string
 | Gate | v2.1.0-rc.1 | Notes |
 | --- | --- | --- |
 | Version consistency (`2.1.0` everywhere) | ✅ | app / pyproject / frontend / lock (`test_repo_version_is_consistent`) |
-| Tests (`pytest` / `ruff`) | ✅ | full suite **1170 collected, green**; `ruff` clean |
+| Tests (`pytest` / `ruff`) | ✅ | full suite **1206 collected, 1194 passed, 12 skipped, green**; `ruff` clean |
 | Frontend build | ✅ | `vue-tsc --noEmit` + `npm run build` clean |
 | Meta-audit engine (runtime) | ✅ | 32 total, 32 detected, 0 missed, 0 false positives |
 | Browser CI (`browser-tests`) | ✅ | real Playwright/Chromium; 0 skipped |

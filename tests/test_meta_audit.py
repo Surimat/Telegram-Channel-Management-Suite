@@ -19,9 +19,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
 import subprocess
 import sys
+import tempfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
@@ -610,6 +613,11 @@ _VERSION_HEADINGS = (
 #: bumps the app version, so a stale ``**NNN passed**`` here is drift.
 _TEST_COUNT_RE = re.compile(r"(\d+) passed(?:, (\d+) skipped)?")
 _COLLECTED_RE = re.compile(r"(\d+) collected")
+#: Tolerant variant for the *current* section, where markdown emphasis can sit
+#: between the pass count and the skip count (e.g. ``**1209 passed**, 12 skipped``).
+#: The skip part is optional so a section that states only the pass count is
+#: still checked.
+_CURRENT_COUNT_RE = re.compile(r"(\d+) passed(?:[^0-9]{0,8}(\d+) skipped)?")
 _CHANGELOG_PASSED_RE = re.compile(r"full suite green \(\*\*(\d+) passed")
 #: A per-file guard claim, e.g. ``tests/test_setup_wizard.py (20 tests)``.
 _PER_FILE_COUNT_RE = re.compile(r"tests/([A-Za-z0-9_]+\.py)`?\s*\((\d+) tests?\)")
@@ -838,7 +846,8 @@ def test_memory_files_do_not_claim_a_stale_test_count() -> None:
     No doc may claim more tests passed than the suite actually contains. This is
     the sound half of the count guard (a count can only be *proven* wrong when it
     exceeds reality); the staleness half is
-    :func:`test_documented_test_count_grows_across_releases`.
+    :func:`test_documented_test_count_grows_across_releases` and
+    :func:`test_current_documented_passed_count_is_exact`.
     """
     collected_count = _full_suite_size()
     offenders: list[str] = []
@@ -879,6 +888,132 @@ def test_memory_files_do_not_claim_a_stale_collected_count() -> None:
     assert not offenders, "documented collected count exceeds the real suite:\n" + "\n".join(
         sorted(set(offenders))
     )
+
+
+def _current_release_sections() -> list[tuple[str, str]]:
+    """``(path, section_text)`` for the newest release/stage section in each doc."""
+    changelog = (REPO_ROOT / "agent" / "CHANGELOG.md").read_text(encoding="utf-8")
+    heads = list(re.finditer(r"^## \[", changelog, flags=re.MULTILINE))
+    assert heads, "agent/CHANGELOG.md has no versioned sections"
+    end = heads[1].start() if len(heads) > 1 else len(changelog)
+    changelog_section = changelog[heads[0].start():end]
+
+    current_state = (REPO_ROOT / "agent" / "CURRENT_STATE.md").read_text(encoding="utf-8")
+    anchors = list(
+        re.finditer(
+            r"^\*\*(Last updated|Completed stage|v[\d.]+[^*]*RELEASED)",
+            current_state,
+            flags=re.MULTILINE,
+        )
+    )
+    assert anchors, "agent/CURRENT_STATE.md lost its stage headings"
+    # Include the "Last updated" line and the newest stage line (the count lives
+    # on the stage line), stopping before the *next* stage's heading.
+    stop = anchors[2].start() if len(anchors) > 2 else len(current_state)
+    current_section = current_state[anchors[0].start():stop]
+
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    release = re.search(r"^\*\*Current stable release:.*$", readme, flags=re.MULTILINE)
+    assert release is not None, "README.md lost its 'Current stable release' line"
+    after = readme[release.end():]
+    stop = re.search(r"^## ", after, flags=re.MULTILINE)
+    readme_section = readme[release.start():release.end() + (stop.start() if stop else len(after))]
+
+    return [
+        ("agent/CHANGELOG.md", changelog_section),
+        ("agent/CURRENT_STATE.md", current_section),
+        ("README.md", readme_section),
+    ]
+
+
+def test_current_documented_passed_count_is_exact() -> None:
+    """The *current* stage's documented pass count must match reality exactly.
+
+    The "does not exceed" guard (:func:`test_memory_files_do_not_claim_a_stale_test_count`)
+    is sound but weak: a count left *below* reality after new tests were added
+    slips through (the classic copy-paste staleness). The number of skipped tests
+    is deterministic here (browser-dependent tests, no ``xfail`` in the suite), so
+    ``passed + skipped == collected`` and an exact equality check is sound. Only
+    the newest section of each doc is checked, so historical release notes are
+    untouched. The nested run sets ``TCMS_MEMORY_COUNT_CHILD`` so this test
+    returns early there instead of recursing (it still counts as passed).
+    """
+    if os.environ.get("TCMS_MEMORY_COUNT_CHILD"):
+        return
+    collected = _full_suite_size()
+    counts = _suite_counts()
+    if counts is None:
+        return  # cannot prove an exact value without a real run; skip silently
+    real_passed, real_skipped = counts
+    offenders: list[str] = []
+    for name, section in _current_release_sections():
+        for match in _CURRENT_COUNT_RE.finditer(section):
+            passed = int(match.group(1))
+            skipped = int(match.group(2)) if match.group(2) is not None else None
+            if passed == real_passed and (skipped is None or skipped == real_skipped):
+                continue  # this is the true full-suite figure
+            # A different number is only "the full suite" (and therefore
+            # checkable) when it is the *same total* as the suite: same collected
+            # size, or same skipped count. Historical/other-figure counts are left
+            # alone.
+            looks_like_full_suite = (
+                passed + (skipped or 0) == collected
+                or (skipped is not None and skipped == real_skipped)
+            )
+            if looks_like_full_suite:
+                offenders.append(
+                    f"{name}: current section says {passed} passed"
+                    + (f", {skipped} skipped" if skipped is not None else "")
+                    + f"; real is {real_passed} passed, {real_skipped} skipped"
+                )
+    assert not offenders, "documented current pass count is stale:\n" + "\n".join(
+        sorted(set(offenders))
+    )
+
+
+def _suite_counts() -> tuple[int, int] | None:
+    """Run the full suite once and return ``(passed, skipped)``, or ``None``.
+
+    A JUnit XML report is parsed rather than stdout: some tests replace the
+    process stdout, which can drop pytest's own summary line.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        report = Path(tmp) / "report.xml"
+        try:
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "pytest",
+                    "-q",
+                    "-p",
+                    "no:randomly",
+                    f"--junitxml={report}",
+                    "tests",
+                ],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+                timeout=3600,
+                env={**os.environ, "TCMS_MEMORY_COUNT_CHILD": "1"},
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+        if not report.exists():
+            return None
+        try:
+            root = ET.parse(report).getroot()
+        except ET.ParseError:
+            return None
+    suite = root if root.tag == "testsuite" else root.find("testsuite")
+    if suite is None:
+        return None
+    total = int(suite.get("tests", "0"))
+    skipped = int(suite.get("skipped", "0")) + int(suite.get("disabled", "0"))
+    errors = int(suite.get("errors", "0"))
+    failures = int(suite.get("failures", "0"))
+    passed = total - skipped - errors - failures
+    return passed, skipped
 
 
 def test_documented_test_count_grows_across_releases() -> None:

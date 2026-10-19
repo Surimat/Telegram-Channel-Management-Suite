@@ -9,13 +9,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request
 
 from backend.app.api.deps import get_manager_service
-from backend.app.api.schemas.manager import (
-    ManagerStatusOut,
-    NotificationCategoryOut,
-    NotificationSettingsIn,
-    NotificationSettingsOut,
-)
-from backend.app.manager.bus import CATEGORIES, CATEGORY_LABELS, get_notification_bus
+from backend.app.api.schemas.manager import ManagerStatusOut
+from backend.app.manager.bus import get_notification_bus
 from backend.app.manager.service import ManagerBotService, manager_bot_status_label
 
 router = APIRouter(prefix="/manager", tags=["manager"])
@@ -55,39 +50,4 @@ async def manager_status(
             else "Добавьте управляющего бота в разделе «Боты», чтобы получать "
             "уведомления и управлять системой из Telegram."
         ),
-    )
-
-
-@router.get("/notifications", response_model=NotificationSettingsOut)
-async def notification_settings(
-    service: ManagerBotService = Depends(get_manager_service),
-) -> NotificationSettingsOut:
-    data = await service.notification_settings()
-    return NotificationSettingsOut(
-        enabled=bool(data["enabled"]),
-        categories=[
-            NotificationCategoryOut(
-                key=c, label=CATEGORY_LABELS[c], enabled=bool(data["categories"][c])
-            )
-            for c in CATEGORIES
-        ],
-    )
-
-
-@router.put("/notifications", response_model=NotificationSettingsOut)
-async def update_notification_settings(
-    payload: NotificationSettingsIn,
-    service: ManagerBotService = Depends(get_manager_service),
-) -> NotificationSettingsOut:
-    data = await service.update_notification_settings(
-        enabled=payload.enabled, categories=payload.categories
-    )
-    return NotificationSettingsOut(
-        enabled=bool(data["enabled"]),
-        categories=[
-            NotificationCategoryOut(
-                key=c, label=CATEGORY_LABELS[c], enabled=bool(data["categories"][c])
-            )
-            for c in CATEGORIES
-        ],
     )

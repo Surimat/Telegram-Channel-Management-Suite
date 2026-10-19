@@ -485,11 +485,12 @@ are never returned.
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/api/v1/manager/status` | connected/runtime state, admin count, pending notifications |
-| GET | `/api/v1/manager/notifications` | master switch + per-category toggles |
-| PUT | `/api/v1/manager/notifications` | update toggles (`enabled`, `categories`) |
 
 Admin IDs come from `MANAGER_BOT_ADMIN_IDS` (comma-separated). The runtime polls
 the manager bot only while the app runs and never blocks the durable scheduler.
+
+> Notification toggles are **not** a separate manager surface: they live at
+> `GET/PUT /api/v1/notifications/settings` (the Notification Center, D-132).
 
 ---
 

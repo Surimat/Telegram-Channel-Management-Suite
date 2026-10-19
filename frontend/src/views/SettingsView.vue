@@ -49,7 +49,7 @@ async function load() {
     loading.value = false
   }
   try {
-    notifications.value = await api.managerNotifications()
+    notifications.value = await api.notificationSettings()
   } catch {
     notifications.value = null
   }
@@ -98,7 +98,7 @@ async function saveNotifications() {
   const categories: Record<string, boolean> = {}
   for (const c of notifications.value.categories) categories[c.key] = c.enabled
   try {
-    notifications.value = await api.managerUpdateNotifications({
+    notifications.value = await api.updateNotificationSettings({
       enabled: notifications.value.enabled,
       categories,
     })

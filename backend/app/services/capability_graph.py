@@ -78,7 +78,7 @@ STATE_ORDER = {
 
 
 @dataclass(frozen=True)
-class Capability:
+class GraphCapability:
     """A product capability and the requirements it depends on.
 
     ``implemented`` guards against a *false* ``available``: a capability that is
@@ -105,14 +105,14 @@ class Capability:
 
 
 # The registry. Keys are stable identifiers used by the UI and the wizard.
-CAPABILITIES: tuple[Capability, ...] = (
-    Capability(
+CAPABILITIES: tuple[GraphCapability, ...] = (
+    GraphCapability(
         key="reaction",
         title_ru="Автоматические реакции",
         title_en="Automatic reactions",
         requires=(REQ_CHANNEL, REQ_BOT_BINDING),
     ),
-    Capability(
+    GraphCapability(
         key="bot_only_analytics",
         title_ru="Аналитика без аккаунта",
         title_en="Analytics without an account",
@@ -120,26 +120,26 @@ CAPABILITIES: tuple[Capability, ...] = (
         note_ru="Историческая информация недоступна этому типу подключения.",
         note_en="Historical information is unavailable for this connection type.",
     ),
-    Capability(
+    GraphCapability(
         key="audience_scan",
         title_ru="Сбор аудитории",
         title_en="Audience scanning",
         requires=(REQ_CHANNEL, REQ_USER_SESSION),
     ),
-    Capability(
+    GraphCapability(
         key="direct_invite",
         title_ru="Приглашения напрямую",
         title_en="Direct invites",
         requires=(REQ_CHANNEL, REQ_USER_SESSION, REQ_PERMISSION),
         minimal=(REQ_CHANNEL, REQ_USER_SESSION),
     ),
-    Capability(
+    GraphCapability(
         key="content_publish",
         title_ru="Публикация контента",
         title_en="Content publishing",
         requires=(REQ_CHANNEL, REQ_POSTING_CAPABILITY),
     ),
-    Capability(
+    GraphCapability(
         key="media_conversion",
         title_ru="Обработка медиа",
         title_en="Media processing",
@@ -151,13 +151,13 @@ CAPABILITIES: tuple[Capability, ...] = (
             "implemented in this version."
         ),
     ),
-    Capability(
+    GraphCapability(
         key="ai_ru",
         title_ru="Мини-ИИ (русский)",
         title_en="Mini-AI (Russian)",
         requires=(REQ_ENCODER_MODEL,),
     ),
-    Capability(
+    GraphCapability(
         key="bot_factory",
         title_ru="Фабрика ботов",
         title_en="Bot Factory",
@@ -171,7 +171,7 @@ CAPABILITIES: tuple[Capability, ...] = (
             "Tokens are stored encrypted and never shown."
         ),
     ),
-    Capability(
+    GraphCapability(
         key="bot_onboarding",
         title_ru="Массовое подключение ботов к каналу",
         title_en="Mass bot-to-channel connection",
@@ -185,7 +185,7 @@ CAPABILITIES: tuple[Capability, ...] = (
             "links. Rights are verified for real; tokens are never shown."
         ),
     ),
-    Capability(
+    GraphCapability(
         key="donor_discovery",
         title_ru="Поиск источников",
         title_en="Donor discovery",
@@ -193,7 +193,7 @@ CAPABILITIES: tuple[Capability, ...] = (
         note_ru="Ручной ввод доступен всегда.",
         note_en="Manual entry is always available.",
     ),
-    Capability(
+    GraphCapability(
         key="config_sync",
         title_ru="Синхронизация конфигурации",
         title_en="Configuration sync",
@@ -207,7 +207,7 @@ CAPABILITIES: tuple[Capability, ...] = (
             "files and the database are never synced."
         ),
     ),
-    Capability(
+    GraphCapability(
         key="ai_gateway",
         title_ru="Шлюз ИИ (провайдеры и Web-обёртки)",
         title_en="AI Gateway (providers and Web wrappers)",
@@ -276,7 +276,7 @@ def state_label(state: str, language: str | None = None) -> str:
 
 
 def evaluate(
-    capability: Capability, context: dict[str, bool], language: str | None = None
+    capability: GraphCapability, context: dict[str, bool], language: str | None = None
 ) -> CapabilityState:
     """Evaluate one capability against a requirement context.
 
@@ -471,8 +471,8 @@ __all__ = [
     "STATE_NOT_IMPLEMENTED",
     "STATE_PARTIAL",
     "STATE_UNAVAILABLE",
-    "Capability",
     "CapabilityState",
+    "GraphCapability",
     "context_from_db",
     "evaluate",
     "evaluate_all",

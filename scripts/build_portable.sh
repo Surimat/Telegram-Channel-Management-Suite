@@ -129,6 +129,14 @@ mkdir -p "$OUT/app/scripts"
 cp "$ROOT/scripts/check_reactions.py" "$OUT/app/scripts/check_reactions.py"
 cp "$ROOT/portable/CHECK_REACTIONS.bat" "$OUT/CHECK_REACTIONS.bat"
 
+# 4a-2. Ship the one-step data-preserving updater (D-131): the owner extracts a
+#       newer build and double-clicks UPDATE_EXISTING.bat. It backs up the old
+#       data/secrets, replaces only the code, migrates the DB and verifies the
+#       result — no manual copying, no .env edits, no re-entering tokens.
+echo "==> Staging data-preserving updater (UPDATE_EXISTING.bat)"
+cp "$ROOT/scripts/update_existing.py" "$OUT/app/scripts/update_existing.py"
+cp "$ROOT/portable/UPDATE_EXISTING.bat" "$OUT/UPDATE_EXISTING.bat"
+
 # 4b. Copy the ready-to-run DEMO kit (D-123..D-128). The owner double-clicks
 #     demo/DEMO_run.bat to try the program with seeded test data, no setup.
 mkdir -p "$OUT/demo"

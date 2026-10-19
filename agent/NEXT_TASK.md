@@ -3,7 +3,7 @@
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
-**Updated:** 2026-10-17
+**Updated:** 2026-10-19
 **Status:** **v2.1.0 is published as a GitHub Pre-release (candidate tag
 `v2.1.0-rc.1`, 2026-10-15); the latest stable release is v2.0.1 (2026-10-11).**
 This candidate ships the six committed stages **D-123…D-128** on top of v2.0.1 —
@@ -23,6 +23,12 @@ the portable build — plain-language PASS/FAIL, runs on the embedded Python, no
 terminal and nothing to install. `.github/workflows/portable-dev.yml` builds that
 test ZIP from `develop` and uploads it as an Actions artifact (no tag/PR/release).
 
+After that, **D-131 (one-step data-preserving updater)** was committed on
+`develop`: the owner updates an existing install by double-clicking
+`UPDATE_EXISTING.bat`, which backs up `.env`/`data`/`sessions`/`app`, replaces
+only the code, applies pending migrations and verifies that every secret still
+decrypts. Additive; it changes no version, tag, PR or release.
+
 Released as a GitHub **Pre-release** from `develop` (tag `v2.1.0-rc.1`, commit
 `a148d7a`); the Release workflow (run `38720969696`) created the Pre-release and
 attached the Windows portable ZIP (**25 032 877 bytes**, sha256
@@ -36,12 +42,75 @@ Version string is **2.1.0** across `backend/app/__init__.py`, `pyproject.toml`,
 
 ### Active task — none
 
-**No stage is in progress.** The latest completed stage is the **Reaction Manager
-channel-post source** (D-130), committed on `develop` after the `v2.1.0-rc.1`
-pre-release; before it, the **End-to-end Setup Wizard** (D-128), Channel Overview
-(D-127), Content Pipeline Consolidation (D-126), D-125, D-124 and D-123 — the six
-D-123…D-128 stages are shipped in the `v2.1.0-rc.1` pre-release and D-130 is not
-in any tag. Release only when the owner asks (D-060).
+**No stage is in progress.** The latest completed stage is the **stub/fake sweep
+(D-133)**, which finished the **architecture consolidation** (D-132) by making
+every production class name unique across `backend/app` and deleting the one dead
+test double that shipped in production; before it, the **one-step
+data-preserving updater** (D-131), the **Reaction Manager channel-post source**
+(D-130), and the six D-123…D-128 stages shipped in the `v2.1.0-rc.1`
+pre-release. D-130…D-133 are not in any tag. Release only when the owner asks
+(D-060).
+
+### Completed stage — stub/fake sweep (D-133, on `develop` after D-132)
+
+**Goal:** remove every remaining fake/stub/duplicate from production code. The
+last ambiguous duplicate class names were made unique — `DeliveryResult` →
+`NotificationDeliveryResult` (notification destinations), `Capability` →
+`GraphCapability` (capability graph), and `ProviderInfo`/`ProviderStatus`/
+`HttpResponse` → `BackupProviderInfo`/`BackupProviderStatus`/`BackupHttpResponse`
+(`services/backup_backends/`) — and the dead in-memory `RecordingDestination`
+test double was deleted from `services/notification_destinations.py`. No
+behaviour, version, tag, PR or release changed. Guards extended:
+`tests/test_architecture_consolidation.py` (14 tests) now also asserts no
+duplicate class name anywhere in `backend/app`, no `Mock`/`Stub`/`Dummy` class,
+no TODO/FIXME marker and no placeholder (`pass`/`...`-only) production function
+body, plus a proof test that injects each defect. See `agent/DECISIONS.md` D-133.
+
+### Completed stage — architecture consolidation (D-132, on `develop` after `v2.1.0-rc.1`)
+
+**Goal:** remove confirmed duplication so each concept has one name and one
+implementation. Two notification-settings endpoints existed
+(`/api/v1/manager/notifications` and `/api/v1/notifications/settings`); the
+legacy manager surface and its schemas were removed. Four class names were
+defined in two modules and were renamed on the more specific side:
+`CapabilityOut`→`ChannelCapabilityOut`, `BindResultOut`→`BotBindOut`/
+`ProxyBindOut`, `DeliveryResult`→`DestinationDeliveryResult`,
+`ConsistencyReport`→`ConsistencyReportOut`. The duplicate frontend
+`NotificationSettings`/`NotificationCategory` interfaces were removed and
+`SettingsView` uses the canonical notification methods. No behaviour, version,
+tag, PR or release changed. Guards:
+`tests/test_architecture_consolidation.py`.
+
+### Completed stage — one-step data-preserving updater (D-131, on `develop` after `v2.1.0-rc.1`)
+
+**Goal:** the non-programmer owner updates an already-installed portable build by
+double-clicking one file, with **no** data loss and no manual copying. Shipped as
+`portable/UPDATE_EXISTING.bat` (the double-clickable launcher) driving
+`scripts/update_existing.py`; `scripts/build_portable.sh` bundles both into the
+portable ZIP (section "4a-2"). The launcher runs the updater with the embedded
+Windows Python (`runtime\python.exe`, falling back to a system Python), sets
+`PYTHONPATH=app`, and opens a folder picker if `--auto` cannot find exactly one
+installation (exit code 3).
+
+**What the updater does, in order.** (1) Locate the existing installation
+(`--root` or `--auto`). (2) Copy every irreplaceable artefact into
+`<root>/backups/preupdate-<timestamp>/` **before** touching anything: `.env`
+(`APP_SECRET_KEY`, manager token), `data/` (the SQLite DB with sealed secrets),
+`sessions/`, `exports/` and the old `app/` code. (3) Replace only the application
+code (`app/`) with the new build's code — the new `.env` is **never** copied over
+the old one; only missing settings are appended and never a secret-looking key.
+(4) Apply pending Alembic migrations to the existing DB (the runner takes its own
+pre-migration copy first). (5) Verify that bot/channel/job/owner rows still exist
+and every `enc:` secret still decrypts with the preserved `APP_SECRET_KEY`; on any
+failure it stops, leaves the original data untouched and points at the backup. A
+second run is a safe no-op. It touches **no** Telegram state.
+
+**Guards:** `tests/test_portable_update.py` (6 tests) builds a realistic old
+installation (a real migrated DB with sealed bot tokens), runs the real updater in
+a subprocess and proves data/secret survival, `.env` preservation plus additive
+defaults, migration application, the timestamped backup, idempotency, the
+deliberate abort when a secret cannot be decrypted, and that the updater is
+bundled into the portable build. Additive; no version, tag, PR or release change.
 
 ### Completed stage — End-to-end Setup Wizard (D-128, shipped in the v2.1.0-rc.1 pre-release)
 

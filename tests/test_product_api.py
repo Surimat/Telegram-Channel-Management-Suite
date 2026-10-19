@@ -154,7 +154,7 @@ class _FakeTransport:
         self.calls = []
 
     def __call__(self, method, url, headers, body):
-        from backend.app.services.backup_backends.http import HttpResponse
+        from backend.app.services.backup_backends.http import BackupHttpResponse
 
         self.calls.append((method, url))
         status, payload = self.routes.get(url, (404, b""))
@@ -162,7 +162,7 @@ class _FakeTransport:
             import json
 
             payload = json.dumps(payload).encode()
-        return HttpResponse(status=status, body=payload, headers={})
+        return BackupHttpResponse(status=status, body=payload, headers={})
 
 
 @pytest.mark.asyncio

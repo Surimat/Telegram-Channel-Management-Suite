@@ -5,22 +5,6 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 
-class NotificationCategoryOut(BaseModel):
-    key: str
-    label: str
-    enabled: bool
-
-
-class NotificationSettingsOut(BaseModel):
-    enabled: bool
-    categories: list[NotificationCategoryOut]
-
-
-class NotificationSettingsIn(BaseModel):
-    enabled: bool | None = None
-    categories: dict[str, bool] | None = None
-
-
 class ManagerStatusOut(BaseModel):
     """Plain-language manager-bot status for the Dashboard/System page."""
 

@@ -965,17 +965,6 @@ export interface ManagerStatus {
   how_to_fix: string
 }
 
-export interface NotificationCategory {
-  key: string
-  label: string
-  enabled: boolean
-}
-
-export interface NotificationSettings {
-  enabled: boolean
-  categories: NotificationCategory[]
-}
-
 // Channel Registry (hardening: one shared channel identity, decision D-051)
 export interface Channel {
   id: string
@@ -3055,15 +3044,8 @@ export const api = {
   permissionHistory: (limit = 20) =>
     request<PermissionHistory>(`/api/v1/permissions/history?limit=${limit}`),
 
-  // Post-1.0 hardening: manager bot runtime + notifications
+  // Post-1.0 hardening: manager bot runtime
   managerStatus: () => request<ManagerStatus>('/api/v1/manager/status'),
-  managerNotifications: () =>
-    request<NotificationSettings>('/api/v1/manager/notifications'),
-  managerUpdateNotifications: (payload: { enabled?: boolean; categories?: Record<string, boolean> }) =>
-    request<NotificationSettings>('/api/v1/manager/notifications', {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    }),
 
   // Channel Registry (hardening: one shared channel identity)
   channels: (params: Record<string, string> = {}) =>

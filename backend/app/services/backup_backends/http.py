@@ -16,7 +16,7 @@ from typing import Any
 
 
 @dataclass(slots=True)
-class HttpResponse:
+class BackupHttpResponse:
     status: int
     body: bytes
     headers: dict[str, str]
@@ -29,23 +29,23 @@ class HttpResponse:
 
 
 #: A transport performs one HTTP request and returns a response.
-Transport = Callable[[str, str, dict[str, str], bytes | None], HttpResponse]
+Transport = Callable[[str, str, dict[str, str], bytes | None], BackupHttpResponse]
 
 
 def urllib_transport(
     method: str, url: str, headers: dict[str, str], body: bytes | None
-) -> HttpResponse:
+) -> BackupHttpResponse:
     """Default transport backed by ``urllib.request``."""
     request = urllib.request.Request(url, data=body, headers=headers, method=method)
     try:
         with urllib.request.urlopen(request, timeout=60) as response:
-            return HttpResponse(
+            return BackupHttpResponse(
                 status=int(response.status),
                 body=response.read(),
                 headers={k.lower(): v for k, v in response.headers.items()},
             )
     except urllib.error.HTTPError as exc:
-        return HttpResponse(
+        return BackupHttpResponse(
             status=int(exc.code),
             body=exc.read() if exc.fp is not None else b"",
             headers={k.lower(): v for k, v in (exc.headers or {}).items()},
@@ -61,7 +61,7 @@ def request_json(
     payload: dict[str, Any] | None = None,
     raw: bytes | None = None,
     content_type: str = "application/json",
-) -> tuple[HttpResponse, Any]:
+) -> tuple[BackupHttpResponse, Any]:
     """Perform a request and decode a JSON body when possible."""
     headers: dict[str, str] = {"Accept": "application/json"}
     if token:
@@ -74,4 +74,4 @@ def request_json(
     return response, response.json()
 
 
-__all__ = ["HttpResponse", "Transport", "request_json", "urllib_transport"]
+__all__ = ["BackupHttpResponse", "Transport", "request_json", "urllib_transport"]

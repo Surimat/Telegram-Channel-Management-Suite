@@ -3116,3 +3116,150 @@ is removed). A read-only plain-language check lives at `scripts/check_reactions.
 
 **Status.** Locked.
 
+## D-131 — 2026-10-18 — Updating an existing install is one double-click that keeps every setting and secret — LOCKED
+
+**Context.** The owner is a non-programmer ("вайбкодер") who must be able to
+update an already-installed portable build without copying files, editing
+`.env` or re-entering tokens, and without losing any data. Until now the only
+path was manual: unpack the new ZIP, copy `app/` by hand, keep `data/`,
+`sessions/` and `.env`, and run migrations. That is exactly the step a
+non-programmer gets wrong.
+
+**Decision.** Ship a one-step, data-preserving updater as a double-clickable
+`UPDATE_EXISTING.bat` in the portable build:
+
+1. **One click.** The owner extracts the newer build and double-clicks
+   `UPDATE_EXISTING.bat` (`portable/UPDATE_EXISTING.bat`). It calls
+   `scripts/update_existing.py` with the **embedded** Windows Python (falling
+   back to a system Python only if the runtime is absent) and the new code made
+   importable via `PYTHONPATH=app`.
+2. **Find the install.** `--auto` locates the existing installation; if none or
+   several are found it exits with code 3 and the launcher opens a plain folder
+   picker — the owner never types a path.
+3. **Back up first.** Before touching anything it copies every irreplaceable
+   artefact into `<root>/backups/preupdate-<timestamp>/`: `.env` (holds
+   `APP_SECRET_KEY` and the manager token), `data/` (the SQLite DB with sealed
+   secrets), `sessions/`, `exports/` and the old `app/` code.
+4. **Replace code only.** It copies the new `app/` code (including `migrations/`
+   and `alembic.ini`) and **never** copies the new `.env` over the old one; it
+   only appends settings that are missing and never a secret-looking key
+   (`_SECRETISH` regex). Tokens and `APP_SECRET_KEY` are preserved.
+5. **Migrate, then prove it.** It applies pending Alembic migrations to the
+   existing DB (the migration runner takes its own pre-migration copy first),
+   then verifies that the bot/channel/job/owner rows still exist and every
+   `enc:` secret still decrypts with the preserved key. On any failure it stops,
+   leaves the original data untouched and points at the backup; a second run is
+   a safe no-op (idempotent).
+
+**Non-negotiables.** The updater touches **no** Telegram state: no publications,
+invites or session use. It bundles no secret and adds no account registration.
+`scripts/build_portable.sh` ships both files (section "4a-2"), so the artifact is
+double-clickable in the released ZIP.
+
+**Consequences.** Updating is safe and repeatable for a non-programmer. The
+decision changes no version, tag, PR or release; it is additive on `develop`.
+Guards: `tests/test_portable_update.py` (6 tests) builds a real old installation
+with a migrated DB and sealed secrets, runs the real updater in a subprocess and
+proves data/secret survival, `.env` preservation + additive defaults, migration
+application, the timestamped backup, idempotency, the deliberate abort when a
+secret cannot be decrypted, and that the updater is bundled into the portable
+build.
+
+**Status.** Locked.
+
+## D-132 — 2026-10-18 — One name, one implementation: duplicated API/schema/DB surfaces are consolidated, not re-exported — LOCKED
+
+**Context.** An architecture audit found the project had accumulated genuine
+duplication: two API surfaces for notification settings (`/api/v1/manager/
+notifications` and `/api/v1/notifications/settings`, the same underlying
+`notifications_*` settings), and several same-named classes defined in two
+modules (`CapabilityOut`, `BindResultOut`, `DeliveryResult`, `ConsistencyReport`,
+plus the `NotificationSettings*`/`NotificationCategory` schemas and the frontend
+`NotificationSettings`/`NotificationCategory` interfaces). No two *files* were
+whole duplicates — the Telegram layer (one real + one fake provider per
+interface, D-001) and the DB layer (`db/session.py` is the single engine/
+session factory) were already canonical — so no file was deleted.
+
+**Decision.** Keep exactly one implementation and one name for each surface:
+
+1. **One canonical endpoint per concept.** Notification settings live only at
+   `GET/PUT /api/v1/notifications/settings` (the richer Notification Center).
+   The legacy `/api/v1/manager/notifications` endpoints and their schemas are
+   removed; `/api/v1/manager/status` stays.
+2. **One class name = one definition.** Each duplicated name is resolved by
+   renaming the more specific definition (not by re-exporting): `CapabilityOut`
+   (AI Gateway model capability) vs `ChannelCapabilityOut` (bindings);
+   `BotBindOut` (bot factory) vs `ProxyBindOut` (proxies); `DeliveryResult`
+   (notification destinations) vs `DestinationDeliveryResult` (backup
+   destinations); `ConsistencyReport` (service dataclass) vs
+   `ConsistencyReportOut` (Pydantic DTO).
+3. **One frontend client.** `frontend/src/api/client.ts` is the only request
+   helper; the duplicate `NotificationSettings`/`NotificationCategory`
+   interfaces are removed and `SettingsView` uses the canonical notification
+   methods.
+4. **Generated migrations are excluded from lint, not from the gate.** Alembic
+   revision files are autogenerated, so `migrations/versions/*` is added to
+   `per-file-ignores`; `ruff check .` and `ruff check backend tests` are both
+   clean.
+
+**Non-negotiables.** The consolidation changes no behaviour, no version, no tag,
+no PR and no release. The provider abstraction (D-001) and the single DB
+engine/session factory are untouched — they are the canonical implementations,
+not duplicates.
+
+**Consequences.** A name can no longer be imported from the wrong module by
+mistake. Guards: `tests/test_architecture_consolidation.py` asserts no duplicate
+schema/model class names, no duplicate `(method, full path)` route, the single
+canonical notification route, one Telegram client module, one DB engine factory
+and one frontend request helper.
+
+**Status.** Locked.
+
+
+---
+
+## D-133 — 2026-10-19 — No fakes, stubs or duplicate names in shipped code — LOCKED
+
+**Context.** A follow-up stub/fake sweep over the production backend found the
+last remaining ambiguities left by D-132: two classes were still named
+`DeliveryResult` (`services/notification_destinations.py` and
+`services/destination_service.py`), `Capability` was defined in both
+`services/capability_graph.py` and `ai/gateway/types.py`, and `ProviderInfo`,
+`ProviderStatus` and `HttpResponse` each had two definitions (AI Gateway vs
+`services/backup_backends/`). A dead in-memory test double
+(`RecordingDestination`) also shipped inside `services/notification_destinations.py`
+— the project's own consistency auditor already reported it as
+`dead.service.notification_destinations.RecordingDestination`.
+
+**Decision.** Every production name is unique and every production function does
+real work:
+
+1. **One name per class, everywhere in `backend/app`.** Renamed the
+   context-specific definitions: `DeliveryResult` → `NotificationDeliveryResult`
+   (notification destinations), `Capability` → `GraphCapability` (capability
+   graph), and `ProviderInfo`/`ProviderStatus`/`HttpResponse` →
+   `BackupProviderInfo`/`BackupProviderStatus`/`BackupHttpResponse`
+   (`services/backup_backends/`). The AI Gateway keeps the short names.
+2. **No test doubles in production.** The unused `RecordingDestination` was
+   deleted; the intentional offline providers (`FakeLlmBackend`,
+   `FakeTelegramBotProvider`, `FakeSessionProvider`, `FakeAudienceProvider`,
+   `FakeProvider`, `FakeHttpTransport`) stay because they are gated behind
+   `offline_mode` (default **False**) or an explicit `provider_name="fake"`, and
+   are exercised by tests (D-001/D-019).
+3. **Guards prove the sweep.** `tests/test_architecture_consolidation.py` now
+   asserts no duplicate class name anywhere in `backend/app`, no
+   `Mock`/`Stub`/`Dummy` class, no TODO/FIXME/XXX/HACK marker, no placeholder
+   (`pass`/`...`-only) production function body, and that the renamed canonical
+   names stay canonical. A dedicated proof test injects each defect into a temp
+   tree and asserts the detector flags it, so the guards are not decorative.
+
+**Non-negotiables.** Additive to D-132: no behaviour change, no version bump, no
+tag, no PR and no release; the offline providers and the provider abstraction
+(D-001) are unchanged. `develop` only.
+
+**Consequences.** Imports and tracebacks are unambiguous across the whole
+backend, and a stub can no longer ship silently — the guard fails the suite.
+Meta-audit stays **32/32, 100%, 0 false positives**.
+
+**Status.** Locked.
+

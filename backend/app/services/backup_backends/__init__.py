@@ -13,7 +13,7 @@ from backend.app.core.config import Settings, get_settings
 from backend.app.core.security import open_secret
 from backend.app.db.models.backup_destination import BackupDestination, DestinationKind
 from backend.app.db.models.bot import Bot
-from backend.app.services.backup_backends.base import BackupProvider, ProviderInfo
+from backend.app.services.backup_backends.base import BackupProvider, BackupProviderInfo
 from backend.app.services.backup_backends.gdrive import GoogleDriveBackupProvider
 from backend.app.services.backup_backends.local import LocalBackupProvider
 from backend.app.services.backup_backends.telegram import TelegramBackupProvider
@@ -81,28 +81,28 @@ def build_backup_provider(
     return LocalBackupProvider(local_dir or settings.resolve_backup_dir())
 
 
-PROVIDER_INFOS: tuple[ProviderInfo, ...] = (
-    ProviderInfo(
+PROVIDER_INFOS: tuple[BackupProviderInfo, ...] = (
+    BackupProviderInfo(
         name=DestinationKind.LOCAL.value,
         title="Локально (этот компьютер)",
         requires_credentials=False,
         help="Копия сохраняется в папку backups рядом с программой.",
     ),
-    ProviderInfo(
+    BackupProviderInfo(
         name=DestinationKind.GOOGLE_DRIVE.value,
         title="Google Drive",
         requires_credentials=True,
         config_fields=["folder_id"],
         help="Нужен токен доступа Google Drive (хранится зашифрованным).",
     ),
-    ProviderInfo(
+    BackupProviderInfo(
         name=DestinationKind.YANDEX_DISK.value,
         title="Яндекс Диск",
         requires_credentials=True,
         config_fields=["folder"],
         help="Нужен OAuth-токен Яндекс Диска (хранится зашифрованным).",
     ),
-    ProviderInfo(
+    BackupProviderInfo(
         name=DestinationKind.TELEGRAM.value,
         title="Telegram (через бота)",
         requires_credentials=False,

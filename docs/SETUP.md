@@ -103,6 +103,30 @@ Steps:
 No Python, Node, npm, Docker, PostgreSQL, or Redis is required.
 All mutable data stays inside the extracted folder.
 
+### Updating an existing installation (one double-click, D-131)
+
+To update an already-installed portable build, extract the newer archive and
+double-click **`UPDATE_EXISTING.bat`**. It keeps every setting and secret — you
+do not copy files, edit `.env` or re-enter tokens:
+
+1. It locates the existing installation automatically; if it cannot find exactly
+   one, it opens a plain folder picker (choose the folder that has `run.bat` and
+   `.env`).
+2. Before changing anything it writes a backup to
+   `<install>/backups/preupdate-<timestamp>/` (`.env`, `data/`, `sessions/`,
+   `exports/` and the old `app/` code).
+3. It replaces only the program code. Your `.env` is preserved; only genuinely
+   missing settings are appended, and never a secret-looking key.
+4. It applies pending database migrations, then verifies that your bots,
+   channels, jobs and owner profile are still there and that every sealed secret
+   still decrypts with your existing `APP_SECRET_KEY`.
+5. If anything fails it stops, leaves your data untouched and points at the
+   backup. Running it twice is safe (the second run is a no-op).
+
+Nothing is sent to Telegram — no publications, invites or session use. The
+updater is `scripts/update_existing.py`, launched by `portable/UPDATE_EXISTING.bat`
+and bundled into the portable ZIP by `scripts/build_portable.sh`.
+
 ### Building the portable folder
 
 Run the build script from the repository (needs Node once, for the frontend):

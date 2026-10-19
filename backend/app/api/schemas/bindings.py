@@ -52,7 +52,7 @@ class BindingCheckOut(BaseModel):
     how_to_fix: str = ""
 
 
-class CapabilityOut(BaseModel):
+class ChannelCapabilityOut(BaseModel):
     channel_id: str
     status: str
     available: list[str] = Field(default_factory=list)

@@ -14,19 +14,19 @@ from backend.app.api.deps import get_consistency_auditor
 from backend.app.api.schemas.consistency import (
     ConsistencyArea,
     ConsistencyFinding,
-    ConsistencyReport,
+    ConsistencyReportOut,
 )
 from backend.app.services.consistency import ConsistencyAuditor
 
 router = APIRouter(prefix="/consistency", tags=["consistency"])
 
 
-@router.get("", response_model=ConsistencyReport)
+@router.get("", response_model=ConsistencyReportOut)
 async def consistency_report(
     auditor: ConsistencyAuditor = Depends(get_consistency_auditor),
-) -> ConsistencyReport:
+) -> ConsistencyReportOut:
     report = await auditor.run()
-    return ConsistencyReport(
+    return ConsistencyReportOut(
         generated_at=report.generated_at,
         overall=report.overall,
         counts=report.counts,

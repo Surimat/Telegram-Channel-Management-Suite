@@ -7,6 +7,10 @@ from __future__ import annotations
 
 PERM = "/api/v1/permissions"
 MANAGER = "/api/v1/manager"
+# Notification toggles have a single canonical surface (D-132): the legacy
+# `/api/v1/manager/notifications` endpoints were removed in favour of the
+# Notification Center's `/api/v1/notifications/settings`.
+NOTIFICATIONS = "/api/v1/notifications"
 
 
 async def _create_account(client) -> str:
@@ -104,8 +108,8 @@ async def test_manager_status_with_bot(manager_client) -> None:
     assert "123:abc" not in resp.text
 
 
-async def test_manager_notifications_defaults(manager_client) -> None:
-    resp = await manager_client.get(f"{MANAGER}/notifications")
+async def test_notification_settings_defaults(manager_client) -> None:
+    resp = await manager_client.get(f"{NOTIFICATIONS}/settings")
     assert resp.status_code == 200
     body = resp.json()
     assert body["enabled"] is True
@@ -114,9 +118,9 @@ async def test_manager_notifications_defaults(manager_client) -> None:
     assert all(c["enabled"] for c in body["categories"])
 
 
-async def test_manager_notifications_update(manager_client) -> None:
+async def test_notification_settings_update(manager_client) -> None:
     resp = await manager_client.put(
-        f"{MANAGER}/notifications",
+        f"{NOTIFICATIONS}/settings",
         json={"enabled": True, "categories": {"ai": False}},
     )
     assert resp.status_code == 200

@@ -116,7 +116,7 @@ class BindManyIn(BaseModel):
     function: str = "reactions"
 
 
-class BindResultOut(BaseModel):
+class BotBindOut(BaseModel):
     candidate_id: str
     bot_id: str
     username: str
@@ -144,7 +144,7 @@ __all__ = [
     "BatchListOut",
     "BatchOut",
     "BindIn",
-    "BindResultOut",
+    "BotBindOut",
     "CandidateOut",
     "DashboardOut",
     "QueueProgressOut",

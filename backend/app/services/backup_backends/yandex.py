@@ -11,8 +11,8 @@ Flow: ``GET /v1/disk/resources/upload?path=...&overwrite=true`` → upload URL �
 from __future__ import annotations
 
 from backend.app.services.backup_backends.base import (
-    ProviderInfo,
-    ProviderStatus,
+    BackupProviderInfo,
+    BackupProviderStatus,
     UploadResult,
 )
 from backend.app.services.backup_backends.http import Transport, request_json, urllib_transport
@@ -35,9 +35,9 @@ class YandexDiskBackupProvider:
         self._folder = (folder or "tcms-backups").strip("/")
         self._transport = transport
 
-    def check(self) -> ProviderStatus:
+    def check(self) -> BackupProviderStatus:
         if not self._token:
-            return ProviderStatus(
+            return BackupProviderStatus(
                 configured=False,
                 reachable=False,
                 message="Не подключено: нужен OAuth-токен Яндекс Диска.",
@@ -49,12 +49,12 @@ class YandexDiskBackupProvider:
             token=self._token,
         )
         if response.status != 200:
-            return ProviderStatus(
+            return BackupProviderStatus(
                 configured=True,
                 reachable=False,
                 message="Не удалось подключиться к Яндекс Диску. Проверьте токен.",
             )
-        return ProviderStatus(
+        return BackupProviderStatus(
             configured=True,
             reachable=True,
             message="Яндекс Диск доступен.",
@@ -96,7 +96,7 @@ class YandexDiskBackupProvider:
         )
 
 
-INFO = ProviderInfo(
+INFO = BackupProviderInfo(
     name="yandex_disk",
     title="Яндекс Диск",
     requires_credentials=True,

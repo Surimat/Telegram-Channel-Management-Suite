@@ -28,7 +28,7 @@ class ConsistencyArea(BaseModel):
     status: str  # pass | warning | fail | not_tested
 
 
-class ConsistencyReport(BaseModel):
+class ConsistencyReportOut(BaseModel):
     generated_at: str
     overall: str
     counts: dict[str, int] = Field(default_factory=dict)
@@ -36,4 +36,4 @@ class ConsistencyReport(BaseModel):
     findings: list[ConsistencyFinding] = Field(default_factory=list)
 
 
-__all__ = ["ConsistencyArea", "ConsistencyFinding", "ConsistencyReport"]
+__all__ = ["ConsistencyArea", "ConsistencyFinding", "ConsistencyReportOut"]

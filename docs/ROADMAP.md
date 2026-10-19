@@ -340,15 +340,16 @@ token is never part of any request or response. Additive migration
 
 ---
 
-## Unreleased on `develop` (D-123…D-128, D-130)
+## Unreleased on `develop` (D-123…D-128, D-130, D-131)
 
-Seven owner-approved stages are **merged on `develop` and not in a stable
+Eight owner-approved stages are **merged on `develop` and not in a stable
 release**. The six stages D-123…D-128 are shipped in the `v2.1.0-rc.1`
 **pre-release** (2026-10-15); the latest **stable** tag remains `v2.0.1`. D-130
-(the Reaction Manager channel-post fix) came after the pre-release and is not in
-any tag yet. They are additive; the version string reads `2.1.0` until the owner
-decides to cut a stable release (D-060). Worked sequentially, each with its own
-locked decision and tests. Do not tag anything here until asked.
+(the Reaction Manager channel-post fix) and D-131 (the one-step data-preserving
+updater) came after the pre-release and are not in any tag yet. They are
+additive; the version string reads `2.1.0` until the owner decides to cut a
+stable release (D-060). Worked sequentially, each with its own locked decision
+and tests. Do not tag anything here until asked.
 
 - **D-123 — Personal Account Safety (2026-10-11, unreleased).** Acting through a
   personal Telegram (MTProto) account is refused unless the owner opts in.
@@ -426,6 +427,16 @@ locked decision and tests. Do not tag anything here until asked.
   release change. Tests `tests/test_reaction_channel_post_repro.py` (15) and
   `tests/test_reaction_channel_post_pipeline.py` (12, end-to-end + a negative
   control); plain-language check `scripts/check_reactions.py`.
+- **D-131 — One-step data-preserving updater (2026-10-18, unreleased).** The
+  non-programmer owner updates an existing portable install by double-clicking
+  `portable/UPDATE_EXISTING.bat`, which runs `scripts/update_existing.py` with the
+  embedded Python. It backs up `.env`/`data`/`sessions`/`exports`/`app` to
+  `backups/preupdate-<timestamp>/`, replaces only the code (never the new `.env`
+  over the old one), applies pending migrations and verifies that every `enc:`
+  secret still decrypts with the preserved `APP_SECRET_KEY`; a second run is a
+  no-op and it touches no Telegram state. `scripts/build_portable.sh` bundles both
+  files. Additive; no version, tag, PR or release change. Tests
+  `tests/test_portable_update.py` (6).
 
 See `docs/REAL_TELEGRAM_VERIFICATION_CHECKLIST.md` for the isolated-environment
 verification these stages still need before a release.

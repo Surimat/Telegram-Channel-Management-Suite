@@ -19,7 +19,7 @@ from backend.app.db.models.notification import (
 )
 from backend.app.db.session import init_models, session_scope
 from backend.app.manager.bus import Notification, reset_notification_bus
-from backend.app.services.notification_destinations import DeliveryResult
+from backend.app.services.notification_destinations import NotificationDeliveryResult
 from backend.app.services.notification_service import NotificationCenterService
 
 
@@ -31,11 +31,11 @@ class _RecordingToast:
         self.unavailable = unavailable
         self.delivered: list[tuple[str, str]] = []
 
-    async def deliver(self, text: str, *, title: str = "") -> DeliveryResult:
+    async def deliver(self, text: str, *, title: str = "") -> NotificationDeliveryResult:
         self.delivered.append((title, text))
         if self.unavailable:
-            return DeliveryResult(ok=False, unavailable=True, message="нет")
-        return DeliveryResult(ok=self.ok, message="" if self.ok else "ошибка")
+            return NotificationDeliveryResult(ok=False, unavailable=True, message="нет")
+        return NotificationDeliveryResult(ok=self.ok, message="" if self.ok else "ошибка")
 
 
 async def _service(**kwargs) -> NotificationCenterService:

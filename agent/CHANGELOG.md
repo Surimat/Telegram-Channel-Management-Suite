@@ -5,6 +5,57 @@ Dates are ISO-8601.
 
 ---
 
+## [Unreleased] — architecture consolidation (D-132) + stub/fake sweep (D-133)
+
+**No version, tag, PR or release.** A read-only audit found genuine duplication
+(two notification-settings endpoints; several same-named classes across
+modules). This entry records the consolidation on `develop`; it changes no
+behaviour and no version string. A follow-up sweep (D-133) finished the job for
+the remaining duplicate names and the one dead test double in production.
+
+### Changed
+- **One canonical notification-settings endpoint.** Removed the legacy
+  `GET/PUT /api/v1/manager/notifications` (and its `schemas/manager.py`
+  notification schemas). The single source is
+  `GET/PUT /api/v1/notifications/settings`. `/api/v1/manager/status` is kept.
+- **One class name = one definition.** `CapabilityOut` (AI Gateway) vs
+  `ChannelCapabilityOut` (bindings); `BotBindOut` (bot factory) vs
+  `ProxyBindOut` (proxies); `DeliveryResult` (notification destinations) vs
+  `DestinationDeliveryResult` (backup destinations); `ConsistencyReport`
+  (service) vs `ConsistencyReportOut` (schema).
+- **Remaining duplicate names made unique (D-133).** `DeliveryResult` →
+  `NotificationDeliveryResult` (`services/notification_destinations.py`),
+  `Capability` → `GraphCapability` (`services/capability_graph.py`), and
+  `ProviderInfo`/`ProviderStatus`/`HttpResponse` →
+  `BackupProviderInfo`/`BackupProviderStatus`/`BackupHttpResponse`
+  (`services/backup_backends/`). The dead in-memory `RecordingDestination`
+  test double was deleted from production.
+- **One frontend API client.** Removed the duplicate
+  `NotificationSettings`/`NotificationCategory` interfaces; `SettingsView` uses
+  the canonical `api.notificationSettings()` / `api.updateNotificationSettings()`.
+- **Lint gate.** Generated `migrations/versions/*` added to ruff
+  `per-file-ignores`; `ruff check .` and `ruff check backend tests` are both
+  clean.
+
+### Added
+- `tests/test_architecture_consolidation.py` — guards that no duplicate schema/
+  model class name, duplicate `(method, full path)` route, second Telegram client
+  module, second DB engine factory or second frontend request helper can return;
+  plus (D-133) no duplicate class name anywhere in `backend/app`, no
+  `Mock`/`Stub`/`Dummy` class, no TODO/FIXME marker and no placeholder production
+  function body, with a proof test that injects each defect.
+- `tests/test_meta_audit.py::test_current_documented_passed_count_is_exact` — a
+  post-release regression guard: the *newest* release/stage section in README,
+  `agent/CHANGELOG.md` and `agent/CURRENT_STATE.md` must state the real
+  ``passed``/``skipped`` counts. The existing "does not exceed" count guard was
+  sound but weak (a count left *below* reality slipped through); this one runs
+  the suite once into a JUnit XML (parsing XML, not stdout, because a test can
+  replace stdout) and fails on any mismatch. Historical release notes are
+  untouched. It closes the exact staleness this pass fixed (the stage-9 line read
+  `1208` after the guard itself added a test).
+
+---
+
 ## [2.1.0] — 2026-10-15
 
 **v2.1.0 release candidate `v2.1.0-rc.1` (GitHub Pre-release).** This candidate
@@ -20,7 +71,7 @@ verified. Version strings read **2.1.0**.
 same code that CI and the meta-audit run; migrations
 `20261015_0900_f6a7b8c9d0e1_v2_0_invite_rate_limit.py` and
 `20261016_0900_a7b8c9d0e1f2_v2_0_setup_wizard.py` are included and applied on
-first launch. Gates: full suite green (**1166 passed, 4 skipped**; 1170 collected),
+first launch. Gates: full suite green (**1194 passed, 12 skipped**; 1206 collected),
 `ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit 32/32 (0 missed, 0
 false positives). The pre-release candidate itself is recorded as **D-129**.
 
@@ -216,8 +267,8 @@ Additive; no version, tag, PR or release changed. Guards:
 `tests/test_reaction_channel_post_pipeline.py` (12 tests, end-to-end plus a
 negative control that fails if the `channel_post` branch is removed). A
 read-only plain-language check lives at `scripts/check_reactions.py`. Gates on
-`develop`: `pytest` **1200 collected, 1188 passed, 12 skipped**, `ruff` clean,
-`vue-tsc` + `npm run build` clean.
+`develop` at this stage: `pytest` **1200 collected, 1188 passed, 12 skipped**,
+`ruff` clean, `vue-tsc` + `npm run build` clean.
 
 **Owner-facing Windows check (no terminal, no install).** The non-programmer
 owner runs the check by double-clicking `CHECK_REACTIONS.bat` in the portable
@@ -230,6 +281,29 @@ and prints a plain-language summary ("что проверено / что раб�
 `import pytest` blocked, asserts no module-level pytest import, asserts the
 bundling). `.github/workflows/portable-dev.yml` builds the test ZIP from
 `develop` and uploads it as an Actions artifact — no tag, PR or release.
+
+### One-step data-preserving updater (D-131, on `develop` after `v2.1.0-rc.1`)
+
+**Added** a double-clickable updater so the non-programmer owner can update an
+existing portable install without losing anything. `portable/UPDATE_EXISTING.bat`
+launches `scripts/update_existing.py` with the embedded Windows Python; the build
+(`scripts/build_portable.sh`, section "4a-2") bundles both into the ZIP.
+
+- **Back up first.** `.env` (with `APP_SECRET_KEY` and the manager token),
+  `data/`, `sessions/`, `exports/` and the old `app/` are copied to
+  `<root>/backups/preupdate-<timestamp>/` before any change.
+- **Replace code only.** Only `app/` is replaced; the new `.env` is never copied
+  over the old one — only missing settings are appended, never a secret-looking
+  key, so tokens and `APP_SECRET_KEY` survive.
+- **Migrate, then prove it.** Pending Alembic migrations are applied to the
+  existing DB, then bot/channel/job/owner rows are checked and every `enc:`
+  secret is re-decrypted with the preserved key; on failure it stops, leaves the
+  data untouched and points at the backup. A second run is a safe no-op.
+- **No Telegram state** is touched (no publications, invites or session use).
+
+Additive; no version, tag, PR or release changed. Guards:
+`tests/test_portable_update.py` (6 tests, including the deliberate abort when a
+secret cannot be decrypted and the bundling assertion).
 
 ## [2.0.1] — 2026-10-11
 

@@ -18,6 +18,9 @@ ignore = ["B008", "RUF001", "RUF002", "RUF003"]
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["SIM117"]
 "backend/app/scheduler/scheduler.py" = ["B023"]
+# Alembic revision files are generated (revision ids / autogenerate output);
+# they are not hand-maintained code, so lint only the hand-written env.py.
+"migrations/versions/*" = ["E501", "I001", "W291", "W292", "RUF100", "S310"]
 # The help catalog is long-form Russian prose for beginners; wrapping it to 100
 # columns would hurt readability of the source text, not the rendered output.
 "backend/app/services/help_topics.py" = ["E501"]
