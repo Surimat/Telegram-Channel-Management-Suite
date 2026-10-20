@@ -19,12 +19,9 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import re
 import subprocess
 import sys
-import tempfile
-import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
@@ -927,93 +924,38 @@ def _current_release_sections() -> list[tuple[str, str]]:
 
 
 def test_current_documented_passed_count_is_exact() -> None:
-    """The *current* stage's documented pass count must match reality exactly.
+    """The *current* stage's documented test count must match the collected suite.
 
-    The "does not exceed" guard (:func:`test_memory_files_do_not_claim_a_stale_test_count`)
-    is sound but weak: a count left *below* reality after new tests were added
-    slips through (the classic copy-paste staleness). The number of skipped tests
-    is deterministic here (browser-dependent tests, no ``xfail`` in the suite), so
-    ``passed + skipped == collected`` and an exact equality check is sound. Only
-    the newest section of each doc is checked, so historical release notes are
-    untouched. The nested run sets ``TCMS_MEMORY_COUNT_CHILD`` so this test
-    returns early there instead of recursing (it still counts as passed).
+    The "does not exceed" guard
+    (:func:`test_memory_files_do_not_claim_a_stale_test_count`) is sound but weak:
+    a count left *below* reality after new tests were added slips through (the
+    classic copy-paste staleness).
+
+    The exact ``passed``/``skipped`` split is **environment-dependent** — the
+    real-browser layer and the git-anchor guards skip differently on a developer
+    machine than on CI — so comparing it to a nested full-suite run is neither
+    reproducible nor cheap (it ran the whole suite a second time, doubling CI wall
+    time). The *collected* total depends only on the files, never on a skip, so it
+    is deterministic: the documented ``passed + skipped`` for the current release
+    must equal it exactly. Only the newest section of each doc is checked, so
+    historical release notes are untouched.
     """
-    if os.environ.get("TCMS_MEMORY_COUNT_CHILD"):
-        return
     collected = _full_suite_size()
-    counts = _suite_counts()
-    if counts is None:
-        return  # cannot prove an exact value without a real run; skip silently
-    real_passed, real_skipped = counts
     offenders: list[str] = []
     for name, section in _current_release_sections():
         for match in _CURRENT_COUNT_RE.finditer(section):
             passed = int(match.group(1))
-            skipped = int(match.group(2)) if match.group(2) is not None else None
-            if passed == real_passed and (skipped is None or skipped == real_skipped):
+            skipped = int(match.group(2)) if match.group(2) is not None else 0
+            if passed + skipped == collected:
                 continue  # this is the true full-suite figure
-            # A different number is only "the full suite" (and therefore
-            # checkable) when it is the *same total* as the suite: same collected
-            # size, or same skipped count. Historical/other-figure counts are left
-            # alone.
-            looks_like_full_suite = (
-                passed + (skipped or 0) == collected
-                or (skipped is not None and skipped == real_skipped)
+            offenders.append(
+                f"{name}: current section says {passed} passed"
+                + (f", {skipped} skipped" if match.group(2) is not None else "")
+                + f" (= {passed + skipped}); the suite collects {collected}"
             )
-            if looks_like_full_suite:
-                offenders.append(
-                    f"{name}: current section says {passed} passed"
-                    + (f", {skipped} skipped" if skipped is not None else "")
-                    + f"; real is {real_passed} passed, {real_skipped} skipped"
-                )
-    assert not offenders, "documented current pass count is stale:\n" + "\n".join(
+    assert not offenders, "documented current test count is stale:\n" + "\n".join(
         sorted(set(offenders))
     )
-
-
-def _suite_counts() -> tuple[int, int] | None:
-    """Run the full suite once and return ``(passed, skipped)``, or ``None``.
-
-    A JUnit XML report is parsed rather than stdout: some tests replace the
-    process stdout, which can drop pytest's own summary line.
-    """
-    with tempfile.TemporaryDirectory() as tmp:
-        report = Path(tmp) / "report.xml"
-        try:
-            subprocess.run(
-                [
-                    sys.executable,
-                    "-m",
-                    "pytest",
-                    "-q",
-                    "-p",
-                    "no:randomly",
-                    f"--junitxml={report}",
-                    "tests",
-                ],
-                cwd=REPO_ROOT,
-                capture_output=True,
-                text=True,
-                timeout=3600,
-                env={**os.environ, "TCMS_MEMORY_COUNT_CHILD": "1"},
-            )
-        except (OSError, subprocess.SubprocessError):
-            return None
-        if not report.exists():
-            return None
-        try:
-            root = ET.parse(report).getroot()
-        except ET.ParseError:
-            return None
-    suite = root if root.tag == "testsuite" else root.find("testsuite")
-    if suite is None:
-        return None
-    total = int(suite.get("tests", "0"))
-    skipped = int(suite.get("skipped", "0")) + int(suite.get("disabled", "0"))
-    errors = int(suite.get("errors", "0"))
-    failures = int(suite.get("failures", "0"))
-    passed = total - skipped - errors - failures
-    return passed, skipped
 
 
 def test_documented_test_count_grows_across_releases() -> None:

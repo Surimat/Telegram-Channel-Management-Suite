@@ -51,6 +51,21 @@ data-preserving updater** (D-131), the **Reaction Manager channel-post source**
 pre-release. D-130…D-133 are not in any tag. Release only when the owner asks
 (D-060).
 
+### Completed stage — CI count-guard fix (D-134, on `develop` after `9f5576b`)
+
+**Goal:** unblock the failing **Backend (ruff + pytest)** and **Meta-audit**
+CI jobs. The D-133 guard `test_current_documented_passed_count_is_exact` spawned a
+**second** full-suite run inside `pytest` and compared the exact `passed`/`skipped`
+split against the docs. That split is **environment-dependent** — CI skips the
+optional real-browser layer and the git-anchor guards differently from a developer
+machine (CI: 1207 passed / 14 skipped; local: 1209 / 12) — so the job failed on CI
+at `9f5576b` while passing locally, and the nested run doubled the backend job to
+≈26 minutes. The guard now compares the documented `passed + skipped` to the
+suite's deterministic **collected** total (`1221`, which depends only on the files,
+never on a skip), so it is reproducible and cheap and needs no nested run. `ruff`
+clean. No production code, version, tag, PR or release changed. See
+`agent/DECISIONS.md` D-134.
+
 ### Completed stage — stub/fake sweep (D-133, on `develop` after D-132)
 
 **Goal:** remove every remaining fake/stub/duplicate from production code. The

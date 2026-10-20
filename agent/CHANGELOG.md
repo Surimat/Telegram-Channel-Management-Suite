@@ -5,7 +5,7 @@ Dates are ISO-8601.
 
 ---
 
-## [Unreleased] — architecture consolidation (D-132) + stub/fake sweep (D-133)
+## [Unreleased] — architecture consolidation (D-132) + stub/fake sweep (D-133) + CI count-guard fix (D-134)
 
 **No version, tag, PR or release.** A read-only audit found genuine duplication
 (two notification-settings endpoints; several same-named classes across
@@ -46,13 +46,26 @@ the remaining duplicate names and the one dead test double in production.
   function body, with a proof test that injects each defect.
 - `tests/test_meta_audit.py::test_current_documented_passed_count_is_exact` — a
   post-release regression guard: the *newest* release/stage section in README,
-  `agent/CHANGELOG.md` and `agent/CURRENT_STATE.md` must state the real
-  ``passed``/``skipped`` counts. The existing "does not exceed" count guard was
-  sound but weak (a count left *below* reality slipped through); this one runs
-  the suite once into a JUnit XML (parsing XML, not stdout, because a test can
-  replace stdout) and fails on any mismatch. Historical release notes are
-  untouched. It closes the exact staleness this pass fixed (the stage-9 line read
-  `1208` after the guard itself added a test).
+  `agent/CHANGELOG.md` and `agent/CURRENT_STATE.md` must state the real full-suite
+  size. The existing "does not exceed" count guard was sound but weak (a count
+  left *below* reality slipped through). This guard compares the documented
+  ``passed + skipped`` to the suite's *collected* total, which depends only on the
+  files and never on a skip, so it is deterministic on a developer machine and on
+  CI. An earlier version ran the whole suite a second time and compared the exact
+  ``passed``/``skipped`` split; that split is environment-dependent (the
+  real-browser layer and the git-anchor guards skip differently on CI), so it both
+  doubled CI wall time and failed on CI while passing locally. Historical release
+  notes are untouched.
+
+### Fixed
+- **CI count guard no longer runs the suite twice or depends on the skip split.**
+  `test_current_documented_passed_count_is_exact` previously spawned a second
+  full-suite run (≈26 min backend job) and compared the exact ``passed``/``skipped``
+  split, which differs by environment (CI skips the optional real-browser layer and
+  the git-anchor guards). It now compares the documented ``passed + skipped`` to
+  the suite's deterministic *collected* total, so the guard is reproducible, cheap
+  and green on CI. No production code, version, tag, PR or release change. See
+  `agent/DECISIONS.md` D-134.
 
 ---
 

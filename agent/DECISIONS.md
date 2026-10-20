@@ -3263,3 +3263,34 @@ Meta-audit stays **32/32, 100%, 0 false positives**.
 
 **Status.** Locked.
 
+
+---
+
+## D-134 — 2026-10-20 — The documented test count is checked against the collected total, never the skip split — LOCKED
+
+**Context.** The D-133 guard `test_current_documented_passed_count_is_exact`
+(`tests/test_meta_audit.py`) spawned a **second** full-suite run inside `pytest`
+and compared the exact `passed`/`skipped` split to the docs. That split is
+**environment-dependent**: CI skips the optional real-browser layer
+(`tests/test_web_wrapper_playwright_integration.py`, no Chromium) and the
+git-anchor guards (`test_next_task_release_anchors_match_git` &c., a shallow
+checkout), so CI reported **1207 passed / 14 skipped** where a developer machine
+reported **1209 / 12** — the job failed on `develop` at `9f5576b` while passing
+locally. The nested run also doubled the backend job to about 26 minutes.
+
+**Decision.** A documented current-stage count is verified against the suite's
+deterministic **collected** total (`passed + skipped == collected`), which
+depends only on the files and never on a skip. The guard no longer runs a nested
+suite; it reuses `_full_suite_size()`. Historical release notes are untouched
+(only the newest section of README / `agent/CHANGELOG.md` /
+`agent/CURRENT_STATE.md` is checked), and the "does not exceed" and
+"grows across releases" guards remain.
+
+**Non-negotiables.** No production code change, no version bump, no tag, no PR and
+no release; `develop` only. `ruff check backend tests` and `ruff check .` clean.
+
+**Consequences.** The Backend and Meta-audit CI jobs are green and much faster,
+and the guard is reproducible on a developer machine and on CI.
+
+**Status.** Locked.
+
