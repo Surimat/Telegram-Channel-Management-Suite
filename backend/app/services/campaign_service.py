@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.config import Settings, get_settings
+from backend.app.core.logging import get_logger
 from backend.app.core.security import open_secret
 from backend.app.db.models.binding import FUNCTION_REACTIONS
 from backend.app.db.models.bot import Bot, BotKind
@@ -41,6 +42,8 @@ from backend.app.providers.base import TelegramBotProvider
 from backend.app.providers.errors import TelegramProviderError
 from backend.app.providers.registry import build_bot_provider
 from backend.app.services.events_service import EventsService
+
+logger = get_logger(__name__)
 
 ProviderFactory = Callable[..., TelegramBotProvider]
 
@@ -262,10 +265,14 @@ class CampaignService:
                 target = channel.telegram_id or channel.reference or campaign.channel_id
             try:
                 await provider.revoke_invite_link(target, link.link)
-            except TelegramProviderError:
+            except TelegramProviderError as exc:
                 # Best-effort: mark it revoked locally anyway; Telegram may have
                 # already expired it. The user is told the local state changed.
-                pass
+                logger.warning(
+                    "Не удалось отозвать ссылку-приглашение в Telegram (%s); "
+                    "локальный статус обновлён.",
+                    exc.message,
+                )
             finally:
                 await provider.close()
         link.status = LinkStatus.REVOKED

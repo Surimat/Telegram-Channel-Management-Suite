@@ -28,6 +28,9 @@ from dataclasses import dataclass, field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core import i18n
+from backend.app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 # --- Atomic requirements ----------------------------------------------------
 REQ_CHANNEL = "channel"
@@ -366,8 +369,8 @@ async def context_from_db(
     try:
         channels, count = await ChannelRepository(session).list()
         context[REQ_CHANNEL] = count > 0 or bool(channels)
-    except Exception:  # pragma: no cover - defensive
-        pass
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Не удалось определить возможность системы: %s", exc)
 
     try:
         all_bindings = await BindingRepository(session).list_all()
@@ -378,22 +381,22 @@ async def context_from_db(
             b.status == BindingStatus.READY and b.function == FUNCTION_POSTING
             for b in all_bindings
         )
-    except Exception:  # pragma: no cover - defensive
-        pass
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Не удалось определить возможность системы: %s", exc)
 
     try:
         sessions, _ = await SessionRepository(session).list()
         context[REQ_USER_SESSION] = any(
             s.status == SessionStatus.CONNECTED for s in sessions
         )
-    except Exception:  # pragma: no cover - defensive
-        pass
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Не удалось определить возможность системы: %s", exc)
 
     try:
         latest = await PermissionCheckRepository(session).latest()
         context[REQ_PERMISSION] = bool(latest and latest.can_invite)
-    except Exception:  # pragma: no cover - defensive
-        pass
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Не удалось определить возможность системы: %s", exc)
 
     if encoder_installed is not None:
         context[REQ_ENCODER_MODEL] = bool(encoder_installed)
@@ -403,8 +406,8 @@ async def context_from_db(
 
             status = await EncoderService(session).status()
             context[REQ_ENCODER_MODEL] = bool(getattr(status, "installed", False))
-        except Exception:  # pragma: no cover - defensive
-            pass
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("Не удалось определить наличие лёгкой модели: %s", exc)
 
     try:
         from backend.app.db.repositories.bots import BotRepository
@@ -413,39 +416,39 @@ async def context_from_db(
         context[REQ_BOT_ONBOARDING] = bool(
             candidates and (candidates[0].username or "")
         )
-    except Exception:  # pragma: no cover - defensive
-        pass
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Не удалось определить возможность системы: %s", exc)
 
     try:
         from backend.app.services.owner_auth_service import OwnerAuthService
 
         context[REQ_OWNER_AUTH] = await OwnerAuthService(session).exists()
-    except Exception:  # pragma: no cover - defensive
-        pass
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Не удалось определить возможность системы: %s", exc)
 
     try:
         from backend.app.db.repositories.bots import BotRepository
 
         manager = await BotRepository(session).get_manager()
         context[REQ_MANAGER_BOT] = manager is not None
-    except Exception:  # pragma: no cover - defensive
-        pass
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Не удалось определить возможность системы: %s", exc)
 
     try:
         from backend.app.services.config_sync_service import ConfigSyncService
 
         sync_status = await ConfigSyncService(session).status()
         context[REQ_GOOGLE_DRIVE] = bool(sync_status.connected)
-    except Exception:  # pragma: no cover - defensive
-        pass
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Не удалось определить возможность системы: %s", exc)
 
     try:
         from backend.app.db.repositories.ai_gateway import AiProviderRepository
 
         rows = await AiProviderRepository(session).list_all()
         context[REQ_AI_PROVIDER] = any(r.enabled for r in rows)
-    except Exception:  # pragma: no cover - defensive
-        pass
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Не удалось определить возможность системы: %s", exc)
 
     return context
 

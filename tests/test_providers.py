@@ -59,6 +59,6 @@ def test_registry_fake_selection() -> None:
 def test_registry_offline_mode_uses_fake() -> None:
     from backend.app.core.config import Settings
 
-    settings = Settings(offline_mode=True)
+    settings = Settings(offline_mode=True, app_env="test")
     provider = build_bot_provider("1:A", settings=settings)
     assert isinstance(provider, FakeTelegramBotProvider)

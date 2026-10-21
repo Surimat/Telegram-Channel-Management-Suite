@@ -752,6 +752,23 @@ def _git_output(*args: str) -> str | None:
     return result.stdout.strip()
 
 
+def _reachable_tags() -> list[str]:
+    """Release tags reachable from the current ``HEAD``, newest version first.
+
+    ``git tag`` alone lists every tag in the clone regardless of branch, so a
+    pre-release cut on ``develop`` (e.g. ``v2.1.0-rc.1``) would be reported as
+    the repository's "latest tag" even when the tests run on ``main``, where only
+    ``v2.0.1`` has shipped — a false failure that has nothing to do with ``main``.
+    Restricting to ``--merged HEAD`` makes each branch compare against its own
+    reachable history, so the guard stays green on both ``main`` and ``develop``.
+    Empty when git cannot answer (shallow / tagless checkout).
+    """
+    out = _git_output("tag", "--merged", "HEAD", "--sort=-v:refname")
+    if not out:
+        return []
+    return out.splitlines()
+
+
 def _passed_counts(text: str) -> list[int]:
     return [int(m.group(1)) for m in _TEST_COUNT_RE.finditer(text)]
 
@@ -1072,19 +1089,21 @@ def test_current_state_release_anchors_match_git() -> None:
 
 
 def test_next_task_names_the_latest_tag() -> None:
-    """NEXT_TASK.md must name the repository's latest release tag.
+    """NEXT_TASK.md must name the latest release tag *reachable from HEAD*.
 
-    ``git tag --sort=-v:refname`` reports the newest tag by version; if NEXT_TASK
-    names an older one (the classic stale "latest tag" left after a release), a
-    new agent is misled about what has actually shipped. Version sorting is used
+    The newest tag by version is reported with version sorting; if NEXT_TASK names
+    an older one (the classic stale "latest tag" left after a release), a new
+    agent is misled about what has actually shipped. Version sorting is used
     rather than ``git describe`` because the latest tag points at the ``main``
-    merge commit, which is not an ancestor of ``develop``. Skipped when git
-    cannot answer (shallow/tagless checkout).
+    merge commit, which is not an ancestor of ``develop``. The set is limited to
+    tags reachable from ``HEAD`` so that a pre-release cut on ``develop`` (e.g.
+    ``v2.1.0-rc.1``) never makes this guard demand a ``develop`` tag while running
+    on ``main``. Skipped when git cannot answer (shallow/tagless checkout).
     """
-    tags = _git_output("tag", "--sort=-v:refname")
+    tags = _reachable_tags()
     if not tags:  # pragma: no cover - shallow clone
         pytest.skip("git cannot list tags in this checkout")
-    latest = tags.splitlines()[0]
+    latest = tags[0]
     text = (REPO_ROOT / "agent" / "NEXT_TASK.md").read_text(encoding="utf-8")
     assert latest in text, (
         f"agent/NEXT_TASK.md does not name the latest release tag {latest}"
@@ -1092,20 +1111,22 @@ def test_next_task_names_the_latest_tag() -> None:
 
 
 def test_readme_current_release_matches_latest_tag() -> None:
-    """README's "Current stable release" anchor must name the latest tag.
+    """README's "Current stable release" anchor must name the latest reachable tag.
 
     Reproduces the drift the owner reported: the GitHub Release is Latest and the
     tag points at the merge commit, yet a reader of the repository front page
     still sees the previous version. ``test_readme_states_the_current_release``
     only asserts the shipped version appears *somewhere* in README.md, so a stale
     "Current stable release" anchor slips past it. This pins the anchor line to
-    the newest tag by version (the published release). Skipped when git cannot
-    list tags (shallow/tagless checkout), where the version guard still applies.
+    the newest tag by version *reachable from HEAD*, so ``main`` compares only
+    against its own shipped tag and a ``develop`` pre-release cannot trigger a
+    false failure. Skipped when git cannot list tags (shallow/tagless checkout),
+    where the version guard still applies.
     """
-    tags = _git_output("tag", "--sort=-v:refname")
+    tags = _reachable_tags()
     if not tags:  # pragma: no cover - shallow clone
         pytest.skip("git cannot list tags in this checkout")
-    latest = tags.splitlines()[0]
+    latest = tags[0]
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     line = next(
         (
@@ -1132,14 +1153,15 @@ def test_latest_release_anchors_name_the_latest_tag() -> None:
     smaller ``vX``. ``test_latest_release_anchors_name_the_shipped_version`` only
     checks that the shipped version appears somewhere on the anchor *line*, so
     that slip passes it. This pins the *first* version token on the anchor line to
-    the newest tag by version. Skipped when git cannot list tags (shallow/tagless
-    checkout), and skipped while the current version is untagged (a version-bump
-    window) so it never demands a tag that does not exist yet.
+    the newest tag by version *reachable from HEAD* (a ``develop`` pre-release
+    must not demand a tag ``main`` cannot see). Skipped when git cannot list tags
+    (shallow/tagless checkout), and skipped while the current version is untagged
+    (a version-bump window) so it never demands a tag that does not exist yet.
     """
-    tags = _git_output("tag", "--sort=-v:refname")
+    tags = _reachable_tags()
     if not tags:  # pragma: no cover - shallow clone
         pytest.skip("git cannot list tags in this checkout")
-    latest = tags.splitlines()[0]
+    latest = tags[0]
 
     # Only run once the current version is actually tagged: during a version-bump
     # window (app bumped, tag not yet created) the shipped-tag comparison would be

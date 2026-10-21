@@ -3,7 +3,7 @@
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
-**Updated:** 2026-10-19
+**Updated:** 2026-10-21
 **Status:** **v2.1.0 is published as a GitHub Pre-release (candidate tag
 `v2.1.0-rc.1`, 2026-10-15); the latest stable release is v2.0.1 (2026-10-11).**
 This candidate ships the six committed stages **D-123…D-128** on top of v2.0.1 —
@@ -42,14 +42,35 @@ Version string is **2.1.0** across `backend/app/__init__.py`, `pyproject.toml`,
 
 ### Active task — none
 
-**No stage is in progress.** The latest completed stage is the **stub/fake sweep
-(D-133)**, which finished the **architecture consolidation** (D-132) by making
-every production class name unique across `backend/app` and deleting the one dead
-test double that shipped in production; before it, the **one-step
-data-preserving updater** (D-131), the **Reaction Manager channel-post source**
-(D-130), and the six D-123…D-128 stages shipped in the `v2.1.0-rc.1`
-pre-release. D-130…D-133 are not in any tag. Release only when the owner asks
-(D-060).
+**No stage is in progress.** The latest completed stage is the **honesty
+hardening (D-135)**, which logs every production bare-`pass` swallow site and
+refuses the deterministic **fake** providers/backends outside `APP_ENV=demo`/
+`test`; before it, the **stub/fake sweep (D-133)**, which finished the
+**architecture consolidation** (D-132) by making every production class name
+unique across `backend/app` and deleting the one dead test double that shipped in
+production; before that, the **one-step data-preserving updater** (D-131), the
+**Reaction Manager channel-post source** (D-130), and the six D-123…D-128 stages
+shipped in the `v2.1.0-rc.1` pre-release. D-130…D-135 are not in any tag. Release
+only when the owner asks (D-060).
+
+### Completed stage — honesty hardening (D-135, on `develop` after D-134)
+
+**Goal:** close the two honesty/safety gaps an independent read-only audit
+(`REAL_AUDIT.md`) found in the shipped package. **No silent stubs:** the
+deterministic fake providers/backends are now refused unless `app_env` is `demo`
+or `test` (exactly that set — the default `development` is *not* allowed, so a
+deploy that forgets `APP_ENV=production` cannot fall back to a stub);
+`providers/registry.py` raises a new `ProviderConfigurationError` from
+`_reject_fake_outside_allowed_envs`, `ai/backends/__init__.py` raises `AiError`
+from `reject_fake_outside_allowed_envs`, `AiService.set_setting` refuses
+`ai_backend="fake"` at write time, and `AiService.status` reports a refused
+backend honestly instead of raising. **No silent failures:** every production
+bare-`pass` exception handler now logs a `warning` (`capability_graph.py` ×10,
+`redaction.py`, `db/session.py`, `reaction_service.py`, `campaign_service.py`,
+`ai_service.py`, `ai_gateway_service.py`, `ai/backends/llama_cpp.py`,
+`ai/gateway/browser/__init__.py`). Additive; no version, tag, PR or release
+change; `ruff` clean; meta-audit 32/32. Guards: `tests/test_de_mocking.py`
+(7 tests). See `agent/DECISIONS.md` D-135.
 
 ### Completed stage — CI count-guard fix (D-134, on `develop` after `9f5576b`)
 

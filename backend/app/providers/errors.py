@@ -60,6 +60,27 @@ class UnsupportedOperationError(TelegramProviderError):
     """The requested managed-bot operation is not available for this bot."""
 
 
+class ProviderConfigurationError(TelegramProviderError):
+    """A provider cannot run because required configuration is missing.
+
+    Raised when a real provider is requested but the owner has not supplied the
+    credentials/session it needs, or when a deterministic *fake* provider is asked
+    for in a production environment. The message is actionable so the UI can tell
+    the owner exactly what to connect; it never fabricates data.
+    """
+
+    def __init__(self, message: str = "", *, how_to_fix: str = "", **kwargs: object) -> None:
+        kwargs.setdefault(
+            "how_to_fix",
+            how_to_fix
+            or "Подключите Telegram-аккаунт или укажите API-ключ в настройках.",
+        )
+        super().__init__(
+            message or "Провайдер не настроен: нет сессии Telegram или API-ключа.",
+            **kwargs,  # type: ignore[arg-type]
+        )
+
+
 class BotCreateLimitError(TelegramProviderError):
     """The account already owns the maximum number of bots Telegram allows.
 

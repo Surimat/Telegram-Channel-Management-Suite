@@ -88,8 +88,8 @@ class LlamaCppBackend(LlmBackend):
             if path.is_file():
                 info["exists"] = True
                 info["size_bytes"] = path.stat().st_size
-        except OSError:
-            pass
+        except OSError as exc:
+            logger.warning("Не удалось прочитать файл модели ИИ %s: %s", path, exc)
         return info
 
     # --- lifecycle -----------------------------------------------------------

@@ -21,7 +21,12 @@ from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.ai.backends import BACKEND_FAKE, BACKEND_LLAMA_CPP, build_backend
+from backend.app.ai.backends import (
+    BACKEND_FAKE,
+    BACKEND_LLAMA_CPP,
+    build_backend,
+    reject_fake_outside_allowed_envs,
+)
 from backend.app.ai.classifiers import LlmClassifier, RulesClassifier
 from backend.app.ai.errors import AiError
 from backend.app.ai.router import RoutingClassifier, RoutingOutcome
@@ -137,6 +142,17 @@ class AiService:
             except (TypeError, ValueError):
                 raise AiError("Значение должно быть числом.") from None
 
+        if key == "ai_backend":
+            chosen = str(value or "").strip().lower()
+            if chosen not in ("", "llama_cpp", BACKEND_FAKE):
+                raise AiError(
+                    "Неизвестный движок ИИ.",
+                    how_to_fix="Выберите движок: llama_cpp (настоящая модель) или fake.",
+                )
+            if chosen == BACKEND_FAKE:
+                # Refuse the stub in production at write time too, so the panel
+                # cannot be put into a silent-fake state through the API.
+                reject_fake_outside_allowed_envs(get_settings())
         if key in ("ai_model_threads", "ai_context_size", "ai_max_tokens", "ai_history_limit"):
             n = _num()
             if n < 0 or n > 100000:
@@ -290,8 +306,8 @@ class AiService:
                     )
                 )
                 await self.repo.trim_records(limit)
-        except Exception:  # pragma: no cover - metrics must never break flow
-            pass
+        except Exception as exc:  # pragma: no cover - metrics must never break flow
+            logger.warning("Не удалось записать метрики мини-ИИ: %s", exc)
         if outcome.ai_error:
             await self.events.warning(
                 AI_MODULE,
@@ -309,7 +325,23 @@ class AiService:
         effective = await self.effective()
         enabled = bool(effective["ai_enabled"])
         backend_name = str(effective["ai_backend"] or "").strip() or self._sync_backend_name()
-        backend = await self._backend()
+        try:
+            backend = await self._backend()
+        except AiError as exc:
+            # A refused/misconfigured backend is reported honestly instead of
+            # failing the status call: the panel says "not usable" with the fix.
+            return AiStatus(
+                enabled=enabled,
+                backend=backend_name,
+                runtime_available=False,
+                model_path=str(effective["ai_model_path"] or "").strip(),
+                model_exists=False,
+                model_size_bytes=0,
+                model_loaded=False,
+                effective=False,
+                reason=exc.message,
+                how_to_fix=exc.how_to_fix,
+            )
         runtime_available = bool(getattr(backend, "available", False))
         model_path = str(effective["ai_model_path"] or "").strip()
         size = 0

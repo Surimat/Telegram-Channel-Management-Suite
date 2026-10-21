@@ -150,7 +150,10 @@ Interfaces (abstract base classes / Protocols) live in `backend/app/providers/`:
 
 `providers/registry.py` resolves the correct implementation from config
 (`telegram_provider`: `auto` | `aiogram` | `fake`; `offline_mode` forces the
-fake). Providers translate library exceptions into `providers/errors.py`
+fake). The deterministic fakes are permitted **only** in `APP_ENV=demo`/`test`;
+requesting one in any other environment (including the default `development` and
+`production`) raises `ProviderConfigurationError` instead of silently serving
+fabricated data. Providers translate library exceptions into `providers/errors.py`
 (`InvalidTokenError`, `FloodWaitError`, `UnauthorizedError`, …) carrying a
 friendly message and a how-to-fix hint, so no library type or raw error leaks
 into services. Domain services **only** depend on interfaces, so swapping
@@ -281,8 +284,9 @@ Implemented (PHASE 7) in `backend/app/ai/` — free of Telegram/FastAPI imports:
   `RoutingOutcome` records `ai_attempted`/`ai_used`/`fallback_used`.
 - `inference.py` — one shared single-worker executor (`run_bounded`); a timeout
   raises `InferenceTimeoutError` and shut down on app exit.
-- `backends/` — registry (`build_backend`): `fake` (deterministic, offline/tests),
-  `llama_cpp` (the only `llama_cpp` importer; lazy, lock-serialized, optional) and
+- `backends/` — registry (`build_backend`): `fake` (deterministic; allowed only
+  in `APP_ENV=demo`/`test`, refused elsewhere), `llama_cpp` (the only `llama_cpp`
+  importer; lazy, lock-serialized, optional) and
   `rubert` (the optional ruBERT-tiny2 encoder backend, below).
 
 ### 7.1 Lightweight encoder classifier (v1.1)

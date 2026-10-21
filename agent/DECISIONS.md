@@ -3294,3 +3294,43 @@ and the guard is reproducible on a developer machine and on CI.
 
 **Status.** Locked.
 
+---
+
+## D-135 — 2026-10-21 — Silent failures are logged, and deterministic fakes are refused outside demo/test — LOCKED
+
+**Context.** An independent read-only audit (`REAL_AUDIT.md`) found two
+honesty/safety gaps in the shipped package: (1) exception handlers that swallow
+an error with a bare `pass` (including ten in `services/capability_graph.py` plus
+sites in `core/redaction.py`, `services/reaction_service.py`,
+`services/campaign_service.py`, `services/ai_service.py`,
+`services/ai_gateway_service.py`, `ai/backends/llama_cpp.py`,
+`ai/gateway/browser/__init__.py`, `db/session.py`) so a failure left no trace; and
+(2) the deterministic **fake** providers/backends could be selected on a real
+installation — `ai_backend` is UI-editable and `build_backend` returned
+`FakeLlmBackend` with no environment check, so a production panel could silently
+"work" on fabricated replies while reporting the AI as available.
+
+**Decision.** Every production bare-`pass` swallow site now logs a `warning`
+(never a silent drop), and the deterministic fakes are **refused** unless
+`app_env` is `demo` or `test`. The allowlist is exactly `{"demo", "test"}` — the
+default `development` is **not** allowed, so a deployment that forgets to set
+`APP_ENV=production` cannot fall back to a stub. `providers/registry.py` raises
+`ProviderConfigurationError` (new typed error) from a single
+`_reject_fake_outside_allowed_envs` guard used by all three build functions, and
+`ai/backends/__init__.py` raises `AiError` from
+`reject_fake_outside_allowed_envs` in `build_backend`. `AiService.set_setting`
+also refuses `ai_backend="fake"` at write time, and `AiService.status` reports a
+refused backend honestly (unavailable + how-to-fix) instead of failing the call.
+
+**Non-negotiables.** No account registration and no Telegram-limit bypass; the
+demo (`APP_ENV=demo`) and the test suite (`APP_ENV=test`) keep working on fakes.
+No version bump, no tag, no PR, no release; `develop` only. `ruff check .` and
+`ruff check backend tests` clean; meta-audit 32/32.
+
+**Consequences.** A misconfigured install fails loudly with an actionable Russian
+message instead of lying; a swallowed error is now visible in the log. Guard:
+`tests/test_de_mocking.py` (7 tests). The documented current-stage count in
+`agent/CURRENT_STATE.md` was updated to the new collected total (`1228`).
+
+**Status.** Locked.
+

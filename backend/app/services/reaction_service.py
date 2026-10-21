@@ -34,6 +34,7 @@ from backend.app.ai.types import (
     Classifier,
 )
 from backend.app.core.config import Settings, get_settings
+from backend.app.core.logging import get_logger
 from backend.app.core.security import open_secret
 from backend.app.db.base import utcnow
 from backend.app.db.models.ai import AiRecord
@@ -78,6 +79,8 @@ from backend.app.services.queue_service import QueueService
 from backend.app.services.reaction_intent import intent_narrows
 from backend.app.services.reaction_planner import PlanParams, ReactionPlanner
 from backend.app.services.reaction_policy import intersect_reactions
+
+logger = get_logger(__name__)
 
 ProviderFactory = Callable[..., TelegramBotProvider]
 
@@ -601,8 +604,8 @@ class ReactionService:
                     )
                 )
                 await self.ai_repo.trim_records(self.settings.ai_history_limit)
-        except Exception:  # pragma: no cover - metrics must never break flow
-            pass
+        except Exception as exc:  # pragma: no cover - metrics must never break flow
+            logger.warning("Не удалось записать метрики реакций: %s", exc)
 
     def _public_source(self, source: str) -> str:
         """Map internal source names to the public UI vocabulary."""

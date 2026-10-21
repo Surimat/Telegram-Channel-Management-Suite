@@ -7,7 +7,11 @@ requires-python = ">=3.11"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-extend-exclude = [".venv", "backend/app/static"]
+# ``migrations/versions`` holds Alembic autogenerate output (revision ids,
+# long ``op.create_table`` lines) — generated, not hand-maintained code. Skip it
+# entirely so it never shows up as lint noise; ``migrations/env.py`` itself is
+# hand-written and stays linted.
+extend-exclude = [".venv", "backend/app/static", "migrations/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "UP", "B", "C4", "SIM", "RUF"]
@@ -18,9 +22,6 @@ ignore = ["B008", "RUF001", "RUF002", "RUF003"]
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["SIM117"]
 "backend/app/scheduler/scheduler.py" = ["B023"]
-# Alembic revision files are generated (revision ids / autogenerate output);
-# they are not hand-maintained code, so lint only the hand-written env.py.
-"migrations/versions/*" = ["E501", "I001", "W291", "W292", "RUF100", "S310"]
 # The help catalog is long-form Russian prose for beginners; wrapping it to 100
 # columns would hurt readability of the source text, not the rendered output.
 "backend/app/services/help_topics.py" = ["E501"]

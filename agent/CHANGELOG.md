@@ -5,6 +5,35 @@ Dates are ISO-8601.
 
 ---
 
+## [Unreleased] — honesty hardening: no silent stubs, no swallowed errors (D-135)
+
+**No version, tag, PR or release.** An independent read-only audit
+(`REAL_AUDIT.md`) found that a real installation could run on the deterministic
+**fake** providers/backends without any warning, and that several exception
+handlers swallowed an error with a bare `pass`. This entry records the fix on
+`develop`.
+
+### Changed
+- **Deterministic fakes are refused outside `demo`/`test`.** `app_env` must be
+  `demo` or `test` for `telegram_provider="fake"`/`offline_mode` or
+  `ai_backend="fake"`; every other environment — including the default
+  `development` and `production` — now raises a typed error
+  (`ProviderConfigurationError` in `providers/registry.py`, `AiError` in
+  `ai/backends/__init__.py`) instead of silently serving fabricated data.
+  `AiService.set_setting` refuses `ai_backend="fake"` at write time and
+  `AiService.status` reports a refused backend honestly.
+- **No silent failures.** Every production bare-`pass` exception handler now logs
+  a `warning` (`core/redaction.py`, `db/session.py`, `services/capability_graph.py`,
+  `services/reaction_service.py`, `services/campaign_service.py`,
+  `services/ai_service.py`, `services/ai_gateway_service.py`,
+  `ai/backends/llama_cpp.py`, `ai/gateway/browser/__init__.py`).
+
+### Tests
+- `tests/test_de_mocking.py` (7 tests) guards the refusal in every environment
+  and proves the demo/test paths still work.
+
+---
+
 ## [Unreleased] — architecture consolidation (D-132) + stub/fake sweep (D-133) + CI count-guard fix (D-134)
 
 **No version, tag, PR or release.** A read-only audit found genuine duplication
