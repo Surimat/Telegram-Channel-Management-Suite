@@ -53,26 +53,6 @@ async def system_status(
     )
 
 
-@router.get("/setup", response_model=list[SetupCheck])
-async def setup_checks(
-    settings: Settings = Depends(get_settings),
-    session: AsyncSession = Depends(get_session),
-) -> list[SetupCheck]:
-    """Run all Setup Wizard checks (same data as status, list form)."""
-    service = SystemService(settings)
-    checks = await service.setup_checks(session)
-    return [
-        SetupCheck(
-            key=c.key,
-            title=c.title,
-            status=c.status,
-            meaning=c.meaning,
-            how_to_fix=c.how_to_fix,
-        )
-        for c in checks
-    ]
-
-
 @router.get("/info")
 async def system_info(settings: Settings = Depends(get_settings)) -> dict[str, object]:
     return {

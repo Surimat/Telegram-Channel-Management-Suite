@@ -164,15 +164,6 @@ async def ai_classify(
     )
 
 
-@router.post("/test", response_model=AiClassifyOut)
-async def ai_test(
-    payload: AiClassifyIn,
-    session: AsyncSession = Depends(get_session),
-) -> AiClassifyOut:
-    """Alias of /classify kept for the UI's "testing" panel."""
-    return await ai_classify(payload, session)
-
-
 @router.get("/models", response_model=list[AiModelOut])
 async def ai_models(session: AsyncSession = Depends(get_session)) -> list[AiModelOut]:
     models = await _service(session).list_models()

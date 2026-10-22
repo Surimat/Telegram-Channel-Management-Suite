@@ -84,10 +84,10 @@ async def test_overview_endpoint(analytics_client: AsyncClient) -> None:
     assert "историческая" in body["account_note"].lower()
 
 
-async def test_content_endpoint(analytics_client: AsyncClient) -> None:
-    resp = await analytics_client.get(f"{ANALYTICS_BASE}/content", params={"days": 7})
+async def test_content_section(analytics_client: AsyncClient) -> None:
+    resp = await analytics_client.get(f"{ANALYTICS_BASE}/overview", params={"days": 7})
     assert resp.status_code == 200
-    body = resp.json()
+    body = resp.json()["content"]
     assert body["days"] == 7
     assert body["posts_total"] == 2
     assert len(body["per_day"]) == 7
@@ -96,32 +96,32 @@ async def test_content_endpoint(analytics_client: AsyncClient) -> None:
     assert {s["title"] for s in body["by_source"]} == {"Обычные правила", "Мини-ИИ"}
 
 
-async def test_reactions_endpoint(analytics_client: AsyncClient) -> None:
-    resp = await analytics_client.get(f"{ANALYTICS_BASE}/reactions")
+async def test_reactions_section(analytics_client: AsyncClient) -> None:
+    resp = await analytics_client.get(f"{ANALYTICS_BASE}/overview")
     assert resp.status_code == 200
-    body = resp.json()
+    body = resp.json()["reactions"]
     assert body["reactions_total"] == 1
     assert body["success_rate"] == 1.0
     assert body["by_emoji"][0]["reaction"] == "❤️"
 
 
-async def test_audience_endpoint(analytics_client: AsyncClient) -> None:
-    resp = await analytics_client.get(f"{ANALYTICS_BASE}/audience")
+async def test_audience_section(analytics_client: AsyncClient) -> None:
+    resp = await analytics_client.get(f"{ANALYTICS_BASE}/overview")
     assert resp.status_code == 200
-    body = resp.json()
+    body = resp.json()["audience"]
     assert body["audience_total"] == 1
     assert body["sources_total"] == 1
     assert body["top_sources"][0]["username"] == "chan"
 
 
 async def test_days_validation(analytics_client: AsyncClient) -> None:
-    url = f"{ANALYTICS_BASE}/content"
+    url = f"{ANALYTICS_BASE}/overview"
     assert (await analytics_client.get(url, params={"days": 0})).status_code == 422
     assert (await analytics_client.get(url, params={"days": 999})).status_code == 422
 
 
 async def test_no_secret_or_pii_leak(analytics_client: AsyncClient) -> None:
-    for path in ("overview", "content", "reactions", "audience"):
+    for path in ("overview",):
         resp = await analytics_client.get(f"{ANALYTICS_BASE}/{path}")
         assert resp.status_code == 200
         low = resp.text.lower()

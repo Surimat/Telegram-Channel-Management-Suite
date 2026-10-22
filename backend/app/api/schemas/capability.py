@@ -1,7 +1,7 @@
 """Capability graph schemas (v1.5).
 
 One machine-readable description of what the product can do and what each
-capability requires, so the UI and the Promotion Wizard stop re-encoding
+capability requires, so the UI and the Setup Wizard stop re-encoding
 "does this need a session?" logic in every view.
 """
 

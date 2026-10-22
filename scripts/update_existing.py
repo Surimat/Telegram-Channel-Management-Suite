@@ -450,8 +450,15 @@ def main(argv: list[str] | None = None) -> int:
     after = _collect_state(old_root)
     problems: list[str] = []
     for table, count in before["counts"].items():
-        if int(after["counts"].get(table, -1)) < int(count):
-            problems.append(f"{table}: {count} -> {after['counts'].get(table)}")
+        after_count = after["counts"].get(table)
+        if after_count is None:
+            # A migration may retire a table on purpose (e.g. the promotion
+            # wizard). That is only a problem if it still held rows.
+            if int(count) > 0:
+                problems.append(f"{table}: {count} -> gone (data would be lost)")
+            continue
+        if int(after_count) < int(count):
+            problems.append(f"{table}: {count} -> {after_count}")
     if int(after["sealed_bad"]) > 0:
         problems.append(f"{after['sealed_bad']} secret(s) no longer decrypt")
     env_after_value = _parse_env(old_root / ".env").get("APP_SECRET_KEY", "")

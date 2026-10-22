@@ -5,6 +5,44 @@ Dates are ISO-8601.
 
 ---
 
+## [Unreleased] — dead-code deduplication: one onboarding flow, one endpoint per concept (D-137)
+
+**No version, tag, PR or release.** An audit found the legacy "promotion wizard"
+duplicated the single end-to-end Setup Wizard (D-128), plus three endpoints that
+were unused duplicates. Removed.
+
+### Removed
+- **The promotion wizard** — `GET/POST /api/v1/promotion*`, the
+  `services/promotion_service.py` module, the `PromotionProgress` model, the
+  `PromotionRepository`, the `WizardStateOut`/`WizardStepOut`/`PresetOut` schemas
+  and the frontend `WizardState`/`WizardStep`/`WizardPreset` types, client
+  methods and the System-page wizard card. The Setup Wizard
+  (`/api/v1/setup-wizard`, D-128) is the only onboarding flow.
+- **`POST /api/v1/ai/test`** — an alias of `/api/v1/ai/classify`.
+- **`GET /api/v1/bots/managed/all`** — use `GET /api/v1/bots?kind=managed`.
+- **`GET /api/v1/system/setup`** — use `GET /api/v1/system/status`. Its
+  `owner_guard` allowlist entry is dropped too.
+
+### Added
+- Migration `20261021_0900_b8c9d0e1f2a3` drops the retired `promotion_progress`
+  table (reversible; the downgrade recreates it). It held only the wizard's own
+  progress row, never user/account/audience data.
+
+### Changed
+- `services/consistency_checks.py:_migration_created_tables` now walks the
+  migration chain in `down_revision` order and applies `create_table`/
+  `drop_table` from the `upgrade` body only, so a table retired by a later
+  migration is not reported as an orphan.
+- `scripts/update_existing.py` treats a *vanished* table as data loss only when
+  it still held rows, so an intentionally dropped empty table is not a failure.
+
+### Guards
+- `tests/test_analytics_api.py`, `tests/test_product_api.py`, `tests/test_api.py`,
+  `tests/test_bots_api.py`, `tests/test_reactions_api.py` updated to the surviving
+  endpoints; `tests/test_portable_update.py` pins the new migration head.
+
+---
+
 ## [Unreleased] — test-suite speed: one-time schema creation + AST cache (D-136)
 
 **No version, tag, PR or release.** The full suite took ~24 minutes, which made
@@ -25,7 +63,7 @@ removed them without changing what any check detects.
   so sharing is safe; a bounded cache keeps memory flat.
 
 ### Result
-- Full suite: **1428 s → 363 s** (≈3.9×), same result set (1216 passed,
+- Full suite: **1428 s → 363 s** (≈3.9×), same result set (1211 passed,
   12 skipped). `test_meta_audit.py` 308.7 s → 84.8 s;
   `test_consistency_mutations.py` 308.7 s → 62.3 s.
 - Meta-audit stays **32/32, 100%, 0 false positives**; `ruff check backend tests`

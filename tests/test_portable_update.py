@@ -34,7 +34,9 @@ BUILD = ROOT / "scripts" / "build_portable.sh"
 
 # The revision just before the Setup Wizard migration: forces a real migration.
 OLD_HEAD = "f6a7b8c9d0e1"
-NEW_HEAD = "a7b8c9d0e1f2"
+# The Setup Wizard migration, then the migration that retires the promotion
+# wizard table — the updater must apply both to reach the current head.
+NEW_HEAD = "b8c9d0e1f2a3"
 NEW_HEAD_TABLE = "setup_wizard_steps"
 
 MANAGER_TOKEN = "111111:MANAGER-TOKEN-ORIGINAL"

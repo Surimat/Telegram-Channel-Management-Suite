@@ -1307,42 +1307,6 @@ export interface DeliveryResult {
   message: string
 }
 
-// Product slice: first-run promotion wizard.
-export interface WizardStep {
-  key: string
-  title: string
-  description: string
-  status: string
-  status_title: string
-  how_to_fix: string
-  route: string
-  requires_session: boolean
-}
-
-export interface WizardState {
-  preset: string
-  preset_title: string
-  preset_description: string
-  has_session: boolean
-  mode: string
-  completed: boolean
-  dismissed: boolean
-  current_step: string
-  completed_steps: number
-  total_steps: number
-  steps: WizardStep[]
-  session_optional_note: string
-  session_risk_note: string
-  capabilities: CapabilityState[]
-}
-
-export interface WizardPreset {
-  id: string
-  title: string
-  description: string
-  requires_session: boolean
-}
-
 // Product slice: conservative auto-update.
 export interface UpdateStatus {
   enabled: boolean
@@ -2985,18 +2949,6 @@ export const api = {
     request<AnalyticsOverview>(
       `/api/v1/analytics/overview?days=${days}&channel_id=${encodeURIComponent(channelId)}`,
     ),
-  analyticsContent: (days = 30, channelId = '') =>
-    request<ContentAnalytics>(
-      `/api/v1/analytics/content?days=${days}&channel_id=${encodeURIComponent(channelId)}`,
-    ),
-  analyticsReactions: (days = 30, channelId = '') =>
-    request<ReactionsAnalytics>(
-      `/api/v1/analytics/reactions?days=${days}&channel_id=${encodeURIComponent(channelId)}`,
-    ),
-  analyticsAudience: (days = 30, channelId = '') =>
-    request<AudienceAnalytics>(
-      `/api/v1/analytics/audience?days=${days}&channel_id=${encodeURIComponent(channelId)}`,
-    ),
 
   // Telegram Mini App (PHASE 9)
   miniappConfig: () => request<MiniAppConfig>('/api/v1/miniapp/config'),
@@ -3185,22 +3137,6 @@ export const api = {
     request<{ deleted: boolean }>(`/api/v1/backup/destinations/${id}`, { method: 'DELETE' }),
   deliverToDestinations: () =>
     request<DeliveryResult[]>('/api/v1/backup/destinations/deliver', { method: 'POST' }),
-
-  // Product slice: first-run promotion wizard.
-  wizardPresets: () => request<WizardPreset[]>('/api/v1/promotion/presets'),
-  wizardState: () => request<WizardState>('/api/v1/promotion'),
-  setWizardPreset: (preset: string) =>
-    request<WizardState>('/api/v1/promotion/preset', {
-      method: 'POST',
-      body: JSON.stringify({ preset }),
-    }),
-  setWizardStep: (step: string) =>
-    request<WizardState>('/api/v1/promotion/step', {
-      method: 'POST',
-      body: JSON.stringify({ step }),
-    }),
-  finishWizard: () => request<WizardState>('/api/v1/promotion/finish', { method: 'POST' }),
-  dismissWizard: () => request<WizardState>('/api/v1/promotion/dismiss', { method: 'POST' }),
 
   // Product slice: conservative auto-update.
   updateStatus: () => request<UpdateStatus>('/api/v1/update'),

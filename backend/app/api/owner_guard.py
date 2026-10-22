@@ -38,7 +38,6 @@ ALLOWLIST_PREFIXES: tuple[str, ...] = (
     "/api/v1/owner/session",
     "/api/v1/owner/sync/google/callback",
     "/api/v1/system/status",
-    "/api/v1/system/setup",
 )
 
 #: Header the SPA uses to present the owner token.

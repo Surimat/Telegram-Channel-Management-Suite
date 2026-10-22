@@ -599,8 +599,7 @@ One RU-first page for the local owner profile and configuration sync:
   and its device, and reports a conflict explicitly. The page states that the
   database, sessions and TDATA are never copied and that secrets are excluded.
 
-A `Владелец` link sits at the bottom of the sidebar; the page is reached from the
-Promotion Wizard step "Настроить перенос настроек (необязательно)". Help topics
+A `Владелец` link sits at the bottom of the sidebar. Help topics
 `owner_auth` and `config_sync` explain both in beginner language.
 
 

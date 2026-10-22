@@ -831,8 +831,8 @@ itself honestly instead of each surface re-deriving the same state.
   claiming it is ready (D-095).
 - `api/v1/capability_graph.py` + `api/schemas/capability.py` — `GET
   /api/v1/capability-graph`. The language defaults to the saved UI preference.
-- The **Promotion Wizard** (`services/promotion_service.py`) embeds the same
-  evaluated graph in `WizardState.capabilities`, so the wizard and the Dashboard
+- The **Setup Wizard** (`services/setup_wizard.py`) embeds the same
+  evaluated graph, so the wizard and the Dashboard
   never disagree about "is this ready yet?".
 
 ### i18n

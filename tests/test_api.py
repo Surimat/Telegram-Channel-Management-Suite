@@ -30,14 +30,6 @@ async def test_system_status_plain_language(client) -> None:
     assert "BotFather" in manager["how_to_fix"]
 
 
-async def test_system_setup_endpoint(client) -> None:
-    resp = await client.get("/api/v1/system/setup")
-    assert resp.status_code == 200
-    checks = resp.json()
-    assert isinstance(checks, list)
-    assert any(c["key"] == "filesystem" for c in checks)
-
-
 async def test_shutdown_allowed_locally_in_dev(client, monkeypatch) -> None:
     # Ensure the deferred signal can never affect the test runner.
     import backend.app.api.v1.system as system_module

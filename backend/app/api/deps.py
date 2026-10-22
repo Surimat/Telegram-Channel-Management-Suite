@@ -41,7 +41,6 @@ from backend.app.services.invite_service import InviteService
 from backend.app.services.notification_service import NotificationCenterService
 from backend.app.services.permission_service import PermissionService
 from backend.app.services.posting_service import PostingService
-from backend.app.services.promotion_service import PromotionService
 from backend.app.services.reaction_service import ReactionService
 from backend.app.services.session_service import SessionProviderFactory, SessionService
 from backend.app.services.settings_service import SettingsService
@@ -290,10 +289,6 @@ def get_donor_service(session: AsyncSession = Depends(get_session)) -> DonorServ
 
 def get_destination_service(session: AsyncSession = Depends(get_session)) -> DestinationService:
     return DestinationService(session)
-
-
-def get_promotion_service(session: AsyncSession = Depends(get_session)) -> PromotionService:
-    return PromotionService(session)
 
 
 async def get_setup_wizard_service(

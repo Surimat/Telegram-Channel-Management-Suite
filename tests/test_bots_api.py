@@ -91,7 +91,7 @@ async def test_managed_bot_preview_and_flow(bot_client) -> None:
     assert fetched.status_code == 200
     assert fetched.json()["has_token"] is True
 
-    managed_list = await bot_client.get("/api/v1/bots/managed/all")
+    managed_list = await bot_client.get("/api/v1/bots?kind=managed")
     assert managed_list.status_code == 200
     assert any(b["id"] == managed_id for b in managed_list.json())
 

@@ -1,7 +1,7 @@
 """Capability graph (v1.5 consistency layer).
 
 A single, machine-readable description of what the product can do and what each
-capability **requires**. The UI, the Promotion Wizard and the Consistency Auditor
+capability **requires**. The UI, the Setup Wizard and the Consistency Auditor
 all read this instead of re-encoding "does this need a session?" rules in every
 view (D-094).
 

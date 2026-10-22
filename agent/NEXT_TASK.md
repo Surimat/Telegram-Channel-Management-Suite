@@ -54,9 +54,32 @@ parses/walks each of the ~300 modules once instead of ~1029 times per pass
 (seven checks re-walked the same trees; the meta-audit re-runs the pass per
 mutation). Checks only read the trees, so sharing is safe; a bounded cache keeps
 memory flat. Result: full suite **1428 s → 363 s** (≈3.9×), same result set
-(1216 passed, 12 skipped); meta-audit **32/32, 100%, 0 false positives**; `ruff
+(1211 passed, 12 skipped); meta-audit **32/32, 100%, 0 false positives**; `ruff
 check backend tests` clean. Additive; no version, tag, PR or release. See
 `agent/DECISIONS.md` D-136.
+
+### Completed stage — dead-code deduplication: one onboarding flow (D-137, on `develop` after D-136)
+
+**Goal:** remove genuine duplication/dead code with no feature, no version bump
+and no release. An audit found the legacy "promotion wizard" was a **second**
+onboarding flow duplicating the single end-to-end Setup Wizard (D-128), plus
+three endpoints that were unused duplicates. Removed: `GET/POST
+/api/v1/promotion*`, `services/promotion_service.py`, the `PromotionProgress`
+model (table `promotion_progress`), `PromotionRepository`, the
+`WizardStateOut`/`WizardStepOut`/`PresetOut` schemas, the frontend
+`WizardState`/`WizardStep`/`WizardPreset` types and client methods and the
+System-page wizard card; `POST /api/v1/ai/test` (alias of `/classify`); `GET
+/api/v1/bots/managed/all` (use `GET /api/v1/bots?kind=managed`); `GET
+/api/v1/system/setup` (use `/api/v1/system/status`; its `owner_guard` allowlist
+entry dropped). Additive migration `20261021_0900_b8c9d0e1f2a3` drops the retired
+`promotion_progress` table (reversible). `consistency_checks.py:
+_migration_created_tables` is now chain-ordered (applies `create_table`/
+`drop_table` from `upgrade` only) so a table retired by a later migration is not
+a false orphan; `scripts/update_existing.py` treats a vanished table as data loss
+only when it still held rows. Guards updated in `tests/test_analytics_api.py`,
+`tests/test_product_api.py`, `tests/test_api.py`, `tests/test_bots_api.py`,
+`tests/test_reactions_api.py`, `tests/test_portable_update.py`. Additive; no
+version, tag, PR or release. See `agent/DECISIONS.md` D-137.
 
 ### Active task — none
 

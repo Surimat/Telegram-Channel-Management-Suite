@@ -1,8 +1,8 @@
-"""Product router: backup destinations, promotion wizard and auto-update.
+"""Product router: backup destinations and auto-update.
 
-These are the "make it a product" surfaces: where a backup is delivered, the
-guided first-run wizard, and the conservative update flow. Nothing here needs a
-user session and nothing exposes credentials.
+These are the "make it a product" surfaces: where a backup is delivered and the
+conservative update flow. Nothing here needs a user session and nothing exposes
+credentials. (Onboarding lives in the single Setup Wizard, `/api/v1/setup-wizard`.)
 """
 
 from __future__ import annotations
@@ -11,7 +11,6 @@ from fastapi import APIRouter, Depends
 
 from backend.app.api.deps import (
     get_destination_service,
-    get_promotion_service,
     get_update_service,
 )
 from backend.app.api.errors import ApiError
@@ -21,12 +20,8 @@ from backend.app.api.schemas.product import (
     DestinationListOut,
     DestinationOut,
     DestinationUpdate,
-    PresetOut,
     UpdateStatusOut,
     UpdateToggleIn,
-    WizardPresetIn,
-    WizardStateOut,
-    WizardStepIn,
 )
 from backend.app.db.models.backup_destination import DestinationKind
 from backend.app.services.destination_service import (
@@ -35,7 +30,6 @@ from backend.app.services.destination_service import (
     DestinationView,
     provider_infos,
 )
-from backend.app.services.promotion_service import PromotionService, preset_list
 from backend.app.services.update_service import UpdateService, status_to_dict
 
 router = APIRouter(tags=["product"])
@@ -168,80 +162,6 @@ async def deliver_to_destinations(
         )
         for r in results
     ]
-
-
-# --- promotion wizard -------------------------------------------------------
-@router.get("/promotion/presets", response_model=list[PresetOut])
-async def list_presets() -> list[PresetOut]:
-    return [PresetOut(**p) for p in preset_list()]
-
-
-@router.get("/promotion", response_model=WizardStateOut)
-async def wizard_state(
-    service: PromotionService = Depends(get_promotion_service),
-) -> WizardStateOut:
-    return _wizard_out(await service.state())
-
-
-@router.post("/promotion/preset", response_model=WizardStateOut)
-async def set_preset(
-    payload: WizardPresetIn,
-    service: PromotionService = Depends(get_promotion_service),
-) -> WizardStateOut:
-    return _wizard_out(await service.set_preset(payload.preset))
-
-
-@router.post("/promotion/step", response_model=WizardStateOut)
-async def set_step(
-    payload: WizardStepIn,
-    service: PromotionService = Depends(get_promotion_service),
-) -> WizardStateOut:
-    return _wizard_out(await service.set_step(payload.step))
-
-
-@router.post("/promotion/finish", response_model=WizardStateOut)
-async def finish_wizard(
-    service: PromotionService = Depends(get_promotion_service),
-) -> WizardStateOut:
-    return _wizard_out(await service.finish())
-
-
-@router.post("/promotion/dismiss", response_model=WizardStateOut)
-async def dismiss_wizard(
-    service: PromotionService = Depends(get_promotion_service),
-) -> WizardStateOut:
-    return _wizard_out(await service.dismiss())
-
-
-def _wizard_out(state) -> WizardStateOut:  # type: ignore[no-untyped-def]
-    return WizardStateOut(
-        preset=state.preset,
-        preset_title=state.preset_title,
-        preset_description=state.preset_description,
-        has_session=state.has_session,
-        mode=state.mode,
-        completed=state.completed,
-        dismissed=state.dismissed,
-        current_step=state.current_step,
-        completed_steps=state.completed_steps,
-        total_steps=state.total_steps,
-        session_optional_note=state.session_optional_note,
-        session_risk_note=state.session_risk_note,
-        capabilities=state.capabilities,
-        steps=[
-            {
-                "key": s.key,
-                "title": s.title,
-                "description": s.description,
-                "status": s.status,
-                "status_title": s.status_title,
-                "how_to_fix": s.how_to_fix,
-                "route": s.route,
-                "requires_session": s.requires_session,
-            }
-            for s in state.steps
-        ],
-    )
 
 
 # --- auto update ------------------------------------------------------------

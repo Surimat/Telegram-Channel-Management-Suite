@@ -171,14 +171,6 @@ from backend.app.db.models.notification import (
     NotificationRecord,
     NotificationStatus,
 )
-from backend.app.db.models.onboarding import (
-    PRESET_ADVANCED,
-    PRESET_BASIC,
-    PRESET_BOT_ONLY,
-    PRESET_MINIMAL,
-    PRESET_PROFESSIONAL,
-    PromotionProgress,
-)
 from backend.app.db.models.owner import (
     METHOD_TITLES,
     OwnerAuthMethod,
@@ -377,7 +369,6 @@ __all__ = [
     "PermissionCheck",
     "Post",
     "PostStatus",
-    "PromotionProgress",
     "ProxyKind",
     "ProxyProfile",
     "ProxyStatus",

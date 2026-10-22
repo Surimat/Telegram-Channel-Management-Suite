@@ -3378,3 +3378,56 @@ to 84.8 s and `test_consistency_mutations.py` from 308.7 s to 62.3 s. `ruff chec
 backend tests` clean.
 
 **Status.** Locked.
+
+---
+
+## D-137 — 2026-10-21 — One onboarding flow: the legacy promotion wizard is deleted, not kept as a second status system — LOCKED
+
+**Context.** An audit of the product surfaces found the "promotion wizard" — a
+first-run onboarding flow with its own `GET/POST /api/v1/promotion*` endpoints,
+`services/promotion_service.py`, the `PromotionProgress` model (table
+`promotion_progress`), `PromotionRepository`, its `WizardStateOut`/`WizardStepOut`/
+`PresetOut` schemas, the frontend `WizardState`/`WizardStep`/`WizardPreset` types
+and a "Мастер первой настройки" card on the System page. It duplicated the
+**single** end-to-end Setup Wizard (`/api/v1/setup-wizard`, `services/
+setup_wizard.py`, D-128) which reuses the real services, the canonical channel
+identity and the capability graph and verifies each step against real state. Two
+onboarding flows meant two sources of truth about "is this install ready?" — the
+exact drift D-128 was written to remove. A few other endpoints were also unused
+duplicates: `POST /api/v1/ai/test` (an alias of `/classify`), `GET
+/api/v1/bots/managed/all` (a subset of `GET /api/v1/bots?kind=managed`) and `GET
+/api/v1/system/setup` (the same checks as `/system/status` in list form).
+
+**Decision.** Keep exactly one onboarding flow and remove the redundant surfaces:
+
+1. **One onboarding flow.** `/api/v1/promotion*`, `promotion_service.py`, the
+   `PromotionProgress` model, `PromotionRepository`, the wizard schemas, the
+   frontend wizard types/methods and the System-page wizard card are deleted. The
+   Setup Wizard is the only onboarding surface.
+2. **One endpoint per concept.** `POST /api/v1/ai/test` (alias of `/classify`),
+   `GET /api/v1/bots/managed/all` (use `GET /api/v1/bots?kind=managed`) and `GET
+   /api/v1/system/setup` (use `/api/v1/system/status`) are removed. The
+   `owner_guard` allowlist entry for the deleted `/system/setup` is dropped.
+3. **The retired table is dropped by a migration.** Additive migration
+   `b8c9d0e1f2a3` drops `promotion_progress` (reversible: the downgrade recreates
+   it). The consistency check `check_model_migration` now walks the migration
+   chain in `down_revision` order and applies `create_table`/`drop_table` from the
+   `upgrade` body only, so a table retired by a later migration is not reported as
+   an orphan — the auditor stays honest instead of the finding being suppressed.
+4. **The updater tolerates an intentional drop.** `scripts/update_existing.py`
+   only treats a *vanished* table as data loss when it still held rows; an empty
+   retired table is not a failure.
+
+**Non-negotiables.** The Setup Wizard (D-128), the capability graph and the
+canonical channel identity are untouched. No Telegram behaviour changes, no
+account registration, no limit bypass. The retired `promotion_progress` table
+held only the wizard's own progress row (selected preset / last step), never user,
+account or audience data. No version, tag, PR or release.
+
+**Consequences.** One onboarding status system, so the wizard and the Dashboard
+cannot disagree. Guards updated: `tests/test_product_api.py`, `tests/test_api.py`,
+`tests/test_bots_api.py`, `tests/test_reactions_api.py` no longer call the removed
+endpoints; `tests/test_portable_update.py` pins the new migration head; the
+frontend type check and build stay clean. Full suite green, `ruff` clean.
+
+**Status.** Locked.

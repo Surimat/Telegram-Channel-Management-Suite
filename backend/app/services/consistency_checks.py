@@ -267,8 +267,8 @@ def _api_prefixes() -> set[str]:
     """Return every API path segment the backend exposes (prefixes + routes).
 
     Combines ``APIRouter(prefix=...)`` declarations with the paths on route
-    decorators, so routers without a prefix (e.g. ``product`` → ``/promotion``,
-    ``/update``) are detected too.
+    decorators, so routers without a prefix (e.g. ``product`` → ``/update``,
+    ``/backup/destinations``) are detected too.
     """
     prefixes = set(_router_prefixes())
     for path in (BACKEND / "api" / "v1").glob("*.py"):
@@ -430,12 +430,50 @@ def _model_tables() -> set[str]:
 
 
 def _migration_created_tables() -> set[str]:
-    tables: set[str] = set()
+    """Tables that exist after the whole migration chain has run.
+
+    A table created by an early migration but dropped by a later one (e.g. the
+    retired ``promotion_progress``) is no longer part of the schema, so it must
+    not be reported as an orphan. Migrations are walked in ``down_revision``
+    order and only the ``upgrade`` body is read, so a ``create_table`` in a
+    ``downgrade`` never counts.
+    """
+    revisions: dict[str, dict[str, object]] = {}
     for path in MIGRATIONS.glob("*.py"):
         text = path.read_text(encoding="utf-8")
-        for match in re.finditer(r"""create_table\(\s*["']([^"']+)["']""", text):
-            tables.add(match.group(1))
-    return tables
+        upgrade = text.split("def downgrade", 1)[0]
+        rev = re.search(r"""^revision:\s*str\s*=\s*["']([^"']+)["']""", text, re.MULTILINE)
+        down = re.search(
+            r"""^down_revision:\s*str\s*\|\s*None\s*=\s*(?:["']([^"']+)["']|None)""",
+            text,
+            re.MULTILINE,
+        )
+        if not rev:
+            continue
+        revisions[rev.group(1)] = {
+            "down": down.group(1) if down and down.group(1) else None,
+            "creates": set(re.findall(r"""create_table\(\s*["']([^"']+)["']""", upgrade)),
+            "drops": set(re.findall(r"""drop_table\(\s*["']([^"']+)["']""", upgrade)),
+        }
+
+    ordered: list[str] = []
+    seen: set[str] = set()
+    cursor = next((r for r, v in revisions.items() if v["down"] is None), None)
+    while cursor is not None and cursor not in seen:
+        seen.add(cursor)
+        ordered.append(cursor)
+        cursor = next(
+            (r for r, v in revisions.items() if v["down"] == cursor and r not in seen),
+            None,
+        )
+
+    state: dict[str, bool] = {}
+    for rev in ordered:
+        for table in revisions[rev]["creates"]:  # type: ignore[union-attr]
+            state[table] = True
+        for table in revisions[rev]["drops"]:  # type: ignore[union-attr]
+            state[table] = False
+    return {table for table, exists in state.items() if exists}
 
 
 def check_model_migration() -> list[Finding]:

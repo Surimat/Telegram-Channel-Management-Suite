@@ -47,7 +47,6 @@ Health endpoints live at the root (`/health`, `/health/deep`) for probes.
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/api/v1/system/status` | overall system status summary |
-| GET | `/api/v1/system/setup` | run Setup Wizard checks |
 | GET | `/api/v1/system/info` | version, paths, environment |
 | GET | `/api/v1/system/database` | database migration state in plain language |
 | POST | `/api/v1/system/database/upgrade` | apply pending migrations (pre-migration backup first) |
@@ -93,7 +92,6 @@ from `APP_SECRET_KEY`). Responses expose `has_token` but never the token itself.
 | POST | `/api/v1/bots/{id}/enable` | enable |
 | POST | `/api/v1/bots/{id}/disable` | disable |
 | DELETE | `/api/v1/bots/{id}` | remove from active config |
-| GET | `/api/v1/bots/managed/all` | list managed bots recorded locally |
 | GET | `/api/v1/bots/managed/preview` | build the official create link (`?username=&name=`) |
 | POST | `/api/v1/bots/managed/register` | record a managed bot (from a `managed_bot` update) |
 | POST | `/api/v1/bots/{id}/managed/token` | fetch managed-bot token (`getManagedBotToken`) |
@@ -292,7 +290,6 @@ The LLM never picks emoji; emoji selection stays deterministic (D-021/D-033).
 | GET | `/api/v1/ai/settings` | all AI settings with plain-language help (what/why/large/safe) |
 | PUT | `/api/v1/ai/settings` | update AI settings (validated; DB override) |
 | POST | `/api/v1/ai/classify` | classify a text: `{text, mode}` → category/tone/confidence/source + routing flags |
-| POST | `/api/v1/ai/test` | alias of `/classify` for the UI's testing panel |
 | GET | `/api/v1/ai/models` | list `.gguf` files found in the models directory |
 | POST | `/api/v1/ai/model/check` | verify runtime + model file (load test, load time) |
 | POST | `/api/v1/ai/model/load` | load the model into memory |
@@ -336,10 +333,7 @@ per-person PII (D-010/D-029). `days` is clamped to `1..365` (default `30`).
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/v1/analytics/overview?days=&channel_id=` | headline + content + reactions + audience + a list of takeaways |
-| GET | `/api/v1/analytics/content?days=&channel_id=` | posts total/window, per-day series, category/source/status mix, summary |
-| GET | `/api/v1/analytics/reactions?days=&channel_id=` | status mix, success rate, planned/completed per day, emoji/bot/category mix |
-| GET | `/api/v1/analytics/audience?days=&channel_id=` | audience total, new 7d, per-day growth, status mix, top sources, source effectiveness, invite outcomes |
+| GET | `/api/v1/analytics/overview?days=&channel_id=` | headline + content + reactions + audience sections + a list of takeaways |
 
 `channel_id` optionally scopes every analytics view to one registry channel
 (`/api/v1/channels`). Omit it for global aggregates; the Analytics page defaults
@@ -634,23 +628,6 @@ owner enables them. Credentials are sealed at rest and never returned.
 | POST | `/api/v1/backup/destinations/{id}/check` | verify reachability |
 | DELETE | `/api/v1/backup/destinations/{id}` | remove a remote destination |
 | POST | `/api/v1/backup/destinations/deliver` | re-send the newest backup to every enabled destination |
-
----
-
-## First-run promotion wizard
-
-A guided, resumable onboarding flow. It reflects **real** system state (channel,
-manager bot, session, AI, backup, update) and never claims a step is done unless
-it is. Without a user session, session-gated steps are `optional`, not required.
-
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/api/v1/promotion/presets` | available presets (minimal → professional) |
-| GET | `/api/v1/promotion` | current wizard state + per-step status |
-| POST | `/api/v1/promotion/preset` | switch preset (`preset`) |
-| POST | `/api/v1/promotion/step` | mark a step (`step`) |
-| POST | `/api/v1/promotion/finish` | mark the setup complete |
-| POST | `/api/v1/promotion/dismiss` | hide the wizard |
 
 ---
 
@@ -974,9 +951,8 @@ A capability whose feature does not exist yet is reported as **`not_implemented`
 (never `available`), and each item carries an `implemented` boolean. As of v1.5.1
 `config_sync` and `media_conversion` are `not_implemented`.
 
-The Promotion Wizard (`GET /api/v1/promotion`) embeds the same evaluated graph in
-`capabilities`, so the wizard, the Dashboard and the Diagnostics panel always
-agree.
+The Setup Wizard (`GET /api/v1/setup-wizard`) embeds the same evaluated graph, so
+the wizard, the Dashboard and the Diagnostics panel always agree.
 
 UI preferences (`/api/v1/help/prefs`) now also carry `language` (default `ru`)
 and `available_languages`. The language is selectable in Settings and is used by
