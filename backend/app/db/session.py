@@ -76,6 +76,12 @@ async def init_models() -> None:
 
     engine = get_engine()
     async with engine.begin() as conn:
+        # The full schema is ~300 DDL statements; SQLite fsyncs after every one,
+        # which dominates bulk schema creation. ``synchronous`` is a per-connection
+        # setting, so turning it off here speeds that up without changing the
+        # database file (unlike ``journal_mode``, which persists).
+        if conn.dialect.name == "sqlite":
+            await conn.exec_driver_sql("PRAGMA synchronous=OFF")
         await conn.run_sync(Base.metadata.create_all)
 
 

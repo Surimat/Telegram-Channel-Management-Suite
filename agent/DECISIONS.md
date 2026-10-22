@@ -3334,3 +3334,47 @@ message instead of lying; a swallowed error is now visible in the log. Guard:
 
 **Status.** Locked.
 
+
+---
+
+## D-136 — 2026-10-21 — Test-suite speed: one-time schema creation and a per-content AST cache — LOCKED
+
+**Context.** The full suite took ~24 minutes, which made the mandatory gates
+painful to run. Profiling found two dominant, independent costs that were pure
+overhead, not real coverage:
+
+1. **Schema creation per test.** ~1176 tests call `init_models()`, and
+   `Base.metadata.create_all` over the 58-table / 128-index schema issues ~300
+   DDL statements. SQLite fsyncs after each one, so a fresh create costs ~0.9 s
+   while creating against an already-present schema costs ~0.015 s. That single
+   call was ~1000 s of the ~1428 s run.
+2. **Repeated parsing and walking in the static auditor.** `run_static_checks`
+   parsed the same ~304 backend modules 1029 times per pass, and seven checks
+   each called `ast.walk` over those same trees, so a pass re-walked ~1.27 M
+   nodes. The meta-audit engine re-runs the whole pass against a throwaway copy
+   for each of its ~40 mutations, multiplying both costs.
+
+**Decision.** Remove the overhead without changing any check's meaning:
+
+- `db/session.py:init_models` sets `PRAGMA synchronous=OFF` on the connection it
+  creates the schema with. `synchronous` is a **per-connection** setting, so the
+  database file is unchanged (unlike `journal_mode`, which persists); the pragma
+  is only in effect for the throwaway schema-creation transaction.
+- `services/consistency_checks.py` memoises the parsed `ast.Module` **by file
+  content** (blake2b) and memoises the `ast.walk` node list **on the tree
+  object**. Content-keying means a mutation sandbox that rewrites one file
+  re-parses that file while every untouched file is reused; the checks only ever
+  read the trees, so sharing them is safe. A bounded cache (4096 entries, cleared
+  on overflow) keeps memory flat.
+
+**Non-negotiables.** No change to what any check detects — the meta-audit stays
+**32/32, 100%, 0 false positives** and all mutation/negative-control tests pass.
+No production behaviour changes (the app builds its schema through Alembic, not
+`init_models`). No version, tag, PR or release; `develop` only.
+
+**Consequences.** The full suite dropped from **1428 s to 363 s** (≈3.9×) with the
+same result set (1216 passed, 12 skipped); `test_meta_audit.py` fell from 308.7 s
+to 84.8 s and `test_consistency_mutations.py` from 308.7 s to 62.3 s. `ruff check
+backend tests` clean.
+
+**Status.** Locked.

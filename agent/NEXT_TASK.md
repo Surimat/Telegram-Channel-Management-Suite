@@ -40,6 +40,24 @@ scan: no `.session`/TDATA/DB/model.
 Version string is **2.1.0** across `backend/app/__init__.py`, `pyproject.toml`,
 `frontend/package.json` + lock.
 
+### Completed stage — test-suite speed (D-136, on `develop` after D-135)
+
+**Goal:** make the mandatory gates cheap to run. The full suite took ~24 min.
+Two pure-overhead costs were found by profiling and removed, with no change to
+what any check detects. (1) `db/session.py:init_models` now sets
+`PRAGMA synchronous=OFF` on the connection that runs `create_all` (~300 DDL
+statements; SQLite fsyncs after each, ~0.9 s per test across ~1176 tests);
+`synchronous` is per-connection, so the DB file is unchanged. (2)
+`services/consistency_checks.py` memoises the parsed `ast.Module` by file
+**content** and the `ast.walk` node list on the tree object, so the auditor
+parses/walks each of the ~300 modules once instead of ~1029 times per pass
+(seven checks re-walked the same trees; the meta-audit re-runs the pass per
+mutation). Checks only read the trees, so sharing is safe; a bounded cache keeps
+memory flat. Result: full suite **1428 s → 363 s** (≈3.9×), same result set
+(1216 passed, 12 skipped); meta-audit **32/32, 100%, 0 false positives**; `ruff
+check backend tests` clean. Additive; no version, tag, PR or release. See
+`agent/DECISIONS.md` D-136.
+
 ### Active task — none
 
 **No stage is in progress.** The latest completed stage is the **honesty

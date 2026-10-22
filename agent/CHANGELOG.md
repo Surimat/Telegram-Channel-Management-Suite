@@ -5,6 +5,34 @@ Dates are ISO-8601.
 
 ---
 
+## [Unreleased] — test-suite speed: one-time schema creation + AST cache (D-136)
+
+**No version, tag, PR or release.** The full suite took ~24 minutes, which made
+the mandatory gates painful to run. Profiling found two pure-overhead costs and
+removed them without changing what any check detects.
+
+### Changed
+- **Schema creation is no longer fsync-bound.** `init_models()` set
+  `PRAGMA synchronous=OFF` on the throwaway connection that runs
+  `create_all` (~300 DDL statements over 58 tables/128 indexes; SQLite fsyncs
+  after each one). `synchronous` is per-connection, so the database file is
+  unchanged. This was ~1000 s of the ~1428 s run across ~1176 tests.
+- **The static auditor parses and walks each module once.**
+  `services/consistency_checks.py` memoises the parsed `ast.Module` by file
+  content (blake2b) and the `ast.walk` node list on the tree object. Seven
+  checks used to re-walk the same ~300 trees per pass (1.27 M nodes), and the
+  meta-audit engine re-runs the pass per mutation. Checks only read the trees,
+  so sharing is safe; a bounded cache keeps memory flat.
+
+### Result
+- Full suite: **1428 s → 363 s** (≈3.9×), same result set (1216 passed,
+  12 skipped). `test_meta_audit.py` 308.7 s → 84.8 s;
+  `test_consistency_mutations.py` 308.7 s → 62.3 s.
+- Meta-audit stays **32/32, 100%, 0 false positives**; `ruff check backend tests`
+  clean.
+
+---
+
 ## [Unreleased] — honesty hardening: no silent stubs, no swallowed errors (D-135)
 
 **No version, tag, PR or release.** An independent read-only audit
