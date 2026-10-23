@@ -17,6 +17,7 @@ from __future__ import annotations
 import contextlib
 import time
 from dataclasses import dataclass
+from datetime import UTC
 from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -502,7 +503,12 @@ class AiService:
         records, _ = await self.repo.list_records(limit=100000, offset=0)
         rules = ai = fallback = errors = 0
         for rec in records:
-            if rec.created_at < since:
+            created = rec.created_at
+            if created is not None and created.tzinfo is None:
+                # SQLite drops tzinfo, so stored values come back naive while
+                # ``since`` is aware; align them before comparing.
+                created = created.replace(tzinfo=UTC)
+            if created is not None and created < since:
                 continue
             if rec.source == SOURCE_AI:
                 ai += 1

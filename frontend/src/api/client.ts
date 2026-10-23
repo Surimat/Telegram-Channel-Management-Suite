@@ -2440,7 +2440,6 @@ export function setOwnerToken(token: string): void {
 
 export const api = {
   health: () => request<Health>('/health'),
-  healthDeep: () => request<Record<string, unknown>>('/health/deep'),
   systemStatus: () => request<SystemStatus>('/api/v1/system/status'),
   systemInfo: () => request<SystemInfo>('/api/v1/system/info'),
   settings: () => request<Setting[]>('/api/v1/settings'),
@@ -2483,9 +2482,6 @@ export const api = {
   }) => request<Bot>('/api/v1/bots/managed/register', { method: 'POST', body: JSON.stringify(payload) }),
   fetchManagedToken: (id: string) =>
     request<Bot>(`/api/v1/bots/${id}/managed/token`, { method: 'POST' }),
-  replaceManagedToken: (id: string) =>
-    request<Bot>(`/api/v1/bots/${id}/managed/replace-token`, { method: 'POST' }),
-
   // Bot Factory (v1.3)
   factoryTemplates: () => request<FactoryTemplate[]>('/api/v1/bot-factory/templates'),
   factoryBatches: () => request<FactoryBatchList>('/api/v1/bot-factory/batches'),
@@ -2649,8 +2645,6 @@ export const api = {
   meshLeases: () => request<MeshLeaseList>('/api/v1/mesh/leases'),
 
   // Reactions (PHASE 3)
-  reactionCategories: () =>
-    request<ReactionCategory[]>('/api/v1/reactions/categories'),
   reactionStatus: () => request<ReactionStats>('/api/v1/reactions/status'),
   enableReactions: () =>
     request<ReactionStats>('/api/v1/reactions/enable', { method: 'POST' }),
@@ -2691,8 +2685,6 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
-  reactionPosts: (params: Record<string, string> = {}) =>
-    request<Page<Post>>('/api/v1/reactions/posts?' + new URLSearchParams(params).toString()),
   createPost: (payload: {
     text: string
     channel_id?: number
@@ -2818,7 +2810,6 @@ export const api = {
 
   // Tiny AI classifier (PHASE 7)
   aiOverview: () => request<AiOverview>('/api/v1/ai/overview'),
-  aiStatus: () => request<AiStatus>('/api/v1/ai/status'),
   aiSettings: () => request<{ items: AiSettingHelp[] }>('/api/v1/ai/settings'),
   aiUpdateSettings: (values: Record<string, unknown>) =>
     request<{ items: AiSettingHelp[] }>('/api/v1/ai/settings', {
@@ -2834,7 +2825,6 @@ export const api = {
   aiCheckModel: () => request<AiModelCheck>('/api/v1/ai/model/check', { method: 'POST' }),
   aiLoadModel: () => request<AiModelCheck>('/api/v1/ai/model/load', { method: 'POST' }),
   aiUnloadModel: () => request<AiStatus>('/api/v1/ai/model/unload', { method: 'POST' }),
-  aiMetrics: () => request<AiMetrics>('/api/v1/ai/metrics'),
   aiEncoderStatus: () => request<EncoderStatus>('/api/v1/ai/encoder/status'),
   aiEncoderInstall: () =>
     request<EncoderActionResult>('/api/v1/ai/encoder/install', { method: 'POST' }),
@@ -2862,7 +2852,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  getSource: (id: string) => request<AudienceSource>(`/api/v1/audience/sources/${id}`),
   updateSource: (
     id: string,
     payload: { title?: string; enabled?: boolean; account_id?: string | null; source_type?: string },
@@ -2879,8 +2868,6 @@ export const api = {
     request<ScanPreview>(`/api/v1/audience/sources/${id}/scan/preview`, { method: 'POST' }),
   startScan: (id: string) =>
     request<ScanResult>(`/api/v1/audience/sources/${id}/scan`, { method: 'POST' }),
-  scanProgress: (id: string) =>
-    request<ScanResult>(`/api/v1/audience/sources/${id}/scan/progress`),
   pauseScan: (id: string) =>
     request<ScanResult>(`/api/v1/audience/sources/${id}/scan/pause`, { method: 'POST' }),
   resumeScan: (id: string) =>
@@ -2894,11 +2881,6 @@ export const api = {
   audienceTags: () => request<AudienceTag[]>('/api/v1/audience/tags'),
   assignTags: (userIds: string[], tags: string[]) =>
     request<{ updated: number }>('/api/v1/audience/tags/assign', {
-      method: 'POST',
-      body: JSON.stringify({ user_ids: userIds, tags }),
-    }),
-  removeTags: (userIds: string[], tags: string[]) =>
-    request<{ updated: number }>('/api/v1/audience/tags/remove', {
       method: 'POST',
       body: JSON.stringify({ user_ids: userIds, tags }),
     }),
@@ -2957,7 +2939,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ init_data: initData }),
     }),
-  miniappMe: () => request<MiniAppMe>('/api/v1/miniapp/me'),
   miniappLogout: () => request<{ ok: boolean }>('/api/v1/miniapp/logout', { method: 'POST' }),
   miniappSetup: (publicUrl: string) =>
     request<MiniAppSetupResult>('/api/v1/miniapp/setup', {
@@ -2992,7 +2973,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  permissionLatest: () => request<PermissionResult | null>('/api/v1/permissions/latest'),
   permissionHistory: (limit = 20) =>
     request<PermissionHistory>(`/api/v1/permissions/history?limit=${limit}`),
 
@@ -3002,7 +2982,6 @@ export const api = {
   // Channel Registry (hardening: one shared channel identity)
   channels: (params: Record<string, string> = {}) =>
     request<ChannelList>('/api/v1/channels?' + new URLSearchParams(params).toString()),
-  channel: (id: string) => request<Channel>(`/api/v1/channels/${id}`),
   channelsSummary: () => request<ChannelSummary>('/api/v1/channels/summary'),
   channelOverview: () => request<ChannelOverview>('/api/v1/channels/overview'),
   setupWizard: () => request<SetupWizardState>('/api/v1/setup-wizard'),
@@ -3069,12 +3048,8 @@ export const api = {
     request<Binding>('/api/v1/bindings', { method: 'POST', body: JSON.stringify(payload) }),
   checkBinding: (id: string) =>
     request<BindingCheck>(`/api/v1/bindings/${id}/check`, { method: 'POST' }),
-  checkChannelBindings: (channelId: string) =>
-    request<BindingCheck[]>(`/api/v1/bindings/channel/${channelId}/check`, { method: 'POST' }),
   removeBinding: (id: string) =>
     request<{ deleted: boolean }>(`/api/v1/bindings/${id}`, { method: 'DELETE' }),
-  capability: (channelId: string) =>
-    request<Capability>(`/api/v1/capabilities/${channelId}`),
   probeCapability: (channelId: string) =>
     request<Capability>(`/api/v1/capabilities/${channelId}/probe`, { method: 'POST' }),
 
@@ -3109,8 +3084,6 @@ export const api = {
 
   // Product slice: donor quality indicators.
   donors: () => request<DonorList>('/api/v1/donors'),
-  analyzeDonor: (sourceId: string) =>
-    request<DonorMetric>(`/api/v1/donors/analyze/${sourceId}`, { method: 'POST' }),
   analyzeAllDonors: () => request<DonorList>('/api/v1/donors/analyze', { method: 'POST' }),
 
   // Product slice: backup destinations.
@@ -3159,11 +3132,6 @@ export const api = {
     password?: string
     enabled?: boolean
   }) => request<ProxyProfile>('/api/v1/proxies', { method: 'POST', body: JSON.stringify(payload) }),
-  updateProxy: (id: string, payload: Record<string, unknown>) =>
-    request<ProxyProfile>(`/api/v1/proxies/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    }),
   removeProxy: (id: string) =>
     request<null>(`/api/v1/proxies/${id}`, { method: 'DELETE' }),
   checkProxy: (id: string) =>
@@ -3175,8 +3143,6 @@ export const api = {
     }),
 
   // v1.1: donor discovery (candidates are proposals; adding is explicit).
-  discoveryProviders: () =>
-    request<DiscoveryProviderStatus[]>('/api/v1/discovery/providers'),
   discoverySearch: (payload: {
     topic: string
     keywords?: string[]
@@ -3222,20 +3188,9 @@ export const api = {
     request<null>(`/api/v1/content/sources/${id}`, { method: 'DELETE' }),
   grabContentSource: (id: string, limit = 20) =>
     request<GrabResult>(`/api/v1/content/sources/${id}/grab?limit=${limit}`, { method: 'POST' }),
-  contentModeration: (sourceId: string) =>
-    request<ContentModeration>(`/api/v1/content/sources/${sourceId}/moderation`),
-  updateContentModeration: (sourceId: string, payload: Partial<ContentModeration>) =>
-    request<ContentModeration>(`/api/v1/content/sources/${sourceId}/moderation`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    }),
   contentItems: (params: Record<string, string> = {}) =>
     request<ContentItemList>('/api/v1/content/items?' + new URLSearchParams(params).toString()),
   contentItem: (id: string) => request<ContentItem>(`/api/v1/content/items/${id}`),
-  updateContentItem: (id: string, payload: Record<string, unknown>) =>
-    request<ContentItem>(`/api/v1/content/items/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
-  removeContentItem: (id: string) =>
-    request<null>(`/api/v1/content/items/${id}`, { method: 'DELETE' }),
   contentCleanPreview: (id: string) =>
     request<CleanPreview>(`/api/v1/content/items/${id}/clean`),
   applyContentClean: (id: string, cleaned?: string) =>
@@ -3245,68 +3200,25 @@ export const api = {
     }),
   revertContentClean: (id: string) =>
     request<ContentItem>(`/api/v1/content/items/${id}/clean/revert`, { method: 'POST' }),
-  contentRewrite: (id: string, mode: string) =>
-    request<RewriteResult>(`/api/v1/content/items/${id}/rewrite`, {
-      method: 'POST',
-      body: JSON.stringify({ mode }),
-    }),
-  applyContentRewrite: (id: string, mode: string) =>
-    request<ContentItem>(`/api/v1/content/items/${id}/rewrite/apply`, {
-      method: 'POST',
-      body: JSON.stringify({ mode }),
-    }),
   contentRights: (id: string) => request<RightsInfo>(`/api/v1/content/items/${id}/rights`),
-  releaseContentItem: (id: string) =>
-    request<ContentItem>(`/api/v1/content/items/${id}/release`, { method: 'POST' }),
   contentValidate: (id: string) =>
     request<ContentValidation>(`/api/v1/content/items/${id}/validate`),
   contentPreview: (id: string) => request<ContentPreview>(`/api/v1/content/items/${id}/preview`),
-  contentButtons: (id: string) => request<ContentButtonSet>(`/api/v1/content/items/${id}/buttons`),
-  saveContentButtons: (id: string, rows: ContentButton[][]) =>
-    request<ContentButtonSet>(`/api/v1/content/items/${id}/buttons`, {
-      method: 'PUT',
-      body: JSON.stringify({ rows }),
-    }),
   planContent: (id: string, payload: { targets: { channel_id: string; scheduled_at?: string; text_override?: string; profile_key?: string; ai_instructions?: string; target_language?: string }[]; mode?: string }) =>
     request<ContentPlan>(`/api/v1/content/items/${id}/plan`, { method: 'POST', body: JSON.stringify(payload) }),
   contentPublications: (id: string) =>
     request<ContentPlan>(`/api/v1/content/items/${id}/publications`),
-  scheduleContentPublication: (id: string, scheduledAt: string | null) =>
-    request<ContentPublication>(`/api/v1/content/publications/${id}/schedule`, {
-      method: 'POST',
-      body: JSON.stringify({ scheduled_at: scheduledAt }),
-    }),
   cancelContentPublication: (id: string) =>
     request<ContentPublication>(`/api/v1/content/publications/${id}/cancel`, { method: 'POST' }),
   publishContentPublication: (id: string) =>
     request<PublishResult>(`/api/v1/content/publications/${id}/publish`, { method: 'POST' }),
-  retryContentPublication: (id: string) =>
-    request<PublishResult>(`/api/v1/content/publications/${id}/retry`, { method: 'POST' }),
   contentCalendar: (start?: string, end?: string) =>
     request<ContentCalendar>(
       '/api/v1/content/calendar?' +
         new URLSearchParams({ ...(start ? { start } : {}), ...(end ? { end } : {}) }).toString(),
     ),
-  contentTick: () =>
-    request<{ published: number; deleted: number; comments: number; due: number }>(
-      '/api/v1/content/tick',
-      { method: 'POST' },
-    ),
-
   // v1.9: Content Operations pipeline (profiles, AI, moderation, rules).
   aiProfiles: () => request<AiProfile[]>('/api/v1/content/ai-profiles'),
-  createAiProfile: (payload: Partial<AiProfile> & { key: string }) =>
-    request<AiProfile>('/api/v1/content/ai-profiles', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }),
-  updateAiProfile: (id: string, payload: Partial<AiProfile>) =>
-    request<AiProfile>(`/api/v1/content/ai-profiles/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
-    }),
-  deleteAiProfile: (id: string) =>
-    request<null>(`/api/v1/content/ai-profiles/${id}`, { method: 'DELETE' }),
   classifyContentItem: (id: string) =>
     request<ContentItem>(`/api/v1/content/items/${id}/ai/classify`, { method: 'POST' }),
   processContentItem: (id: string, profileKey: string) =>
@@ -3325,11 +3237,6 @@ export const api = {
   createAutomationRule: (payload: Partial<AutomationRule>) =>
     request<AutomationRule>('/api/v1/content/automation-rules', {
       method: 'POST',
-      body: JSON.stringify(payload),
-    }),
-  updateAutomationRule: (id: string, payload: Partial<AutomationRule>) =>
-    request<AutomationRule>(`/api/v1/content/automation-rules/${id}`, {
-      method: 'PATCH',
       body: JSON.stringify(payload),
     }),
   deleteAutomationRule: (id: string) =>
@@ -3359,8 +3266,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  deleteEditorialRoom: (id: string) =>
-    request<{ ok: boolean }>(`/api/v1/editorial/rooms/${id}`, { method: 'DELETE' }),
   checkEditorialRoom: (id: string, createTopics = true) =>
     request<EditorialRoomCheck>(
       `/api/v1/editorial/rooms/${id}/check?create_topics=${createTopics}`,
@@ -3387,28 +3292,12 @@ export const api = {
       method: 'DELETE',
     }),
   editorialBoard: (id: string) => request<EditorialBoard>(`/api/v1/editorial/rooms/${id}/board`),
-  editorialEnqueue: (
-    id: string,
-    payload: { content_item_id: string; channel_id?: string; title?: string },
-  ) =>
-    request<EditorialItem>(`/api/v1/editorial/rooms/${id}/items`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }),
   editorialMove: (
     id: string,
     itemId: string,
     payload: { status: string; actor_telegram_id?: number; expected_version?: number },
   ) =>
     request<EditorialActionResult>(`/api/v1/editorial/rooms/${id}/items/${itemId}/move`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }),
-  editorialReorder: (
-    id: string,
-    payload: { status: string; ordered_ids: string[]; actor_telegram_id?: number },
-  ) =>
-    request<EditorialBoard>(`/api/v1/editorial/rooms/${id}/reorder`, {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
@@ -3503,9 +3392,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ secret, keep_local: keepLocal }),
     }),
-  syncConflict: () => request<SyncConflict>('/api/v1/owner/sync/conflict'),
-  syncDisconnect: () =>
-    request<SyncStatus>('/api/v1/owner/sync/disconnect', { method: 'POST' }),
   syncGoogleAuth: () => request<SyncGoogleAuth>('/api/v1/owner/sync/google/auth'),
   syncGoogleConnect: (accessToken: string, refreshToken = '') =>
     request<SyncStatus>('/api/v1/owner/sync/google/connect', {

@@ -81,18 +81,48 @@ only when it still held rows. Guards updated in `tests/test_analytics_api.py`,
 `tests/test_reactions_api.py`, `tests/test_portable_update.py`. Additive; no
 version, tag, PR or release. See `agent/DECISIONS.md` D-137.
 
+### Completed stage — dead and duplicate endpoints removed (D-138, on `develop` after D-137)
+
+**Goal:** finish the dead-code cleanup on the API and the SPA client with no
+feature, no version bump and no release. A second read-only audit pass found
+duplicate/dead surfaces on top of D-137. Removed: the Owner Auth duplicates
+`POST /api/v1/owner/lock` and `POST /api/v1/owner/unlock` (an alias of `login` /
+`set_enabled(True)`) plus `OwnerAuthService.lock()`/`unlock()`; the AI read
+duplicates `GET /api/v1/ai/status` and `GET /api/v1/ai/metrics` (strict subsets of
+`GET /api/v1/ai/overview`); the Diagnostics duplicate
+`GET /api/v1/diagnostics/report/formats` and its `ReportFormat` schema; and
+**42 dead frontend client methods** in `frontend/src/api/client.ts` (each had zero
+callers; every API area keeps its remaining used methods, so no client area is
+orphaned). API-only endpoints reachable by tests, the portable `.bat` scripts or an
+internal protocol (`events/{id}`, `system/shutdown`, the `mesh/*` lease/ping
+surface, `miniapp/me`, `reactions/categories`, `invites/summary`,
+`bindings/channel/{id}/check`, `system/database*`) are kept — a legitimate
+non-SPA surface, not dead code. `docs/API.md` is updated for every removed
+endpoint (it is the source `check_documented_endpoints()` verifies). A latent
+defect surfaced and was fixed: `AiService.metrics_since` compared a naive SQLite
+`created_at` against an aware `since` and crashed `/ai/overview` once any AI
+record existed — now normalised to aware UTC. Guards updated:
+`tests/test_ai_api.py` uses `/ai/overview`. Full suite green (1211 passed, 12
+skipped), `ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit 32/32.
+Additive; no version, tag, PR or release. See `agent/DECISIONS.md` D-138.
+
 ### Active task — none
 
-**No stage is in progress.** The latest completed stage is the **honesty
-hardening (D-135)**, which logs every production bare-`pass` swallow site and
-refuses the deterministic **fake** providers/backends outside `APP_ENV=demo`/
-`test`; before it, the **stub/fake sweep (D-133)**, which finished the
-**architecture consolidation** (D-132) by making every production class name
-unique across `backend/app` and deleting the one dead test double that shipped in
-production; before that, the **one-step data-preserving updater** (D-131), the
-**Reaction Manager channel-post source** (D-130), and the six D-123…D-128 stages
-shipped in the `v2.1.0-rc.1` pre-release. D-130…D-135 are not in any tag. Release
-only when the owner asks (D-060).
+**No stage is in progress.** The latest completed stage is the **dead and
+duplicate endpoint removal (D-138)**, which finished the **dead-code
+deduplication (D-137)** by removing the remaining duplicate endpoints (Owner Auth
+lock/unlock, AI status/metrics, Diagnostics report/formats) and the 42 dead
+frontend client methods, and fixed a latent `/ai/overview` crash; before D-137,
+the **test-suite speed** stage (D-136), the **honesty hardening (D-135)**, which
+logs every production bare-`pass` swallow site and refuses the deterministic
+**fake** providers/backends outside `APP_ENV=demo`/`test`; before it, the
+**stub/fake sweep (D-133)**, which finished the **architecture consolidation**
+(D-132) by making every production class name unique across `backend/app` and
+deleting the one dead test double that shipped in production; before that, the
+**one-step data-preserving updater** (D-131), the **Reaction Manager channel-post
+source** (D-130), and the six D-123…D-128 stages shipped in the `v2.1.0-rc.1`
+pre-release. D-130…D-138 are not in any tag. Release only when the owner asks
+(D-060).
 
 ### Completed stage — honesty hardening (D-135, on `develop` after D-134)
 

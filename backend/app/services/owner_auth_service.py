@@ -4,10 +4,10 @@ A local, offline identity that protects the Suite. It is independent of any
 Telegram account or session (D-105). Responsibilities:
 
 * create the owner profile (password or PIN) with a PBKDF2 verifier;
-* log in / log out and lock / unlock;
+* log in / log out;
 * rate-limit repeated wrong attempts;
 * decide whether a request may proceed (used by the API guard);
-* derive the config-bundle key at unlock time (never stored).
+* derive the config-bundle key at login time (never stored).
 
 Passwords and PINs are never stored, logged or returned. The service never emits
 the secret in an error message.
@@ -185,18 +185,6 @@ class OwnerAuthService:
     async def logout(self) -> None:
         await self.events.info(MODULE, "Владелец вышел.", operation="logout")
         await self.session.commit()
-
-    async def lock(self) -> OwnerStatus:
-        owner = await self.repo.get_single()
-        if owner is None:
-            raise OwnerAuthError(i18n.translate("owner.no_profile"), status_code=404)
-        owner.enabled = True
-        await self.session.commit()
-        await self.events.info(MODULE, "Приложение заблокировано.", operation="lock")
-        return await self.status()
-
-    async def unlock(self, secret: str) -> OwnerIdentity:
-        return await self.login(secret)
 
     async def set_enabled(self, enabled: bool) -> OwnerStatus:
         owner = await self.repo.get_single()

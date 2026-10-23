@@ -5,6 +5,42 @@ Dates are ISO-8601.
 
 ---
 
+## [Unreleased] — dead-code deduplication: one read surface per concept, no dead client methods (D-138)
+
+**No version, tag, PR or release.** A second read-only audit pass found duplicate
+and dead surfaces on top of the D-137 cleanup. Removed.
+
+### Removed
+- **Owner Auth duplicates** — `POST /api/v1/owner/lock` and
+  `POST /api/v1/owner/unlock` (an alias of `login` / `set_enabled(True)`), plus the
+  `OwnerAuthService.lock()`/`unlock()` methods. Use `POST /api/v1/owner/login`,
+  `POST /api/v1/owner/logout` and `POST /api/v1/owner/protection`.
+- **AI read duplicates** — `GET /api/v1/ai/status` and `GET /api/v1/ai/metrics`
+  (strict subsets of `GET /api/v1/ai/overview`).
+- **Diagnostics duplicate** — `GET /api/v1/diagnostics/report/formats` and its
+  `ReportFormat` schema; the formats stay documented on the report endpoint.
+- **42 dead frontend client methods** in `frontend/src/api/client.ts` — every one
+  had zero callers in any view/component.
+
+### Fixed
+- **`/api/v1/ai/overview` crashed once any AI record existed.**
+  `AiService.metrics_since` compared a naive SQLite `created_at` with an aware
+  `since` (`TypeError: can't compare offset-naive and offset-aware datetimes`);
+  it now normalises the stored value to aware UTC (the repo's established
+  pattern). Repointing `tests/test_ai_api.py` at `/ai/overview` exposed it.
+
+### Kept
+- API-only endpoints reachable by tests, the portable `.bat` scripts or an
+  internal protocol (e.g. `events/{id}`, `system/shutdown`, the `mesh/*`
+  lease/ping surface, `miniapp/me`, `reactions/categories`, `invites/summary`,
+  `bindings/channel/{id}/check`, `system/database*`) — a legitimate non-SPA
+  surface, not dead code.
+
+`docs/API.md` is updated for every removed endpoint (it is the source
+`check_documented_endpoints()` verifies). Full suite green (**1211 passed**, 12 skipped; the suite collects 1223), `ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit 32/32.
+
+---
+
 ## [Unreleased] — dead-code deduplication: one onboarding flow, one endpoint per concept (D-137)
 
 **No version, tag, PR or release.** An audit found the legacy "promotion wizard"

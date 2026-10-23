@@ -7,7 +7,7 @@ redacted server-side, then returned as a file.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class DiagnosticItem(BaseModel):
@@ -51,9 +51,3 @@ class MaintenanceResult(BaseModel):
     message: str
     detail: str = ""
     affected: int = 0
-
-
-class ReportFormat(BaseModel):
-    """Available report export formats (for the UI)."""
-
-    formats: list[str] = Field(default_factory=lambda: ["json", "txt", "zip"])

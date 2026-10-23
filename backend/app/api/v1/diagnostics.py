@@ -24,7 +24,6 @@ from backend.app.api.schemas.diagnostics import (
     DiagnosticsReport,
     MaintenanceAction,
     MaintenanceResult,
-    ReportFormat,
 )
 from backend.app.services.diagnostics_service import DiagnosticsError, DiagnosticsService
 
@@ -45,11 +44,6 @@ async def list_actions(
     service: DiagnosticsService = Depends(get_diagnostics_service),
 ) -> list[MaintenanceAction]:
     return service.list_actions(request.app.state)
-
-
-@router.get("/report/formats", response_model=ReportFormat)
-async def report_formats() -> ReportFormat:
-    return ReportFormat()
 
 
 @router.post("/actions/{key}", response_model=MaintenanceResult)

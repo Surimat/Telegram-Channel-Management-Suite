@@ -3431,3 +3431,54 @@ endpoints; `tests/test_portable_update.py` pins the new migration head; the
 frontend type check and build stay clean. Full suite green, `ruff` clean.
 
 **Status.** Locked.
+
+## D-138 — 2026-10-21 — Dead and duplicate endpoints are deleted, not left as a second API surface — LOCKED
+
+**Context.** A second read-only audit pass over the API and the SPA client found
+duplicated and dead surfaces on top of the D-137 cleanup. The Owner Auth router
+exposed `POST /api/v1/owner/lock` and `POST /api/v1/owner/unlock`, but `unlock`
+was a literal alias of `login` and `lock` was `set_enabled(True)` — the app is
+already protected by `POST /api/v1/owner/protection`. The AI router exposed
+`GET /api/v1/ai/status` and `GET /api/v1/ai/metrics`, strict subsets of the
+canonical `GET /api/v1/ai/overview` (which returns `status` + `metrics` +
+`today`), and neither was called by the SPA. The Diagnostics router exposed
+`GET /api/v1/diagnostics/report/formats`, whose only payload was a static
+`["json","txt","zip"]` already documented next to the report endpoint. Separately,
+`frontend/src/api/client.ts` had 38 methods (plus four the audit listed) that no
+view or component called — dead entries into live endpoints.
+
+**Decision.** Delete the duplicates and the dead client methods:
+
+1. **Owner Auth.** `POST /owner/lock` and `POST /owner/unlock` and the service
+   methods `lock()`/`unlock()` are removed; login/logout and
+   `POST /owner/protection` remain the single way to authenticate and to turn
+   protection on/off.
+2. **AI.** `GET /ai/status` and `GET /ai/metrics` are removed; `GET /ai/overview`
+   is the single read surface (`AiStatusOut`/`AiMetricsOut` stay — they are the
+   fields of `AiOverviewOut`).
+3. **Diagnostics.** `GET /diagnostics/report/formats` and the `ReportFormat`
+   schema are removed; the formats stay documented on the report endpoint.
+4. **Frontend client.** The 42 unused methods are removed; the API areas they
+   pointed at keep their remaining (used) methods, so no client area is orphaned
+   and the `api.frontend_unknown` auditor stays clean.
+5. **API-only endpoints are kept.** An endpoint reachable by tests, the portable
+   `.bat` scripts or an internal protocol (e.g. `events/{id}`, `system/shutdown`,
+   the `mesh/*` lease/ping surface, `miniapp/me`, `reactions/categories`,
+   `invites/summary`, `bindings/channel/{id}/check`, `system/database*`) is a
+   legitimate non-SPA surface (the `api.backend_unused` finding is INFO by
+   design) and is **not** deleted.
+
+**Non-negotiables.** No behaviour change for any surviving endpoint; no Telegram
+behaviour change; no account registration or limit bypass; no version, tag, PR or
+release. `docs/API.md` is the documentation source checked by
+`check_documented_endpoints()`, so every removed endpoint is removed from it too.
+
+**Consequences.** One read surface per concept on the AI, Owner and Diagnostics
+routers; the client has no dead methods. A latent defect surfaced while repointing
+the AI tests: `AiService.metrics_since` compared a naive SQLite `created_at`
+against an aware `since` and crashed `/ai/overview` once any AI record existed —
+now normalised to aware UTC (the repo's established pattern). Guards updated:
+`tests/test_ai_api.py` uses `/ai/overview`. Full suite green (1211 passed, 12
+skipped), `ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit 32/32.
+
+**Status.** Locked.

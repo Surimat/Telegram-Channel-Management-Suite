@@ -89,11 +89,6 @@ def _metrics_out(data: dict[str, object]) -> AiMetricsOut:
     return AiMetricsOut(**{k: int(v) for k, v in data.items() if k in fields})  # type: ignore[arg-type]
 
 
-@router.get("/status", response_model=AiStatusOut)
-async def ai_status(session: AsyncSession = Depends(get_session)) -> AiStatusOut:
-    return _status_out(await _service(session).status())
-
-
 @router.get("/overview", response_model=AiOverviewOut)
 async def ai_overview(session: AsyncSession = Depends(get_session)) -> AiOverviewOut:
     service = _service(session)
@@ -246,11 +241,6 @@ async def encoder_check(session: AsyncSession = Depends(get_session)) -> Encoder
 async def encoder_remove(session: AsyncSession = Depends(get_session)) -> EncoderStatusOut:
     """Delete the downloaded lightweight model (the built-in encoder still works)."""
     return _encoder_status_out(await EncoderService(session).remove())
-
-
-@router.get("/metrics", response_model=AiMetricsOut)
-async def ai_metrics(session: AsyncSession = Depends(get_session)) -> AiMetricsOut:
-    return _metrics_out(await _service(session).metrics())
 
 
 @router.get("/history", response_model=AiHistoryOut)

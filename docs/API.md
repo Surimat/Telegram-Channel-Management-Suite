@@ -285,7 +285,6 @@ The LLM never picks emoji; emoji selection stays deterministic (D-021/D-033).
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/v1/ai/status` | status: enabled, backend, model present/loaded, effective + plain-language reason/fix |
 | GET | `/api/v1/ai/overview` | status + lifetime metrics + today's metrics |
 | GET | `/api/v1/ai/settings` | all AI settings with plain-language help (what/why/large/safe) |
 | PUT | `/api/v1/ai/settings` | update AI settings (validated; DB override) |
@@ -294,7 +293,6 @@ The LLM never picks emoji; emoji selection stays deterministic (D-021/D-033).
 | POST | `/api/v1/ai/model/check` | verify runtime + model file (load test, load time) |
 | POST | `/api/v1/ai/model/load` | load the model into memory |
 | POST | `/api/v1/ai/model/unload` | unload the model from memory |
-| GET | `/api/v1/ai/metrics` | aggregate classification counters/latency |
 | GET | `/api/v1/ai/history` | recent AI diagnostics records (`?limit=&offset=`) |
 
 `mode` is `auto` (rules-first, default), `rules` (rules only), `encoder` (the
@@ -543,7 +541,6 @@ unsure, no file is produced (HTTP 500 with a friendly message).
 | GET | `/api/v1/diagnostics/actions` | safe maintenance actions and their state |
 | POST | `/api/v1/diagnostics/actions/{key}` | run a safe action (`restart_scheduler`, `recheck_telegram`, `recheck_channels`, `cleanup_jobs`) |
 | GET | `/api/v1/diagnostics/report?format=json\|txt\|zip` | download the redacted report (`X-Diagnostics-Redacted: true`) |
-| GET | `/api/v1/diagnostics/report/formats` | available export formats |
 
 Subsystems covered: application, database (migration status + revision), Telegram
 Bot API, manager bot, managed bots, user sessions (status only, no contents),
@@ -968,7 +965,6 @@ the capability graph; the beginner help catalog stays RU-first.
 | POST | `/api/v1/owner/setup` | create the owner profile (password/PIN); returns a signed token + status |
 | POST | `/api/v1/owner/login` | log in; returns a signed token + status |
 | POST | `/api/v1/owner/logout` | log out |
-| POST | `/api/v1/owner/lock` / `/unlock` | lock / unlock the app |
 | POST | `/api/v1/owner/protection` | turn app protection on/off |
 | POST | `/api/v1/owner/password` | change the owner password |
 | DELETE | `/api/v1/owner/profile` | delete the owner profile (204) |
