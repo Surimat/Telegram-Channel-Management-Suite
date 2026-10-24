@@ -3468,6 +3468,24 @@ view or component called — dead entries into live endpoints.
    legitimate non-SPA surface (the `api.backend_unused` finding is INFO by
    design) and is **not** deleted.
 
+**Round 2 (same session, completing D-138).** A final exhaustive pass — every
+registered route matched against every reference in the SPA, tests, scripts and
+docs, with `${…}`-aware path extraction — found the cleanup was not quite
+finished. Two further surfaces were removed:
+
+6. **Permissions.** `GET /api/v1/permissions/latest` is a strict subset of
+   `GET /api/v1/permissions/history` (whose newest-first list already contains the
+   latest check); no SPA, test or script caller existed. The endpoint and its
+   `docs/API.md` row are removed. `PermissionService.latest()` stays — the
+   capability graph and the service tests still use it.
+7. **Frontend client.** `api.health()` and the `Health` interface were dead (zero
+   callers anywhere in `frontend/src`). Removed. The backend `GET /health`
+   endpoint stays — the portable scripts and the Tray Agent poll it.
+
+Every remaining no-caller endpoint was re-verified as an intentional API-only
+surface and kept (per point 5 above). No behaviour change; no version, tag, PR or
+release.
+
 **Non-negotiables.** No behaviour change for any surviving endpoint; no Telegram
 behaviour change; no account registration or limit bypass; no version, tag, PR or
 release. `docs/API.md` is the documentation source checked by

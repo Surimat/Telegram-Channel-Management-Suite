@@ -93,7 +93,11 @@ duplicates `GET /api/v1/ai/status` and `GET /api/v1/ai/metrics` (strict subsets 
 `GET /api/v1/diagnostics/report/formats` and its `ReportFormat` schema; and
 **42 dead frontend client methods** in `frontend/src/api/client.ts` (each had zero
 callers; every API area keeps its remaining used methods, so no client area is
-orphaned). API-only endpoints reachable by tests, the portable `.bat` scripts or an
+orphaned). A final exhaustive pass then removed two more: the Permissions
+duplicate `GET /api/v1/permissions/latest` (a strict subset of
+`GET /api/v1/permissions/history`, which already returns the latest check) and the
+dead `api.health()` client method + unused `Health` interface. API-only endpoints
+reachable by tests, the portable `.bat` scripts or an
 internal protocol (`events/{id}`, `system/shutdown`, the `mesh/*` lease/ping
 surface, `miniapp/me`, `reactions/categories`, `invites/summary`,
 `bindings/channel/{id}/check`, `system/database*`) are kept — a legitimate
@@ -102,7 +106,8 @@ endpoint (it is the source `check_documented_endpoints()` verifies). A latent
 defect surfaced and was fixed: `AiService.metrics_since` compared a naive SQLite
 `created_at` against an aware `since` and crashed `/ai/overview` once any AI
 record existed — now normalised to aware UTC. Guards updated:
-`tests/test_ai_api.py` uses `/ai/overview`. Full suite green (1211 passed, 12
+`tests/test_ai_api.py` uses `/ai/overview`; `tests/test_hardening_api.py` asserts
+through `/permissions/history`. Full suite green (1211 passed, 12
 skipped), `ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit 32/32.
 Additive; no version, tag, PR or release. See `agent/DECISIONS.md` D-138.
 

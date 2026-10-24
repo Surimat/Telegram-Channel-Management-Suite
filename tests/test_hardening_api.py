@@ -54,23 +54,22 @@ async def test_permission_check_unknown_account(permission_client) -> None:
     assert resp.status_code == 404
 
 
-async def test_permission_latest_and_history(permission_client) -> None:
+async def test_permission_history_newest_first(permission_client) -> None:
     account_id = await _create_account(permission_client)
     await permission_client.post(
         f"{PERM}/check", json={"account_id": account_id, "target": "@chan"}
     )
-    latest = await permission_client.get(f"{PERM}/latest")
-    assert latest.status_code == 200
-    assert latest.json()["status"] == "ok"
     history = await permission_client.get(f"{PERM}/history")
     assert history.status_code == 200
-    assert len(history.json()["items"]) == 1
+    items = history.json()["items"]
+    assert len(items) == 1
+    assert items[0]["status"] == "ok"
 
 
-async def test_permission_latest_empty(permission_client) -> None:
-    resp = await permission_client.get(f"{PERM}/latest")
+async def test_permission_history_empty(permission_client) -> None:
+    resp = await permission_client.get(f"{PERM}/history")
     assert resp.status_code == 200
-    assert resp.json() is None
+    assert resp.json()["items"] == []
 
 
 async def test_manager_status_without_bot(manager_client) -> None:

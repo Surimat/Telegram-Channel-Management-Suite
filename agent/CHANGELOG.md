@@ -21,6 +21,13 @@ and dead surfaces on top of the D-137 cleanup. Removed.
   `ReportFormat` schema; the formats stay documented on the report endpoint.
 - **42 dead frontend client methods** in `frontend/src/api/client.ts` — every one
   had zero callers in any view/component.
+- **Permissions duplicate** — `GET /api/v1/permissions/latest`, a strict subset of
+  `GET /api/v1/permissions/history` (which already returns the latest check). The
+  endpoint, its `docs/API.md` row and the two guards that exercised it
+  (`tests/test_hardening_api.py`) are removed; `PermissionService.latest()` stays.
+- **Dead client method** — `api.health()` and the unused `Health` interface in
+  `frontend/src/api/client.ts` (zero callers). The backend `GET /health` endpoint
+  stays — the portable scripts and the Tray Agent poll it.
 
 ### Fixed
 - **`/api/v1/ai/overview` crashed once any AI record existed.**

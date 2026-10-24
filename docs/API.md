@@ -463,8 +463,7 @@ flood_wait | error`. Responses never expose an api_hash, phone or session conten
 | Method | Path | Purpose |
 |--------|------|---------|
 | POST | `/api/v1/permissions/check` | probe one account against a channel (`account_id`, `target` or `channel_id`) |
-| GET | `/api/v1/permissions/latest` | most recent check (or `null`) |
-| GET | `/api/v1/permissions/history?limit=` | recent checks, newest first |
+| GET | `/api/v1/permissions/history?limit=` | recent checks, newest first (includes the latest) |
 
 ---
 

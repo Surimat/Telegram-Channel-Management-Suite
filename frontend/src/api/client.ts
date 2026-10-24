@@ -96,11 +96,6 @@ export interface Page<T> {
   page_size: number
 }
 
-export interface Health {
-  status: string
-  version: string
-}
-
 export interface SystemInfo {
   version: string
   environment: string
@@ -2439,7 +2434,6 @@ export function setOwnerToken(token: string): void {
 }
 
 export const api = {
-  health: () => request<Health>('/health'),
   systemStatus: () => request<SystemStatus>('/api/v1/system/status'),
   systemInfo: () => request<SystemInfo>('/api/v1/system/info'),
   settings: () => request<Setting[]>('/api/v1/settings'),
