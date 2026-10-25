@@ -340,16 +340,16 @@ token is never part of any request or response. Additive migration
 
 ---
 
-## Unreleased on `develop` (D-123…D-128, D-130, D-131)
+## Released in v2.1.0 (D-123…D-138)
 
-Eight owner-approved stages are **merged on `develop` and not in a stable
-release**. The six stages D-123…D-128 are shipped in the `v2.1.0-rc.1`
-**pre-release** (2026-10-15); the latest **stable** tag remains `v2.0.1`. D-130
-(the Reaction Manager channel-post fix) and D-131 (the one-step data-preserving
-updater) came after the pre-release and are not in any tag yet. They are
-additive; the version string reads `2.1.0` until the owner decides to cut a
-stable release (D-060). Worked sequentially, each with its own locked decision
-and tests. Do not tag anything here until asked.
+All owner-approved stages through **D-138** are now shipped in the stable
+**v2.1.0** release (2026-10-25), promoted from the GitHub **Pre-release**
+`v2.1.0-rc.1` (2026-10-15). The six stages D-123…D-128 are rolled up together
+with the post-candidate stages D-130…D-138 (the Reaction Manager channel-post
+fix, the one-step data-preserving updater, the architecture consolidation and
+stub/fake sweep, the honesty hardening, the test-suite speed-up and the dead-code
+deduplication). The superseded pre-release tag `v2.1.0-rc.1` is retired (D-139).
+Worked sequentially, each with its own locked decision and tests.
 
 - **D-123 — Personal Account Safety (2026-10-11, unreleased).** Acting through a
   personal Telegram (MTProto) account is refused unless the owner opts in.
@@ -445,17 +445,17 @@ verification these stages still need before a release.
 
 ## Release
 
-- **v2.1.0 (2026-10-15):** a **release candidate** (`v2.1.0-rc.1`) published as a
-  GitHub **Pre-release** built from `develop`. It rolls up the six committed stages
+- **v2.1.0 (2026-10-25):** the stable release on `main`, promoted from the GitHub
+  **Pre-release** `v2.1.0-rc.1` (2026-10-15). It rolls up the six committed stages
   D-123…D-128: **Personal Account Safety** (personal MTProto accounts opt-in and
   off by default, bounded invite caps plus a rolling 24-hour per-account ceiling,
   D-123); the **Operational Module Registry** (the per-channel module map gates
   every launch path, D-124); **bot-lifecycle recovery and deep-link adoption**
   (D-125); **Content Pipeline Consolidation** (one content-processing engine,
   D-126); the read-only **Channel Overview** (D-127); and the end-to-end **Setup
-  Wizard** with real, server-verified per-step checks (D-128). It is a testing
-  pre-release — it is **not** the Latest release and does not replace the stable
-  `v2.0.1`. Migrations
+  Wizard** with real, server-verified per-step checks (D-128) — plus the
+  post-candidate stages D-130…D-138. The superseded pre-release tag `v2.1.0-rc.1`
+  is retired (D-139). Migrations
   `20261015_0900_f6a7b8c9d0e1_v2_0_invite_rate_limit.py` and
   `20261016_0900_a7b8c9d0e1f2_v2_0_setup_wizard.py`.
 - **v2.0.1 (2026-10-11):** a patch over v2.0.0 that adds the keyless-free

@@ -68,23 +68,24 @@ PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_R
 
 ## 6. Release verification (fill in per release)
 
-### v2.1.0 (Release candidate `v2.1.0-rc.1`: D-123…D-128, 2026-10-15)
+### v2.1.0 (Stable release: D-123…D-138, 2026-10-25)
 
-Off-cycle **release candidate** built from `develop` and published as a GitHub
-**Pre-release** (not the Latest release). It rolls up the six committed stages
-D-123…D-128; the only change for the release itself is the version string
-(2.0.1 → 2.1.0) and the workflow's pre-release flag.
+Stable release on `main`, promoted from the GitHub **Pre-release**
+`v2.1.0-rc.1` (2026-10-15). It rolls up the six committed stages D-123…D-128
+plus the post-candidate stages D-130…D-138. The release is the reviewed
+`develop → main` merge commit, tagged `v2.1.0`; the superseded pre-release tag
+`v2.1.0-rc.1` is retired (D-139).
 
-| Gate | v2.1.0-rc.1 | Notes |
+| Gate | v2.1.0 | Notes |
 | --- | --- | --- |
 | Version consistency (`2.1.0` everywhere) | ✅ | app / pyproject / frontend / lock (`test_repo_version_is_consistent`) |
-| Tests (`pytest` / `ruff`) | ✅ | full suite **1206 collected, 1194 passed, 12 skipped, green**; `ruff` clean |
+| Tests (`pytest` / `ruff`) | ✅ | full suite **1211 passed, 12 skipped, green** (1223 collected); `ruff` clean |
 | Frontend build | ✅ | `vue-tsc --noEmit` + `npm run build` clean |
 | Meta-audit engine (runtime) | ✅ | 32 total, 32 detected, 0 missed, 0 false positives |
 | Browser CI (`browser-tests`) | ✅ | real Playwright/Chromium; 0 skipped |
 | Artifact scan | ✅ | no `.session`/TDATA/DB/model in the ZIP; runtime dirs empty |
-| Published as Pre-release (not Latest) | ✅ | tag `v2.1.0-rc.1`; GitHub **Pre-release** |
-| Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v2.1.0-rc.1` (D-060) |
+| Published as the Latest stable release | ✅ | tag `v2.1.0` on merged `main`; GitHub **Release** (not Pre-release) |
+| Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v2.1.0` (D-060) |
 
 ### v2.0.1 (Keyless free image understanding — Kilo Gateway, 2026-10-11, D-122)
 

@@ -3500,3 +3500,51 @@ now normalised to aware UTC (the repo's established pattern). Guards updated:
 skipped), `ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit 32/32.
 
 **Status.** Locked.
+
+## D-139 — 2026-10-25 — v2.1.0 is promoted from the `v2.1.0-rc.1` candidate to the stable release, and the superseded candidate tag is retired — LOCKED
+
+**Context.** The owner asked to cut the **stable `v2.1.0`** by promoting the
+existing release candidate. The candidate `v2.1.0-rc.1` (D-129) is a GitHub
+**Pre-release** tagged on `develop`; `main` still stood at the stable `v2.0.1`.
+The promotion surfaced a real defect in the release-hygiene guards: the "latest
+tag" is `git tag --merged HEAD --sort=-v:refname`, and a **hyphenated**
+pre-release tag sorts *above* its own stable tag (`v2.1.0-rc.1` > `v2.1.0` in
+that sort). The guard that pins the docs to the latest tag
+(`test_readme_current_release_matches_latest_tag`, and the sibling anchor
+guards) captures the first `vX.Y.Z` token with the regex `v\d+\.\d+\.\d+`,
+which can never match a `-rc.1` suffix — so while the candidate tag stayed
+reachable, the repository's "latest tag" could never be named by any doc, and a
+stable `v2.1.0` could never satisfy the guard.
+
+**Decision.** Promote the candidate to the stable release and **retire the
+superseded candidate tag**:
+
+1. **Promote through the normal path.** `develop → main` reviewed PR, merged with
+   `--no-ff`; the **merge commit is the release**, tagged annotated `v2.1.0`
+   (D-050/D-060). `develop` is fast-forwarded to the merge afterwards. No force
+   push, no history rewrite.
+2. **Retire the candidate tag.** The local and remote `v2.1.0-rc.1` tag is
+   **deleted**, and its GitHub **Pre-release** entry is removed, because a
+   reachable hyphenated tag permanently sorts above the stable line and can never
+   be represented by the release-anchor regex. The candidate's content is fully
+   contained in `v2.1.0`, so nothing is lost; this is the one documented
+   exception to tag immutability (D-050), and it applies only to a superseded
+   **pre-release** candidate, never to a shipped **stable** tag.
+3. **The tag is created on a `main` tip whose docs are already correct.** The
+   release merge lands the versioned docs (README, CHANGELOG, CURRENT_STATE,
+   NEXT_TASK, ROADMAP, RELEASE_CHECKLIST) naming `v2.1.0`; a small post-merge
+   memory commit lands on `main` afterwards so the anchor guards' self-reference
+   (`main` HEAD = the tag commit) is satisfiable — the guards skip, rather than
+   false-fail, when `main`'s tip is not itself tagged (the same
+   "cannot-verify-is-not-a-failure" pattern the repo uses for shallow checkouts).
+4. **Version strings stay `2.1.0`** everywhere (`backend/app/__init__.py`,
+   `pyproject.toml`, `frontend/package.json` + lock); no code changed for the
+   release itself.
+
+**Consequences.** `v2.1.0` is the repository's newest and **Latest** stable
+release; `v2.1.0-rc.1` no longer exists as a tag or a GitHub Release. The
+release-hygiene guards (`tests/test_meta_audit.py`) are green on both `main` and
+`develop`. Future pre-releases must be retired on promotion for the same reason
+(a hyphenated tag outranks its stable tag in `--sort=-v:refname`).
+
+**Status.** Locked.

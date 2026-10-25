@@ -207,24 +207,31 @@ the remaining duplicate names and the one dead test double in production.
 
 ---
 
-## [2.1.0] — 2026-10-15
+## [2.1.0] — 2026-10-25
 
-**v2.1.0 release candidate `v2.1.0-rc.1` (GitHub Pre-release).** This candidate
-ships the six committed stages **D-123…D-128** on top of v2.0.1 — Personal
-Account Safety, the Operational Module Registry, bot-lifecycle recovery and
-deep-link adoption, one content-processing engine, Channel Overview and the
-end-to-end Setup Wizard. It is published as a **GitHub Pre-release** for testing
-before a stable release; it is **not** the Latest release and does not overwrite
-`v2.0.1`. Integrations are labelled honestly; unverified ones are not claimed as
-verified. Version strings read **2.1.0**.
+**v2.1.0 — stable release.** It was first published as the GitHub **Pre-release**
+`v2.1.0-rc.1` (2026-10-15) and is now promoted to the **stable** release on
+`main`. It rolls up the six committed stages **D-123…D-128** on top of v2.0.1 —
+Personal Account Safety, the Operational Module Registry, bot-lifecycle recovery
+and deep-link adoption, one content-processing engine, Channel Overview and the
+end-to-end Setup Wizard — plus the post-candidate stages **D-130…D-138**
+(Reaction Manager real-post ingestion, the one-step data-preserving updater, the
+architecture consolidation and stub/fake sweep, the honesty hardening, the
+test-suite speed-up and the dead-code deduplication). Integrations are labelled
+honestly; unverified ones are not claimed as verified. Version strings read
+**2.1.0**.
 
-**Release candidate (additive, no schema change to `main`).** The build is the
-same code that CI and the meta-audit run; migrations
+**Promotion (additive, no schema change to `main`).** The build is the same code
+that CI and the meta-audit run; migrations
 `20261015_0900_f6a7b8c9d0e1_v2_0_invite_rate_limit.py` and
 `20261016_0900_a7b8c9d0e1f2_v2_0_setup_wizard.py` are included and applied on
-first launch. Gates: full suite green (**1194 passed, 12 skipped**; 1206 collected),
+first launch. Gates: full suite green (**1211 passed, 12 skipped**; 1223 collected),
 `ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit 32/32 (0 missed, 0
-false positives). The pre-release candidate itself is recorded as **D-129**.
+false positives). The superseded pre-release tag `v2.1.0-rc.1` is **retired**
+(deleted) because a hyphenated tag sorts above `v2.1.0` in
+`git tag --sort=-v:refname` and would otherwise be reported as the newest tag
+forever; the promotion and the retirement are recorded as **D-139** (the
+candidate itself was **D-129**).
 
 **End-to-end Setup Wizard (D-128, additive, guided).** One resumable flow takes a
 fresh install to a working existing channel, with a **real** per-step

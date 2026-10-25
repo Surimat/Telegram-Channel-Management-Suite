@@ -3,16 +3,21 @@
 > **The single active task.** A new agent resumes here after reading
 > `agent/CURRENT_STATE.md`, `agent/DECISIONS.md` and `docs/ROADMAP.md`.
 
-**Updated:** 2026-10-21
-**Status:** **v2.1.0 is published as a GitHub Pre-release (candidate tag
-`v2.1.0-rc.1`, 2026-10-15); the latest stable release is v2.0.1 (2026-10-11).**
-This candidate ships the six committed stages **D-123…D-128** on top of v2.0.1 —
-D-123 (Personal Account Safety), D-124 (Operational Module Registry), D-125
-(Bot-lifecycle recovery and adoption), D-126 (Content Pipeline Consolidation),
-D-127 (Channel Overview) and D-128 (End-to-end Setup Wizard). It is built from
-`develop` and published as a **pre-release for testing**, not as the Latest
-release; the previous stable `v2.0.1` is unchanged. Version string is **2.1.0**.
-The pre-release candidate itself is recorded as **D-129**.
+**Updated:** 2026-10-25
+**Status:** **v2.1.0 is released — the stable release on `main` (tag `v2.1.0`,
+2026-10-25); the previous stable release was v2.0.1 (2026-10-11).**
+It was first published as the GitHub **Pre-release** `v2.1.0-rc.1` (2026-10-15)
+and is now promoted to the **stable** release on `main`. It rolls up the six
+committed stages **D-123…D-128** — D-123 (Personal Account Safety), D-124
+(Operational Module Registry), D-125 (Bot-lifecycle recovery and adoption), D-126
+(Content Pipeline Consolidation), D-127 (Channel Overview) and D-128 (End-to-end
+Setup Wizard) — plus the post-candidate stages **D-130…D-138** (Reaction Manager
+real-post ingestion, the one-step data-preserving updater, the architecture
+consolidation and stub/fake sweep, the honesty hardening, the test-suite speed-up
+and the dead-code deduplication). The superseded pre-release tag `v2.1.0-rc.1`
+is **retired** (D-139) because a hyphenated tag sorts above `v2.1.0` in
+`git tag --sort=-v:refname` and would otherwise be reported as the newest tag
+forever. Version string is **2.1.0**.
 
 After the candidate, **D-130 (Reaction Manager channel-post fix)** was committed
 on `develop`: the manager bot now reads real `channel_post` updates, stores the
@@ -125,8 +130,8 @@ logs every production bare-`pass` swallow site and refuses the deterministic
 (D-132) by making every production class name unique across `backend/app` and
 deleting the one dead test double that shipped in production; before that, the
 **one-step data-preserving updater** (D-131), the **Reaction Manager channel-post
-source** (D-130), and the six D-123…D-128 stages shipped in the `v2.1.0-rc.1`
-pre-release. D-130…D-138 are not in any tag. Release only when the owner asks
+source** (D-130), and the six D-123…D-128 stages. All of D-123…D-138 are now
+shipped in the stable release **v2.1.0**. Release only when the owner asks
 (D-060).
 
 ### Completed stage — honesty hardening (D-135, on `develop` after D-134)
@@ -421,20 +426,18 @@ D-124 in `agent/DECISIONS.md`.
 
 ### Next stage (factual)
 
-**No stage is in progress.** The six stages above (D-123…D-128) are committed on
-`develop` and shipped in the `v2.1.0-rc.1` pre-release. Keep the gates green; for a
-**stable** release (only when the owner asks, D-060): branch/review a
-`develop → main` PR from the current `develop` tip, tag the merge commit, and let
-the Release workflow attach the Windows portable ZIP. The non-blocking optional
-items (a full automated BotFather Mini App flow, richer analytics, additional AI
-backends, a permissively-licensed TDATA converter, D-070) remain, but only if the
-owner asks.
+**No stage is in progress.** Every committed stage through **D-138** is shipped in
+the stable release **v2.1.0** (2026-10-25). Keep the gates green; for the next
+release (only when the owner asks, D-060): branch/review a `develop → main` PR
+from the current `develop` tip, tag the merge commit, and let the Release workflow
+attach the Windows portable ZIP. The non-blocking optional items (a full automated
+BotFather Mini App flow, richer analytics, additional AI backends, a
+permissively-licensed TDATA converter, D-070) remain, but only if the owner asks.
 
-Six committed stages are sitting on `develop` (D-123 Personal Account Safety,
-D-124 Operational Module Registry, D-125 Bot-lifecycle recovery and adoption,
-D-126 Content Pipeline Consolidation, D-127 Channel Overview, D-128 End-to-end
-Setup Wizard) and are rolled up into the `v2.1.0-rc.1` pre-release; a future stable
-release window promotes them.
+The six committed stages D-123…D-128 (Personal Account Safety, Operational Module
+Registry, Bot-lifecycle recovery and adoption, Content Pipeline Consolidation,
+Channel Overview, End-to-end Setup Wizard) plus D-130…D-138 are all rolled into
+the stable **v2.1.0** release.
 
 **v2.0 completion gates added this cycle:** `tests/test_content_pipeline_e2e.py`
 and `tests/test_bot_onboarding_e2e.py` (end-to-end integration), a separate
