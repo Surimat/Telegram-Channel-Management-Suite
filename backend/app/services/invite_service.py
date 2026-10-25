@@ -53,12 +53,24 @@ from backend.app.providers.errors import (
     TelegramProviderError,
 )
 from backend.app.providers.session_base import SessionProvider
+from backend.app.services.channel_modules import (
+    MODULE_INVITES,
+    ChannelModuleGuard,
+)
 from backend.app.services.events_service import EventsService
+from backend.app.services.personal_account import PersonalAccountPolicy
 from backend.app.services.queue_service import QueueService
 from backend.app.services.session_service import SessionProviderFactory, SessionService
 
 MODULE = "invites"
 INVITE_JOB_KIND = "invite.batch"
+
+#: Safety caps applied when neither the job nor the environment sets a positive
+#: value. A fresh install can therefore never launch an unbounded bulk invite.
+#: They are deliberately small because the actor is the owner's *personal*
+#: account, whose mistake is not undoable (D-006/D-123).
+DEFAULT_INVITE_MAX_TOTAL = 100
+DEFAULT_INVITE_MAX_PER_ACCOUNT = 20
 
 # Filter keys accepted from the UI (a subset of the audience filters).
 _FILTER_KEYS = (
@@ -113,6 +125,68 @@ class InviteService:
             kwargs["provider_factory"] = self._session_provider_factory
         return SessionService(self.session, **kwargs)
 
+    def _policy(self) -> PersonalAccountPolicy:
+        return PersonalAccountPolicy(self.session, settings=self.settings)
+
+    def _effective_caps(
+        self, max_total: int | None, max_per_account: int | None
+    ) -> tuple[int, int]:
+        """Resolve the invite caps, never exceeding the configured ceiling.
+
+        A job (or API caller) may *lower* a cap but never *raise* it above the
+        configured ``invite_max_*``: the settings are the safety ceiling, so an
+        unattended request cannot set ``max_total=100000`` and bypass the limit.
+        """
+        ceiling_total = self.settings.invite_max_total or DEFAULT_INVITE_MAX_TOTAL
+        ceiling_per_account = (
+            self.settings.invite_max_per_account or DEFAULT_INVITE_MAX_PER_ACCOUNT
+        )
+
+        if max_total is None or max_total <= 0:
+            cap = ceiling_total
+        else:
+            cap = min(int(max_total), ceiling_total)
+
+        if max_per_account is None or max_per_account <= 0:
+            per_acct = ceiling_per_account
+        else:
+            per_acct = min(int(max_per_account), ceiling_per_account)
+
+        return int(cap), int(per_acct)
+
+    def _daily_cap(self) -> int:
+        """Rolling 24-hour per-account ceiling (0 disables the window)."""
+        return int(self.settings.invite_max_per_day or 0)
+
+    async def _rate_pause(
+        self, job: InviteJob, account_id: str, *, window_start: datetime, now: datetime
+    ) -> None:
+        """Pause a run that reached the rolling 24-hour per-account ceiling.
+
+        Records an honest wait time (the oldest invite in the window + 24h) and an
+        event. The ceiling is never bypassed (D-006).
+        """
+        oldest = await self.tasks.oldest_invited_since(account_id, since=window_start)
+        resume_at = (oldest or now) + timedelta(hours=24)
+        job.status = InviteJobStatus.PAUSED
+        job.wait_until = resume_at
+        job.rate_limited_at = now
+        job.last_error = (
+            "Достигнут суточный предел приглашений с одного личного аккаунта "
+            f"({self._daily_cap()} за 24 часа). Обходить ограничение нельзя."
+        )
+        await self.events.error(
+            MODULE,
+            job.last_error,
+            how_to_fix="Подождите, пока окно 24 часа не освободится, или отключите "
+            "массовые приглашения.",
+            operation="rate_limit",
+            status="rate_limited",
+        )
+        # Flush only; ``run_tick`` commits once at the end of the batch (the same
+        # pattern the FloodWait path uses), so the session never expires mid-loop.
+        await self.session.flush()
+
     async def _load_accounts(self, account_ids: list[str]) -> list[Any]:
         service = self._session_service()
         accounts = []
@@ -139,9 +213,9 @@ class InviteService:
             )
         return accounts
 
-    def _provider_for(self, account: Any) -> SessionProvider:
+    async def _provider_for(self, account: Any) -> SessionProvider:
         service = self._session_service()
-        return service.provider_for(account)
+        return await service.provider_for(account)
 
     # ------------------------------------------------------------------
     # Filters / planning
@@ -186,6 +260,10 @@ class InviteService:
         sample_limit: int = 10,
     ) -> dict[str, Any]:
         """Dry-run: count the audience slice and describe the planned run."""
+        # Preparing a bulk invite requires the explicit switch (preview included).
+        await self._policy().require_invites_enabled()
+        # ...and the invites module must be connected to the chosen channel (D-124).
+        await ChannelModuleGuard(self.session).require(channel_id, MODULE_INVITES)
         if channel_id:
             channel = await ChannelRepository(self.session).get(channel_id)
             if channel is None:
@@ -204,7 +282,8 @@ class InviteService:
         if source_ids:
             merged["source_ids"] = list(source_ids)
         users, total = await self._filtered_users(merged, limit=sample_limit)
-        planned = total if max_total <= 0 else min(total, max_total)
+        cap, _per_acct = self._effective_caps(max_total, None)
+        planned = total if cap <= 0 else min(total, cap)
         accounts = await self._load_accounts(list(account_ids or []))
 
         source_labels = []
@@ -223,7 +302,7 @@ class InviteService:
             "total_candidates": total,
             "planned_operations": planned,
             "accounts_count": len(accounts),
-            "max_total": max_total,
+            "max_total": cap,
             "sample": [
                 {
                     "id": u.id,
@@ -268,6 +347,10 @@ class InviteService:
         max_per_account: int | None = None,
         max_total: int | None = None,
     ) -> InviteJob:
+        # A bulk invite is only prepared when the owner has explicitly enabled it.
+        await self._policy().require_invites_enabled()
+        # ...and the invites module must be connected to the chosen channel (D-124).
+        await ChannelModuleGuard(self.session).require(channel_id, MODULE_INVITES)
         # A channel chosen from the shared registry supplies the target and its
         # display title, so the owner does not retype it (decision D-051).
         channel_ref = ""
@@ -313,6 +396,7 @@ class InviteService:
             if max_per_account is not None
             else self.settings.invite_max_per_account
         )
+        cap, per_acct = self._effective_caps(cap, per_acct)
 
         users, _total = await self._filtered_users(
             merged, limit=(cap if cap > 0 else 100000)
@@ -405,7 +489,11 @@ class InviteService:
         return await self.start_job(job_id)
 
     async def start_job(self, job_id: str) -> InviteJob:
+        # Never start (or resume) a bulk run while the owner has it switched off.
+        await self._policy().require_invites_enabled()
         job = await self._require_job(job_id)
+        # Block a run for a channel whose invites module is switched off (D-124).
+        await ChannelModuleGuard(self.session).require(job.channel_id, MODULE_INVITES)
         if job.confirmed_at is None:
             raise InviteServiceError(
                 "Задание не подтверждено.",
@@ -491,6 +579,22 @@ class InviteService:
         if job is None or job.status != InviteJobStatus.RUNNING:
             return "done", 0.0
 
+        # If the owner switched invitations off mid-run, stop honestly: pause the
+        # job (never keep inviting) and let the operator resume deliberately.
+        if not await self._policy().invites_allowed():
+            job.status = InviteJobStatus.PAUSED
+            await self.session.commit()
+            return "done", 0.0
+
+        # Same for the invites module on this channel (D-124): switching it off
+        # mid-run pauses the job instead of continuing to invite.
+        if not await ChannelModuleGuard(self.session).is_enabled(
+            job.channel_id, MODULE_INVITES
+        ):
+            job.status = InviteJobStatus.PAUSED
+            await self.session.commit()
+            return "done", 0.0
+
         size = self.settings.invite_batch_size
         now = utcnow()
         claimed = await self.tasks.claim_batch(job.id, limit=size, now=now)
@@ -507,10 +611,20 @@ class InviteService:
 
         accounts = await self._load_accounts(json.loads(job.account_ids or "[]"))
         providers: dict[str, SessionProvider] = {}
+        # Seed the rolling 24-hour per-account counts so the ceiling is enforced
+        # across jobs, not just within this run.
+        window_start = now - timedelta(hours=24)
+        counts: dict[str, int] = {}
+        if self._daily_cap() > 0:
+            for account in accounts:
+                counts[account.id] = await self.tasks.count_invited_since(
+                    account.id, since=window_start
+                )
         paused_for_flood = False
+        rate_limited = False
 
         for task in claimed:
-            if paused_for_flood:
+            if paused_for_flood or rate_limited:
                 # Unrun claims go back to pending; they retry after the wait.
                 task.status = InviteStatus.PENDING
                 continue
@@ -522,15 +636,19 @@ class InviteService:
                 continue
             provider = providers.get(account.id)
             if provider is None:
-                provider = self._provider_for(account)
+                provider = await self._provider_for(account)
                 providers[account.id] = provider
-            outcome = await self._execute_task(job, task, provider)
+            outcome = await self._execute_task(
+                job, task, provider, window_start=window_start, counts=counts
+            )
             if outcome == "flood":
                 paused_for_flood = True
+            elif outcome == "rate_limited":
+                rate_limited = True
 
         await self._refresh_counters(job)
         pending = await self.tasks.pending_count(job.id)
-        if paused_for_flood:
+        if paused_for_flood or rate_limited:
             await self.session.commit()
             return "paused", 0.0
         if pending == 0:
@@ -556,7 +674,13 @@ class InviteService:
         await self.run_tick(rows[0].id)
 
     async def _execute_task(
-        self, job: InviteJob, task: InviteTask, provider: SessionProvider
+        self,
+        job: InviteJob,
+        task: InviteTask,
+        provider: SessionProvider,
+        *,
+        window_start: datetime,
+        counts: dict[str, int],
     ) -> str:
         task.attempts += 1
         try:
@@ -564,7 +688,19 @@ class InviteService:
                 task.status = InviteStatus.INVITED
                 task.completed_at = utcnow()
                 return "invited"
+            # Rolling 24-hour per-account ceiling: refuse the invite *before* it is
+            # sent once this account has reached ``invite_max_per_day``. Checked
+            # per task so a run can never overshoot the limit by a whole batch.
+            daily = self._daily_cap()
+            if daily > 0 and counts.get(task.account_id, 0) >= daily:
+                task.attempts -= 1  # nothing was attempted
+                task.status = InviteStatus.PENDING
+                await self._rate_pause(
+                    job, task.account_id, window_start=window_start, now=utcnow()
+                )
+                return "rate_limited"
             await provider.invite_to_channel(job.target, task.telegram_user_id)
+            counts[task.account_id] = counts.get(task.account_id, 0) + 1
             task.status = InviteStatus.INVITED
             task.completed_at = utcnow()
             task.error = ""

@@ -12,6 +12,8 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend.app.core.logging import get_logger
+from backend.app.services.channel_modules import ChannelModuleDisabledError
+from backend.app.services.personal_account import PersonalAccountDisabledError
 
 logger = get_logger(__name__)
 
@@ -62,6 +64,28 @@ def register_exception_handlers(app: FastAPI) -> None:
                 "Проверьте введённые данные.",
                 "Некоторые поля заполнены неверно.",
             ),
+        )
+
+    @app.exception_handler(PersonalAccountDisabledError)
+    async def personal_account_disabled_handler(
+        _: Request, exc: PersonalAccountDisabledError
+    ) -> JSONResponse:
+        # A safety switch blocked an MTProto operation: answer with a friendly
+        # 403 and the switch to turn on. No secret is involved.
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=_envelope("forbidden", exc.message, exc.how_to_fix),
+        )
+
+    @app.exception_handler(ChannelModuleDisabledError)
+    async def channel_module_disabled_handler(
+        _: Request, exc: ChannelModuleDisabledError
+    ) -> JSONResponse:
+        # The owner switched a channel module off: answer with a friendly 403 and
+        # the exact place to turn it on (D-124). No secret is involved.
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=_envelope("forbidden", exc.message, exc.how_to_fix),
         )
 
     @app.exception_handler(Exception)

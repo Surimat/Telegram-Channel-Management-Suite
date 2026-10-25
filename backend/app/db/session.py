@@ -18,7 +18,10 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from backend.app.core.config import get_settings
+from backend.app.core.logging import get_logger
 from backend.app.db.base import Base
+
+logger = get_logger(__name__)
 
 _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
@@ -35,8 +38,10 @@ def _register_sqlite_functions(dbapi_connection, _record) -> None:  # type: igno
     try:
         dbapi_connection.create_function("lower", 1, lambda s: s.lower() if s else s)
         dbapi_connection.create_function("upper", 1, lambda s: s.upper() if s else s)
-    except Exception:  # pragma: no cover - defensive; never block startup
-        pass
+    except Exception as exc:  # pragma: no cover - defensive; never block startup
+        logger.warning(
+            "Не удалось включить регистронезависимый поиск по русским буквам: %s", exc
+        )
 
 
 def get_engine() -> AsyncEngine:
@@ -71,6 +76,12 @@ async def init_models() -> None:
 
     engine = get_engine()
     async with engine.begin() as conn:
+        # The full schema is ~300 DDL statements; SQLite fsyncs after every one,
+        # which dominates bulk schema creation. ``synchronous`` is a per-connection
+        # setting, so turning it off here speeds that up without changing the
+        # database file (unlike ``journal_mode``, which persists).
+        if conn.dialect.name == "sqlite":
+            await conn.exec_driver_sql("PRAGMA synchronous=OFF")
         await conn.run_sync(Base.metadata.create_all)
 
 

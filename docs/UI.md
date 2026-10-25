@@ -146,6 +146,8 @@ Wording rule — instead of `BOT_TOKEN missing`, write:
 | `/` | `DashboardView` | 1 |
 | `/bots` | `BotsView` | 2 |
 | `/channels` | `ChannelsView` | hardening |
+| `/channel-overview` | `ChannelOverviewView` (Сводка по каналам) | v2.0 |
+| `/setup-wizard` | `SetupWizardView` (Мастер настройки) | v2.0 |
 | `/reactions` | `ReactionsView` | 3 |
 | `/sessions` | `SessionsView` (Account Hub + accounts + network routes / proxies) | 4 |
 | `/sources` | `SourcesView` (sources + donor discovery) | 5 |
@@ -165,6 +167,9 @@ Wording rule — instead of `BOT_TOKEN missing`, write:
 | `/mesh` | `MeshView` (Компьютеры) | v1.3 |
 | `/editorial` | `EditorialView` (Редакция) | v1.4 |
 | `/notifications` | `NotificationsView` (Центр уведомлений) | v1.4 |
+| `/content` | `ContentStudioView` (Content Studio) | v1.2 |
+| `/ai-gateway` | `AiGatewayView` (Центр ИИ) | v1.8 |
+| `/owner` | `OwnerView` (Владелец) | v1.6 |
 
 ### Audience & Sources pages (`SourcesView.vue`, `AudienceView.vue`, PHASE 5)
 
@@ -351,6 +356,13 @@ Four owner-facing additions, all RU-first and consistent with §1–§4:
   table now has a **«Бот и реакции»** column: connect a bot to the channel, verify
   its rights, and probe the channel's available reactions — all **bot-only**, no
   user account required.
+- **Reactions page** (`ReactionsView.vue`, `/reactions`): profiles, rules,
+  simulation and the reaction queue. New channel posts arrive **automatically**
+  when the manager bot is a channel administrator (Telegram `channel_post`), so
+  the owner normally does nothing. The manual «Добавить пост и запланировать»
+  control needs the real Telegram message number; without it the app explains why
+  a reaction is impossible instead of silently queuing a job that cannot run
+  (D-130).
 - **Permission probe** (Sessions page): pick an account + a channel and press
   "Проверить доступ". The result is a plain-language status (`ok`, `partial`,
   `no_access`, `auth_required`, `admin_required`, `privacy_restricted`,
@@ -587,8 +599,7 @@ One RU-first page for the local owner profile and configuration sync:
   and its device, and reports a conflict explicitly. The page states that the
   database, sessions and TDATA are never copied and that secrets are excluded.
 
-A `Владелец` link sits at the bottom of the sidebar; the page is reached from the
-Promotion Wizard step "Настроить перенос настроек (необязательно)". Help topics
+A `Владелец` link sits at the bottom of the sidebar. Help topics
 `owner_auth` and `config_sync` explain both in beginner language.
 
 
@@ -653,3 +664,49 @@ selects an emoji — it only narrows; the reaction profile decides.
 The «ИИ и правила» tab links to the new `content_operations` help topic, which
 explains in plain Russian why the pipeline exists and what the mini-AI can and
 cannot do.
+
+## 11i. Сводка по каналам / Channel Overview (`ChannelOverviewView.vue`, `/channel-overview`, D-127)
+
+One **read-only** page answers “how is each channel doing?” without opening every
+other page. It calls `GET /api/v1/channels/overview` and renders, per channel:
+
+- the channel identity (title / @username / reference), kind, status and whether
+  it is the default channel, with a **verification** badge;
+- the authoritative **module map** (D-124: reactions / audience / invites /
+  analytics) as enabled/disabled chips;
+- one line per area — **bindings**, **audience**, **invites**, **bots**,
+  **content**, **pipeline** and the durable **queue** — each with a status badge
+  and its counts, built from the existing repositories/services;
+- an **attention** level (`ok` / `info` / `warning` / `error`) with a human
+  reason, plus a suite-wide totals bar and a **channel events** section.
+
+The page is a pure aggregate: it never writes a row, queues a job or contacts
+Telegram, so opening it can never change state. The attention rules are honest —
+a `needs_review` item is a `warning`, a ready bot binding is `ok`, and an
+AI-unavailable publication is surfaced rather than hidden.
+
+## 11j. Мастер настройки / End-to-end Setup Wizard (`SetupWizardView.vue`, `/setup-wizard`, D-128)
+
+One guided page takes a fresh install to a working existing channel. It calls
+`GET /api/v1/setup-wizard` and renders, in order, the steps `app` → `channel` →
+`bot` → `modules` → `content` → `queue` → `readiness`, each as a card with a
+status badge, the check's message, a "what to do" hint and a **Проверить шаг**
+button that runs the real server check. A progress bar shows
+`completed_steps / total_steps` and `ready` turns the flow green.
+
+Honesty rules surfaced in the UI:
+
+- opening the page never marks a step done — a step becomes **Проверено** only
+  after the server ran the check and it passed;
+- a step that was never run is **Не проверено**, not "done"; a step that was run
+  and failed is **Ошибка** with the fix hint;
+- a step links to the page where the owner fixes it (`route`), so the wizard
+  reuses the existing sections instead of duplicating them;
+- the final **readiness** step reads the read-only Channel Overview (D-127), so
+  there is one status system, not two.
+
+The page's only action that touches Telegram is the **test publication**, and it
+is disabled until the stored `bot` and `content` checks passed. Pressing it sends
+one already-prepared material to the default channel through the existing Content
+Studio posting path — no account is registered and no Telegram limit is bypassed.
+

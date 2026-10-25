@@ -100,6 +100,7 @@ async def auth_start(
         message=result.message,
         how_to_fix=result.how_to_fix,
         phone_masked=result.phone_masked,
+        code_delivery=result.code_delivery,
     )
 
 

@@ -18,6 +18,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
+from backend.app.core.logging import get_logger
+
+logger = get_logger(__name__)
+
 
 @dataclass(slots=True)
 class PageSnapshot:
@@ -209,8 +213,8 @@ class PlaywrightBrowserRuntime:
                 await self._context.close()
             if self._pw is not None:
                 await self._pw.stop()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Не удалось корректно закрыть браузер: %s", exc)
         finally:
             self._context = None
             self._pw = None

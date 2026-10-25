@@ -34,6 +34,7 @@ from backend.app.ai.types import (
     Classifier,
 )
 from backend.app.core.config import Settings, get_settings
+from backend.app.core.logging import get_logger
 from backend.app.core.security import open_secret
 from backend.app.db.base import utcnow
 from backend.app.db.models.ai import AiRecord
@@ -69,11 +70,17 @@ from backend.app.rules.engine import (
     RulesEngine,
     RuleSpec,
 )
+from backend.app.services.channel_modules import (
+    MODULE_REACTIONS,
+    ChannelModuleGuard,
+)
 from backend.app.services.events_service import EventsService
 from backend.app.services.queue_service import QueueService
 from backend.app.services.reaction_intent import intent_narrows
 from backend.app.services.reaction_planner import PlanParams, ReactionPlanner
 from backend.app.services.reaction_policy import intersect_reactions
+
+logger = get_logger(__name__)
 
 ProviderFactory = Callable[..., TelegramBotProvider]
 
@@ -597,8 +604,8 @@ class ReactionService:
                     )
                 )
                 await self.ai_repo.trim_records(self.settings.ai_history_limit)
-        except Exception:  # pragma: no cover - metrics must never break flow
-            pass
+        except Exception as exc:  # pragma: no cover - metrics must never break flow
+            logger.warning("Не удалось записать метрики реакций: %s", exc)
 
     def _public_source(self, source: str) -> str:
         """Map internal source names to the public UI vocabulary."""
@@ -764,6 +771,12 @@ class ReactionService:
                     how_to_fix="Обновите список каналов на странице «Каналы».",
                     status_code=404,
                 )
+            # Ingesting a post is part of the reactions module: refuse it when the
+            # owner switched reactions off for this channel (D-124), before the
+            # post row is written.
+            await ChannelModuleGuard(self.session).require(
+                registry_channel_id, MODULE_REACTIONS
+            )
             channel_username = channel.username or channel.reference
             if channel_id is None and channel.telegram_id is not None:
                 channel_id = channel.telegram_id
@@ -816,8 +829,124 @@ class ReactionService:
         await self.session.commit()
         return post
 
+    async def ingest_channel_post(
+        self,
+        *,
+        chat_id: int,
+        message_id: int,
+        text: str,
+        chat_username: str = "",
+        posted_at: datetime | None = None,
+        edited: bool = False,
+        mode: str = MODE_AUTO,
+    ) -> Post | None:
+        """Ingest a real channel post delivered by Telegram (D-130).
+
+        Called by the manager-bot runtime for a ``channel_post`` update. The
+        manager bot must be an administrator of the channel, so Telegram sends
+        each new post with its **real** numeric ``chat_id`` and ``message_id``;
+        storing those is what makes a reaction possible at all.
+
+        Returns the stored post, or ``None`` when the update is intentionally
+        ignored (unknown channel, module off, reactions disabled, an edited post,
+        or a redelivery of a post already stored). Never raises for an
+        ignorable update; real errors propagate.
+        """
+        # An edited post is not a new post: never plan reactions again. Update the
+        # stored text when we already know the post, then stop.
+        existing = await self.posts.get_by_telegram(chat_id, message_id)
+        if existing is not None:
+            if edited and text and existing.text != text:
+                existing.text = text
+                await self.session.commit()
+            return None
+
+        channel = await ChannelRepository(self.session).find_by_telegram_id(chat_id)
+        if channel is None and chat_username:
+            channel = await ChannelRepository(self.session).find_by_username(
+                chat_username
+            )
+        if channel is None:
+            # A channel the owner has not registered. Reactions are opt-in per
+            # channel, so ignore it rather than create an orphan post.
+            await self.events.warning(
+                "reactions.reaction_service",
+                "Пост из неизвестного канала пропущен.",
+                explanation=(
+                    "Пришёл пост из канала, которого нет в разделе «Каналы»."
+                ),
+                how_to_fix=(
+                    "Добавьте канал на странице «Каналы», включите для него модуль "
+                    "«Реакции» и убедитесь, что менеджер-бот — администратор канала."
+                ),
+                operation="ingest_channel_post",
+                status="skipped",
+            )
+            return None
+        # The reactions module must be on for this channel (D-124) — checked
+        # before any post row is written.
+        if not await ChannelModuleGuard(self.session).is_enabled(
+            channel.id, MODULE_REACTIONS
+        ):
+            await self.events.warning(
+                "reactions.reaction_service",
+                "Пост пропущен: модуль «Реакции» отключён для этого канала.",
+                explanation=f"Канал «{channel.title or channel.reference}».",
+                how_to_fix="Включите модуль «Реакции» на странице «Каналы».",
+                operation="ingest_channel_post",
+                status="skipped",
+            )
+            return None
+        profile = await self.get_active_profile()
+        if profile is None or not profile.enabled:
+            # Reactions are switched off globally: store nothing that cannot run.
+            return None
+        if edited:
+            # First time we see this post and it is already an edit — store it for
+            # reference but do not plan reactions on an edit.
+            await self.ingest_post(
+                text=text,
+                telegram_message_id=message_id,
+                channel_id=chat_id,
+                channel_username=channel.username or channel.reference,
+                registry_channel_id=channel.id,
+                posted_at=posted_at,
+                plan=False,
+                mode=mode,
+            )
+            return None
+        return await self.ingest_post(
+            text=text,
+            telegram_message_id=message_id,
+            channel_id=chat_id,
+            channel_username=channel.username or channel.reference,
+            registry_channel_id=channel.id,
+            posted_at=posted_at,
+            plan=True,
+            mode=mode,
+        )
+
     async def plan_post(self, post: Post, *, seed: int | None = None) -> list[ReactionJob]:
         """Create durable reaction jobs for an already-stored post."""
+        # The reactions module must be connected to the post's channel (D-124).
+        # Checked first so no job row is created for a switched-off channel.
+        await ChannelModuleGuard(self.session).require(
+            post.registry_channel_id, MODULE_REACTIONS
+        )
+        # A reaction needs the real Telegram message id and chat id (D-130). A
+        # post typed into the UI without them cannot be reacted to, so refuse it
+        # honestly here instead of enqueuing a job that always fails later.
+        if post.telegram_message_id is None or post.channel_id is None:
+            raise ReactionServiceError(
+                "У поста нет идентификатора сообщения в Telegram — реакция невозможна.",
+                how_to_fix=(
+                    "Реакции ставятся на реальные посты канала: они появляются "
+                    "автоматически, когда менеджер-бот — администратор канала. "
+                    "Для поста, опубликованного вручную, выберите его из списка "
+                    "постов канала (с настоящим номером сообщения)."
+                ),
+                status_code=409,
+            )
         profile = await self.get_active_profile()
         if profile is None or not profile.enabled:
             raise ReactionServiceError(
@@ -960,6 +1089,27 @@ class ReactionService:
         bot = await self.bots.get(job.bot_id)
         if post is None or bot is None:
             raise ReactionServiceError("Пост или бот задания не найден.", status_code=404)
+        # If the owner switched the reactions module off for this channel, do not
+        # apply the reaction: finalize the job as skipped so the durable queue can
+        # retire it without touching Telegram (D-124).
+        #
+        # A post may carry the registry link (new posts) or only the channel
+        # username (legacy/auto-ingested posts); resolve the registry channel from
+        # the username so the gate also covers the durable reaction tick.
+        post_channel_ref = post.registry_channel_id
+        if not post_channel_ref and post.channel_username:
+            linked = await ChannelRepository(self.session).find_by_username(
+                post.channel_username
+            )
+            if linked is not None:
+                post_channel_ref = linked.id
+        if not await ChannelModuleGuard(self.session).is_enabled(
+            post_channel_ref, MODULE_REACTIONS
+        ):
+            job.status = ReactionJobStatus.SKIPPED
+            job.error = "Модуль «Реакции» отключён для этого канала."
+            await self.session.flush()
+            return
         if post.telegram_message_id is None or post.channel_id is None:
             raise ReactionServiceError(
                 "У поста нет идентификатора сообщения в Telegram — реакция невозможна.",

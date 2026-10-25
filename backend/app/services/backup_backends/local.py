@@ -11,8 +11,8 @@ import shutil
 from pathlib import Path
 
 from backend.app.services.backup_backends.base import (
-    ProviderInfo,
-    ProviderStatus,
+    BackupProviderInfo,
+    BackupProviderStatus,
     UploadResult,
 )
 
@@ -24,17 +24,17 @@ class LocalBackupProvider:
     def __init__(self, directory: Path) -> None:
         self._directory = directory
 
-    def check(self) -> ProviderStatus:
+    def check(self) -> BackupProviderStatus:
         try:
             self._directory.mkdir(parents=True, exist_ok=True)
             free = shutil.disk_usage(self._directory).free
         except OSError as exc:
-            return ProviderStatus(
+            return BackupProviderStatus(
                 configured=True,
                 reachable=False,
                 message=f"Папка резервных копий недоступна: {type(exc).__name__}.",
             )
-        return ProviderStatus(
+        return BackupProviderStatus(
             configured=True,
             reachable=True,
             message="Локальная папка резервных копий доступна.",
@@ -55,7 +55,7 @@ class LocalBackupProvider:
         return UploadResult(ok=True, message="Копия сохранена локально.", location=str(target))
 
 
-INFO = ProviderInfo(
+INFO = BackupProviderInfo(
     name="local",
     title="Локально (этот компьютер)",
     requires_credentials=False,

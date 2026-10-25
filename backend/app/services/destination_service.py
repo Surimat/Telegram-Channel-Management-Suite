@@ -55,7 +55,7 @@ class DestinationView:
 
 
 @dataclass(slots=True)
-class DeliveryResult:
+class DestinationDeliveryResult:
     destination_id: str
     kind: str
     ok: bool
@@ -183,10 +183,10 @@ class DestinationService:
 
     async def deliver(
         self, filename: str, content: bytes, *, caption: str = ""
-    ) -> list[DeliveryResult]:
+    ) -> list[DestinationDeliveryResult]:
         """Deliver a backup to every enabled destination (best effort)."""
         await self.ensure_defaults()
-        results: list[DeliveryResult] = []
+        results: list[DestinationDeliveryResult] = []
         for row in await self.repo.list_all():
             if not row.enabled:
                 continue
@@ -200,7 +200,7 @@ class DestinationService:
                 row.status = DestinationStatus.ERROR
                 row.last_error = result.message
             results.append(
-                DeliveryResult(
+                DestinationDeliveryResult(
                     destination_id=row.id, kind=str(row.kind), ok=result.ok, message=result.message
                 )
             )
@@ -260,7 +260,7 @@ def provider_infos() -> list[dict[str, object]]:
 
 
 __all__ = [
-    "DeliveryResult",
+    "DestinationDeliveryResult",
     "DestinationService",
     "DestinationServiceError",
     "DestinationView",

@@ -118,16 +118,16 @@ async def test_global_overview_sees_both_channels(scoped_client: AsyncClient) ->
 
 async def test_content_scoped_to_channel(scoped_client: AsyncClient) -> None:
     body = (
-        await scoped_client.get(f"{ANALYTICS_BASE}/content", params={"channel_id": "ch-a"})
-    ).json()
+        await scoped_client.get(f"{ANALYTICS_BASE}/overview", params={"channel_id": "ch-a"})
+    ).json()["content"]
     assert body["posts_total"] == 1
     assert {c["key"] for c in body["by_category"]} == {"donation"}
 
 
 async def test_audience_scoped_to_channel(scoped_client: AsyncClient) -> None:
     body = (
-        await scoped_client.get(f"{ANALYTICS_BASE}/audience", params={"channel_id": "ch-b"})
-    ).json()
+        await scoped_client.get(f"{ANALYTICS_BASE}/overview", params={"channel_id": "ch-b"})
+    ).json()["audience"]
     assert body["audience_total"] == 1
     assert body["sources_total"] == 1
     assert body["top_sources"][0]["username"] == "beta_src"

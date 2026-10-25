@@ -58,6 +58,16 @@ class Settings(BaseSettings):
     telegram_api_id: str = ""
     telegram_api_hash: SecretStr = SecretStr("")
 
+    # --- Personal account safety (default OFF) ---
+    # Master switch for operations through a personal Telegram (MTProto) account.
+    # Off by default: no personal session is ever used until the owner turns it on.
+    # While off, every MTProto path (API, scheduler, background tasks) is refused
+    # at the single provider chokepoint. Bot API operations are unaffected.
+    personal_account_enabled: bool = False
+    # Automatic (bulk) invitations are off by default, on top of the master
+    # switch. Turning this on requires the personal-account switch to be on too.
+    invites_enabled: bool = False
+
     # --- Sessions ---
     sessions_dir: str = "./sessions"
 
@@ -83,9 +93,15 @@ class Settings(BaseSettings):
     invite_delay_max: float = 60.0
     # Tasks processed per scheduler tick (keeps memory/CPU low on weak machines).
     invite_batch_size: int = 5
-    # Default caps when a job does not specify its own (0 = no cap).
-    invite_max_total: int = 0
-    invite_max_per_account: int = 0
+    # Safety caps when a job does not specify its own. Non-zero by default so a
+    # fresh install can never launch an unbounded bulk invite (D-006). Kept
+    # deliberately small for a *personal* (MTProto) account: these are the per-job
+    # ceilings, and a caller-supplied value can never exceed them.
+    invite_max_total: int = 100
+    invite_max_per_account: int = 20
+    # Rolling 24-hour ceiling per personal account, enforced at execution time
+    # (a job cap alone resets with every job, so it is not a rate limit).
+    invite_max_per_day: int = 50
 
     # --- Scheduler ---
     scheduler_enabled: bool = True

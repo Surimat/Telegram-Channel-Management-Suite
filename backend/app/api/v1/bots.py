@@ -125,13 +125,6 @@ async def remove_bot(bot_id: str, service: BotService = Depends(get_bot_service)
 
 
 # --- Managed bots ------------------------------------------------------------
-@router.get("/managed/all", response_model=list[BotOut])
-async def list_managed_bots(
-    service: BotService = Depends(get_bot_service),
-) -> list[BotOut]:
-    return [BotOut.from_model(b) for b in await service.list_managed()]
-
-
 @router.get("/managed/preview", response_model=ManagedBotPreview)
 async def managed_preview(
     username: str = Query(description="Желаемый @username нового бота"),

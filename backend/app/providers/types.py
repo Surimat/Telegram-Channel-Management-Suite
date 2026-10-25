@@ -202,6 +202,19 @@ class ChannelFetchResult:
 
 # --- Manager bot runtime (post-1.0 hardening) --------------------------------
 
+#: Update types the manager-bot poller asks Telegram for (D-130). Telegram only
+#: delivers a channel's new posts to a bot that is an administrator of that
+#: channel, and only when ``channel_post`` is in ``allowed_updates``. These are
+#: the update types the runtime actually handles; anything else is not requested.
+MANAGER_ALLOWED_UPDATES: tuple[str, ...] = (
+    "message",
+    "edited_message",
+    "channel_post",
+    "edited_channel_post",
+    "callback_query",
+    "managed_bot",
+)
+
 
 @dataclass(slots=True)
 class BotUpdate:
@@ -212,7 +225,8 @@ class BotUpdate:
     """
 
     update_id: int
-    kind: str = "message"  # "message" | "other" | "callback"
+    # "message" | "other" | "callback" | "managed_bot" | "channel_post"
+    kind: str = "message"
     chat_id: int | None = None
     user_id: int | None = None
     username: str = ""
@@ -222,6 +236,23 @@ class BotUpdate:
     callback_query_id: str = ""
     callback_data: str = ""
     message_id: int | None = None
+    # D-130: a channel post delivered to the manager bot because it is an
+    # administrator of the channel. ``channel_post_*`` carry the real numeric
+    # chat id and message id, so the Reaction Manager can store the post and
+    # place a reaction on it. ``channel_post_edited`` marks an
+    # ``edited_channel_post`` update (stored for freshness, never re-planned).
+    channel_post_chat_id: int | None = None
+    channel_post_message_id: int | None = None
+    channel_post_text: str = ""
+    channel_post_chat_username: str = ""
+    channel_post_edited: bool = False
+    # D-125: a ``managed_bot`` update announces a bot created through the official
+    # managed-bot flow (e.g. a ``t.me/newbot`` deep link). ``managed_bot_*`` carry
+    # the created bot's numeric id, @username and display name so the Bot Factory
+    # can register ("adopt") it without a separate, fragile update track.
+    managed_bot_user_id: int | None = None
+    managed_bot_username: str = ""
+    managed_bot_first_name: str = ""
 
 
 # --- Bot ↔ channel administration (product slice: bot-only mode) -------------

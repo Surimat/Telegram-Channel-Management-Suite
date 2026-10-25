@@ -26,11 +26,20 @@ from backend.app.core.security import open_secret, seal_secret
 from backend.app.db.base import new_id, utcnow
 from backend.app.db.models.session import SessionStatus, UserSession
 from backend.app.db.repositories.sessions import SessionRepository
-from backend.app.providers.errors import FloodWaitError, SessionInvalidError, TelegramProviderError
+from backend.app.providers.errors import (
+    AuthCodeExpiredError,
+    AuthCodeInvalidError,
+    FloodWaitError,
+    PasswordRequiredError,
+    PhoneNumberInvalidError,
+    SessionInvalidError,
+    TelegramProviderError,
+)
 from backend.app.providers.registry import build_session_provider
 from backend.app.providers.session_base import SessionProvider
 from backend.app.providers.types import SessionFileInfo, UserIdentity
 from backend.app.services.events_service import EventsService
+from backend.app.services.personal_account import PersonalAccountPolicy
 from backend.app.services.session_import import (
     FORMAT_STRING_SESSION,
     FORMAT_TITLES,
@@ -70,6 +79,26 @@ class AuthStartResult:
     message: str
     how_to_fix: str = ""
     phone_masked: str = ""
+    #: Plain-language hint for *where* Telegram delivered the login code. Telegram
+    #: often sends the code inside an app rather than by SMS, so the UI must not
+    #: promise an SMS.
+    code_delivery: str = ""
+
+
+def describe_code_delivery(code_type: str) -> str:
+    """Turn a Telegram code type into an honest, plain-language delivery hint.
+
+    Unknown or empty types are reported as "in the Telegram app" rather than
+    guessing SMS, so the message is never wrong about where to look.
+    """
+    label = (code_type or "").strip().lower()
+    if "sms" in label:
+        return "Код отправлен по SMS."
+    if "call" in label:
+        return "Код продиктуют голосовым звонком."
+    if "flash" in label:
+        return "Код придёт всплывающим сообщением в приложении Telegram."
+    return "Код отправлен в приложение Telegram (служебный чат «Telegram»)."
 
 
 @dataclass(slots=True)
@@ -160,7 +189,14 @@ class SessionService:
                 candidate.unlink(missing_ok=True)
 
     # --- provider helpers ----------------------------------------------------
-    def provider_for(
+    def _policy(self) -> PersonalAccountPolicy:
+        return PersonalAccountPolicy(self.session, settings=self.settings)
+
+    async def personal_account_status(self) -> dict[str, bool]:
+        """Return the personal-account switches (never raises)."""
+        return await self._policy().status()
+
+    async def provider_for(
         self,
         account: UserSession,
         provider_name: str | None = None,
@@ -169,10 +205,13 @@ class SessionService:
     ) -> SessionProvider:
         """Public wrapper: build a provider for ``account`` (PHASE 5 reuses this).
 
-        ``proxy`` (an optional Telethon proxy dict) is passed through unchanged;
-        callers that need the account's bound proxy should use
-        :meth:`provider_for_with_proxy`.
+        Refuses to build an MTProto provider unless the personal-account master
+        switch is on, so the API, the scheduler and background tasks are all
+        blocked at this single chokepoint. ``proxy`` (an optional Telethon proxy
+        dict) is passed through unchanged; callers that need the account's bound
+        proxy should use :meth:`provider_for_with_proxy`.
         """
+        await self._policy().require_enabled()
         return self._provider_for(account, provider_name, proxy=proxy)
 
     async def provider_for_with_proxy(
@@ -182,7 +221,7 @@ class SessionService:
     ) -> SessionProvider:
         """Build a provider, resolving the account's bound proxy profile first."""
         proxy = await self.resolve_proxy(account)
-        return self._provider_for(account, provider_name, proxy=proxy)
+        return await self.provider_for(account, provider_name, proxy=proxy)
 
     async def resolve_proxy(
         self, account: UserSession
@@ -369,6 +408,10 @@ class SessionService:
                 how_to_fix="Укажите номер в международном формате, например +79991234567.",
             )
 
+        # Refuse before touching the database: a switched-off personal account
+        # must not leave an orphan account record or session file behind.
+        await self._policy().require_enabled()
+
         # Reuse an in-progress account for this phone (idempotent re-request).
         account = await self._find_by_phone(phone_norm)
         if account is None:
@@ -420,6 +463,7 @@ class SessionService:
             message="Код подтверждения отправлен в Telegram.",
             how_to_fix="Откройте Telegram и введите полученный код.",
             phone_masked=account.phone_masked,
+            code_delivery=describe_code_delivery(result.code_type),
         )
 
     async def submit_code(self, account_id: str, code: str) -> AuthStepResult:
@@ -434,6 +478,7 @@ class SessionService:
                 how_to_fix="Введите код, который прислал Telegram.",
             )
         phone = self._phone_of(account)
+        await self._policy().require_enabled()
         provider = self._provider_for(account)
         try:
             result = await provider.sign_in(phone, code, account.phone_code_hash)
@@ -482,6 +527,7 @@ class SessionService:
                 "Не указан пароль двухэтапной аутентификации.",
                 how_to_fix="Введите облачный пароль Telegram.",
             )
+        await self._policy().require_enabled()
         provider = self._provider_for(account)
         try:
             result = await provider.sign_in_password(password)
@@ -534,6 +580,9 @@ class SessionService:
                 "Файл сессии не найден.",
                 how_to_fix="Выберите существующий файл .session, созданный ранее.",
             )
+        # Refuse before touching disk/DB: a disabled personal account must not
+        # leave an orphan session file or a half-imported account record.
+        await self._policy().require_enabled()
 
         ref = self._new_session_ref()
         target = self.sessions_dir / f"{ref}.session"
@@ -618,6 +667,8 @@ class SessionService:
                 "Не указан API Hash (и его не удалось прочитать из файла).",
                 how_to_fix="Скопируйте API Hash из https://my.telegram.org.",
             )
+        # Refuse before writing the session file / DB row (no orphan artifacts).
+        await self._policy().require_enabled()
 
         ref = self._new_session_ref()
         target = self.sessions_dir / f"{ref}.session"
@@ -695,6 +746,7 @@ class SessionService:
             await self.session.commit()
             return account
 
+        await self._policy().require_enabled()
         provider = self._provider_for(account)
         try:
             identity = await provider.health()
@@ -818,6 +870,7 @@ class SessionService:
             ) from exc
 
     async def _verify_and_identify(self, account: UserSession) -> UserIdentity:
+        await self._policy().require_enabled()
         provider = self._provider_for(account)
         try:
             return await provider.health()
@@ -866,7 +919,18 @@ class SessionService:
             account.restriction_count = (account.restriction_count or 0) + 1
             wait = f" Осталось ждать ~{exc.retry_after} сек." if exc.retry_after else ""
             account.status_message = f"Telegram просит подождать.{wait}"
-        elif isinstance(exc, SessionInvalidError):
+        elif isinstance(
+            exc,
+            (
+                SessionInvalidError,
+                AuthCodeInvalidError,
+                AuthCodeExpiredError,
+                PasswordRequiredError,
+                PhoneNumberInvalidError,
+            ),
+        ):
+            # A sign-in problem keeps the account in the wizard, not in a generic
+            # error state: the code may be wrong/expired or 2FA is still pending.
             account.status = SessionStatus.AUTH_REQUIRED
             account.status_message = "Требуется авторизация."
         else:
@@ -892,6 +956,7 @@ __all__ = [
     "SessionProviderFactory",
     "SessionService",
     "SessionServiceError",
+    "describe_code_delivery",
     "mask_phone",
     "normalize_phone",
 ]

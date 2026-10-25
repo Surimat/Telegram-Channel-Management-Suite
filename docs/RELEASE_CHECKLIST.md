@@ -68,6 +68,25 @@ PYTHONPATH=. python tests/meta_audit/engine.py         # regenerate META_AUDIT_R
 
 ## 6. Release verification (fill in per release)
 
+### v2.1.0 (Stable release: D-123…D-138, 2026-10-25)
+
+Stable release on `main`, promoted from the GitHub **Pre-release**
+`v2.1.0-rc.1` (2026-10-15). It rolls up the six committed stages D-123…D-128
+plus the post-candidate stages D-130…D-138. The release is the reviewed
+`develop → main` merge commit, tagged `v2.1.0`; the superseded pre-release tag
+`v2.1.0-rc.1` is retired (D-139).
+
+| Gate | v2.1.0 | Notes |
+| --- | --- | --- |
+| Version consistency (`2.1.0` everywhere) | ✅ | app / pyproject / frontend / lock (`test_repo_version_is_consistent`) |
+| Tests (`pytest` / `ruff`) | ✅ | full suite **1211 passed, 12 skipped, green** (1223 collected); `ruff` clean |
+| Frontend build | ✅ | `vue-tsc --noEmit` + `npm run build` clean |
+| Meta-audit engine (runtime) | ✅ | 32 total, 32 detected, 0 missed, 0 false positives |
+| Browser CI (`browser-tests`) | ✅ | real Playwright/Chromium; 0 skipped |
+| Artifact scan | ✅ | no `.session`/TDATA/DB/model in the ZIP; runtime dirs empty |
+| Published as the Latest stable release | ✅ | tag `v2.1.0` on merged `main`; GitHub **Release** (not Pre-release) |
+| Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v2.1.0` (D-060) |
+
 ### v2.0.1 (Keyless free image understanding — Kilo Gateway, 2026-10-11, D-122)
 
 Patch over v2.0.0: adds an opt-in, keyless-free **image understanding** (vision)
@@ -212,7 +231,7 @@ Additive minor over v1.7.0: a single AI Gateway over many providers plus browser
 | Git merge (`develop → main`) | ✅ | reviewed PR #19 (`develop → main`, merge `d8c62c1`) |
 | Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v1.8.0` → Release workflow (run `37653661662`, D-060); ZIP 24 904 789 bytes, sha256 `9bb39e4b…d353c` |
 
-### v1.7.0 (Bot Factory creation queue, 2026-10-08, D-109)
+### v1.7.0 (Bot Factory creation queue, 2026-10-07, D-109)
 
 Additive minor over v1.6.1: the Bot Factory batch becomes a durable creation
 queue driven by the scheduler job `bot_factory.create`.
@@ -255,7 +274,7 @@ author's working tree): clone → `git checkout v1.6.1` → fresh venv.
 | Git merge (`develop → main`) | ✅ | reviewed PR #17 (`develop → main`, merge `a38823d`) |
 | Automated Release workflow + ZIP/`.sha256` | ✅ | tag `v1.6.1` → Release workflow (run `37601801598`, D-060) |
 
-### v1.6.0 (Owner Auth + Config Sync, 2026-10-07)
+### v1.6.0 (Owner Auth + Config Sync, 2026-10-06)
 
 | Gate | v1.6.0 | Notes |
 | --- | --- | --- |
@@ -353,7 +372,7 @@ author's working tree): clone → `git checkout v1.6.1` → fresh venv.
 | Docker smoke | ✅ | `/health` → `1.5.1`, SPA `200`, `/api/v1/capability-graph` → `not_implemented`, `/api/v1/consistency` → `pass` |
 | Artifact scan | ✅ | ZIP has no `.session`/TDATA/DB/model (only the public `certifi/cacert.pem`); runtime dirs (`sessions/`, `data/`, `backups/`, `logs/`, `exports/`, `models/`, `updates/`) empty; only placeholder `.env.example` |
 
-### v1.5.0 (released 2026-10-05)
+### v1.5.0 (released 2026-10-06)
 
 | Gate | v1.5.0 | Notes |
 | --- | --- | --- |
@@ -376,7 +395,7 @@ author's working tree): clone → `git checkout v1.6.1` → fresh venv.
 | Docker smoke | ✅ | build + run: `/health` → `1.5.0`, SPA `200`, v1.5 routes `200` |
 | Artifact scan | ✅ | ZIP has no `.session`/TDATA/DB/model; runtime dirs (`sessions/`, `data/`, `backups/`, `logs/`, `exports/`, `models/`, `updates/`) empty; only placeholder `.env.example` |
 
-### v1.4.0 (released 2026-10-05)
+### v1.4.0 (released 2026-10-06)
 
 | Gate | v1.4.0 | Notes |
 | --- | --- | --- |

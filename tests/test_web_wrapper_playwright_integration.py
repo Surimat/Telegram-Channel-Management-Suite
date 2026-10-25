@@ -27,11 +27,23 @@ from tests.support.web_fixtures import FixtureSite
 
 
 def _runtime_available() -> bool:
+    """True only when a *launchable* Chromium exists.
+
+    The pip package alone is not enough: without ``playwright install chromium``
+    a launch fails, so probing the real executable keeps this module honestly
+    skipped (as the docstring promises) instead of failing on a missing binary.
+    """
     try:
-        from backend.app.ai.gateway.browser import PlaywrightBrowserRuntime
+        from playwright.sync_api import sync_playwright
     except Exception:
         return False
-    return bool(PlaywrightBrowserRuntime().available)
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            browser.close()
+        return True
+    except Exception:
+        return False
 
 
 pytestmark = pytest.mark.skipif(

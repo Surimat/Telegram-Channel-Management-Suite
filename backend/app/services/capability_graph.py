@@ -1,7 +1,7 @@
 """Capability graph (v1.5 consistency layer).
 
 A single, machine-readable description of what the product can do and what each
-capability **requires**. The UI, the Promotion Wizard and the Consistency Auditor
+capability **requires**. The UI, the Setup Wizard and the Consistency Auditor
 all read this instead of re-encoding "does this need a session?" rules in every
 view (D-094).
 
@@ -28,6 +28,9 @@ from dataclasses import dataclass, field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core import i18n
+from backend.app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 # --- Atomic requirements ----------------------------------------------------
 REQ_CHANNEL = "channel"
@@ -78,7 +81,7 @@ STATE_ORDER = {
 
 
 @dataclass(frozen=True)
-class Capability:
+class GraphCapability:
     """A product capability and the requirements it depends on.
 
     ``implemented`` guards against a *false* ``available``: a capability that is
@@ -105,14 +108,14 @@ class Capability:
 
 
 # The registry. Keys are stable identifiers used by the UI and the wizard.
-CAPABILITIES: tuple[Capability, ...] = (
-    Capability(
+CAPABILITIES: tuple[GraphCapability, ...] = (
+    GraphCapability(
         key="reaction",
         title_ru="Автоматические реакции",
         title_en="Automatic reactions",
         requires=(REQ_CHANNEL, REQ_BOT_BINDING),
     ),
-    Capability(
+    GraphCapability(
         key="bot_only_analytics",
         title_ru="Аналитика без аккаунта",
         title_en="Analytics without an account",
@@ -120,26 +123,26 @@ CAPABILITIES: tuple[Capability, ...] = (
         note_ru="Историческая информация недоступна этому типу подключения.",
         note_en="Historical information is unavailable for this connection type.",
     ),
-    Capability(
+    GraphCapability(
         key="audience_scan",
         title_ru="Сбор аудитории",
         title_en="Audience scanning",
         requires=(REQ_CHANNEL, REQ_USER_SESSION),
     ),
-    Capability(
+    GraphCapability(
         key="direct_invite",
         title_ru="Приглашения напрямую",
         title_en="Direct invites",
         requires=(REQ_CHANNEL, REQ_USER_SESSION, REQ_PERMISSION),
         minimal=(REQ_CHANNEL, REQ_USER_SESSION),
     ),
-    Capability(
+    GraphCapability(
         key="content_publish",
         title_ru="Публикация контента",
         title_en="Content publishing",
         requires=(REQ_CHANNEL, REQ_POSTING_CAPABILITY),
     ),
-    Capability(
+    GraphCapability(
         key="media_conversion",
         title_ru="Обработка медиа",
         title_en="Media processing",
@@ -151,13 +154,13 @@ CAPABILITIES: tuple[Capability, ...] = (
             "implemented in this version."
         ),
     ),
-    Capability(
+    GraphCapability(
         key="ai_ru",
         title_ru="Мини-ИИ (русский)",
         title_en="Mini-AI (Russian)",
         requires=(REQ_ENCODER_MODEL,),
     ),
-    Capability(
+    GraphCapability(
         key="bot_factory",
         title_ru="Фабрика ботов",
         title_en="Bot Factory",
@@ -171,7 +174,7 @@ CAPABILITIES: tuple[Capability, ...] = (
             "Tokens are stored encrypted and never shown."
         ),
     ),
-    Capability(
+    GraphCapability(
         key="bot_onboarding",
         title_ru="Массовое подключение ботов к каналу",
         title_en="Mass bot-to-channel connection",
@@ -185,7 +188,7 @@ CAPABILITIES: tuple[Capability, ...] = (
             "links. Rights are verified for real; tokens are never shown."
         ),
     ),
-    Capability(
+    GraphCapability(
         key="donor_discovery",
         title_ru="Поиск источников",
         title_en="Donor discovery",
@@ -193,7 +196,7 @@ CAPABILITIES: tuple[Capability, ...] = (
         note_ru="Ручной ввод доступен всегда.",
         note_en="Manual entry is always available.",
     ),
-    Capability(
+    GraphCapability(
         key="config_sync",
         title_ru="Синхронизация конфигурации",
         title_en="Configuration sync",
@@ -207,7 +210,7 @@ CAPABILITIES: tuple[Capability, ...] = (
             "files and the database are never synced."
         ),
     ),
-    Capability(
+    GraphCapability(
         key="ai_gateway",
         title_ru="Шлюз ИИ (провайдеры и Web-обёртки)",
         title_en="AI Gateway (providers and Web wrappers)",
@@ -276,7 +279,7 @@ def state_label(state: str, language: str | None = None) -> str:
 
 
 def evaluate(
-    capability: Capability, context: dict[str, bool], language: str | None = None
+    capability: GraphCapability, context: dict[str, bool], language: str | None = None
 ) -> CapabilityState:
     """Evaluate one capability against a requirement context.
 
@@ -366,8 +369,8 @@ async def context_from_db(
     try:
         channels, count = await ChannelRepository(session).list()
         context[REQ_CHANNEL] = count > 0 or bool(channels)
-    except Exception:  # pragma: no cover - defensive
-        pass
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Не удалось определить возможность системы: %s", exc)
 
     try:
         all_bindings = await BindingRepository(session).list_all()
@@ -378,22 +381,22 @@ async def context_from_db(
             b.status == BindingStatus.READY and b.function == FUNCTION_POSTING
             for b in all_bindings
         )
-    except Exception:  # pragma: no cover - defensive
-        pass
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Не удалось определить возможность системы: %s", exc)
 
     try:
         sessions, _ = await SessionRepository(session).list()
         context[REQ_USER_SESSION] = any(
             s.status == SessionStatus.CONNECTED for s in sessions
         )
-    except Exception:  # pragma: no cover - defensive
-        pass
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Не удалось определить возможность системы: %s", exc)
 
     try:
         latest = await PermissionCheckRepository(session).latest()
         context[REQ_PERMISSION] = bool(latest and latest.can_invite)
-    except Exception:  # pragma: no cover - defensive
-        pass
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Не удалось определить возможность системы: %s", exc)
 
     if encoder_installed is not None:
         context[REQ_ENCODER_MODEL] = bool(encoder_installed)
@@ -403,8 +406,8 @@ async def context_from_db(
 
             status = await EncoderService(session).status()
             context[REQ_ENCODER_MODEL] = bool(getattr(status, "installed", False))
-        except Exception:  # pragma: no cover - defensive
-            pass
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("Не удалось определить наличие лёгкой модели: %s", exc)
 
     try:
         from backend.app.db.repositories.bots import BotRepository
@@ -413,39 +416,39 @@ async def context_from_db(
         context[REQ_BOT_ONBOARDING] = bool(
             candidates and (candidates[0].username or "")
         )
-    except Exception:  # pragma: no cover - defensive
-        pass
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Не удалось определить возможность системы: %s", exc)
 
     try:
         from backend.app.services.owner_auth_service import OwnerAuthService
 
         context[REQ_OWNER_AUTH] = await OwnerAuthService(session).exists()
-    except Exception:  # pragma: no cover - defensive
-        pass
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Не удалось определить возможность системы: %s", exc)
 
     try:
         from backend.app.db.repositories.bots import BotRepository
 
         manager = await BotRepository(session).get_manager()
         context[REQ_MANAGER_BOT] = manager is not None
-    except Exception:  # pragma: no cover - defensive
-        pass
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Не удалось определить возможность системы: %s", exc)
 
     try:
         from backend.app.services.config_sync_service import ConfigSyncService
 
         sync_status = await ConfigSyncService(session).status()
         context[REQ_GOOGLE_DRIVE] = bool(sync_status.connected)
-    except Exception:  # pragma: no cover - defensive
-        pass
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Не удалось определить возможность системы: %s", exc)
 
     try:
         from backend.app.db.repositories.ai_gateway import AiProviderRepository
 
         rows = await AiProviderRepository(session).list_all()
         context[REQ_AI_PROVIDER] = any(r.enabled for r in rows)
-    except Exception:  # pragma: no cover - defensive
-        pass
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Не удалось определить возможность системы: %s", exc)
 
     return context
 
@@ -471,8 +474,8 @@ __all__ = [
     "STATE_NOT_IMPLEMENTED",
     "STATE_PARTIAL",
     "STATE_UNAVAILABLE",
-    "Capability",
     "CapabilityState",
+    "GraphCapability",
     "context_from_db",
     "evaluate",
     "evaluate_all",

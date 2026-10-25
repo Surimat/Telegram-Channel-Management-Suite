@@ -20,7 +20,7 @@ from backend.app.api.schemas.bot_factory import (
     BatchOut,
     BindIn,
     BindManyIn,
-    BindResultOut,
+    BotBindOut,
     CandidateOut,
     DashboardOut,
     TemplateOut,
@@ -191,27 +191,27 @@ async def register_tokens(
     return TokenRegisterOut(**result)
 
 
-@router.post("/batches/{batch_id}/bind", response_model=list[BindResultOut])
+@router.post("/batches/{batch_id}/bind", response_model=list[BotBindOut])
 async def bind_created(
     batch_id: str,
     payload: BindIn,
     service: BotFactoryService = Depends(get_bot_factory_service),
-) -> list[BindResultOut]:
+) -> list[BotBindOut]:
     try:
         results = await service.bind_created(
             batch_id, payload.channel_id, function=payload.function
         )
     except BotFactoryError as exc:
         _raise(exc)
-    return [BindResultOut(**r) for r in results]
+    return [BotBindOut(**r) for r in results]
 
 
-@router.post("/batches/{batch_id}/bind-many", response_model=list[BindResultOut])
+@router.post("/batches/{batch_id}/bind-many", response_model=list[BotBindOut])
 async def bind_created_many(
     batch_id: str,
     payload: BindManyIn,
     service: BotFactoryService = Depends(get_bot_factory_service),
-) -> list[BindResultOut]:
+) -> list[BotBindOut]:
     """Connect every created bot of a batch to several channels (v2.0)."""
     try:
         results = await service.bind_created_many(
@@ -219,7 +219,7 @@ async def bind_created_many(
         )
     except BotFactoryError as exc:
         _raise(exc)
-    return [BindResultOut(**r) for r in results]
+    return [BotBindOut(**r) for r in results]
 
 
 @router.get("/batches/{batch_id}/dashboard", response_model=DashboardOut)
@@ -258,7 +258,7 @@ async def enqueue_batch(
         batch = await service.get_batch(batch_id)
         progress = await service.queue_progress(batch_id)
         if progress["queued"] > 0:
-            await QueueService(service.session).enqueue(
+            await QueueService(service.session).enqueue_unique(
                 kind=BOT_FACTORY_JOB_KIND,
                 payload={"batch_id": batch.id, "via_deeplink": via_deeplink},
                 group_key=batch.id,

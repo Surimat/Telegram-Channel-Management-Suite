@@ -73,6 +73,65 @@ class ChannelSummaryOut(BaseModel):
     default_channel_label: str = ""
 
 
+class AttentionOut(BaseModel):
+    """Derived attention level for a channel (or the whole suite)."""
+
+    level: str = "ok"
+    label: str = ""
+    reason: str = ""
+
+
+class OverviewSectionOut(BaseModel):
+    """One module's contribution to a channel's overview."""
+
+    status: str = "info"
+    label: str = ""
+    counts: dict[str, int] = Field(default_factory=dict)
+    items: list[str] = Field(default_factory=list)
+
+
+class ChannelModuleStateOut(BaseModel):
+    id: str
+    title: str
+    enabled: bool = True
+
+
+class ChannelOverviewItemOut(BaseModel):
+    id: str
+    title: str = ""
+    username: str = ""
+    reference: str = ""
+    kind: str = "unknown"
+    status: str = "new"
+    is_default: bool = False
+    attention: AttentionOut
+    modules: list[ChannelModuleStateOut] = Field(default_factory=list)
+    bindings: OverviewSectionOut
+    audience: OverviewSectionOut
+    invites: OverviewSectionOut
+    bots: OverviewSectionOut
+    content: OverviewSectionOut
+    pipeline: OverviewSectionOut
+    queue: OverviewSectionOut
+
+
+class ChannelOverviewTotalsOut(BaseModel):
+    channels: int = 0
+    ok: int = 0
+    info: int = 0
+    warning: int = 0
+    error: int = 0
+    needs_attention: int = 0
+
+
+class ChannelOverviewOut(BaseModel):
+    generated_at: datetime
+    totals: ChannelOverviewTotalsOut
+    attention: AttentionOut
+    events: OverviewSectionOut
+    channels: list[ChannelOverviewItemOut] = Field(default_factory=list)
+
+
 class ChannelVerificationOut(BaseModel):
     channel_id: str
     status: str

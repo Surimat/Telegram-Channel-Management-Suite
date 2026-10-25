@@ -70,6 +70,9 @@ class FakeTelegramBotProvider:
         self.markup_edits: list[tuple[int | str, int, list[list[object]]]] = []
         self.answered_callbacks: list[tuple[str, str, bool]] = []
         self._next_topic_id: int = 100
+        # D-130: record the ``allowed_updates`` the runtime requested, so tests
+        # can assert the poller asks Telegram for channel posts.
+        self.last_allowed_updates: list[str] | None = None
 
     def script_linked_chat(self, chat_id: int | str, discussion_id: int) -> None:
         """Link a discussion group to ``chat_id`` (tests)."""
@@ -172,10 +175,15 @@ class FakeTelegramBotProvider:
         return True
 
     async def get_updates(
-        self, *, offset: int | None = None, timeout: int = 0
+        self,
+        *,
+        offset: int | None = None,
+        timeout: int = 0,
+        allowed_updates: list[str] | None = None,
     ) -> list[BotUpdate]:
         self._ensure_token()
         self._maybe_fail()
+        self.last_allowed_updates = list(allowed_updates) if allowed_updates else None
         if offset is not None:
             # Acknowledge updates below ``offset`` (mirrors Telegram semantics).
             self._updates = [u for u in self._updates if u.update_id >= offset]

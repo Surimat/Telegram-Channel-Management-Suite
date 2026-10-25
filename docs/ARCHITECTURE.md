@@ -1,6 +1,6 @@
 # Architecture — Telegram Channel Management Suite
 
-Status: **Phase 0 (documentation & foundation)** — see `agent/CURRENT_STATE.md`.
+Status: **v2.1.0 (release candidate `v2.1.0-rc.1`) — see `agent/CURRENT_STATE.md` for the current phase and what exists now.**
 This document is the single source of truth for the system architecture.
 If it disagrees with the code, the code wins — then fix this document.
 
@@ -150,7 +150,10 @@ Interfaces (abstract base classes / Protocols) live in `backend/app/providers/`:
 
 `providers/registry.py` resolves the correct implementation from config
 (`telegram_provider`: `auto` | `aiogram` | `fake`; `offline_mode` forces the
-fake). Providers translate library exceptions into `providers/errors.py`
+fake). The deterministic fakes are permitted **only** in `APP_ENV=demo`/`test`;
+requesting one in any other environment (including the default `development` and
+`production`) raises `ProviderConfigurationError` instead of silently serving
+fabricated data. Providers translate library exceptions into `providers/errors.py`
 (`InvalidTokenError`, `FloodWaitError`, `UnauthorizedError`, …) carrying a
 friendly message and a how-to-fix hint, so no library type or raw error leaks
 into services. Domain services **only** depend on interfaces, so swapping
@@ -281,8 +284,9 @@ Implemented (PHASE 7) in `backend/app/ai/` — free of Telegram/FastAPI imports:
   `RoutingOutcome` records `ai_attempted`/`ai_used`/`fallback_used`.
 - `inference.py` — one shared single-worker executor (`run_bounded`); a timeout
   raises `InferenceTimeoutError` and shut down on app exit.
-- `backends/` — registry (`build_backend`): `fake` (deterministic, offline/tests),
-  `llama_cpp` (the only `llama_cpp` importer; lazy, lock-serialized, optional) and
+- `backends/` — registry (`build_backend`): `fake` (deterministic; allowed only
+  in `APP_ENV=demo`/`test`, refused elsewhere), `llama_cpp` (the only `llama_cpp`
+  importer; lazy, lock-serialized, optional) and
   `rubert` (the optional ruBERT-tiny2 encoder backend, below).
 
 ### 7.1 Lightweight encoder classifier (v1.1)
@@ -408,6 +412,29 @@ per-bot enable/disable, reaction profiles, preview/simulation.
 The scheduler **never fires all reactions at once** — it spreads them using the
 configured randomized delays. Jobs are persisted so an app restart can resume
 pending work (`pending`/`scheduled` rows are re-hydrated on startup).
+
+### 9a. Channel-post source (v2.1, D-130)
+
+A reaction needs a real post: Telegram's numeric `chat_id` and `message_id`.
+The manager bot is a channel administrator, so Telegram delivers every new post
+as a **`channel_post`** update (`edited_channel_post` on edit). The chain is:
+
+- `providers/aiogram_bot.py` parses `channel_post`/`edited_channel_post` into a
+  `BotUpdate(kind="channel_post")` carrying the real chat id, message id, text
+  and chat username.
+- `providers/types.py` declares `MANAGER_ALLOWED_UPDATES`; the poller passes it
+  as `allowed_updates`, because without `channel_post` Telegram never sends
+  posts.
+- `manager/runtime.py` dispatches that kind to
+  `ReactionService.ingest_channel_post()`.
+- `services/reaction_service.py` resolves the channel in the registry, requires
+  the `reactions` module (D-124), stores the post with its real ids and plans the
+  reaction jobs. Redelivery is a no-op (deduplicated by chat id + message id);
+  an edit refreshes the stored text but never re-plans.
+
+A post typed into the UI cannot carry a real message id, so `plan_post()` refuses
+it and `ingest_post()` stores it as `skipped` — an honest "nothing to react to"
+instead of a job that always fails.
 
 ---
 
@@ -567,11 +594,16 @@ or `SessionProvider` (expanded mode).
 - `providers/posting_base.py` + `providers/posting.py` — the `PostingProvider`
   protocol (`publish` / `delete` / `send_comment` / capabilities) and the bot /
   user implementations; neither imports aiogram or Telethon directly (D-001).
-- `services/content_service.py` — sources CRUD, `grab` (dedup + moderation),
-  items, cleaner preview/apply/revert, rights, rewrite (through the existing
-  generative LLM backend only — the ruBERT encoder is never used for generation,
-  D-068), moderation (blocked keywords + quiet hours), `release_held`,
-  `publish_text`, dashboard.
+- `services/content_service.py` — sources CRUD, `grab` (the one receive/dedup
+  path: source hash / source message id / content hash / media hash), items,
+  cleaner preview/apply/revert, rights/attribution, moderation (blocked keywords
+  + quiet hours), `release_held`, `publish_text` and the dashboard. It owns
+  **receive**; the *processing* stage (including the v1.2 rewrite, below) is owned
+  by `services/content_pipeline.py`, to which `rewrite_preview`/`apply_rewrite`
+  delegate so there is exactly one transformation implementation (D-126). Rewrite
+  itself runs through the existing generative LLM backend only — the ruBERT
+  encoder is never used for generation, D-068 — and reports “Рерайт недоступен”
+  honestly when no generative model exists.
 - `services/content_cleaner.py` — the deterministic, explainable, cancellable
   cleaner.
 - `services/content_markup.py` — `validate_markup`, `validate_buttons`,
@@ -799,8 +831,8 @@ itself honestly instead of each surface re-deriving the same state.
   claiming it is ready (D-095).
 - `api/v1/capability_graph.py` + `api/schemas/capability.py` — `GET
   /api/v1/capability-graph`. The language defaults to the saved UI preference.
-- The **Promotion Wizard** (`services/promotion_service.py`) embeds the same
-  evaluated graph in `WizardState.capabilities`, so the wizard and the Dashboard
+- The **Setup Wizard** (`services/setup_wizard.py`) embeds the same
+  evaluated graph, so the wizard and the Dashboard
   never disagree about "is this ready yet?".
 
 ### i18n
@@ -1202,6 +1234,18 @@ provider, model, latency, attempts, detail) — never prompt text, keys or audie
 data. Comment and auto-delete are tracked by `comment_status`/`delete_status` so
 a lost step never marks a publication `failed`.
 
+### 26.5 One processing engine (D-126)
+
+`ContentPipelineService` is the single authoritative content-**processing** engine:
+every AI text transformation lives there (`classify`, `detect_language`,
+`translate`, `process`, `moderate`, `apply_rule_actions`, and the v1.2
+`rewrite_preview`/`apply_rewrite`). The v1.2 `ContentService` keeps only **receive**
+(`grab` dedup, sources, items, cleaner, rights) and its `rewrite_preview`/
+`apply_rewrite` now **delegate** to the pipeline (mapping `PipelineError` →
+`ContentError`), so the v1.2 routes are unchanged while the two engines can no
+longer drift. `PostingService` remains the single **publish** engine (it already
+reuses `ContentService.publish_text`). Guard: `tests/test_content_consolidation.py`.
+
 ## 27. Free-first AI providers and honest capabilities (v2.0.0, D-117…D-119, D-122)
 
 The AI Gateway (section 25) gains a **free-first** layer, all additive and
@@ -1252,3 +1296,134 @@ is never part of any request or response — only the public username and Telegr
 own `?startchannel` link are exposed. UI `BotOnboardingView.vue`; additive
 migration `20261014_0900_e5f6a7b8c9d0_v2_0_bot_onboarding.py`; tests
 `tests/test_bot_onboarding.py`, `tests/test_bot_onboarding_e2e.py`.
+
+## 29a. Personal Account Safety (v2.1, D-123, unreleased on `develop`)
+
+A personal Telegram (MTProto) account acts *as the owner*, so an accidental login
+or an unattended bulk invite is indistinguishable from the owner's own action.
+`services/personal_account.py` makes that impossible unless the owner opts in.
+
+- **Two switches, off by default.** `PersonalAccountPolicy` reads
+  `personal_account_enabled` (master) and `invites_enabled` (mass invitations) from
+  the settings store; both default to **off** and are seeded at startup by
+  `ensure_personal_account_settings()` (a missing row is created with its safe
+  default; an existing owner choice is never overwritten). `_as_bool` treats
+  anything that is not an explicit truthy token as `False`, so an unset or mistyped
+  switch can never read as enabled.
+- **One chokepoint.** Every MTProto provider is built through
+  `SessionService.provider_for()`, which calls `require_enabled()` **before**
+  constructing a provider — so the API, the scheduler and background tasks are all
+  refused while the master switch is off. The Telegram **Bot API** never consults
+  the policy, so ordinary bot work continues. `SessionService` gates
+  `start_auth`/`confirm_code`/`confirm_password`/import and identity checks, and
+  refuses **before** writing a DB row or a session file, so a blocked operation
+  leaves no orphan account or artifact.
+- **Bounded, clamped, and rate-limited over time.** Invite caps
+  (`invite_max_total=100`, `invite_max_per_account=20`) are non-zero and
+  `_effective_caps()` only *lowers* a value to the configured ceiling — a caller can
+  never raise it. Because a per-job cap resets with every job, a rolling
+  **24-hour per-account** ceiling (`invite_max_per_day=50`) is enforced at execution
+  time across all jobs; reaching it **pauses** the job with an honest `wait_until`
+  (and `rate_limited_at` on the job) instead of inviting. `require_invites_enabled()`
+  requires **both** switches and gates `preview`, `create_job` and `start_job`, and
+  `run_tick` pauses a running job when the switch is turned off mid-run. The suite
+  never bypasses Telegram FloodWait/limits (D-006) and never promises a safe invite
+  count.
+- **Friendly, secret-free failure.** `PersonalAccountDisabledError` is mapped by a
+  global handler (`api/errors.py`) to a `403` envelope (`code`/`message`/`hint`)
+  naming the switch to turn on — never a stack trace or a secret.
+- **Honest auth UX.** The login code is often delivered inside the app, not by SMS;
+  `AuthStartResult.code_delivery` reports where the code was actually sent and the
+  UI never promises an SMS.
+
+Additive migration `20261015_0900_f6a7b8c9d0e1` (display-only
+`invite_jobs.rate_limited_at`); settings/UI wiring in `SettingsView.vue`; tests
+`tests/test_personal_account_safety.py`. See `docs/SECURITY.md` for the policy
+rationale.
+
+## 29b. Bot Lifecycle Recovery and Adoption (v2.1, D-125, unreleased on `develop`)
+
+The Bot Factory creation queue (`QUEUED → RUNNING → SUCCESS|FAILED`, `QueueState`)
+and the Bot Onboarding queue (`QUEUED → VERIFYING → READY|FAILED`,
+`OnboardingStatus`) are both durable and one-operation-per-tick, but each tracks its
+in-flight row separately. `run_queue_once` only ever picks a `QUEUED` row, so a row
+left mid-flight by a crash would hang the queue forever. Separately, a bot created
+through the official deep link (`t.me/newbot`) is announced to the manager bot by a
+`managed_bot` update, but nothing routed that creation into its batch.
+
+`services/bot_lifecycle.py` (`BotLifecycleService`) owns both halves:
+
+1. **Recovery.** `recover()` calls the recover method each queue already owns
+   (`BotFactoryService.recover()`: `RUNNING → QUEUED`, and it also resets a
+   `CREATING` candidate to `READY`; `BotOnboardingService.recover()`:
+   `VERIFYING → QUEUED`) and returns a `LifecycleRecoveryResult` with the counts per
+   stage. The lifespan hook in `backend/app/main.py` runs it once on startup, so no
+   lifecycle stage is left unrecovered after a restart. Re-running is safe: creation
+   and adoption are idempotent, so a partial external effect is never duplicated.
+2. **Adoption.** `adopt_managed_bot()` delegates to
+   `BotFactoryService.adopt_managed_bot(telegram_id, username=…, title=…)`
+   (`AdoptionResult`) and `ManagerBotRuntime._handle_managed_bot()` calls it for a
+   `managed_bot` update; `_settle_if_complete()` then marks the deep-link batch
+   `COMPLETED` once no candidate remains waiting (idempotently). Adoption is
+   **idempotent** — a duplicate update is a no-op (no duplicate `Bot` row, no
+   inflated counter; `created_count` is reconciled from the real rows) — and it only
+   adopts an id Telegram announced for a username already in the batch. A username
+   that is not a candidate is ignored, **never searched for, downloaded or imported**
+   (D-070). A secret-free "bot created" notification is emitted best-effort.
+
+No schema change; the enqueue-unless-active helper in
+`services/queue_service.py` prevents double-queuing. Tests
+`tests/test_bot_lifecycle_consolidation.py`.
+
+## 30. Channel Overview (v2.0, D-127)
+
+`services/channel_overview.py` (`ChannelOverviewService`) is a **read-only**
+aggregation of a channel's real state across every module. It reads through the
+existing repositories/services — `ChannelRepository` for the canonical channel
+identity (D-051/D-055) and `services/channel_modules.py` for the authoritative
+module map (D-124) — and derives, per channel, an identity/verification block, a
+module map, and one `OverviewSection` per area (bindings, audience, invites, bots,
+content, pipeline, queue) plus a suite-wide attention summary and a channel event
+section. It **never writes** a row, queues a job or contacts Telegram, so it
+cannot change state or bypass a limit.
+
+Each area carries an honest attention level (`ok`/`info`/`warning`/`error`) with a
+human reason (a `needs_review` item is a `warning`, a ready bot binding is `ok`).
+Exposed as `GET /api/v1/channels/overview` (`api/v1/channels.py`,
+`api/schemas/channels.py`, DI `get_channel_overview_service` in `api/deps.py`) and
+rendered by `ChannelOverviewView.vue` (`/channel-overview`). No schema change;
+tests `tests/test_channel_overview.py`.
+
+## 31. End-to-end Setup Wizard (v2.0, D-128)
+
+`services/setup_wizard.py` (`SetupWizardService`) is a **guided, resumable** flow
+from a fresh install to a working existing channel. It **reuses** the existing
+services rather than reimplementing them: `services/setup_checks.py` for the
+local program checks, `ChannelRepository` for the canonical channel identity
+(D-051/D-055) and the authoritative module map (D-124), and the Content Studio
+services (`get_content_service` / the posting provider) only for the explicit test
+publication. The final readiness gate reads `services/channel_overview.py`
+(D-127) instead of inventing a second status system.
+
+**Status is stored, never inferred.** Each step's status is the persisted result
+of a real server check (`SetupWizardStep`, migration
+`20261016_0900_a7b8c9d0e1f2_v2_0_setup_wizard.py`): `verified` means the check
+ran and passed, `pending` means it ran and failed, `unchecked` means it was never
+run. Opening the state endpoint writes nothing and marks nothing done; a fix
+requires re-running the step. Missing data or a check that cannot run reports
+`unchecked`/`failed`, never `verified`, so the wizard cannot claim readiness it
+did not verify.
+
+**No hidden Telegram actions.** The wizard itself only *reads* state. The single
+action that contacts Telegram is `POST /api/v1/setup-wizard/test-publication`, and
+it refuses unless the request sets `confirmed` **and** the stored `bot` and
+`content` checks passed; it then grabs one material from the first enabled source,
+plans and publishes it to the default channel through the existing Content Studio
+posting path. No account is registered and no Telegram limit is bypassed (D-006).
+
+Exposed as `GET /api/v1/setup-wizard`, `POST /api/v1/setup-wizard/steps/{key}/run`
+and `POST /api/v1/setup-wizard/test-publication` (`api/v1/setup_wizard.py`,
+`api/schemas/setup_wizard.py`, DI `get_setup_wizard_service` in `api/deps.py`) and
+rendered by `SetupWizardView.vue` (`/setup-wizard`). Tests
+`tests/test_setup_wizard.py`.
+

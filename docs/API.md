@@ -47,7 +47,6 @@ Health endpoints live at the root (`/health`, `/health/deep`) for probes.
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/api/v1/system/status` | overall system status summary |
-| GET | `/api/v1/system/setup` | run Setup Wizard checks |
 | GET | `/api/v1/system/info` | version, paths, environment |
 | GET | `/api/v1/system/database` | database migration state in plain language |
 | POST | `/api/v1/system/database/upgrade` | apply pending migrations (pre-migration backup first) |
@@ -93,7 +92,6 @@ from `APP_SECRET_KEY`). Responses expose `has_token` but never the token itself.
 | POST | `/api/v1/bots/{id}/enable` | enable |
 | POST | `/api/v1/bots/{id}/disable` | disable |
 | DELETE | `/api/v1/bots/{id}` | remove from active config |
-| GET | `/api/v1/bots/managed/all` | list managed bots recorded locally |
 | GET | `/api/v1/bots/managed/preview` | build the official create link (`?username=&name=`) |
 | POST | `/api/v1/bots/managed/register` | record a managed bot (from a `managed_bot` update) |
 | POST | `/api/v1/bots/{id}/managed/token` | fetch managed-bot token (`getManagedBotToken`) |
@@ -268,6 +266,15 @@ A rule carries: `category`, `keywords`, `phrases`, `regexes`, `exclusions`,
 Each reaction job stores `post_id`, `bot_id`, `reaction`, `scheduled_at`,
 `status`, `attempts`, `error`, `completed_at` — and a matching durable queue row.
 
+Real channel posts arrive **without an API call**: when the manager bot is a
+channel administrator, Telegram delivers each new post as a `channel_post`
+update, the runtime stores it with its real numeric `chat_id`/`message_id` and
+plans the reactions (D-130). `POST /api/v1/reactions/posts` is the manual path for
+an already-published post and now requires the real Telegram
+`telegram_message_id`; a post without it is stored as `skipped` and
+`POST /api/v1/reactions/posts/{id}/plan` refuses it (409), because a reaction
+cannot be placed without a real message id.
+
 ---
 
 ## AI classifier (optional) — PHASE 7 (implemented)
@@ -278,17 +285,14 @@ The LLM never picks emoji; emoji selection stays deterministic (D-021/D-033).
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/v1/ai/status` | status: enabled, backend, model present/loaded, effective + plain-language reason/fix |
 | GET | `/api/v1/ai/overview` | status + lifetime metrics + today's metrics |
 | GET | `/api/v1/ai/settings` | all AI settings with plain-language help (what/why/large/safe) |
 | PUT | `/api/v1/ai/settings` | update AI settings (validated; DB override) |
 | POST | `/api/v1/ai/classify` | classify a text: `{text, mode}` → category/tone/confidence/source + routing flags |
-| POST | `/api/v1/ai/test` | alias of `/classify` for the UI's testing panel |
 | GET | `/api/v1/ai/models` | list `.gguf` files found in the models directory |
 | POST | `/api/v1/ai/model/check` | verify runtime + model file (load test, load time) |
 | POST | `/api/v1/ai/model/load` | load the model into memory |
 | POST | `/api/v1/ai/model/unload` | unload the model from memory |
-| GET | `/api/v1/ai/metrics` | aggregate classification counters/latency |
 | GET | `/api/v1/ai/history` | recent AI diagnostics records (`?limit=&offset=`) |
 
 `mode` is `auto` (rules-first, default), `rules` (rules only), `encoder` (the
@@ -327,10 +331,7 @@ per-person PII (D-010/D-029). `days` is clamped to `1..365` (default `30`).
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/v1/analytics/overview?days=&channel_id=` | headline + content + reactions + audience + a list of takeaways |
-| GET | `/api/v1/analytics/content?days=&channel_id=` | posts total/window, per-day series, category/source/status mix, summary |
-| GET | `/api/v1/analytics/reactions?days=&channel_id=` | status mix, success rate, planned/completed per day, emoji/bot/category mix |
-| GET | `/api/v1/analytics/audience?days=&channel_id=` | audience total, new 7d, per-day growth, status mix, top sources, source effectiveness, invite outcomes |
+| GET | `/api/v1/analytics/overview?days=&channel_id=` | headline + content + reactions + audience sections + a list of takeaways |
 
 `channel_id` optionally scopes every analytics view to one registry channel
 (`/api/v1/channels`). Omit it for global aggregates; the Analytics page defaults
@@ -380,6 +381,15 @@ frontend are dependency-free inline SVG (`Sparkline.vue`, `BarList.vue`, D-037).
 A run never starts without confirmation (`confirm` records `confirmed_at`). On
 restart, running jobs are paused rather than silently resumed. Responses never
 contain tokens, session contents, `api_hash` or raw phone numbers.
+
+**Limits (D-123).** `max_total`/`max_per_account` on create may only *lower* the
+configured ceiling (`invite_max_total`/`invite_max_per_account`); a larger value is
+clamped, never accepted. On top of the per-job caps, a rolling **24-hour
+per-account** ceiling (`invite_max_per_day`) is enforced at execution time across
+all jobs; when an account reaches it the job is **paused** with an honest
+`wait_until` (and `rate_limited_at` on the job) instead of inviting. The suite
+never bypasses Telegram FloodWait/limits (D-006) and never promises a safe invite
+count.
 
 ---
 
@@ -453,8 +463,7 @@ flood_wait | error`. Responses never expose an api_hash, phone or session conten
 | Method | Path | Purpose |
 |--------|------|---------|
 | POST | `/api/v1/permissions/check` | probe one account against a channel (`account_id`, `target` or `channel_id`) |
-| GET | `/api/v1/permissions/latest` | most recent check (or `null`) |
-| GET | `/api/v1/permissions/history?limit=` | recent checks, newest first |
+| GET | `/api/v1/permissions/history?limit=` | recent checks, newest first (includes the latest) |
 
 ---
 
@@ -467,11 +476,12 @@ are never returned.
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/api/v1/manager/status` | connected/runtime state, admin count, pending notifications |
-| GET | `/api/v1/manager/notifications` | master switch + per-category toggles |
-| PUT | `/api/v1/manager/notifications` | update toggles (`enabled`, `categories`) |
 
 Admin IDs come from `MANAGER_BOT_ADMIN_IDS` (comma-separated). The runtime polls
 the manager bot only while the app runs and never blocks the durable scheduler.
+
+> Notification toggles are **not** a separate manager surface: they live at
+> `GET/PUT /api/v1/notifications/settings` (the Notification Center, D-132).
 
 ---
 
@@ -487,6 +497,7 @@ bypasses Telegram limits.
 |--------|------|---------|
 | GET | `/api/v1/channels?search=&status=&limit=&offset=` | list channels |
 | GET | `/api/v1/channels/summary` | counts + default channel |
+| GET | `/api/v1/channels/overview` | read-only per-channel state across every module (D-127) |
 | GET | `/api/v1/channels/{id}` | one channel |
 | POST | `/api/v1/channels` | add (`reference`, optional `title`/`kind`/`make_default`/`note`) |
 | PATCH | `/api/v1/channels/{id}` | update editable fields |
@@ -529,7 +540,6 @@ unsure, no file is produced (HTTP 500 with a friendly message).
 | GET | `/api/v1/diagnostics/actions` | safe maintenance actions and their state |
 | POST | `/api/v1/diagnostics/actions/{key}` | run a safe action (`restart_scheduler`, `recheck_telegram`, `recheck_channels`, `cleanup_jobs`) |
 | GET | `/api/v1/diagnostics/report?format=json\|txt\|zip` | download the redacted report (`X-Diagnostics-Redacted: true`) |
-| GET | `/api/v1/diagnostics/report/formats` | available export formats |
 
 Subsystems covered: application, database (migration status + revision), Telegram
 Bot API, manager bot, managed bots, user sessions (status only, no contents),
@@ -617,20 +627,34 @@ owner enables them. Credentials are sealed at rest and never returned.
 
 ---
 
-## First-run promotion wizard
+## End-to-end Setup Wizard (v2.0, D-128)
 
-A guided, resumable onboarding flow. It reflects **real** system state (channel,
-manager bot, session, AI, backup, update) and never claims a step is done unless
-it is. Without a user session, session-gated steps are `optional`, not required.
+A single, resumable flow from a fresh install to a working existing channel:
+program checks → channel → bots and rights → modules → a minimal content process →
+queue health → a final readiness gate and an explicitly-confirmed test
+publication.
+
+The status of a step is the **stored result of a real server check**: opening the
+page never marks a step done, and a fix requires re-running the step. Missing data
+or an un-runnable check reports `unchecked`/`failed`, never `ready`. The final
+readiness gate reads the read-only Channel Overview (D-127) rather than inventing
+a second status system. The wizard performs no Telegram action on its own; the
+only publish is the explicit test publication.
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/v1/promotion/presets` | available presets (minimal → professional) |
-| GET | `/api/v1/promotion` | current wizard state + per-step status |
-| POST | `/api/v1/promotion/preset` | switch preset (`preset`) |
-| POST | `/api/v1/promotion/step` | mark a step (`step`) |
-| POST | `/api/v1/promotion/finish` | mark the setup complete |
-| POST | `/api/v1/promotion/dismiss` | hide the wizard |
+| GET | `/api/v1/setup-wizard` | current wizard state (steps, progress, `ready`) |
+| POST | `/api/v1/setup-wizard/steps/{key}/run` | run one step's real check (optional `account_id`) |
+| POST | `/api/v1/setup-wizard/test-publication` | publish one prepared material (requires `confirmed`) |
+
+Step keys, in order: `app`, `channel`, `bot`, `modules`, `content`, `queue`,
+`readiness`. A step's `status` is one of `verified`, `pending`, `failed`,
+`unchecked`; `verified` means the server ran the check and it passed.
+
+The test publication refuses unless the `confirmed` flag is set **and** the stored
+`bot` and `content` checks passed; it grabs one material from the first enabled
+source, plans and publishes it to the default channel through the existing Content
+Studio posting path, and never registers an account or bypasses a Telegram limit.
 
 ---
 
@@ -923,9 +947,8 @@ A capability whose feature does not exist yet is reported as **`not_implemented`
 (never `available`), and each item carries an `implemented` boolean. As of v1.5.1
 `config_sync` and `media_conversion` are `not_implemented`.
 
-The Promotion Wizard (`GET /api/v1/promotion`) embeds the same evaluated graph in
-`capabilities`, so the wizard, the Dashboard and the Diagnostics panel always
-agree.
+The Setup Wizard (`GET /api/v1/setup-wizard`) embeds the same evaluated graph, so
+the wizard, the Dashboard and the Diagnostics panel always agree.
 
 UI preferences (`/api/v1/help/prefs`) now also carry `language` (default `ru`)
 and `available_languages`. The language is selectable in Settings and is used by
@@ -941,7 +964,6 @@ the capability graph; the beginner help catalog stays RU-first.
 | POST | `/api/v1/owner/setup` | create the owner profile (password/PIN); returns a signed token + status |
 | POST | `/api/v1/owner/login` | log in; returns a signed token + status |
 | POST | `/api/v1/owner/logout` | log out |
-| POST | `/api/v1/owner/lock` / `/unlock` | lock / unlock the app |
 | POST | `/api/v1/owner/protection` | turn app protection on/off |
 | POST | `/api/v1/owner/password` | change the owner password |
 | DELETE | `/api/v1/owner/profile` | delete the owner profile (204) |

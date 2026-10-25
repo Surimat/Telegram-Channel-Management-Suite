@@ -1,10 +1,8 @@
-"""Schemas for backup destinations, promotion wizard and auto-update."""
+"""Schemas for backup destinations and auto-update."""
 
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
-
-from backend.app.api.schemas.capability import CapabilityStateOut
 
 
 class DestinationIn(BaseModel):
@@ -47,49 +45,6 @@ class DeliveryResultOut(BaseModel):
     kind: str
     ok: bool
     message: str
-
-
-class WizardStepOut(BaseModel):
-    key: str
-    title: str
-    description: str
-    status: str
-    status_title: str
-    how_to_fix: str = ""
-    route: str = ""
-    requires_session: bool = False
-
-
-class WizardStateOut(BaseModel):
-    preset: str
-    preset_title: str
-    preset_description: str
-    has_session: bool
-    mode: str
-    completed: bool
-    dismissed: bool
-    current_step: str
-    completed_steps: int
-    total_steps: int
-    steps: list[WizardStepOut] = Field(default_factory=list)
-    session_optional_note: str = ""
-    session_risk_note: str = ""
-    capabilities: list[CapabilityStateOut] = Field(default_factory=list)
-
-
-class PresetOut(BaseModel):
-    id: str
-    title: str
-    description: str
-    requires_session: bool
-
-
-class WizardPresetIn(BaseModel):
-    preset: str
-
-
-class WizardStepIn(BaseModel):
-    step: str
 
 
 class UpdateStatusOut(BaseModel):

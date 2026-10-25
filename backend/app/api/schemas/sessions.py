@@ -100,6 +100,8 @@ class AuthStartOut(BaseModel):
     message: str
     how_to_fix: str = ""
     phone_masked: str = ""
+    #: Honest hint about where Telegram delivered the code (often in-app, not SMS).
+    code_delivery: str = ""
 
 
 class AuthCodeIn(BaseModel):

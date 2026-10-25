@@ -51,10 +51,7 @@ from backend.app.providers.content_sources import (
     provider_titles,
 )
 from backend.app.services.content_cleaner import CleanResult, clean_text
-from backend.app.services.content_rewrite import (
-    ContentRewriteService,
-    RewriteResult,
-)
+from backend.app.services.content_rewrite import RewriteResult
 from backend.app.services.events_service import EventsService
 
 MODULE = "content"
@@ -518,21 +515,35 @@ class ContentService:
         return item
 
     async def rewrite_preview(self, item_id: str, *, mode: str) -> RewriteResult:
-        item = await self.get_item(item_id)
-        text = item.cleaned_text or item.text
-        service = ContentRewriteService(settings=self.settings)
-        return service.rewrite(text, mode=mode)
+        """Delegate to the single content-processing engine (D-126).
+
+        ``ContentPipelineService`` is the one authoritative text-transformation
+        owner; this method exists only so the v1.2 ``/rewrite`` routes keep their
+        unchanged contract.
+        """
+        from backend.app.services.content_pipeline import ContentPipelineService
+
+        service = ContentPipelineService(self.session, settings=self.settings)
+        return await self._pipeline_rewrite(service.rewrite_preview, item_id, mode=mode)
 
     async def apply_rewrite(self, item_id: str, *, mode: str) -> tuple[ContentItem, RewriteResult]:
-        item = await self.get_item(item_id)
-        result = await self.rewrite_preview(item_id, mode=mode)
-        if result.ok and result.mode != "none":
-            item.cleaned_text = result.text
-            item.content_hash = content_hash(result.text)
-            await self.events.info(MODULE, "Материал переработан ИИ.", operation="rewrite")
-        await self.session.flush()
-        await self.session.commit()
-        return item, result
+        """Delegate to the single content-processing engine (D-126)."""
+        from backend.app.services.content_pipeline import ContentPipelineService
+
+        service = ContentPipelineService(self.session, settings=self.settings)
+        return await self._pipeline_rewrite(service.apply_rewrite, item_id, mode=mode)
+
+    @staticmethod
+    async def _pipeline_rewrite(method, item_id: str, *, mode: str):  # type: ignore[no-untyped-def]
+        """Run a pipeline rewrite, mapping ``PipelineError`` to ``ContentError``."""
+        from backend.app.services.content_pipeline import PipelineError
+
+        try:
+            return await method(item_id, mode=mode)
+        except PipelineError as exc:
+            raise ContentError(
+                exc.message, how_to_fix=exc.how_to_fix, status_code=exc.status_code
+            ) from exc
 
     # --- rights --------------------------------------------------------------
     def rights_warning(self, item: ContentItem) -> str:

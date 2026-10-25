@@ -20,6 +20,7 @@ from backend.app.core.logging import get_logger
 from backend.app.db.session import session_scope
 from backend.app.manager.service import ManagerBotService
 from backend.app.providers.errors import TelegramProviderError
+from backend.app.providers.types import MANAGER_ALLOWED_UPDATES
 
 logger = get_logger(__name__)
 
@@ -81,11 +82,21 @@ class ManagerBotRuntime:
                 return
             try:
                 await service.register_commands(provider)
-                updates = await provider.get_updates(offset=self._offset, timeout=0)
+                updates = await provider.get_updates(
+                    offset=self._offset,
+                    timeout=0,
+                    allowed_updates=list(MANAGER_ALLOWED_UPDATES),
+                )
                 for update in updates:
                     self._offset = max(self._offset or 0, update.update_id + 1)
                     if getattr(update, "kind", "") == "callback":
                         await self._handle_editorial_callback(session, provider, update)
+                        continue
+                    if getattr(update, "kind", "") == "managed_bot":
+                        await self._handle_managed_bot(session, update)
+                        continue
+                    if getattr(update, "kind", "") == "channel_post":
+                        await self._handle_channel_post(session, update)
                         continue
                     result = await service.handle_update(update)
                     chat_id = getattr(update, "chat_id", None)
@@ -123,6 +134,57 @@ class ManagerBotRuntime:
                 await provider.answer_callback_query(
                     callback_id, text=result.answer or result.message
                 )
+
+    async def _handle_managed_bot(self, session, update) -> None:  # type: ignore[no-untyped-def]
+        """Adopt a bot the owner created through a deep link (D-125).
+
+        Telegram announces a bot created via the official managed-bot flow
+        (``t.me/newbot``) with a ``managed_bot`` update. Routing it here closes
+        the lifecycle loop: the bot is registered into its Bot Factory batch, the
+        batch is settled once no candidate remains waiting, and the owner is
+        notified — so a deep-link batch completes and is reported instead of
+        silently staying "created by hand, never registered". A bot with an
+        unknown username is ignored, never searched for or imported (D-070); the
+        same update delivered twice is a no-op.
+        """
+        from backend.app.services.bot_lifecycle import BotLifecycleService
+
+        user_id = getattr(update, "managed_bot_user_id", None)
+        username = getattr(update, "managed_bot_username", "") or ""
+        if not user_id or not username:
+            return
+        title = getattr(update, "managed_bot_first_name", "") or ""
+        await BotLifecycleService(session).adopt_managed_bot(
+            username=username, telegram_id=int(user_id), title=title
+        )
+
+    async def _handle_channel_post(self, session, update) -> None:  # type: ignore[no-untyped-def]
+        """Feed a real channel post into the Reaction Manager (D-130).
+
+        The manager bot is a channel administrator, so Telegram delivers each new
+        post as a ``channel_post`` update carrying the real numeric chat id and
+        message id. The post is stored and its reactions are planned; an edited
+        post refreshes the stored text but is never re-planned, and a redelivered
+        update is a no-op (the service deduplicates by chat id + message id).
+        """
+        from backend.app.services.reaction_service import ReactionService
+
+        chat_id = getattr(update, "channel_post_chat_id", None)
+        message_id = getattr(update, "channel_post_message_id", None)
+        if chat_id is None or message_id is None:
+            return
+        try:
+            await ReactionService(session).ingest_channel_post(
+                chat_id=int(chat_id),
+                message_id=int(message_id),
+                text=getattr(update, "channel_post_text", "") or "",
+                chat_username=getattr(update, "channel_post_chat_username", "") or "",
+                edited=bool(getattr(update, "channel_post_edited", False)),
+            )
+        except Exception as exc:  # a bad post must not stop the poll loop
+            logger.warning(
+                "Channel post ingestion failed: %s", type(exc).__name__
+            )
 
     async def _flush_notifications(self, session, provider) -> None:  # type: ignore[no-untyped-def]
         """Route queued notifications through the Notification Center."""

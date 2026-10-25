@@ -171,14 +171,6 @@ from backend.app.db.models.notification import (
     NotificationRecord,
     NotificationStatus,
 )
-from backend.app.db.models.onboarding import (
-    PRESET_ADVANCED,
-    PRESET_BASIC,
-    PRESET_BOT_ONLY,
-    PRESET_MINIMAL,
-    PRESET_PROFESSIONAL,
-    PromotionProgress,
-)
 from backend.app.db.models.owner import (
     METHOD_TITLES,
     OwnerAuthMethod,
@@ -202,6 +194,7 @@ from backend.app.db.models.reaction import (
 )
 from backend.app.db.models.session import SessionStatus, UserSession
 from backend.app.db.models.setting import Setting
+from backend.app.db.models.setup_wizard import SetupWizardStep
 from backend.app.db.models.update_state import (
     UPDATE_APPLYING,
     UPDATE_AVAILABLE,
@@ -376,7 +369,6 @@ __all__ = [
     "PermissionCheck",
     "Post",
     "PostStatus",
-    "PromotionProgress",
     "ProxyKind",
     "ProxyProfile",
     "ProxyStatus",
@@ -391,6 +383,7 @@ __all__ = [
     "ScanStatus",
     "SessionStatus",
     "Setting",
+    "SetupWizardStep",
     "SourceType",
     "SourceUserLink",
     "SyncProviderKind",

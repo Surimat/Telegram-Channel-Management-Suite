@@ -109,29 +109,6 @@ async def owner_logout(session: AsyncSession = Depends(get_session)) -> OwnerSta
     return _status_out(await service.status())
 
 
-@router.post("/lock", response_model=OwnerStatusOut)
-async def owner_lock(session: AsyncSession = Depends(get_session)) -> OwnerStatusOut:
-    service = OwnerAuthService(session)
-    try:
-        return _status_out(await service.lock())
-    except OwnerAuthError as exc:
-        _owner_error(exc)
-
-
-@router.post("/unlock", response_model=OwnerTokenOut)
-async def owner_unlock(
-    payload: OwnerSecretIn, session: AsyncSession = Depends(get_session)
-) -> OwnerTokenOut:
-    service = OwnerAuthService(session)
-    try:
-        owner = await service.unlock(payload.secret)
-    except OwnerAuthError as exc:
-        _owner_error(exc)
-    return OwnerTokenOut(
-        token=issue_token(owner.id), status=_status_out(await service.status())
-    )
-
-
 @router.post("/protection", response_model=OwnerStatusOut)
 async def owner_protection(
     payload: OwnerEnabledIn, session: AsyncSession = Depends(get_session)

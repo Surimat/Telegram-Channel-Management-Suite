@@ -16,7 +16,7 @@ from backend.app.api.schemas.bindings import (
     BindingCreate,
     BindingListOut,
     BindingOut,
-    CapabilityOut,
+    ChannelCapabilityOut,
 )
 from backend.app.db.repositories.bots import BotRepository
 from backend.app.db.session import get_session
@@ -144,13 +144,13 @@ async def delete_binding(
 capabilities_router = APIRouter(prefix="/capabilities", tags=["capabilities"])
 
 
-@capabilities_router.get("/{channel_id}", response_model=CapabilityOut)
+@capabilities_router.get("/{channel_id}", response_model=ChannelCapabilityOut)
 async def get_capability(
     channel_id: str,
     service: CapabilityService = Depends(get_capability_service),
-) -> CapabilityOut:
+) -> ChannelCapabilityOut:
     view = await service.view(channel_id)
-    return CapabilityOut(
+    return ChannelCapabilityOut(
         channel_id=view.channel_id,
         status=view.status,
         available=view.available,
@@ -162,13 +162,13 @@ async def get_capability(
     )
 
 
-@capabilities_router.post("/{channel_id}/probe", response_model=CapabilityOut)
+@capabilities_router.post("/{channel_id}/probe", response_model=ChannelCapabilityOut)
 async def probe_capability(
     channel_id: str,
     service: CapabilityService = Depends(get_capability_service),
-) -> CapabilityOut:
+) -> ChannelCapabilityOut:
     view = await service.probe(channel_id)
-    return CapabilityOut(
+    return ChannelCapabilityOut(
         channel_id=view.channel_id,
         status=view.status,
         available=view.available,

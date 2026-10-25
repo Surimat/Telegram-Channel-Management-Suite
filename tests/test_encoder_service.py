@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from backend.app.ai.encoder import EncoderClassifier
-from backend.app.services.backup_backends.http import HttpResponse
+from backend.app.services.backup_backends.http import BackupHttpResponse
 from backend.app.services.encoder_service import (
     OFFICIAL_ASSETS,
     EncoderService,
@@ -31,8 +31,8 @@ def _transport_for(files: dict[str, bytes], *, status: int = 200):
     def _transport(method: str, url: str, headers: dict[str, str], body: bytes | None):
         name = url.rsplit("/", 1)[-1]
         if name not in files:
-            return HttpResponse(status=404, body=b"", headers={})
-        return HttpResponse(status=status, body=files[name], headers={})
+            return BackupHttpResponse(status=404, body=b"", headers={})
+        return BackupHttpResponse(status=status, body=files[name], headers={})
 
     return _transport
 

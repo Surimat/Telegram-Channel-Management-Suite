@@ -318,9 +318,6 @@ class BotService:
             manager=manager_username, username=username, name=name or username
         )
 
-    async def list_managed(self) -> list[Bot]:
-        return await self.list_bots(kind=BotKind.MANAGED)
-
     async def register_managed_bot(
         self,
         user_id: int,

@@ -59,6 +59,10 @@ from backend.app.providers.errors import (
 )
 from backend.app.providers.registry import build_audience_provider
 from backend.app.providers.session_base import SessionProvider
+from backend.app.services.channel_modules import (
+    MODULE_AUDIENCE,
+    ChannelModuleGuard,
+)
 from backend.app.services.events_service import EventsService
 from backend.app.services.queue_service import QueueService
 from backend.app.services.session_service import SessionProviderFactory, SessionService
@@ -258,7 +262,7 @@ class AudienceService:
         if self._audience_override is not None:
             return self._audience_override
         service, account = await self._resolve_account(source)
-        session_provider: SessionProvider = service.provider_for(account)
+        session_provider: SessionProvider = await service.provider_for(account)
         return build_audience_provider(
             session_provider, provider_name=self.settings.telegram_provider, settings=self.settings
         )
@@ -286,6 +290,8 @@ class AudienceService:
                     how_to_fix="Обновите список каналов на странице «Каналы».",
                     status_code=404,
                 )
+            # The audience module must be connected to the chosen channel (D-124).
+            await ChannelModuleGuard(self.session).require(channel_id, MODULE_AUDIENCE)
             reference = channel.reference
             title = title or channel.title or channel.reference
         reference = (reference or "").strip()
@@ -340,6 +346,10 @@ class AudienceService:
         source = await self.sources.get(source_id)
         if source is None:
             raise AudienceServiceError("Источник не найден.", status_code=404)
+        # Editing an audience source belongs to the audience module: refuse it when
+        # the module is switched off for this channel, before any field changes
+        # (D-124).
+        await ChannelModuleGuard(self.session).require(source.channel_id, MODULE_AUDIENCE)
         for key in ("title", "username", "enabled", "account_id"):
             if key in fields and fields[key] is not None:
                 setattr(source, key, fields[key])
@@ -370,6 +380,11 @@ class AudienceService:
         source = await self.sources.get(source_id)
         if source is None:
             raise AudienceServiceError("Источник не найден.", status_code=404)
+        # Reaching out to Telegram is part of the audience module: refuse it when
+        # the module is switched off for the source's channel (D-124).
+        await ChannelModuleGuard(self.session).require(
+            source.channel_id, MODULE_AUDIENCE
+        )
         provider = await self._audience_provider_for(source)
         try:
             ref = source.reference or source.username or str(source.telegram_id or "")
@@ -422,6 +437,11 @@ class AudienceService:
         source = await self.sources.get(source_id)
         if source is None:
             raise AudienceServiceError("Источник не найден.", status_code=404)
+        # A dry-run still resolves the account provider; keep it behind the
+        # audience module gate for this channel (D-124).
+        await ChannelModuleGuard(self.session).require(
+            source.channel_id, MODULE_AUDIENCE
+        )
         _service, account = await self._resolve_account(source)
         account_label = (
             account.display_name or account.username or (account.phone_masked or account.id)
@@ -459,6 +479,9 @@ class AudienceService:
         source = await self.sources.get(source_id)
         if source is None:
             raise AudienceServiceError("Источник не найден.", status_code=404)
+        # Refuse to start scanning a channel whose audience module is switched off
+        # — before the job row is created, so no orphan is left (D-124).
+        await ChannelModuleGuard(self.session).require(source.channel_id, MODULE_AUDIENCE)
         if source.scan_status == ScanStatus.SCANNING:
             raise AudienceServiceError(
                 "Сканирование уже выполняется.",
@@ -497,6 +520,8 @@ class AudienceService:
 
     async def resume_scan(self, source_id: str) -> AudienceSource:
         source = await self._require_source(source_id)
+        # A channel whose audience module is switched off cannot be resumed (D-124).
+        await ChannelModuleGuard(self.session).require(source.channel_id, MODULE_AUDIENCE)
         if source.scan_status not in {ScanStatus.PAUSED}:
             raise AudienceServiceError(
                 "Сканирование не на паузе.",
@@ -536,6 +561,14 @@ class AudienceService:
         source = await self.sources.get(source_id)
         if source is None:
             return ScanBatchOutcome(error="Источник не найден.")
+        if not await ChannelModuleGuard(self.session).is_enabled(
+            source.channel_id, MODULE_AUDIENCE
+        ):
+            # Defensive: a scan for a channel with the module off is paused, so a
+            # direct call can never fetch more of it (D-124).
+            source.scan_status = ScanStatus.PAUSED
+            await self.session.flush()
+            return ScanBatchOutcome(offset=source.scanned_offset, exhausted=False)
         if source.scan_status == ScanStatus.PAUSED:
             return ScanBatchOutcome(offset=source.scanned_offset, exhausted=False)
         if source.scan_status in {ScanStatus.CANCELLED, ScanStatus.COMPLETED}:
@@ -702,6 +735,14 @@ class AudienceService:
         if not rows:
             return
         source = rows[0]
+        # If the owner switched the audience module off mid-run, pause instead of
+        # scanning more (D-124). The owner resumes deliberately.
+        if not await ChannelModuleGuard(self.session).is_enabled(
+            source.channel_id, MODULE_AUDIENCE
+        ):
+            source.scan_status = ScanStatus.PAUSED
+            await self.session.commit()
+            return
         remaining = self.settings.audience_scan_chunk_size
         batch = self.settings.audience_scan_batch_size
         while remaining > 0:

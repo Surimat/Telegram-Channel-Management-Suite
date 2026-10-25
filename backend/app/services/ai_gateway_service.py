@@ -49,7 +49,7 @@ from backend.app.ai.gateway.types import (
 )
 from backend.app.ai.gateway.wrappers.definition import LIBRARY
 from backend.app.core.config import Settings, get_settings
-from backend.app.core.logging import register_secrets
+from backend.app.core.logging import get_logger, register_secrets
 from backend.app.core.security import open_secret, seal_secret
 from backend.app.db.models.ai_gateway import AiGatewayRequest, AiProviderRow
 from backend.app.db.repositories.ai_gateway import (
@@ -58,6 +58,8 @@ from backend.app.db.repositories.ai_gateway import (
     AiRouteSettingRepository,
 )
 from backend.app.services.events_service import EventsService
+
+logger = get_logger(__name__)
 
 #: Routing preference keys stored in ``ai_route_settings``.
 ROUTE_KEYS = {
@@ -473,8 +475,8 @@ class AiGatewayService:
             limit = int(await self._setting("ai_gateway_history_limit"))
             if limit > 0:
                 await self.requests_repo.trim(limit)
-        except Exception:  # pragma: no cover - observability must never break a call
-            pass
+        except Exception as exc:  # pragma: no cover - observability must never break a call
+            logger.warning("Не удалось записать историю запросов шлюза ИИ: %s", exc)
 
     # ==================================================================
     # Wrapper library + browser runtime

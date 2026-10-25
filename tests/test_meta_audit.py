@@ -286,7 +286,12 @@ _CURRENT_ANCHORS = (
 #: history (it also contains one of ``_HISTORY_MARKERS``). This catches stale
 #: "… Latest release: vX.Y.Z" / "**Repository status:** … vX.Y.Z" lines while
 #: leaving "README.md still said …" drift notes alone.
-_MIDLINE_CLAIMS = ("Latest release:", "**Repository status:")
+_MIDLINE_CLAIMS = (
+    "Latest release:",
+    "**Repository status:",
+    "Version string",
+    "All gates pass:",
+)
 _HISTORY_MARKERS = (
     "history",
     "historical",
@@ -297,6 +302,16 @@ _HISTORY_MARKERS = (
     "Earlier",
     "Previous",
     "previous",
+)
+
+#: Present-tense claims about what is *currently* latest. These override the
+#: historical-line exemption above: a "(historical snapshot)" heading is not a
+#: licence to assert a stale value for the *current* latest release or tag. The
+#: pattern deliberately requires an ``is``/``=`` copula so past-tense narration
+#: ("its latest tag was vX") stays exempt, while "the current latest release is
+#: vX" cannot hide behind the word "history".
+_PRESENT_TENSE_LATEST_RE = re.compile(
+    r"latest (?:release|tag) (?:is|=)|current latest (?:release|tag)"
 )
 
 
@@ -336,9 +351,14 @@ def test_memory_files_have_no_stale_current_version() -> None:
             if any(v > parsed for v in _versions(match[:window])):
                 failures.append(f"{name}: {prefix!r} line claims an unreleased version")
         for lineno, line in enumerate(lines, start=1):
-            if not any(claim in line for claim in _MIDLINE_CLAIMS):
+            if not (
+                any(claim in line for claim in _MIDLINE_CLAIMS)
+                or _PRESENT_TENSE_LATEST_RE.search(line)
+            ):
                 continue
-            if any(marker in line for marker in _HISTORY_MARKERS):
+            if any(marker in line for marker in _HISTORY_MARKERS) and not (
+                _PRESENT_TENSE_LATEST_RE.search(line)
+            ):
                 continue
             named = _versions(line)
             if named and not any(v == parsed for v in named):
@@ -347,6 +367,31 @@ def test_memory_files_have_no_stale_current_version() -> None:
                 )
 
     assert not failures, "stale current-release facts in memory files:\n" + "\n".join(failures)
+
+
+def test_memory_files_state_the_current_version() -> None:
+    """Every "Version string is **X**" claim in memory must name the shipped X.
+
+    The anchor guards only inspect the *first* current-release line, and the
+    mid-line version regex requires a ``v`` prefix — so a bare
+    ``Version string is **2.0.0**`` left in CURRENT_STATE (the exact drift this
+    repository hit) slipped through both. This checks every such claim directly.
+    Only the current-tense "Version string is" phrasing is pinned; historical
+    lines use "Version strings read **1.8.1**", which is left alone.
+    """
+    current = f"**{__version__}**"
+    offenders: list[str] = []
+    for name in ("agent/CURRENT_STATE.md", "agent/NEXT_TASK.md"):
+        for lineno, line in enumerate(
+            (REPO_ROOT / name).read_text(encoding="utf-8").splitlines(), start=1
+        ):
+            if "Version string is" not in line:
+                continue
+            if current not in line:
+                offenders.append(
+                    f"{name}:{lineno} does not state {current}: {line[:120]!r}"
+                )
+    assert not offenders, "stale 'Version string is' claim:\n" + "\n".join(offenders)
 
 
 def test_changelog_leads_with_the_current_release() -> None:
@@ -564,7 +609,15 @@ _VERSION_HEADINGS = (
 #: Version strings written into the release-verification sections. A release
 #: bumps the app version, so a stale ``**NNN passed**`` here is drift.
 _TEST_COUNT_RE = re.compile(r"(\d+) passed(?:, (\d+) skipped)?")
+_COLLECTED_RE = re.compile(r"(\d+) collected")
+#: Tolerant variant for the *current* section, where markdown emphasis can sit
+#: between the pass count and the skip count (e.g. ``**1209 passed**, 12 skipped``).
+#: The skip part is optional so a section that states only the pass count is
+#: still checked.
+_CURRENT_COUNT_RE = re.compile(r"(\d+) passed(?:[^0-9]{0,8}(\d+) skipped)?")
 _CHANGELOG_PASSED_RE = re.compile(r"full suite green \(\*\*(\d+) passed")
+#: A per-file guard claim, e.g. ``tests/test_setup_wizard.py (20 tests)``.
+_PER_FILE_COUNT_RE = re.compile(r"tests/([A-Za-z0-9_]+\.py)`?\s*\((\d+) tests?\)")
 
 
 def test_versioned_docs_lead_with_the_shipped_release() -> None:
@@ -644,6 +697,42 @@ def test_release_docs_do_not_claim_a_future_date() -> None:
     )
 
 
+#: ``(file, regex)`` pairs whose captured group 1 is an ``X.Y.Z`` version and
+#: group 2 the calendar date documented for that release. Each release's heading
+#: must carry the date of its git tag — the one authoritative, immutable record
+#: of when a release actually shipped.
+_RELEASE_DATE_HEADINGS = (
+    ("agent/CHANGELOG.md", r"^## \[(\d+\.\d+\.\d+)\][^\n]*?(\d{4}-\d{2}-\d{2})"),
+    ("docs/RELEASE_CHECKLIST.md", r"^### v(\d+\.\d+\.\d+) \([^)]*?(\d{4}-\d{2}-\d{2})"),
+    ("docs/ROADMAP.md", r"^- \*\*v(\d+\.\d+\.\d+) \((\d{4}-\d{2}-\d{2})\)"),
+)
+
+
+def test_release_heading_dates_match_their_git_tags() -> None:
+    """A release heading's date must equal its git tag's date.
+
+    This repository documented v1.7.0 as 2026-10-08, v1.6.0/v1.5.0/v1.4.0 as a
+    day late, and (once) v1.9.0 as 2026-10-12 while the tag and GitHub Release
+    are dated 2026-10-08. Each heading's release date is now pinned to the tag,
+    so an invented or copied-forward date cannot be committed again. Skipped
+    (never failed) when git or the tag is unavailable, so a shallow checkout
+    cannot raise a false alarm.
+    """
+    offenders: list[str] = []
+    for name, pattern in _RELEASE_DATE_HEADINGS:
+        text = (REPO_ROOT / name).read_text(encoding="utf-8")
+        for match in re.finditer(pattern, text, flags=re.MULTILINE):
+            version, documented = match.group(1), match.group(2)
+            tagged = _git_output(
+                "for-each-ref", f"refs/tags/v{version}", "--format=%(taggerdate:short)"
+            )
+            if tagged and tagged != documented:
+                offenders.append(
+                    f"{name}: v{version} documented {documented}, tag is {tagged}"
+                )
+    assert not offenders, "release heading date != tag date:\n" + "\n".join(offenders)
+
+
 def _git_output(*args: str) -> str | None:
     """Return stdout of a git command, or None if git cannot answer.
 
@@ -661,6 +750,23 @@ def _git_output(*args: str) -> str | None:
     except (OSError, subprocess.CalledProcessError):
         return None
     return result.stdout.strip()
+
+
+def _reachable_tags() -> list[str]:
+    """Release tags reachable from the current ``HEAD``, newest version first.
+
+    ``git tag`` alone lists every tag in the clone regardless of branch, so a
+    pre-release cut on ``develop`` (e.g. ``v2.1.0-rc.1``) would be reported as
+    the repository's "latest tag" even when the tests run on ``main``, where only
+    ``v2.0.1`` has shipped — a false failure that has nothing to do with ``main``.
+    Restricting to ``--merged HEAD`` makes each branch compare against its own
+    reachable history, so the guard stays green on both ``main`` and ``develop``.
+    Empty when git cannot answer (shallow / tagless checkout).
+    """
+    out = _git_output("tag", "--merged", "HEAD", "--sort=-v:refname")
+    if not out:
+        return []
+    return out.splitlines()
 
 
 def _passed_counts(text: str) -> list[int]:
@@ -695,13 +801,67 @@ def _full_suite_size() -> int:
     return _FULL_SUITE_SIZE
 
 
+def _collect_only_count(relative: str) -> int | None:
+    """Return the number of tests ``relative`` collects, or ``None`` if unknown."""
+    try:
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                relative,
+                "--collect-only",
+                "-o",
+                "addopts=",
+                "-q",
+            ],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    match = re.search(r"(\d+) tests? collected", result.stdout)
+    return int(match.group(1)) if match else None
+
+
+def test_memory_files_do_not_claim_a_stale_per_file_test_count() -> None:
+    """A ``tests/foo.py (N tests)`` guard claim must match the file's real size.
+
+    The full-suite guards only prove that a count does not *exceed* the whole
+    suite, so a per-file claim left at an older value after the file grew (the
+    classic "19 tests" copy-paste) slips through. This collects each named file
+    in isolation and fails if the documented count is wrong in either direction.
+    """
+    offenders: list[str] = []
+    seen: set[tuple[str, int]] = set()
+    for name in ("README.md", "agent/CHANGELOG.md", "agent/CURRENT_STATE.md",
+                 "agent/DECISIONS.md", "agent/NEXT_TASK.md"):
+        text = (REPO_ROOT / name).read_text(encoding="utf-8")
+        for match in _PER_FILE_COUNT_RE.finditer(text):
+            filename, claimed = match.group(1), int(match.group(2))
+            if (filename, claimed) in seen:
+                continue
+            seen.add((filename, claimed))
+            real = _collect_only_count(f"tests/{filename}")
+            if real is not None and real != claimed:
+                offenders.append(
+                    f"{name}: says tests/{filename} has {claimed} tests, real is {real}"
+                )
+    assert not offenders, "documented per-file test count is stale:\n" + "\n".join(
+        sorted(set(offenders))
+    )
+
+
 def test_memory_files_do_not_claim_a_stale_test_count() -> None:
     """The documented full-suite count must not exceed the suite's own size.
 
     No doc may claim more tests passed than the suite actually contains. This is
     the sound half of the count guard (a count can only be *proven* wrong when it
     exceeds reality); the staleness half is
-    :func:`test_documented_test_count_grows_across_releases`.
+    :func:`test_documented_test_count_grows_across_releases` and
+    :func:`test_current_documented_passed_count_is_exact`.
     """
     collected_count = _full_suite_size()
     offenders: list[str] = []
@@ -716,6 +876,101 @@ def test_memory_files_do_not_claim_a_stale_test_count() -> None:
                     f"> {collected_count} tests"
                 )
     assert not offenders, "documented test count exceeds the real suite:\n" + "\n".join(
+        sorted(set(offenders))
+    )
+
+
+def test_memory_files_do_not_claim_a_stale_collected_count() -> None:
+    """No doc may claim the suite *collects* more tests than it really does.
+
+    ``N collected`` is a stronger claim than ``N passed``: the collection is
+    deterministic and independent of skips, so a documented collected count that
+    exceeds the real one is provably wrong. This pins the top-of-file "All gates
+    pass: … N collected" line (and any sibling) to reality, catching the drift
+    where the count was left at an older release's value.
+    """
+    collected_count = _full_suite_size()
+    offenders: list[str] = []
+    for name in ("README.md", "agent/CHANGELOG.md", "agent/CURRENT_STATE.md"):
+        text = (REPO_ROOT / name).read_text(encoding="utf-8")
+        for match in _COLLECTED_RE.finditer(text):
+            claimed = int(match.group(1))
+            if claimed > collected_count:
+                offenders.append(
+                    f"{name}: claims {claimed} collected > {collected_count} tests"
+                )
+    assert not offenders, "documented collected count exceeds the real suite:\n" + "\n".join(
+        sorted(set(offenders))
+    )
+
+
+def _current_release_sections() -> list[tuple[str, str]]:
+    """``(path, section_text)`` for the newest release/stage section in each doc."""
+    changelog = (REPO_ROOT / "agent" / "CHANGELOG.md").read_text(encoding="utf-8")
+    heads = list(re.finditer(r"^## \[", changelog, flags=re.MULTILINE))
+    assert heads, "agent/CHANGELOG.md has no versioned sections"
+    end = heads[1].start() if len(heads) > 1 else len(changelog)
+    changelog_section = changelog[heads[0].start():end]
+
+    current_state = (REPO_ROOT / "agent" / "CURRENT_STATE.md").read_text(encoding="utf-8")
+    anchors = list(
+        re.finditer(
+            r"^\*\*(Last updated|Completed stage|v[\d.]+[^*]*RELEASED)",
+            current_state,
+            flags=re.MULTILINE,
+        )
+    )
+    assert anchors, "agent/CURRENT_STATE.md lost its stage headings"
+    # Include the "Last updated" line and the newest stage line (the count lives
+    # on the stage line), stopping before the *next* stage's heading.
+    stop = anchors[2].start() if len(anchors) > 2 else len(current_state)
+    current_section = current_state[anchors[0].start():stop]
+
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    release = re.search(r"^\*\*Current stable release:.*$", readme, flags=re.MULTILINE)
+    assert release is not None, "README.md lost its 'Current stable release' line"
+    after = readme[release.end():]
+    stop = re.search(r"^## ", after, flags=re.MULTILINE)
+    readme_section = readme[release.start():release.end() + (stop.start() if stop else len(after))]
+
+    return [
+        ("agent/CHANGELOG.md", changelog_section),
+        ("agent/CURRENT_STATE.md", current_section),
+        ("README.md", readme_section),
+    ]
+
+
+def test_current_documented_passed_count_is_exact() -> None:
+    """The *current* stage's documented test count must match the collected suite.
+
+    The "does not exceed" guard
+    (:func:`test_memory_files_do_not_claim_a_stale_test_count`) is sound but weak:
+    a count left *below* reality after new tests were added slips through (the
+    classic copy-paste staleness).
+
+    The exact ``passed``/``skipped`` split is **environment-dependent** — the
+    real-browser layer and the git-anchor guards skip differently on a developer
+    machine than on CI — so comparing it to a nested full-suite run is neither
+    reproducible nor cheap (it ran the whole suite a second time, doubling CI wall
+    time). The *collected* total depends only on the files, never on a skip, so it
+    is deterministic: the documented ``passed + skipped`` for the current release
+    must equal it exactly. Only the newest section of each doc is checked, so
+    historical release notes are untouched.
+    """
+    collected = _full_suite_size()
+    offenders: list[str] = []
+    for name, section in _current_release_sections():
+        for match in _CURRENT_COUNT_RE.finditer(section):
+            passed = int(match.group(1))
+            skipped = int(match.group(2)) if match.group(2) is not None else 0
+            if passed + skipped == collected:
+                continue  # this is the true full-suite figure
+            offenders.append(
+                f"{name}: current section says {passed} passed"
+                + (f", {skipped} skipped" if match.group(2) is not None else "")
+                + f" (= {passed + skipped}); the suite collects {collected}"
+            )
+    assert not offenders, "documented current test count is stale:\n" + "\n".join(
         sorted(set(offenders))
     )
 
@@ -834,19 +1089,21 @@ def test_current_state_release_anchors_match_git() -> None:
 
 
 def test_next_task_names_the_latest_tag() -> None:
-    """NEXT_TASK.md must name the repository's latest release tag.
+    """NEXT_TASK.md must name the latest release tag *reachable from HEAD*.
 
-    ``git tag --sort=-v:refname`` reports the newest tag by version; if NEXT_TASK
-    names an older one (the classic stale "latest tag" left after a release), a
-    new agent is misled about what has actually shipped. Version sorting is used
+    The newest tag by version is reported with version sorting; if NEXT_TASK names
+    an older one (the classic stale "latest tag" left after a release), a new
+    agent is misled about what has actually shipped. Version sorting is used
     rather than ``git describe`` because the latest tag points at the ``main``
-    merge commit, which is not an ancestor of ``develop``. Skipped when git
-    cannot answer (shallow/tagless checkout).
+    merge commit, which is not an ancestor of ``develop``. The set is limited to
+    tags reachable from ``HEAD`` so that a pre-release cut on ``develop`` (e.g.
+    ``v2.1.0-rc.1``) never makes this guard demand a ``develop`` tag while running
+    on ``main``. Skipped when git cannot answer (shallow/tagless checkout).
     """
-    tags = _git_output("tag", "--sort=-v:refname")
+    tags = _reachable_tags()
     if not tags:  # pragma: no cover - shallow clone
         pytest.skip("git cannot list tags in this checkout")
-    latest = tags.splitlines()[0]
+    latest = tags[0]
     text = (REPO_ROOT / "agent" / "NEXT_TASK.md").read_text(encoding="utf-8")
     assert latest in text, (
         f"agent/NEXT_TASK.md does not name the latest release tag {latest}"
@@ -854,20 +1111,22 @@ def test_next_task_names_the_latest_tag() -> None:
 
 
 def test_readme_current_release_matches_latest_tag() -> None:
-    """README's "Current stable release" anchor must name the latest tag.
+    """README's "Current stable release" anchor must name the latest reachable tag.
 
     Reproduces the drift the owner reported: the GitHub Release is Latest and the
     tag points at the merge commit, yet a reader of the repository front page
     still sees the previous version. ``test_readme_states_the_current_release``
     only asserts the shipped version appears *somewhere* in README.md, so a stale
     "Current stable release" anchor slips past it. This pins the anchor line to
-    the newest tag by version (the published release). Skipped when git cannot
-    list tags (shallow/tagless checkout), where the version guard still applies.
+    the newest tag by version *reachable from HEAD*, so ``main`` compares only
+    against its own shipped tag and a ``develop`` pre-release cannot trigger a
+    false failure. Skipped when git cannot list tags (shallow/tagless checkout),
+    where the version guard still applies.
     """
-    tags = _git_output("tag", "--sort=-v:refname")
+    tags = _reachable_tags()
     if not tags:  # pragma: no cover - shallow clone
         pytest.skip("git cannot list tags in this checkout")
-    latest = tags.splitlines()[0]
+    latest = tags[0]
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     line = next(
         (
@@ -882,6 +1141,52 @@ def test_readme_current_release_matches_latest_tag() -> None:
         f"README.md 'Current stable release' does not name the latest tag "
         f"{latest}: {line[:140]!r}"
     )
+
+
+def test_latest_release_anchors_name_the_latest_tag() -> None:
+    """The first release a 'latest release' anchor names must be the newest tag.
+
+    A release can leave the *narrative* around an anchor pointing at the previous
+    version while the anchor's own version is current — e.g. "Current stable
+    release: `vX` was a **verification patch** over `vPREV` …" accidentally written
+    as "over `vLATEST`", which reads as if ``vLATEST`` were merely patched by the
+    smaller ``vX``. ``test_latest_release_anchors_name_the_shipped_version`` only
+    checks that the shipped version appears somewhere on the anchor *line*, so
+    that slip passes it. This pins the *first* version token on the anchor line to
+    the newest tag by version *reachable from HEAD* (a ``develop`` pre-release
+    must not demand a tag ``main`` cannot see). Skipped when git cannot list tags
+    (shallow/tagless checkout), and skipped while the current version is untagged
+    (a version-bump window) so it never demands a tag that does not exist yet.
+    """
+    tags = _reachable_tags()
+    if not tags:  # pragma: no cover - shallow clone
+        pytest.skip("git cannot list tags in this checkout")
+    latest = tags[0]
+
+    # Only run once the current version is actually tagged: during a version-bump
+    # window (app bumped, tag not yet created) the shipped-tag comparison would be
+    # meaningless, so defer to the tag based check instead of demanding a tag that
+    # does not exist yet. The synthetic ``v99.0.0`` strings used by the mutation
+    # tests live in packaged source, so text alone cannot prove a bumped version.
+    tagged_current = _git_output(
+        "for-each-ref", f"refs/tags/v{__version__}", "--format=%(refname)"
+    )
+    if not tagged_current:
+        pytest.skip(f"current version v{__version__} is not tagged yet")
+
+    offenders: list[str] = []
+    for name, prefix in _LATEST_RELEASE_ANCHORS:
+        lines = (REPO_ROOT / name).read_text(encoding="utf-8").splitlines()
+        match = next((ln for ln in lines if ln.strip().startswith(prefix)), None)
+        assert match is not None, f"{name} lost its latest-release anchor {prefix!r}"
+        named = re.findall(r"v[0-9]+\.[0-9]+\.[0-9]+", match)
+        if not named:  # pragma: no cover - anchor without a version
+            offenders.append(f"{name}: {prefix!r} names no release version")
+        elif named[0] != latest:
+            offenders.append(
+                f"{name}: {prefix!r} leads with {named[0]!r}, latest tag is {latest!r}"
+            )
+    assert not offenders, "stale latest-release narrative:\n" + "\n".join(offenders)
 
 
 def test_next_task_active_task_is_not_declared_released() -> None:
@@ -902,6 +1207,53 @@ def test_next_task_active_task_is_not_declared_released() -> None:
     body = rest[: next_heading.start()] if next_heading else rest
     assert not re.search(r"\bRELEASED\b", body), (
         "agent/NEXT_TASK.md 'Active task' section declares RELEASED work"
+    )
+
+
+def test_next_task_active_task_state_matches_git() -> None:
+    """An active task that claims uncommitted work must really be uncommitted.
+
+    NEXT_TASK's active section once said the Personal Account Safety code was
+    "uncommitted at the time of writing" while it *also* cited the three commits
+    that implement it (``9295d9c``, ``622053c``, ``43e1cca``) — all already in
+    ``develop``'s history. A commit SHA that resolves to a real commit is proof
+    the work is committed, so an "uncommitted / in progress" claim next to it is
+    false. Checking the cited SHAs (rather than only the working-tree status)
+    makes the guard independent of unrelated local edits. It also fires if the
+    tree is completely clean while the claim is made (nothing left uncommitted).
+    Skipped when git cannot answer (not a checkout / shallow clone).
+    """
+    text = (REPO_ROOT / "agent" / "NEXT_TASK.md").read_text(encoding="utf-8")
+    heading = re.search(
+        r"^#+\s*Active task\b.*$", text, flags=re.MULTILINE | re.IGNORECASE
+    )
+    assert heading is not None, "agent/NEXT_TASK.md lost its 'Active task' heading"
+    rest = text[heading.end():]
+    next_heading = re.search(r"^#+\s", rest, flags=re.MULTILINE)
+    body = heading.group(0) + (rest[: next_heading.start()] if next_heading else rest)
+    if re.search(
+        r"uncommitted|not yet committed|in progress on", body, flags=re.IGNORECASE
+    ) is None:
+        return
+
+    cited = re.findall(r"`?\b([0-9a-f]{7,40})\b`?", body)
+    committed: list[str] = []
+    for sha in cited:
+        if _git_output("rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}"):
+            committed.append(sha)
+    if committed:
+        raise AssertionError(
+            "agent/NEXT_TASK.md 'Active task' calls the work uncommitted / in "
+            "progress, yet it cites commit(s) that already exist in git history: "
+            f"{', '.join(sorted(set(committed)))}"
+        )
+
+    status = _git_output("status", "--porcelain")
+    if status is None:  # pragma: no cover - not a git checkout
+        pytest.skip("git cannot report status in this checkout")
+    assert status.strip(), (
+        "agent/NEXT_TASK.md 'Active task' claims uncommitted / in-progress work, "
+        "but the git working tree is clean (the work is already committed)"
     )
 
 
@@ -988,3 +1340,272 @@ def test_docs_do_not_claim_unverified_free_vision() -> None:
         "docs advertise a free capability beyond verified text/image-generation "
         "(D-119) without stating it is unverified:\n" + "\n".join(offenders)
     )
+
+
+# ---------------------------------------------------------------------------
+# 8. An already-finished task never stays in NEXT_TASK as active (D-124)
+# ---------------------------------------------------------------------------
+#: The server-side module registry (D-124). When this implementation exists in
+#: the tree, NEXT_TASK.md must not keep advertising it as pending/in-progress
+#: work — the exact drift the owner had to repair by hand (a completed feature
+#: left in the "active task" slot, so a resuming agent would rebuild it).
+_MODULE_REGISTRY_MARKERS = (
+    "channel_modules.py",
+    "ChannelModuleGuard",
+)
+_MODULE_REGISTRY_IMPL = (
+    REPO_ROOT / "backend" / "app" / "services" / "channel_modules.py"
+)
+
+
+def _active_task_body(text: str) -> str | None:
+    """Return the body of the first 'Active task' section, or None."""
+    heading = re.search(
+        r"^#+\s*Active task\b.*$", text, flags=re.MULTILINE | re.IGNORECASE
+    )
+    if heading is None:
+        return None
+    rest = text[heading.end():]
+    next_heading = re.search(r"^#+\s", rest, flags=re.MULTILINE)
+    return rest[: next_heading.start()] if next_heading else rest
+
+
+def _headings_with_bodies(text: str) -> list[tuple[str, str]]:
+    """Return ``(heading_text, body)`` for every markdown heading in ``text``.
+
+    ``heading_text`` excludes the leading ``#`` markers; ``body`` runs to the
+    next heading of any level (or the end of the file).
+    """
+    matches = list(re.finditer(r"^#+[ \t]*(.*)$", text, flags=re.MULTILINE))
+    sections: list[tuple[str, str]] = []
+    for i, match in enumerate(matches):
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        sections.append((match.group(1), text[match.end(): end]))
+    return sections
+
+
+def test_next_task_does_not_leave_a_completed_stage_in_the_active_slot() -> None:
+    """An 'Active task' heading must not cite a commit that already exists.
+
+    The active slot once advertised Content Pipeline Consolidation (D-126) as
+    "in progress" while the commit that implements it (``0b65bf3``) was already
+    in ``develop``'s history. A commit that resolves in git is proof the work is
+    done, so a stage that sits under an 'Active task' heading (one that is not
+    an explicit "none" marker) and cites a real commit is stale and must move
+    under a completed heading. Skipped when git cannot answer.
+    """
+    text = (REPO_ROOT / "agent" / "NEXT_TASK.md").read_text(encoding="utf-8")
+    offenders: list[str] = []
+    for heading, body in _headings_with_bodies(text):
+        if re.match(r"Active task\b", heading, flags=re.IGNORECASE) is None:
+            continue
+        if re.search(r"\bnone\b", heading, flags=re.IGNORECASE):
+            continue  # an explicit "Active task — none" marker is the empty slot
+        for sha in re.findall(r"`?\b([0-9a-f]{7,40})\b`?", heading + body):
+            if _git_output("rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}"):
+                offenders.append(f"{heading.strip()!r} cites committed {sha}")
+    assert not offenders, (
+        "agent/NEXT_TASK.md leaves a completed stage under an 'Active task' "
+        "heading (the cited commit already exists in git history):\n"
+        + "\n".join(offenders)
+    )
+
+
+def test_next_task_does_not_advertise_a_finished_feature_as_active() -> None:
+    """A task that is already implemented must not remain in the active slot.
+
+    NEXT_TASK.md is the single place a resuming agent looks for work. If it
+    advertises the module registry as active/pending while the registry is
+    already implemented and wired (D-124), the agent rebuilds finished work.
+    The guard activates only when both the file and the implementation markers
+    are present, so it never fires on a checkout that predates the feature.
+    """
+    text = (REPO_ROOT / "agent" / "NEXT_TASK.md").read_text(encoding="utf-8")
+    if not all(marker in text for marker in _MODULE_REGISTRY_MARKERS):
+        return  # NEXT_TASK does not mention the registry; nothing to guard.
+    assert _MODULE_REGISTRY_IMPL.exists(), (
+        "agent/NEXT_TASK.md advertises a module registry, but "
+        "backend/app/services/channel_modules.py does not exist"
+    )
+    body = _active_task_body(text)
+    assert body is not None, "agent/NEXT_TASK.md lost its 'Active task' heading"
+    pending = re.search(r"module\s+registr\w*", body, flags=re.IGNORECASE)
+    assert pending is None, (
+        "agent/NEXT_TASK.md still advertises the module registry "
+        f"({pending.group(0)!r}) as active work, but it is implemented (D-124)"
+    )
+
+
+
+# ---------------------------------------------------------------------------
+# 9. Post-release drift guards (D-125): a release must not leave a stale moving
+#    develop SHA, a stale active task, or an undefined decision reference.
+# ---------------------------------------------------------------------------
+#: A pinned ``develop`` SHA in persistent memory goes stale the moment the next
+#: commit lands (this repository de-pinned it once already, commit ``dbec4b1``).
+#: ``main`` is the released, immutable line, so only ``main`` may be pinned to a
+#: SHA; ``develop`` must be described relatively ("ahead of ``main`` only by ...").
+_DEVELOP_SHA_PIN_RE = re.compile(r"`develop`\s*HEAD\s*=\s*`[0-9a-f]{7,40}`")
+
+
+def test_memory_files_do_not_pin_a_moving_develop_sha() -> None:
+    """Persistent memory must not pin ``develop`` to a SHA that will move.
+
+    A pinned ``develop`` HEAD is stale after the very next commit, so a resuming
+    agent reads a SHA that no longer exists. Only the immutable released ``main``
+    line may be pinned; ``develop`` must be described relatively. This reproduces
+    the drift the repository had to repair by hand.
+    """
+    offenders: list[str] = []
+    for name in (
+        "agent/CURRENT_STATE.md",
+        "agent/NEXT_TASK.md",
+        "agent/CHANGELOG.md",
+        "agent/DECISIONS.md",
+    ):
+        text = (REPO_ROOT / name).read_text(encoding="utf-8", errors="replace")
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            if _DEVELOP_SHA_PIN_RE.search(line):
+                offenders.append(f"{name}:{lineno}: {line.strip()[:140]}")
+    assert not offenders, (
+        "persistent memory pins the moving `develop` SHA (only `main` may be "
+        "pinned):\n" + "\n".join(offenders)
+    )
+
+
+#: The implementation file whose presence means the D-125 work exists in the
+#: tree. When it exists, NEXT_TASK must not still advertise it as pending under a
+#: *different* feature - the exact drift this task repaired.
+_LIFECYCLE_IMPL = REPO_ROOT / "backend" / "app" / "services" / "bot_lifecycle.py"
+
+
+def test_next_task_active_task_matches_the_tree() -> None:
+    """The active task's cited artifacts must exist (a finished task is stale).
+
+    NEXT_TASK.md is the single place a resuming agent looks for work. Its active
+    section must cite artifacts that are actually present in the tree - a
+    reference to a file that does not exist means the section describes work that
+    is not there (already finished or never started). Activates only once the
+    lifecycle implementation exists, so it never fires on an older checkout.
+    """
+    if not _LIFECYCLE_IMPL.exists():
+        pytest.skip("bot_lifecycle.py not present (pre-D-125 checkout)")
+    text = (REPO_ROOT / "agent" / "NEXT_TASK.md").read_text(
+        encoding="utf-8", errors="replace"
+    )
+    body = _active_task_body(text)
+    assert body is not None, "agent/NEXT_TASK.md lost its 'Active task' heading"
+    prefixes = (
+        "backend/",
+        "frontend/",
+        "tests/",
+        "docs/",
+        "agent/",
+        "migrations/",
+        "scripts/",
+    )
+    cited = [
+        p
+        for p in re.findall(r"`([A-Za-z0-9_./-]+\.(?:py|vue|json|md))`", body)
+        if p.startswith(prefixes)
+    ]
+    missing = sorted({p for p in cited if not (REPO_ROOT / p).exists()})
+    assert not missing, (
+        "agent/NEXT_TASK.md active task cites artifacts that do not exist: "
+        + ", ".join(missing)
+    )
+
+
+def test_next_task_active_task_references_defined_decisions() -> None:
+    """Every ``D-nnn`` cited by the active task must exist in DECISIONS.md.
+
+    A dangling decision reference (an id that was never written down) means the
+    active section points at a decision a resuming agent cannot read - the drift
+    left when D-125 was implemented but its decision entry was not yet recorded.
+    """
+    decisions = (REPO_ROOT / "agent" / "DECISIONS.md").read_text(
+        encoding="utf-8", errors="replace"
+    )
+    defined = set(re.findall(r"^## (D-\d+) ", decisions, flags=re.MULTILINE))
+    assert defined, "agent/DECISIONS.md lost its '## D-nnn' headings"
+    text = (REPO_ROOT / "agent" / "NEXT_TASK.md").read_text(
+        encoding="utf-8", errors="replace"
+    )
+    body = _active_task_body(text)
+    assert body is not None, "agent/NEXT_TASK.md lost its 'Active task' heading"
+    cited = set(re.findall(r"\bD-\d+\b", body))
+    missing = sorted(cited - defined)
+    assert not missing, (
+        "agent/NEXT_TASK.md active task cites undefined decision(s): "
+        + ", ".join(missing)
+    )
+
+
+# ---------------------------------------------------------------------------
+# 10. Post-release memory drift guards (D-128): a finished stage must be
+#     recorded, dated from git, and consistent with the released version.
+# ---------------------------------------------------------------------------
+def _decision_ids(text: str) -> set[str]:
+    return set(re.findall(r"^## (D-\d+) ", text, flags=re.MULTILINE))
+
+
+def test_newest_decision_is_recorded_in_next_task_and_changelog() -> None:
+    """The newest DECISIONS entry must be reflected in the memory it governs.
+
+    A stage is not finished until its decision exists *and* the files a resuming
+    agent reads name it. The D-128 Setup Wizard was implemented, tested and wired
+    while NEXT_TASK.md and CHANGELOG.md still stopped at D-127, so an agent would
+    not learn the stage was done. This pins the newest decision id in all three
+    files together, so a future stage that records its decision but forgets the
+    memory (or vice versa) fails here.
+    """
+    decisions = (REPO_ROOT / "agent" / "DECISIONS.md").read_text(encoding="utf-8")
+    ids = _decision_ids(decisions)
+    assert ids, "agent/DECISIONS.md lost its '## D-nnn' headings"
+    newest = max(ids, key=lambda d: int(d.split("-")[1]))
+    for name in ("agent/NEXT_TASK.md", "agent/CHANGELOG.md"):
+        text = (REPO_ROOT / name).read_text(encoding="utf-8")
+        assert newest in text, (
+            f"{name} does not name the newest decision {newest} recorded in "
+            "agent/DECISIONS.md — the stage's memory was not finished"
+        )
+
+
+#: A release line that *asserts a release date*, as ``(version, date)``:
+#: ``**vX.Y.Z RELEASED (YYYY-MM-DD)`` in the memory files. The date must equal
+#: the tag's own date — the immutable record of when the release shipped.
+_MEMORY_RELEASE_DATE_RE = re.compile(
+    r"\*\*v(\d+\.\d+\.\d+) RELEASED \((\d{4}-\d{2}-\d{2})\)"
+)
+
+
+def test_memory_release_dates_match_their_git_tags() -> None:
+    """A memory release-date line must equal its git tag's date.
+
+    The date guard covers the versioned *headings* in CHANGELOG/checklist/roadmap;
+    the memory files carry the same claim inline ("**v1.8.1 RELEASED (2026-10-08)",
+    "**v1.8.2 RELEASED (2026-10-11)"). Those drifted too, so they are pinned here
+    as well. The match requires the ``RELEASED (date)`` anchor so a bare
+    "released in vX" prose (no date) is left alone. Skipped when git cannot
+    resolve the tag (shallow/tagless checkout).
+    """
+    offenders: list[str] = []
+    for name in ("agent/CURRENT_STATE.md", "agent/NEXT_TASK.md"):
+        text = (REPO_ROOT / name).read_text(encoding="utf-8")
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            for match in _MEMORY_RELEASE_DATE_RE.finditer(line):
+                version, documented = match.group(1), match.group(2)
+                tagged = _git_output(
+                    "for-each-ref",
+                    f"refs/tags/v{version}",
+                    "--format=%(taggerdate:short)",
+                )
+                if tagged and tagged != documented:
+                    offenders.append(
+                        f"{name}:{lineno} v{version} documented {documented}, "
+                        f"tag is {tagged}"
+                    )
+    assert not offenders, (
+        "memory release-date line != tag date:\n" + "\n".join(offenders)
+    )
+

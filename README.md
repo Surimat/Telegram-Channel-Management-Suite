@@ -9,7 +9,22 @@ portable Windows + VPS/Docker deployment — all from **one codebase**.
 > Runs locally on a weak Windows PC (portable, no Python/Node/Docker required for
 > end users) and on a VPS via Docker, without a separate "server version".
 
-**Current stable release: `v2.0.1`.** This is a patch over v2.0.0 that adds a
+**Current stable release: `v2.1.0` (2026-10-25; the previous stable release was
+`v2.0.1`).** It was first published as the GitHub **Pre-release** `v2.1.0-rc.1`
+(2026-10-15) and is now promoted to the **stable** release on `main`. It rolls up
+the six committed stages **D-123…D-128** — **Personal Account Safety** (personal
+Telegram accounts are opt-in and off by default, with bounded invites), the
+**Operational Module Registry** (per-channel modules enforced on every launch
+path), **bot-lifecycle recovery and deep-link adoption**, **one content-processing
+engine** (the v1.2 rewrite delegates to the pipeline), a read-only **Channel
+Overview**, and an end-to-end **guided Setup Wizard** with a real, server-verified
+per-step check — plus the post-candidate stages **D-130…D-138**: the Reaction
+Manager reads real `channel_post` updates, the one-step data-preserving updater,
+the architecture consolidation and stub/fake sweep, the honesty hardening, the
+test-suite speed-up and the dead-code deduplication. Integrations are labelled
+honestly and unverified ones are not claimed as verified. Version string is
+`v2.1.0`.
+**v2.0.1** is a patch over v2.0.0 that adds a
 keyless-free **image understanding** (vision) path through the **Kilo Gateway**
 free model (D-122) — **opt-in and off by default**, best-effort, with an honest
 failover so a rate limit or outage never loses material. It completes the three

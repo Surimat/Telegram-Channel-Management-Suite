@@ -1,7 +1,7 @@
 """Capability graph router (v1.5).
 
 Exposes one machine-readable view of what the product can do and what each
-capability requires for the current install. The Promotion Wizard, the Dashboard
+capability requires for the current install. The Setup Wizard, the Dashboard
 and the Diagnostics page read this instead of each re-deriving "does this need a
 session?" from their own logic.
 """

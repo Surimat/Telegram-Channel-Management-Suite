@@ -121,6 +121,33 @@ cp "$ROOT/portable/open_when_ready.ps1" "$OUT/open_when_ready.ps1"
 cp "$ROOT/portable/README.txt" "$OUT/README.txt"
 cp "$ROOT/.env.example" "$OUT/.env.example"
 
+# 4a. Ship the double-click Reaction Manager check (D-130): the owner runs
+#     CHECK_REACTIONS.bat, which calls the bundled scripts/check_reactions.py
+#     with the embedded Python. Read-only, no network, no real reactions.
+echo "==> Staging reaction check (CHECK_REACTIONS.bat)"
+mkdir -p "$OUT/app/scripts"
+cp "$ROOT/scripts/check_reactions.py" "$OUT/app/scripts/check_reactions.py"
+cp "$ROOT/portable/CHECK_REACTIONS.bat" "$OUT/CHECK_REACTIONS.bat"
+
+# 4a-2. Ship the one-step data-preserving updater (D-131): the owner extracts a
+#       newer build and double-clicks UPDATE_EXISTING.bat. It backs up the old
+#       data/secrets, replaces only the code, migrates the DB and verifies the
+#       result — no manual copying, no .env edits, no re-entering tokens.
+echo "==> Staging data-preserving updater (UPDATE_EXISTING.bat)"
+cp "$ROOT/scripts/update_existing.py" "$OUT/app/scripts/update_existing.py"
+cp "$ROOT/portable/UPDATE_EXISTING.bat" "$OUT/UPDATE_EXISTING.bat"
+
+# 4b. Copy the ready-to-run DEMO kit (D-123..D-128). The owner double-clicks
+#     demo/DEMO_run.bat to try the program with seeded test data, no setup.
+mkdir -p "$OUT/demo"
+cp "$ROOT/portable/demo/DEMO_run.bat" "$OUT/demo/DEMO_run.bat"
+cp "$ROOT/portable/demo/DEMO_stop.bat" "$OUT/demo/DEMO_stop.bat"
+cp "$ROOT/portable/demo/.env.demo" "$OUT/demo/.env.demo"
+cp "$ROOT/portable/demo/DEMO_README.txt" "$OUT/demo/DEMO_README.txt"
+cp "$ROOT/scripts/seed_demo.py" "$OUT/demo/seed_demo.py"
+# The demo kit keeps its own data; never ship a stray demo database.
+find "$OUT/demo" -name "*.db" -delete 2>/dev/null || true
+
 # 5. Stage the embedded Windows Python so run.bat needs no manual step (D-040).
 #    Cross-platform: build_win_runtime.py downloads the embeddable CPython and
 #    the win_amd64 wheels and extracts them flat (no compiler needed).

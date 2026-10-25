@@ -62,7 +62,7 @@ async def test_profile_validation_error(bot_client: AsyncClient) -> None:
 
 async def test_rules_seeded_and_editable(bot_client: AsyncClient) -> None:
     # Touch an endpoint that triggers default seeding via lifespan-less startup.
-    resp = await bot_client.get("/api/v1/system/setup")
+    resp = await bot_client.get("/api/v1/system/status")
     assert resp.status_code == 200
     rules = await bot_client.get("/api/v1/reactions/rules")
     assert rules.status_code == 200

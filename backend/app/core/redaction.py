@@ -21,6 +21,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from backend.app.core.logging import get_logger
+
+logger = get_logger(__name__)
+
 REDACTED = "***REDACTED***"
 
 # Telegram bot token: <numeric id>:<35-char base64url-ish secret>.
@@ -72,8 +76,8 @@ def _registry_values(extra: list[str] | None) -> list[str]:
         from backend.app.core.config import get_settings, secret_values
 
         values.extend(secret_values(get_settings()))
-    except Exception:  # pragma: no cover - settings unavailable in some contexts
-        pass
+    except Exception as exc:  # pragma: no cover - settings unavailable in some contexts
+        logger.warning("Не удалось прочитать секреты для маскирования: %s", exc)
     # Longest first so a token that contains a shorter secret is fully masked.
     return sorted({v for v in values if v and len(v) >= 4}, key=len, reverse=True)
 

@@ -13,8 +13,8 @@ from __future__ import annotations
 import json
 
 from backend.app.services.backup_backends.base import (
-    ProviderInfo,
-    ProviderStatus,
+    BackupProviderInfo,
+    BackupProviderStatus,
     UploadResult,
 )
 from backend.app.services.backup_backends.http import Transport, urllib_transport
@@ -38,9 +38,9 @@ class GoogleDriveBackupProvider:
         self._folder_id = folder_id or ""
         self._transport = transport
 
-    def check(self) -> ProviderStatus:
+    def check(self) -> BackupProviderStatus:
         if not self._token:
-            return ProviderStatus(
+            return BackupProviderStatus(
                 configured=False,
                 reachable=False,
                 message="Не подключено: нужен токен Google Drive.",
@@ -52,7 +52,7 @@ class GoogleDriveBackupProvider:
             None,
         )
         if response.status != 200:
-            return ProviderStatus(
+            return BackupProviderStatus(
                 configured=True,
                 reachable=False,
                 message="Не удалось подключиться к Google Drive. Проверьте токен.",
@@ -61,7 +61,7 @@ class GoogleDriveBackupProvider:
         payload = response.json()
         if isinstance(payload, dict):
             label = str((payload.get("user") or {}).get("emailAddress", ""))
-        return ProviderStatus(
+        return BackupProviderStatus(
             configured=True,
             reachable=True,
             message="Google Drive доступен.",
@@ -113,7 +113,7 @@ class GoogleDriveBackupProvider:
         return UploadResult(ok=True, message="Копия отправлена в Google Drive.", location=filename)
 
 
-INFO = ProviderInfo(
+INFO = BackupProviderInfo(
     name="google_drive",
     title="Google Drive",
     requires_credentials=True,

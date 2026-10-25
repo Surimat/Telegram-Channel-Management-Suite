@@ -26,9 +26,9 @@ async def _enable_fake_ai(model_path: str = "/tmp/fake.gguf") -> None:
 
 
 async def test_ai_status_disabled_by_default(client: AsyncClient) -> None:
-    resp = await client.get(f"{AI_BASE}/status")
+    resp = await client.get(f"{AI_BASE}/overview")
     assert resp.status_code == 200
-    body = resp.json()
+    body = resp.json()["status"]
     assert body["enabled"] is False
     assert body["effective"] is False
     # Friendly, non-technical wording.
@@ -173,9 +173,9 @@ async def test_ai_model_check_success_with_fake(tmp_path, client: AsyncClient) -
 async def test_ai_metrics_after_classify(client: AsyncClient) -> None:
     await _enable_fake_ai()
     await client.post(f"{AI_BASE}/classify", json={"text": "Спасибо за донат!"})
-    resp = await client.get(f"{AI_BASE}/metrics")
+    resp = await client.get(f"{AI_BASE}/overview")
     assert resp.status_code == 200
-    assert resp.json()["total_classifications"] >= 1
+    assert resp.json()["metrics"]["total_classifications"] >= 1
 
 
 async def test_ai_history_records(client: AsyncClient) -> None:

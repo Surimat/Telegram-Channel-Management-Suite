@@ -189,14 +189,42 @@ class AiogramBotProvider:
 
     # --- Manager bot runtime (post-1.0 hardening) ----------------------------
     async def get_updates(
-        self, *, offset: int | None = None, timeout: int = 0
+        self,
+        *,
+        offset: int | None = None,
+        timeout: int = 0,
+        allowed_updates: list[str] | None = None,
     ) -> list[BotUpdate]:
         kwargs: dict[str, object] = {"timeout": timeout}
         if offset is not None:
             kwargs["offset"] = offset
+        if allowed_updates:
+            kwargs["allowed_updates"] = list(allowed_updates)
         updates = await self._call(self._bot.get_updates(**kwargs))
         result: list[BotUpdate] = []
         for update in updates or []:
+            managed = getattr(update, "managed_bot", None)
+            if managed is not None:
+                # ``ManagedBotCreated``/``ManagedBotUpdated`` carry the bot user
+                # under the ``bot``/``bot_user`` field. Record the creation so the
+                # Bot Factory adopts the bot the owner just made via a deep link.
+                bot_user = getattr(managed, "bot_user", None) or getattr(
+                    managed, "bot", None
+                )
+                result.append(
+                    BotUpdate(
+                        update_id=int(update.update_id),
+                        kind="managed_bot",
+                        managed_bot_user_id=getattr(bot_user, "id", None),
+                        managed_bot_username=str(
+                            getattr(bot_user, "username", "") or ""
+                        ),
+                        managed_bot_first_name=str(
+                            getattr(bot_user, "first_name", "") or ""
+                        ),
+                    )
+                )
+                continue
             callback = getattr(update, "callback_query", None)
             if callback is not None:
                 message = getattr(callback, "message", None)
@@ -216,6 +244,37 @@ class AiogramBotProvider:
                 continue
             message = getattr(update, "message", None) or getattr(update, "edited_message", None)
             if message is None:
+                # D-130: a real channel post reaches the manager bot (a channel
+                # administrator) as ``channel_post``/``edited_channel_post``.
+                # Without this branch the update is dropped as "other" and the
+                # Reaction Manager never learns about the post.
+                channel_post = getattr(update, "channel_post", None)
+                edited = False
+                if channel_post is None:
+                    channel_post = getattr(update, "edited_channel_post", None)
+                    edited = channel_post is not None
+                if channel_post is not None:
+                    post_chat = getattr(channel_post, "chat", None)
+                    result.append(
+                        BotUpdate(
+                            update_id=int(update.update_id),
+                            kind="channel_post",
+                            channel_post_chat_id=getattr(post_chat, "id", None),
+                            channel_post_message_id=getattr(
+                                channel_post, "message_id", None
+                            ),
+                            channel_post_text=str(
+                                getattr(channel_post, "text", "")
+                                or getattr(channel_post, "caption", "")
+                                or ""
+                            ),
+                            channel_post_chat_username=str(
+                                getattr(post_chat, "username", "") or ""
+                            ),
+                            channel_post_edited=edited,
+                        )
+                    )
+                    continue
                 result.append(BotUpdate(update_id=int(update.update_id), kind="other"))
                 continue
             chat = getattr(message, "chat", None)

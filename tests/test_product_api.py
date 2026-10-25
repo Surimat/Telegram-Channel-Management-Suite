@@ -1,7 +1,6 @@
-"""Tests for product surfaces: backup destinations, promotion wizard, auto-update.
+"""Tests for product surfaces: backup destinations and auto-update.
 
-The update flow is tested with an injected transport (no network), and the wizard
-against real system state so its statuses never lie.
+The update flow is tested with an injected transport (no network).
 """
 
 from __future__ import annotations
@@ -13,7 +12,6 @@ from httpx import ASGITransport, AsyncClient
 from backend.app.core.versioning import is_newer, parse_sha256, parse_version, pick_asset
 
 DESTINATIONS = "/api/v1/backup/destinations"
-PROMOTION = "/api/v1/promotion"
 UPDATE = "/api/v1/update"
 
 
@@ -72,59 +70,6 @@ async def test_duplicate_destination_rejected(client: AsyncClient) -> None:
     assert second.status_code == 400
 
 
-# --- promotion wizard --------------------------------------------------------
-async def test_wizard_reflects_real_state(client: AsyncClient) -> None:
-    presets = await client.get(f"{PROMOTION}/presets")
-    assert presets.status_code == 200
-    ids = {p["id"] for p in presets.json()}
-    assert {"minimal", "bot_only", "basic", "advanced", "professional"} <= ids
-
-    state = await client.get(PROMOTION)
-    assert state.status_code == 200
-    body = state.json()
-    # No channel and no bot yet → the first two steps are todo, not done.
-    by_key = {s["key"]: s for s in body["steps"]}
-    assert by_key["channel"]["status"] == "todo"
-    assert by_key["manager_bot"]["status"] == "todo"
-    # Without a session, session-only steps are optional, not required.
-    assert body["has_session"] is False
-    assert body["mode"] == "bot_only"
-
-
-async def test_wizard_session_steps_become_optional_without_session(client: AsyncClient) -> None:
-    state = (await client.get(PROMOTION)).json()
-    # Default preset is bot_only; no session-gated step is required.
-    for step in state["steps"]:
-        if step["requires_session"]:
-            assert step["status"] == "optional"
-    # Without an account the wizard explains why it is optional and what still works.
-    assert "необязательно" in state["session_optional_note"].lower()
-    assert state["session_risk_note"] == ""
-    # The capability graph travels with the wizard so both agree on what is ready.
-    caps = {c["key"]: c for c in state["capabilities"]}
-    assert "reaction" in caps and "bot_only_analytics" in caps
-    assert caps["reaction"]["state"] != "available"
-
-
-async def test_wizard_preset_switch(client: AsyncClient) -> None:
-    resp = await client.post(f"{PROMOTION}/preset", json={"preset": "professional"})
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["preset"] == "professional"
-    keys = {s["key"] for s in body["steps"]}
-    assert "backup" in keys and "update" in keys
-
-
-async def test_wizard_finish_and_dismiss(client: AsyncClient) -> None:
-    finished = await client.post(f"{PROMOTION}/finish")
-    assert finished.status_code == 200
-    assert finished.json()["completed"] is True
-
-    dismissed = await client.post(f"{PROMOTION}/dismiss")
-    assert dismissed.status_code == 200
-    assert dismissed.json()["dismissed"] is True
-
-
 # --- update service (pure + injected transport) ------------------------------
 def test_version_comparison() -> None:
     assert is_newer("v1.0.5", "1.0.4") is True
@@ -154,7 +99,7 @@ class _FakeTransport:
         self.calls = []
 
     def __call__(self, method, url, headers, body):
-        from backend.app.services.backup_backends.http import HttpResponse
+        from backend.app.services.backup_backends.http import BackupHttpResponse
 
         self.calls.append((method, url))
         status, payload = self.routes.get(url, (404, b""))
@@ -162,7 +107,7 @@ class _FakeTransport:
             import json
 
             payload = json.dumps(payload).encode()
-        return HttpResponse(status=status, body=payload, headers={})
+        return BackupHttpResponse(status=status, body=payload, headers={})
 
 
 @pytest.mark.asyncio

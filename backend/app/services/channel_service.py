@@ -19,6 +19,11 @@ from backend.app.core.config import Settings, get_settings
 from backend.app.db.base import utcnow
 from backend.app.db.models.channel import Channel, ChannelKind, ChannelStatus
 from backend.app.db.repositories.channels import ChannelRepository
+from backend.app.services.channel_modules import (
+    ChannelModuleGuard,
+    effective_modules,
+    parse_modules,
+)
 from backend.app.services.events_service import EventsService
 from backend.app.services.permission_service import (
     STATUS_ADMIN_REQUIRED,
@@ -131,14 +136,17 @@ class ChannelService:
         return await self.repo.get_default()
 
     async def modules_of(self, channel: Channel) -> dict[str, bool]:
-        try:
-            raw = json.loads(channel.modules or "{}")
-        except (ValueError, TypeError):
-            raw = {}
-        return {
-            name: bool(raw.get(name, False)) if isinstance(raw, dict) else False
-            for name in KNOWN_MODULES
-        }
+        """Return the channel's effective module map.
+
+        A never-configured channel (empty map) reports every module enabled for
+        backward compatibility; a configured channel honours its stored toggles
+        (see ``channel_modules``, D-124).
+        """
+        return effective_modules(parse_modules(channel.modules))
+
+    def module_guard(self) -> ChannelModuleGuard:
+        """Return a guard that enforces this channel's module map (D-124)."""
+        return ChannelModuleGuard(self.session)
 
     # --- create / update -----------------------------------------------------
     async def add(

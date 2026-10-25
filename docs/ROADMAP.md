@@ -340,8 +340,124 @@ token is never part of any request or response. Additive migration
 
 ---
 
+## Released in v2.1.0 (D-123…D-138)
+
+All owner-approved stages through **D-138** are now shipped in the stable
+**v2.1.0** release (2026-10-25), promoted from the GitHub **Pre-release**
+`v2.1.0-rc.1` (2026-10-15). The six stages D-123…D-128 are rolled up together
+with the post-candidate stages D-130…D-138 (the Reaction Manager channel-post
+fix, the one-step data-preserving updater, the architecture consolidation and
+stub/fake sweep, the honesty hardening, the test-suite speed-up and the dead-code
+deduplication). The superseded pre-release tag `v2.1.0-rc.1` is retired (D-139).
+Worked sequentially, each with its own locked decision and tests.
+
+- **D-123 — Personal Account Safety (2026-10-11, unreleased).** Acting through a
+  personal Telegram (MTProto) account is refused unless the owner opts in.
+  `services/personal_account.py` (`PersonalAccountPolicy`) reads two UI-editable
+  switches — `personal_account_enabled` (master, default **OFF**) and
+  `invites_enabled` (mass invitations, default **OFF**) — seeded at startup by
+  `ensure_personal_account_settings()`. The master switch blocks every MTProto
+  provider at one chokepoint (`SessionService.provider_for()`), so the API, the
+  scheduler and background tasks are all refused while the Telegram **Bot API**
+  keeps working. Mass invites require both switches, are capped and **clamped**
+  (`invite_max_total=100`, `invite_max_per_account=20`) and are bounded by a rolling
+  24-hour per-account ceiling (`invite_max_per_day=50`) that **pauses** a job with an
+  honest `wait_until` instead of inviting. A blocked action answers a friendly `403`
+  (`code/message/hint`). Additive migration `20261015_0900_f6a7b8c9d0e1`
+  (`invite_jobs.rate_limited_at`); tests `tests/test_personal_account_safety.py`.
+- **D-124 — Operational Module Registry (2026-10-12, unreleased).** A per-channel
+  module map (`reactions`, `audience`, `invites`, `analytics`) becomes authoritative
+  server-side. `services/channel_modules.py` (`parse_modules`, `effective_modules`,
+  `ChannelModuleGuard`) is enforced in the **services** (not only the router), so
+  the durable reaction tick, the audience scan and the invite resume path are all
+  gated; a blocked durable job is retired honestly (`SKIPPED`/`PAUSED`) without
+  contacting Telegram. An unconfigured channel has every module enabled (no silent
+  lock-out) and an unknown name is ignored. The registry is a *permission to
+  operate*, never a replacement for the D-123 safety gates or the real bot-rights
+  probe. Friendly `403` (`ChannelModuleDisabledError`). Tests
+  `tests/test_channel_modules.py`, `tests/test_reaction_service.py`.
+- **D-125 — Bot Lifecycle Recovery and Adoption (2026-10-12, unreleased).**
+  `services/bot_lifecycle.py` (`BotLifecycleService`) owns recovery and adoption
+  over the two existing durable queues. `recover()` re-queues rows left mid-flight
+  by a crash (`BotFactoryService.recover()`: `RUNNING → QUEUED`;
+  `BotOnboardingService.recover()`: `VERIFYING → QUEUED`) and runs once at startup,
+  so a queue cannot hang forever. `adopt_managed_bot()` routes a Telegram
+  `managed_bot` update (the official `t.me/newbot` deep link) into its Bot Factory
+  batch **idempotently** and settles the batch once no candidate remains waiting; a
+  duplicate update is a no-op and a username that is not already a candidate is
+  ignored — never searched for or imported (D-070). Tests
+  `tests/test_bot_lifecycle_consolidation.py`. No schema change.
+- **D-126 — Content Pipeline Consolidation (2026-10-13, unreleased).**
+  `ContentPipelineService` (`services/content_pipeline.py`) is the single
+  content-processing engine: the v1.2 `ContentService.rewrite_preview`/
+  `apply_rewrite` **delegate** to it and map `PipelineError → ContentError`, so the
+  v1.2 `/rewrite` contract is unchanged and the two engines cannot diverge.
+  `ContentService` stays the receive/dedup owner (`grab`) and `PostingService` stays
+  the publish owner. No feature change, no schema change. Tests
+  `tests/test_content_consolidation.py`.
+- **D-127 — Channel Overview (2026-10-13, unreleased).**
+  `services/channel_overview.py` (`ChannelOverviewService`) is a **read-only**
+  aggregation of a channel's real state across every module (identity/verification,
+  module map, bindings, audience, invites, bots, content, pipeline, queue) with an
+  honest attention level (`ok`/`info`/`warning`/`error`). It reads through the
+  existing repositories and the D-124 module map, never writes a row, queues a job
+  or calls Telegram. `GET /api/v1/channels/overview`, UI `/channel-overview`
+  (`ChannelOverviewView.vue`). No schema change; tests `tests/test_channel_overview.py`.
+- **D-128 — End-to-End Setup Wizard (2026-10-14, unreleased).**
+  `services/setup_wizard.py` (`SetupWizardService`) is a **guided, resumable** flow
+  from a fresh install to a working channel. A step's status is the **stored** result
+  of a real server check (`SetupWizardStep`), never inferred: `verified` means the
+  check ran and passed, `pending` means it failed, `unchecked` means it never ran.
+  Opening the state endpoint writes nothing. The only step that contacts Telegram is
+  `POST /api/v1/setup-wizard/test-publication`, which refuses unless the request sets
+  `confirmed` **and** the stored `bot` and `content` checks passed; it then publishes
+  one material through the existing Content Studio posting path. Exposed as
+  `GET /api/v1/setup-wizard`, `POST /api/v1/setup-wizard/steps/{key}/run` and
+  `POST /api/v1/setup-wizard/test-publication`; UI `/setup-wizard`
+  (`SetupWizardView.vue`). Additive migration
+  `20261016_0900_a7b8c9d0e1f2_v2_0_setup_wizard.py`; tests
+  `tests/test_setup_wizard.py`.
+- **D-130 — Reaction Manager channel-post source (2026-10-17, unreleased).**
+  The manager bot now reads real **`channel_post`** / `edited_channel_post`
+  updates (`MANAGER_ALLOWED_UPDATES` is passed as `allowed_updates`), and
+  `ReactionService.ingest_channel_post()` stores the post with its real Telegram
+  `chat_id`/`message_id` and plans the reaction jobs (idempotently; an edit never
+  re-plans). `plan_post()` refuses a post without a real message id, so the manual
+  UI path can no longer create an unrunnable job. Additive; no version, tag, PR or
+  release change. Tests `tests/test_reaction_channel_post_repro.py` (15) and
+  `tests/test_reaction_channel_post_pipeline.py` (12, end-to-end + a negative
+  control); plain-language check `scripts/check_reactions.py`.
+- **D-131 — One-step data-preserving updater (2026-10-18, unreleased).** The
+  non-programmer owner updates an existing portable install by double-clicking
+  `portable/UPDATE_EXISTING.bat`, which runs `scripts/update_existing.py` with the
+  embedded Python. It backs up `.env`/`data`/`sessions`/`exports`/`app` to
+  `backups/preupdate-<timestamp>/`, replaces only the code (never the new `.env`
+  over the old one), applies pending migrations and verifies that every `enc:`
+  secret still decrypts with the preserved `APP_SECRET_KEY`; a second run is a
+  no-op and it touches no Telegram state. `scripts/build_portable.sh` bundles both
+  files. Additive; no version, tag, PR or release change. Tests
+  `tests/test_portable_update.py` (6).
+
+See `docs/REAL_TELEGRAM_VERIFICATION_CHECKLIST.md` for the isolated-environment
+verification these stages still need before a release.
+
+---
+
 ## Release
 
+- **v2.1.0 (2026-10-25):** the stable release on `main`, promoted from the GitHub
+  **Pre-release** `v2.1.0-rc.1` (2026-10-15). It rolls up the six committed stages
+  D-123…D-128: **Personal Account Safety** (personal MTProto accounts opt-in and
+  off by default, bounded invite caps plus a rolling 24-hour per-account ceiling,
+  D-123); the **Operational Module Registry** (the per-channel module map gates
+  every launch path, D-124); **bot-lifecycle recovery and deep-link adoption**
+  (D-125); **Content Pipeline Consolidation** (one content-processing engine,
+  D-126); the read-only **Channel Overview** (D-127); and the end-to-end **Setup
+  Wizard** with real, server-verified per-step checks (D-128) — plus the
+  post-candidate stages D-130…D-138. The superseded pre-release tag `v2.1.0-rc.1`
+  is retired (D-139). Migrations
+  `20261015_0900_f6a7b8c9d0e1_v2_0_invite_rate_limit.py` and
+  `20261016_0900_a7b8c9d0e1f2_v2_0_setup_wizard.py`.
 - **v2.0.1 (2026-10-11):** a patch over v2.0.0 that adds the keyless-free
   **image understanding** (vision) path through the **Kilo Gateway** free model
   (`api.kilo.ai/api/gateway`, `dots-studio/dots-3-note-preview:free`), integrated
@@ -399,7 +515,7 @@ token is never part of any request or response. Additive migration
   Released via a reviewed `develop ‚Üí main` PR #19 (merge `d8c62c1`), tag `v1.8.0`;
   the Release workflow (run `37653661662`) attached the Windows portable ZIP
   (24 904 789 bytes, sha256 `9bb39e4b‚Ä¶d353c`) + `.sha256`.
-- **v1.7.0 (2026-10-08):** the **Bot Factory** (v1.3) becomes a **durable creation
+- **v1.7.0 (2026-10-07):** the **Bot Factory** (v1.3) becomes a **durable creation
   queue** (D-109/D-110). A batch marks its free candidates and the scheduler job
   `bot_factory.create` creates them **one operation per tick**, so the batch is
   restart-resumable, can be stopped/resumed, and never rolls back an
@@ -412,7 +528,7 @@ token is never part of any request or response. Additive migration
   path normalisation (a leading `//` can no longer skip the guard), the
   `config_sync` capability reports `needs_setup` until a provider is connected,
   and the Google Drive token step is wired into the `/owner` UI. No new features.
-- **v1.6.0 (2026-10-07):** an **Owner Auth + Config Sync** vertical slice (D-105/D-106).
+- **v1.6.0 (2026-10-06):** an **Owner Auth + Config Sync** vertical slice (D-105/D-106).
   A **local owner profile** (password or PIN) protects the panel with a one-way
   PBKDF2 verifier and an HMAC-signed session token (`X-Owner-Token`; default-on
   middleware, local-first ‚Äî open until a profile enables protection). A
@@ -438,17 +554,17 @@ token is never part of any request or response. Additive migration
   capabilities, a swallowed consistency-check failure, a write-only `language`
   preference, runtime-image source-unavailable checks, and `README.md` version
   drift (D-095‚Ä¶D-098).
-- **v1.5.0 (2026-10-05):** Capability graph + i18n + Consistency Auditor. Three
+- **v1.5.0 (2026-10-06):** Capability graph + i18n + Consistency Auditor. Three
   small cross-cutting layers that make the product explain itself honestly: a
   machine-readable **capability graph** (`GET /api/v1/capability-graph`, also
-  embedded in the Promotion Wizard and the Dashboard) so every surface agrees on
+  embedded in the Setup Wizard and the Dashboard) so every surface agrees on
   what is available now and what still needs setup; a bilingual RU/EN **i18n
   catalog** (`core/i18n.py`) plus a stored `language` preference so wording is
   single-sourced; and a **Consistency Auditor** (`GET /api/v1/consistency`,
   rendered as the Diagnostics "–ü—Ä–æ–≤–µ—Ä–∫–∞ —Ü–µ–ª–æ—Å—Ç–Ω–æ—Å—Ç–∏" panel) whose static checks run
   in CI to catch cross-module drift. Additive only; no new phases; no account
   registration and no Telegram-limit bypass.
-- **v1.4.0 (2026-10-05):** Notification Center + Tray Agent + Editorial
+- **v1.4.0 (2026-10-06):** Notification Center + Tray Agent + Editorial
   Workspace (D-084‚Ä¶D-091). A durable, queryable Notification Center with
   categories, priorities, per-category routing (owner DM / notification group /
   Windows toast), quiet hours and anti-spam aggregation; the TCMS Tray Agent so

@@ -7,6 +7,10 @@ from __future__ import annotations
 
 PERM = "/api/v1/permissions"
 MANAGER = "/api/v1/manager"
+# Notification toggles have a single canonical surface (D-132): the legacy
+# `/api/v1/manager/notifications` endpoints were removed in favour of the
+# Notification Center's `/api/v1/notifications/settings`.
+NOTIFICATIONS = "/api/v1/notifications"
 
 
 async def _create_account(client) -> str:
@@ -50,23 +54,22 @@ async def test_permission_check_unknown_account(permission_client) -> None:
     assert resp.status_code == 404
 
 
-async def test_permission_latest_and_history(permission_client) -> None:
+async def test_permission_history_newest_first(permission_client) -> None:
     account_id = await _create_account(permission_client)
     await permission_client.post(
         f"{PERM}/check", json={"account_id": account_id, "target": "@chan"}
     )
-    latest = await permission_client.get(f"{PERM}/latest")
-    assert latest.status_code == 200
-    assert latest.json()["status"] == "ok"
     history = await permission_client.get(f"{PERM}/history")
     assert history.status_code == 200
-    assert len(history.json()["items"]) == 1
+    items = history.json()["items"]
+    assert len(items) == 1
+    assert items[0]["status"] == "ok"
 
 
-async def test_permission_latest_empty(permission_client) -> None:
-    resp = await permission_client.get(f"{PERM}/latest")
+async def test_permission_history_empty(permission_client) -> None:
+    resp = await permission_client.get(f"{PERM}/history")
     assert resp.status_code == 200
-    assert resp.json() is None
+    assert resp.json()["items"] == []
 
 
 async def test_manager_status_without_bot(manager_client) -> None:
@@ -104,8 +107,8 @@ async def test_manager_status_with_bot(manager_client) -> None:
     assert "123:abc" not in resp.text
 
 
-async def test_manager_notifications_defaults(manager_client) -> None:
-    resp = await manager_client.get(f"{MANAGER}/notifications")
+async def test_notification_settings_defaults(manager_client) -> None:
+    resp = await manager_client.get(f"{NOTIFICATIONS}/settings")
     assert resp.status_code == 200
     body = resp.json()
     assert body["enabled"] is True
@@ -114,9 +117,9 @@ async def test_manager_notifications_defaults(manager_client) -> None:
     assert all(c["enabled"] for c in body["categories"])
 
 
-async def test_manager_notifications_update(manager_client) -> None:
+async def test_notification_settings_update(manager_client) -> None:
     resp = await manager_client.put(
-        f"{MANAGER}/notifications",
+        f"{NOTIFICATIONS}/settings",
         json={"enabled": True, "categories": {"ai": False}},
     )
     assert resp.status_code == 200

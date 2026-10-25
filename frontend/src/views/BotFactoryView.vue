@@ -27,6 +27,13 @@ const selectedId = ref('')
 const detail = ref<FactoryBatchDetail | null>(null)
 const dashboard = ref<FactoryDashboard | null>(null)
 
+// Manual deep-link confirmation (D-125): registering a bot the owner created by
+// hand through t.me/newbot. Success is only shown after the real registration
+// call succeeds — the button never claims a registered bot before it exists.
+const adoptUsername = ref('')
+const adoptTelegramId = ref<number | null>(null)
+const adopting = ref(false)
+
 const form = ref({
   title: '',
   prefix: '',
@@ -176,6 +183,70 @@ const fetchTokens = () =>
 
 const regenerate = (candidateId: string) =>
   withBatch(() => api.regenerateFactoryCandidate(candidateId), 'Имя перегенерировано.')
+
+// Prefill the confirmation form from a candidate's deep link, so the owner does
+// not have to retype the @username they just created in Telegram.
+function prefillAdopt(username: string) {
+  adoptUsername.value = username
+  error.value = ''
+  notice.value = ''
+}
+
+// Confirm a bot the owner created by hand: register it (adopt), then fetch its
+// token and bind it to the selected channel. Nothing is reported as done until
+// the real registration call returns a bot id (D-125).
+async function confirmAdopt() {
+  if (!selectedId.value) return
+  const username = adoptUsername.value.trim().replace(/^@/, '')
+  const telegramId = Number(adoptTelegramId.value)
+  if (!username) {
+    error.value = 'Укажите @username созданного бота.'
+    return
+  }
+  if (!Number.isInteger(telegramId) || telegramId <= 0) {
+    error.value = 'Укажите числовой id созданного бота (виден в @userinfobot).'
+    return
+  }
+  adopting.value = true
+  error.value = ''
+  notice.value = ''
+  try {
+    const candidate = await api.adoptFactoryBot(selectedId.value, {
+      username,
+      telegram_id: telegramId,
+    })
+    if (!candidate.bot_id) {
+      error.value = 'Бот не зарегистрирован — попробуйте ещё раз.'
+      return
+    }
+    const notes = ['Бот зарегистрирован в пакете.']
+    try {
+      await api.registerFactoryTokens(selectedId.value)
+      notes.push('Токен получен и сохранён в зашифрованном виде.')
+    } catch {
+      notes.push('Токен получить не удалось — запросите его кнопкой «Получить токены».')
+    }
+    if (form.value.channel_id) {
+      try {
+        await api.bindFactoryBots(selectedId.value, {
+          channel_id: form.value.channel_id,
+          function: 'reactions',
+        })
+        notes.push('Бот подключён к выбранному каналу.')
+      } catch {
+        notes.push('Подключить к каналу не удалось — повторите кнопкой «Подключить к каналу».')
+      }
+    }
+    notice.value = notes.join(' ')
+    adoptUsername.value = ''
+    adoptTelegramId.value = null
+  } catch (e) {
+    error.value = friendly(e, 'Не удалось зарегистрировать бота.')
+  } finally {
+    adopting.value = false
+    await withBatch(async () => undefined)
+  }
+}
 
 async function bindToChannel() {
   if (!form.value.channel_id) {
@@ -393,6 +464,30 @@ onMounted(load)
         «Запустить очередь» обрабатывает все свободные операции по одной.
       </p>
 
+      <div class="card inline-note">
+        <b>Подтверждение бота, созданного по ссылке.</b>
+        Откройте ссылку ниже в Telegram, создайте бота в @BotFather, затем укажите
+        здесь его @username и числовой id — только после этого бот будет
+        зарегистрирован в пакете. Регистрация идемпотентна: повторное
+        подтверждение не создаёт дубликат.
+      </div>
+      <div class="grid">
+        <label class="field">
+          <span>@username созданного бота</span>
+          <input v-model="adoptUsername" placeholder="mix_1_bot" />
+        </label>
+        <label class="field">
+          <span>Числовой id бота</span>
+          <input v-model.number="adoptTelegramId" type="number" min="1" placeholder="123456789" />
+        </label>
+      </div>
+      <button class="primary" :disabled="busy || adopting" @click="confirmAdopt">
+        {{ adopting ? 'Регистрируем…' : 'Подтвердить и зарегистрировать' }}
+      </button>
+      <p v-if="form.channel_id" class="muted">
+        После регистрации бот будет сразу подключён к выбранному каналу.
+      </p>
+
       <table>
         <thead>
           <tr>
@@ -441,6 +536,13 @@ onMounted(load)
                 <a v-if="c.deep_link" :href="c.deep_link" target="_blank" rel="noopener">
                   Открыть в Telegram
                 </a>
+                <button
+                  v-if="c.deep_link && !c.bot_id"
+                  :disabled="busy"
+                  @click="prefillAdopt(c.suggested_username)"
+                >
+                  Подтвердить
+                </button>
               </div>
             </td>
           </tr>

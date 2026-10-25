@@ -50,7 +50,7 @@ async def _ensure_job(service: BotOnboardingService, batch_id: str) -> None:
     """Hand a fresh queue to the durable scheduler (one op per tick)."""
     progress = await service.queue_progress(batch_id)
     if progress.active > 0 and not progress.paused:
-        await QueueService(service.session).enqueue(
+        await QueueService(service.session).enqueue_unique(
             kind=BOT_ONBOARDING_JOB_KIND,
             payload={"batch_id": batch_id},
             group_key=batch_id,

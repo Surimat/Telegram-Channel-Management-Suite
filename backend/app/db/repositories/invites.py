@@ -154,6 +154,46 @@ class InviteTaskRepository:
         )
         return int((await self.session.execute(stmt)).scalar_one())
 
+    async def count_invited_since(self, account_id: str, *, since: datetime) -> int:
+        """Invites this account actually performed since ``since``.
+
+        Counts terminal ``INVITED`` rows with a completion time inside the window,
+        so it is a real rolling rate limit that does not reset with each job. A
+        dry-run job sends nothing and is therefore excluded.
+        """
+        stmt = (
+            select(func.count())
+            .select_from(InviteTask)
+            .join(InviteJob, InviteJob.id == InviteTask.job_id)
+            .where(
+                InviteTask.account_id == account_id,
+                InviteTask.status == InviteStatus.INVITED,
+                InviteTask.completed_at.is_not(None),
+                InviteTask.completed_at >= since,
+                InviteJob.dry_run.is_(False),
+            )
+        )
+        return int((await self.session.execute(stmt)).scalar_one())
+
+    async def oldest_invited_since(self, account_id: str, *, since: datetime) -> datetime | None:
+        """Completion time of the oldest real invite for an account in the window.
+
+        Used to report when the rolling ceiling frees up again (D-006).
+        """
+        stmt = (
+            select(func.min(InviteTask.completed_at))
+            .select_from(InviteTask)
+            .join(InviteJob, InviteJob.id == InviteTask.job_id)
+            .where(
+                InviteTask.account_id == account_id,
+                InviteTask.status == InviteStatus.INVITED,
+                InviteTask.completed_at.is_not(None),
+                InviteTask.completed_at >= since,
+                InviteJob.dry_run.is_(False),
+            )
+        )
+        return (await self.session.execute(stmt)).scalar_one_or_none()
+
     async def unfinished_count(self, job_id: str) -> int:
         """Tasks not yet in a terminal status (still actionable)."""
         terminal = list(TERMINAL_INVITE_STATUSES)

@@ -12,6 +12,7 @@ Everything here is intentionally tolerant: heuristic checks emit ``info`` /
 from __future__ import annotations
 
 import ast
+import hashlib
 import re
 from pathlib import Path
 
@@ -266,8 +267,8 @@ def _api_prefixes() -> set[str]:
     """Return every API path segment the backend exposes (prefixes + routes).
 
     Combines ``APIRouter(prefix=...)`` declarations with the paths on route
-    decorators, so routers without a prefix (e.g. ``product`` → ``/promotion``,
-    ``/update``) are detected too.
+    decorators, so routers without a prefix (e.g. ``product`` → ``/update``,
+    ``/backup/destinations``) are detected too.
     """
     prefixes = set(_router_prefixes())
     for path in (BACKEND / "api" / "v1").glob("*.py"):
@@ -429,12 +430,50 @@ def _model_tables() -> set[str]:
 
 
 def _migration_created_tables() -> set[str]:
-    tables: set[str] = set()
+    """Tables that exist after the whole migration chain has run.
+
+    A table created by an early migration but dropped by a later one (e.g. the
+    retired ``promotion_progress``) is no longer part of the schema, so it must
+    not be reported as an orphan. Migrations are walked in ``down_revision``
+    order and only the ``upgrade`` body is read, so a ``create_table`` in a
+    ``downgrade`` never counts.
+    """
+    revisions: dict[str, dict[str, object]] = {}
     for path in MIGRATIONS.glob("*.py"):
         text = path.read_text(encoding="utf-8")
-        for match in re.finditer(r"""create_table\(\s*["']([^"']+)["']""", text):
-            tables.add(match.group(1))
-    return tables
+        upgrade = text.split("def downgrade", 1)[0]
+        rev = re.search(r"""^revision:\s*str\s*=\s*["']([^"']+)["']""", text, re.MULTILINE)
+        down = re.search(
+            r"""^down_revision:\s*str\s*\|\s*None\s*=\s*(?:["']([^"']+)["']|None)""",
+            text,
+            re.MULTILINE,
+        )
+        if not rev:
+            continue
+        revisions[rev.group(1)] = {
+            "down": down.group(1) if down and down.group(1) else None,
+            "creates": set(re.findall(r"""create_table\(\s*["']([^"']+)["']""", upgrade)),
+            "drops": set(re.findall(r"""drop_table\(\s*["']([^"']+)["']""", upgrade)),
+        }
+
+    ordered: list[str] = []
+    seen: set[str] = set()
+    cursor = next((r for r, v in revisions.items() if v["down"] is None), None)
+    while cursor is not None and cursor not in seen:
+        seen.add(cursor)
+        ordered.append(cursor)
+        cursor = next(
+            (r for r, v in revisions.items() if v["down"] == cursor and r not in seen),
+            None,
+        )
+
+    state: dict[str, bool] = {}
+    for rev in ordered:
+        for table in revisions[rev]["creates"]:  # type: ignore[union-attr]
+            state[table] = True
+        for table in revisions[rev]["drops"]:  # type: ignore[union-attr]
+            state[table] = False
+    return {table for table, exists in state.items() if exists}
 
 
 def check_model_migration() -> list[Finding]:
@@ -1071,10 +1110,27 @@ def _is_settings_receiver(node: ast.AST, aliases: set[str]) -> bool:
     return isinstance(node, ast.Name) and node.id in aliases
 
 
+#: Memoised ``ast.walk`` node list, attached to the tree object itself. Seven
+#: checks each walk the same ~300 modules; the walk (not the checks' own work)
+#: dominates a run, so the node list is computed once per tree and reused. The
+#: result is stored on the node (not keyed by ``id``) so a collected tree can
+#: never hand a stale list to a recycled id.
+_WALK_ATTR = "_tcms_walk_nodes"
+
+
+def _walk(tree: ast.AST) -> list[ast.AST]:
+    """``ast.walk(tree)`` as a memoised list (callers only ever read it)."""
+    nodes = getattr(tree, _WALK_ATTR, None)
+    if nodes is None:
+        nodes = list(ast.walk(tree))
+        object.__setattr__(tree, _WALK_ATTR, nodes)
+    return nodes
+
+
 def _settings_aliases(tree: ast.Module) -> set[str]:
     """Local names bound to a ``SettingsService(...)`` call in one module."""
     aliases: set[str] = set()
-    for node in ast.walk(tree):
+    for node in _walk(tree):
         if not isinstance(node, ast.Assign):
             continue
         value = node.value
@@ -1108,7 +1164,7 @@ def _settings_usage() -> tuple[set[str], set[str]]:
         if tree is None:
             continue
         aliases = _settings_aliases(tree)
-        for node in ast.walk(tree):
+        for node in _walk(tree):
             # Declared specs: keys a module iterates over to read their values.
             if isinstance(node, ast.Assign) and isinstance(node.value, ast.Dict):
                 for target in node.targets:
@@ -1192,7 +1248,7 @@ def _is_channel_aware(tree: ast.Module) -> bool:
     (``channel_id`` / ``registry_channel_id``). This is a structural signal, not a
     word search, so unrelated mentions do not trigger it.
     """
-    for node in ast.walk(tree):
+    for node in _walk(tree):
         if isinstance(node, ast.ClassDef) and "channel" in node.name.lower():
             return True
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -1212,7 +1268,7 @@ def _uses_canonical_channel(tree: ast.Module) -> bool:
     ``channel_id`` parameter. A module that touches channels without any of these
     keeps a private target string and drifts from the registry (D-051/D-055).
     """
-    for node in ast.walk(tree):
+    for node in _walk(tree):
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             for alias in node.names:
                 if "channel" in alias.name.lower():
@@ -1287,7 +1343,7 @@ def _model_columns() -> dict[str, dict[str, list[str]]]:
         if tree is None:
             continue
         found: dict[str, list[str]] = {}
-        for node in ast.walk(tree):
+        for node in _walk(tree):
             if not isinstance(node, ast.ClassDef):
                 continue
             names: list[str] = []
@@ -1329,7 +1385,7 @@ def _application_references() -> tuple[set[str], set[str], set[str]]:
         tree = _parse(path)
         if tree is None:
             continue
-        for node in ast.walk(tree):
+        for node in _walk(tree):
             if isinstance(node, ast.Attribute):
                 attrs.add(node.attr)
             elif isinstance(node, ast.keyword) and node.arg:
@@ -1444,7 +1500,7 @@ def _class_references() -> tuple[set[str], set[str]]:
         tree = _parse(path)
         if tree is None:
             continue
-        for node in ast.walk(tree):
+        for node in _walk(tree):
             if isinstance(node, (ast.Import, ast.ImportFrom)):
                 continue
             if isinstance(node, ast.Name):
@@ -1677,11 +1733,31 @@ def check_telegram_deeplink_contracts() -> list[Finding]:
 # ---------------------------------------------------------------------------
 # AST helpers (kept for future, more precise checks)
 # ---------------------------------------------------------------------------
+#: Memoised ``ast.Module`` per file *content* (blake2b of the source). The whole
+#: backend is re-parsed by several checks per run, and the meta-audit engine
+#: re-runs the checks against a throwaway copy per mutation, so the same sources
+#: are parsed hundreds of times. Keying on content rather than path means a
+#: mutated copy is parsed afresh while unchanged files are reused.
+_parse_cache: dict[bytes, ast.Module | None] = {}
+_PARSE_CACHE_MAX = 4096
+
+
 def _parse(path: Path) -> ast.Module | None:
     try:
-        return ast.parse(path.read_text(encoding="utf-8"))
-    except SyntaxError:  # pragma: no cover - defensive
+        source = path.read_bytes()
+    except OSError:  # pragma: no cover - defensive
         return None
+    key = hashlib.blake2b(source, digest_size=16).digest()
+    if key in _parse_cache:
+        return _parse_cache[key]
+    try:
+        tree: ast.Module | None = ast.parse(source)
+    except SyntaxError:  # pragma: no cover - defensive
+        tree = None
+    if len(_parse_cache) >= _PARSE_CACHE_MAX:
+        _parse_cache.clear()
+    _parse_cache[key] = tree
+    return tree
 
 
 __all__ = [

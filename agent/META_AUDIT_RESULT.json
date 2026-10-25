@@ -1,7 +1,7 @@
 {
-  "version": "2.0.1",
-  "baseline_sha": "3e5cb1161bf18eb752265ff395ed22d0008441c4",
-  "generated_at": "2026-10-11T09:51:39.598265+00:00",
+  "version": "2.1.0",
+  "baseline_sha": "20f97f136306e080636331faa62ce0f7dfc639b3",
+  "generated_at": "2026-10-24T18:58:21.224154+00:00",
   "result_source": "computed from runtime mutation executions",
   "total": 32,
   "detected": 32,
@@ -95,11 +95,6 @@
           "id": "db.unused_column.session.UserSession.meta",
           "severity": "info",
           "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
         }
       ],
       "severity": "high",
@@ -187,11 +182,6 @@
         },
         {
           "id": "db.unused_column.session.UserSession.meta",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         }
@@ -283,11 +273,6 @@
           "id": "db.unused_column.session.UserSession.meta",
           "severity": "info",
           "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
         }
       ],
       "severity": "high",
@@ -375,11 +360,6 @@
         },
         {
           "id": "db.unused_column.session.UserSession.meta",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         }
@@ -476,11 +456,6 @@
           "id": "db.unused_column.session.UserSession.meta",
           "severity": "info",
           "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
         }
       ],
       "severity": "high",
@@ -570,11 +545,6 @@
           "id": "db.unused_column.session.UserSession.meta",
           "severity": "info",
           "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
         }
       ],
       "severity": "high",
@@ -662,11 +632,6 @@
         },
         {
           "id": "db.unused_column.session.UserSession.meta",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         }
@@ -775,11 +740,6 @@
           "category": "orphan"
         },
         {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
           "id": "dead.service.reaction_planner.ReactionPlanner",
           "severity": "info",
           "category": "orphan"
@@ -877,11 +837,6 @@
           "id": "db.unused_column.session.UserSession.meta",
           "severity": "info",
           "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
         }
       ],
       "severity": "high",
@@ -971,11 +926,6 @@
           "id": "db.unused_column.session.UserSession.meta",
           "severity": "info",
           "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
         }
       ],
       "severity": "medium",
@@ -1063,11 +1013,6 @@
         },
         {
           "id": "db.unused_column.session.UserSession.meta",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         }
@@ -1164,11 +1109,6 @@
           "id": "db.unused_column.session.UserSession.meta",
           "severity": "info",
           "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
         }
       ],
       "severity": "medium",
@@ -1256,11 +1196,6 @@
         },
         {
           "id": "db.unused_column.session.UserSession.meta",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         }
@@ -1352,11 +1287,6 @@
           "id": "db.unused_column.session.UserSession.meta",
           "severity": "info",
           "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
         }
       ],
       "severity": "critical",
@@ -1446,11 +1376,6 @@
           "id": "db.unused_column.setting.Setting.ghost_unused",
           "severity": "info",
           "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
         }
       ],
       "severity": "medium",
@@ -1533,11 +1458,6 @@
         },
         {
           "id": "db.unused_column.session.UserSession.meta",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         },
@@ -1636,11 +1556,6 @@
           "category": "orphan"
         },
         {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
           "id": "frontend.control_unwired.runGhostAction",
           "severity": "warning",
           "category": "frontend"
@@ -1731,11 +1646,6 @@
         },
         {
           "id": "db.unused_column.session.UserSession.meta",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         },
@@ -1834,11 +1744,6 @@
           "category": "orphan"
         },
         {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
           "id": "dead.service.zz_write_only.GhostWriter",
           "severity": "info",
           "category": "orphan"
@@ -1931,11 +1836,6 @@
           "id": "db.unused_column.session.UserSession.meta",
           "severity": "info",
           "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
         }
       ],
       "severity": "high",
@@ -2023,11 +1923,6 @@
         },
         {
           "id": "db.unused_column.session.UserSession.meta",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         }
@@ -2119,11 +2014,6 @@
           "id": "db.unused_column.session.UserSession.meta",
           "severity": "info",
           "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
         }
       ],
       "severity": "high",
@@ -2213,11 +2103,6 @@
           "id": "db.unused_column.session.UserSession.meta",
           "severity": "info",
           "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
         }
       ],
       "severity": "low",
@@ -2244,7 +2129,7 @@
           "category": "help"
         },
         {
-          "id": "ux.hardcoded_string.views/SettingsView.vue:242",
+          "id": "ux.hardcoded_string.views/SettingsView.vue:298",
           "severity": "warning",
           "category": "ux"
         },
@@ -2310,11 +2195,6 @@
         },
         {
           "id": "db.unused_column.session.UserSession.meta",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         }
@@ -2404,11 +2284,6 @@
         },
         {
           "id": "db.unused_column.session.UserSession.meta",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         }
@@ -2503,11 +2378,6 @@
         },
         {
           "id": "db.unused_column.session.UserSession.meta",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         }
@@ -2609,11 +2479,6 @@
           "id": "db.unused_column.session.UserSession.meta",
           "severity": "info",
           "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
         }
       ],
       "severity": "high",
@@ -2701,11 +2566,6 @@
         },
         {
           "id": "db.unused_column.session.UserSession.meta",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         },
@@ -2809,11 +2669,6 @@
           "category": "orphan"
         },
         {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
           "id": "frontend.control_unwired.zzGatewayGhost",
           "severity": "warning",
           "category": "frontend"
@@ -2904,11 +2759,6 @@
         },
         {
           "id": "db.unused_column.session.UserSession.meta",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         },
@@ -3010,11 +2860,6 @@
           "id": "db.unused_column.session.UserSession.meta",
           "severity": "info",
           "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
         }
       ],
       "severity": "high",
@@ -3102,11 +2947,6 @@
         },
         {
           "id": "db.unused_column.session.UserSession.meta",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         },
@@ -3211,11 +3051,6 @@
           "id": "db.unused_column.session.UserSession.meta",
           "severity": "info",
           "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
         }
       ]
     },
@@ -3296,11 +3131,6 @@
         },
         {
           "id": "db.unused_column.session.UserSession.meta",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         },
@@ -3395,11 +3225,6 @@
           "id": "db.unused_column.session.UserSession.meta",
           "severity": "info",
           "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
         }
       ]
     },
@@ -3485,11 +3310,6 @@
         },
         {
           "id": "db.unused_column.session.UserSession.meta",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         },
@@ -3586,11 +3406,6 @@
           "category": "orphan"
         },
         {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
           "id": "dead.service.zz_channel_ok.ChannelConsumer",
           "severity": "info",
           "category": "orphan"
@@ -3681,11 +3496,6 @@
           "id": "db.unused_column.session.UserSession.meta",
           "severity": "info",
           "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
         }
       ]
     },
@@ -3773,11 +3583,6 @@
           "id": "db.unused_column.session.UserSession.meta",
           "severity": "info",
           "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
-          "severity": "info",
-          "category": "orphan"
         }
       ]
     },
@@ -3863,11 +3668,6 @@
         },
         {
           "id": "db.unused_column.session.UserSession.meta",
-          "severity": "info",
-          "category": "orphan"
-        },
-        {
-          "id": "dead.service.notification_destinations.RecordingDestination",
           "severity": "info",
           "category": "orphan"
         }

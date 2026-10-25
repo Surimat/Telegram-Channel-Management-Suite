@@ -472,3 +472,38 @@ The Diagnostics report (`GET /api/v1/diagnostics/report`, D-061) is explicitly a
   gateway `diagnostics()`, `wrapper_library()` and `ProviderView` are asserted by
   tests to contain none of `api_key`, `api_hash`, `password`, `session_string`,
   `auth_key` or a bearer value.
+
+## Personal account safety (D-123)
+
+A personal Telegram (MTProto) account acts *as the owner*: an accidental login or
+a bulk invite is indistinguishable from the owner's own action. The suite makes
+that impossible unless the owner opts in.
+
+- **Off by default.** `personal_account_enabled` (master) and `invites_enabled`
+  (mass invitations) both default to **off**. They are UI-editable settings seeded
+  at startup; an existing owner choice is never overwritten.
+- **One chokepoint.** Every MTProto provider is built through
+  `SessionService.provider_for()`, which refuses before constructing a provider.
+  The API, the scheduler and background tasks are therefore all blocked while the
+  master switch is off; the Telegram **Bot API** is unaffected, so ordinary bot
+  work continues.
+- **Refuse before touching state.** Every gate runs before a DB row, session file
+  or provider is created, so a blocked operation leaves no orphan account or
+  artifact. A blocked action answers a friendly **403** (`code`/`message`/`hint`)
+  and never a stack trace or a secret.
+- **Bounded mass actions, and rate-limited over time.** Invite caps are non-zero
+  and deliberately small by default (`invite_max_total=100`,
+  `invite_max_per_account=20`), `_effective_caps()` never returns an unbounded
+  value **and clamps a job/API value to the configured ceiling** (a caller may
+  lower a cap, never raise it). A per-job cap resets with every job, so a rolling
+  **24-hour per-account** ceiling (`invite_max_per_day=50`) is enforced at
+  execution time, counting real invites across all jobs; reaching it pauses the
+  job with an honest wait time instead of continuing. Turning `invites_enabled`
+  off mid-run makes `run_tick` pause the job instead of inviting.
+- **Honest login.** The login code is often delivered inside the Telegram app, not
+  by SMS; `AuthStartResult.code_delivery` reports where it was actually sent. The
+  suite never bypasses Telegram verification, FloodWait, privacy or identity
+  checks (D-006/D-070).
+
+Guards: `tests/test_personal_account_safety.py`.
+

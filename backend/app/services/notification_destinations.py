@@ -10,7 +10,6 @@ only knows *how* to deliver to one channel:
 * :class:`WindowsToastDestination` — a best-effort Windows toast. When no toast
   library is available it honestly reports ``available=False`` and never breaks
   the app.
-* :class:`RecordingDestination` — an in-memory destination used by tests.
 
 No destination ever logs or returns a token; the provider already seals secrets.
 """
@@ -30,8 +29,8 @@ logger = get_logger(__name__)
 
 
 @dataclass(slots=True)
-class DeliveryResult:
-    """Outcome of one delivery attempt."""
+class NotificationDeliveryResult:
+    """Outcome of one notification delivery attempt."""
 
     ok: bool
     message: str = ""
@@ -42,7 +41,7 @@ class DeliveryResult:
 class NotificationDestinationProvider(Protocol):
     """Delivers a rendered notification to one destination."""
 
-    async def deliver(self, text: str, *, title: str = "") -> DeliveryResult:
+    async def deliver(self, text: str, *, title: str = "") -> NotificationDeliveryResult:
         ...
 
 
@@ -60,15 +59,15 @@ class TelegramDestination:
         self.chat_id = chat_id
         self._own_provider = own_provider
 
-    async def deliver(self, text: str, *, title: str = "") -> DeliveryResult:
+    async def deliver(self, text: str, *, title: str = "") -> NotificationDeliveryResult:
         body = f"{title}\n\n{text}".strip() if title else text
         try:
             await self.provider.send_message(self.chat_id, body)
-            return DeliveryResult(ok=True)
+            return NotificationDeliveryResult(ok=True)
         except TelegramProviderError as exc:
-            return DeliveryResult(ok=False, message=exc.message)
+            return NotificationDeliveryResult(ok=False, message=exc.message)
         except Exception as exc:  # pragma: no cover - defensive
-            return DeliveryResult(ok=False, message=type(exc).__name__)
+            return NotificationDeliveryResult(ok=False, message=type(exc).__name__)
 
     async def close(self) -> None:
         if self._own_provider:
@@ -101,16 +100,18 @@ class WindowsToastDestination:
     def available(self) -> bool:
         return self._available
 
-    async def deliver(self, text: str, *, title: str = "") -> DeliveryResult:
+    async def deliver(self, text: str, *, title: str = "") -> NotificationDeliveryResult:
         if not self._available:
-            return DeliveryResult(
+            return NotificationDeliveryResult(
                 ok=False,
                 unavailable=True,
                 message="Системные уведомления Windows недоступны на этой системе.",
             )
         return await asyncio.to_thread(self._deliver_sync, title or "TCMS", text)
 
-    def _deliver_sync(self, title: str, text: str) -> DeliveryResult:  # pragma: no cover
+    def _deliver_sync(  # pragma: no cover
+        self, title: str, text: str
+    ) -> NotificationDeliveryResult:
         try:
             import importlib
 
@@ -120,40 +121,25 @@ class WindowsToastDestination:
                 toast = Notification(app_id="TCMS", title=title, msg=text)
                 toast.set_audio(audio.Default, loop=False)
                 toast.show()
-                return DeliveryResult(ok=True)
+                return NotificationDeliveryResult(ok=True)
             if importlib.util.find_spec("win10toast") is not None:  # type: ignore[attr-defined]
                 from win10toast import ToastNotifier  # type: ignore[import-not-found]
 
                 ToastNotifier().show_toast(title, text, duration=5, threaded=True)
-                return DeliveryResult(ok=True)
+                return NotificationDeliveryResult(ok=True)
             if importlib.util.find_spec("plyer") is not None:  # type: ignore[attr-defined]
                 from plyer import notification  # type: ignore[import-not-found]
 
                 notification.notify(title=title, message=text, timeout=5)
-                return DeliveryResult(ok=True)
+                return NotificationDeliveryResult(ok=True)
         except Exception as exc:
-            return DeliveryResult(ok=False, message=type(exc).__name__)
-        return DeliveryResult(ok=False, unavailable=True)
-
-
-class RecordingDestination:
-    """An in-memory destination that records deliveries (tests)."""
-
-    def __init__(self, *, fail: bool = False) -> None:
-        self.messages: list[tuple[str, str]] = []
-        self.fail = fail
-
-    async def deliver(self, text: str, *, title: str = "") -> DeliveryResult:
-        if self.fail:
-            return DeliveryResult(ok=False, message="Тестовый сбой доставки.")
-        self.messages.append((title, text))
-        return DeliveryResult(ok=True)
+            return NotificationDeliveryResult(ok=False, message=type(exc).__name__)
+        return NotificationDeliveryResult(ok=False, unavailable=True)
 
 
 __all__ = [
-    "DeliveryResult",
+    "NotificationDeliveryResult",
     "NotificationDestinationProvider",
-    "RecordingDestination",
     "TelegramDestination",
     "WindowsToastDestination",
     "toast_available",

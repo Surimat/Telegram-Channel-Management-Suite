@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.api.errors import ApiError
 from backend.app.api.schemas.proxies import (
     BindAccountIn,
-    BindResultOut,
+    ProxyBindOut,
     ProxyCheckOut,
     ProxyIn,
     ProxyListOut,
@@ -111,15 +111,15 @@ async def check_proxy(
     return ProxyCheckOut(**result.to_dict())
 
 
-@router.post("/bind", response_model=BindResultOut)
+@router.post("/bind", response_model=ProxyBindOut)
 async def bind_account(
     payload: BindAccountIn, session: AsyncSession = Depends(get_session)
-) -> BindResultOut:
+) -> ProxyBindOut:
     try:
         account = await _service(session).bind_account(payload.account_id, payload.profile_id)
     except ProxyServiceError as exc:
         _raise(exc)
-    return BindResultOut(account_id=account.id, proxy_id=account.proxy_id)
+    return ProxyBindOut(account_id=account.id, proxy_id=account.proxy_id)
 
 
 __all__ = ["router"]

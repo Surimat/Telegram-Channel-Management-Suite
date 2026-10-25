@@ -10,6 +10,22 @@ const loading = ref(true)
 const error = ref('')
 const saved = ref(false)
 
+function isOn(value: string | undefined): boolean {
+  return ['1', 'true', 'yes', 'on'].includes((value ?? '').trim().toLowerCase())
+}
+
+function settingValue(key: string): string | undefined {
+  return settings.value.find((s) => s.key === key)?.value
+}
+
+function toggleSetting(key: string, on: boolean) {
+  const s = settings.value.find((item) => item.key === key)
+  if (s) s.value = on ? 'true' : 'false'
+}
+
+const personalAccountEnabled = () => isOn(settingValue('personal_account_enabled'))
+const invitesEnabled = () => isOn(settingValue('invites_enabled'))
+
 const help = useHelpStore()
 const { showExplanations, language, availableLanguages } = storeToRefs(help)
 
@@ -33,7 +49,7 @@ async function load() {
     loading.value = false
   }
   try {
-    notifications.value = await api.managerNotifications()
+    notifications.value = await api.notificationSettings()
   } catch {
     notifications.value = null
   }
@@ -82,7 +98,7 @@ async function saveNotifications() {
   const categories: Record<string, boolean> = {}
   for (const c of notifications.value.categories) categories[c.key] = c.enabled
   try {
-    notifications.value = await api.managerUpdateNotifications({
+    notifications.value = await api.updateNotificationSettings({
       enabled: notifications.value.enabled,
       categories,
     })
@@ -138,6 +154,46 @@ onMounted(load)
           </option>
         </select>
       </label>
+    </div>
+
+    <div class="card" style="margin-bottom: 20px">
+      <h3>Личный аккаунт (безопасность) <InfoHint topic="personal_account_safety" /></h3>
+      <p class="muted">
+        По умолчанию система <strong>не выполняет</strong> никаких действий через ваш
+        личный Telegram-аккаунт — только через бота. Включайте этот раздел, только если
+        личный аккаунт действительно нужен.
+      </p>
+      <label class="toggle-row">
+        <input
+          type="checkbox"
+          :checked="personalAccountEnabled()"
+          @change="toggleSetting('personal_account_enabled', ($event.target as HTMLInputElement).checked)"
+        />
+        <span>
+          <strong>Личный аккаунт (MTProto)</strong> — разрешить действия через личный
+          аккаунт
+        </span>
+      </label>
+      <label class="toggle-row">
+        <input
+          type="checkbox"
+          :checked="invitesEnabled()"
+          :disabled="!personalAccountEnabled()"
+          @change="toggleSetting('invites_enabled', ($event.target as HTMLInputElement).checked)"
+        />
+        <span>
+          <strong>Автоматические приглашения</strong> — массовые приглашения по
+          подтверждению
+        </span>
+      </label>
+      <p class="muted">
+        Массовые приглашения недоступны, пока не включён личный аккаунт. Лимиты
+        приглашений заданы по умолчанию и не равны «без ограничений».
+      </p>
+      <p style="margin-top: 16px">
+        <button class="primary" @click="save">Сохранить</button>
+        <span v-if="saved" class="muted" style="margin-left: 12px">Сохранено</span>
+      </p>
     </div>
 
     <div v-if="loading" class="card">Загрузка...</div>

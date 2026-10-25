@@ -10,14 +10,10 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.api.schemas.analytics import (
-    AnalyticsOverviewOut,
-    AudienceAnalyticsOut,
-    ContentAnalyticsOut,
-    ReactionsAnalyticsOut,
-)
+from backend.app.api.schemas.analytics import AnalyticsOverviewOut
 from backend.app.db.session import get_session
 from backend.app.services.analytics_service import AnalyticsService
+from backend.app.services.channel_modules import MODULE_ANALYTICS, ChannelModuleGuard
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -28,47 +24,26 @@ _CHANNEL = Query(
 )
 
 
+async def _require_analytics_module(channel_id: str, session: AsyncSession) -> None:
+    """Refuse a channel-scoped report when analytics is off for that channel.
+
+    Global aggregates (empty ``channel_id``) stay available. A channel the owner
+    removed analytics from returns a friendly 403 instead of silently reporting
+    numbers for a module that is supposed to be disconnected (D-124).
+    """
+    if channel_id:
+        await ChannelModuleGuard(session).require(channel_id, MODULE_ANALYTICS)
+
+
 @router.get("/overview", response_model=AnalyticsOverviewOut)
 async def analytics_overview(
     days: int = _DAYS,
     channel_id: str = _CHANNEL,
     session: AsyncSession = Depends(get_session),
 ) -> AnalyticsOverviewOut:
+    await _require_analytics_module(channel_id, session)
     return AnalyticsOverviewOut(
         **await AnalyticsService(session).overview(days=days, channel_id=channel_id or None)
-    )
-
-
-@router.get("/content", response_model=ContentAnalyticsOut)
-async def analytics_content(
-    days: int = _DAYS,
-    channel_id: str = _CHANNEL,
-    session: AsyncSession = Depends(get_session),
-) -> ContentAnalyticsOut:
-    return ContentAnalyticsOut(
-        **await AnalyticsService(session).content(days=days, channel_id=channel_id or None)
-    )
-
-
-@router.get("/reactions", response_model=ReactionsAnalyticsOut)
-async def analytics_reactions(
-    days: int = _DAYS,
-    channel_id: str = _CHANNEL,
-    session: AsyncSession = Depends(get_session),
-) -> ReactionsAnalyticsOut:
-    return ReactionsAnalyticsOut(
-        **await AnalyticsService(session).reactions(days=days, channel_id=channel_id or None)
-    )
-
-
-@router.get("/audience", response_model=AudienceAnalyticsOut)
-async def analytics_audience(
-    days: int = _DAYS,
-    channel_id: str = _CHANNEL,
-    session: AsyncSession = Depends(get_session),
-) -> AudienceAnalyticsOut:
-    return AudienceAnalyticsOut(
-        **await AnalyticsService(session).audience(days=days, channel_id=channel_id or None)
     )
 
 

@@ -66,14 +66,14 @@ class BindAccountIn(BaseModel):
     profile_id: str = Field(default="", description="Пусто = прямое подключение.")
 
 
-class BindResultOut(BaseModel):
+class ProxyBindOut(BaseModel):
     account_id: str
     proxy_id: str
 
 
 __all__ = [
     "BindAccountIn",
-    "BindResultOut",
+    "ProxyBindOut",
     "ProxyCheckOut",
     "ProxyIn",
     "ProxyListOut",

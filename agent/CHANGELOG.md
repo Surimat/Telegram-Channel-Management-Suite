@@ -5,6 +5,464 @@ Dates are ISO-8601.
 
 ---
 
+## [Unreleased] — dead-code deduplication: one read surface per concept, no dead client methods (D-138)
+
+**No version, tag, PR or release.** A second read-only audit pass found duplicate
+and dead surfaces on top of the D-137 cleanup. Removed.
+
+### Removed
+- **Owner Auth duplicates** — `POST /api/v1/owner/lock` and
+  `POST /api/v1/owner/unlock` (an alias of `login` / `set_enabled(True)`), plus the
+  `OwnerAuthService.lock()`/`unlock()` methods. Use `POST /api/v1/owner/login`,
+  `POST /api/v1/owner/logout` and `POST /api/v1/owner/protection`.
+- **AI read duplicates** — `GET /api/v1/ai/status` and `GET /api/v1/ai/metrics`
+  (strict subsets of `GET /api/v1/ai/overview`).
+- **Diagnostics duplicate** — `GET /api/v1/diagnostics/report/formats` and its
+  `ReportFormat` schema; the formats stay documented on the report endpoint.
+- **42 dead frontend client methods** in `frontend/src/api/client.ts` — every one
+  had zero callers in any view/component.
+- **Permissions duplicate** — `GET /api/v1/permissions/latest`, a strict subset of
+  `GET /api/v1/permissions/history` (which already returns the latest check). The
+  endpoint, its `docs/API.md` row and the two guards that exercised it
+  (`tests/test_hardening_api.py`) are removed; `PermissionService.latest()` stays.
+- **Dead client method** — `api.health()` and the unused `Health` interface in
+  `frontend/src/api/client.ts` (zero callers). The backend `GET /health` endpoint
+  stays — the portable scripts and the Tray Agent poll it.
+
+### Fixed
+- **`/api/v1/ai/overview` crashed once any AI record existed.**
+  `AiService.metrics_since` compared a naive SQLite `created_at` with an aware
+  `since` (`TypeError: can't compare offset-naive and offset-aware datetimes`);
+  it now normalises the stored value to aware UTC (the repo's established
+  pattern). Repointing `tests/test_ai_api.py` at `/ai/overview` exposed it.
+
+### Kept
+- API-only endpoints reachable by tests, the portable `.bat` scripts or an
+  internal protocol (e.g. `events/{id}`, `system/shutdown`, the `mesh/*`
+  lease/ping surface, `miniapp/me`, `reactions/categories`, `invites/summary`,
+  `bindings/channel/{id}/check`, `system/database*`) — a legitimate non-SPA
+  surface, not dead code.
+
+`docs/API.md` is updated for every removed endpoint (it is the source
+`check_documented_endpoints()` verifies). Full suite green (**1211 passed**, 12 skipped; the suite collects 1223), `ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit 32/32.
+
+---
+
+## [Unreleased] — dead-code deduplication: one onboarding flow, one endpoint per concept (D-137)
+
+**No version, tag, PR or release.** An audit found the legacy "promotion wizard"
+duplicated the single end-to-end Setup Wizard (D-128), plus three endpoints that
+were unused duplicates. Removed.
+
+### Removed
+- **The promotion wizard** — `GET/POST /api/v1/promotion*`, the
+  `services/promotion_service.py` module, the `PromotionProgress` model, the
+  `PromotionRepository`, the `WizardStateOut`/`WizardStepOut`/`PresetOut` schemas
+  and the frontend `WizardState`/`WizardStep`/`WizardPreset` types, client
+  methods and the System-page wizard card. The Setup Wizard
+  (`/api/v1/setup-wizard`, D-128) is the only onboarding flow.
+- **`POST /api/v1/ai/test`** — an alias of `/api/v1/ai/classify`.
+- **`GET /api/v1/bots/managed/all`** — use `GET /api/v1/bots?kind=managed`.
+- **`GET /api/v1/system/setup`** — use `GET /api/v1/system/status`. Its
+  `owner_guard` allowlist entry is dropped too.
+
+### Added
+- Migration `20261021_0900_b8c9d0e1f2a3` drops the retired `promotion_progress`
+  table (reversible; the downgrade recreates it). It held only the wizard's own
+  progress row, never user/account/audience data.
+
+### Changed
+- `services/consistency_checks.py:_migration_created_tables` now walks the
+  migration chain in `down_revision` order and applies `create_table`/
+  `drop_table` from the `upgrade` body only, so a table retired by a later
+  migration is not reported as an orphan.
+- `scripts/update_existing.py` treats a *vanished* table as data loss only when
+  it still held rows, so an intentionally dropped empty table is not a failure.
+
+### Guards
+- `tests/test_analytics_api.py`, `tests/test_product_api.py`, `tests/test_api.py`,
+  `tests/test_bots_api.py`, `tests/test_reactions_api.py` updated to the surviving
+  endpoints; `tests/test_portable_update.py` pins the new migration head.
+
+---
+
+## [Unreleased] — test-suite speed: one-time schema creation + AST cache (D-136)
+
+**No version, tag, PR or release.** The full suite took ~24 minutes, which made
+the mandatory gates painful to run. Profiling found two pure-overhead costs and
+removed them without changing what any check detects.
+
+### Changed
+- **Schema creation is no longer fsync-bound.** `init_models()` set
+  `PRAGMA synchronous=OFF` on the throwaway connection that runs
+  `create_all` (~300 DDL statements over 58 tables/128 indexes; SQLite fsyncs
+  after each one). `synchronous` is per-connection, so the database file is
+  unchanged. This was ~1000 s of the ~1428 s run across ~1176 tests.
+- **The static auditor parses and walks each module once.**
+  `services/consistency_checks.py` memoises the parsed `ast.Module` by file
+  content (blake2b) and the `ast.walk` node list on the tree object. Seven
+  checks used to re-walk the same ~300 trees per pass (1.27 M nodes), and the
+  meta-audit engine re-runs the pass per mutation. Checks only read the trees,
+  so sharing is safe; a bounded cache keeps memory flat.
+
+### Result
+- Full suite: **1428 s → 363 s** (≈3.9×), same result set (1211 passed,
+  12 skipped). `test_meta_audit.py` 308.7 s → 84.8 s;
+  `test_consistency_mutations.py` 308.7 s → 62.3 s.
+- Meta-audit stays **32/32, 100%, 0 false positives**; `ruff check backend tests`
+  clean.
+
+---
+
+## [Unreleased] — honesty hardening: no silent stubs, no swallowed errors (D-135)
+
+**No version, tag, PR or release.** An independent read-only audit
+(`REAL_AUDIT.md`) found that a real installation could run on the deterministic
+**fake** providers/backends without any warning, and that several exception
+handlers swallowed an error with a bare `pass`. This entry records the fix on
+`develop`.
+
+### Changed
+- **Deterministic fakes are refused outside `demo`/`test`.** `app_env` must be
+  `demo` or `test` for `telegram_provider="fake"`/`offline_mode` or
+  `ai_backend="fake"`; every other environment — including the default
+  `development` and `production` — now raises a typed error
+  (`ProviderConfigurationError` in `providers/registry.py`, `AiError` in
+  `ai/backends/__init__.py`) instead of silently serving fabricated data.
+  `AiService.set_setting` refuses `ai_backend="fake"` at write time and
+  `AiService.status` reports a refused backend honestly.
+- **No silent failures.** Every production bare-`pass` exception handler now logs
+  a `warning` (`core/redaction.py`, `db/session.py`, `services/capability_graph.py`,
+  `services/reaction_service.py`, `services/campaign_service.py`,
+  `services/ai_service.py`, `services/ai_gateway_service.py`,
+  `ai/backends/llama_cpp.py`, `ai/gateway/browser/__init__.py`).
+
+### Tests
+- `tests/test_de_mocking.py` (7 tests) guards the refusal in every environment
+  and proves the demo/test paths still work.
+
+---
+
+## [Unreleased] — architecture consolidation (D-132) + stub/fake sweep (D-133) + CI count-guard fix (D-134)
+
+**No version, tag, PR or release.** A read-only audit found genuine duplication
+(two notification-settings endpoints; several same-named classes across
+modules). This entry records the consolidation on `develop`; it changes no
+behaviour and no version string. A follow-up sweep (D-133) finished the job for
+the remaining duplicate names and the one dead test double in production.
+
+### Changed
+- **One canonical notification-settings endpoint.** Removed the legacy
+  `GET/PUT /api/v1/manager/notifications` (and its `schemas/manager.py`
+  notification schemas). The single source is
+  `GET/PUT /api/v1/notifications/settings`. `/api/v1/manager/status` is kept.
+- **One class name = one definition.** `CapabilityOut` (AI Gateway) vs
+  `ChannelCapabilityOut` (bindings); `BotBindOut` (bot factory) vs
+  `ProxyBindOut` (proxies); `DeliveryResult` (notification destinations) vs
+  `DestinationDeliveryResult` (backup destinations); `ConsistencyReport`
+  (service) vs `ConsistencyReportOut` (schema).
+- **Remaining duplicate names made unique (D-133).** `DeliveryResult` →
+  `NotificationDeliveryResult` (`services/notification_destinations.py`),
+  `Capability` → `GraphCapability` (`services/capability_graph.py`), and
+  `ProviderInfo`/`ProviderStatus`/`HttpResponse` →
+  `BackupProviderInfo`/`BackupProviderStatus`/`BackupHttpResponse`
+  (`services/backup_backends/`). The dead in-memory `RecordingDestination`
+  test double was deleted from production.
+- **One frontend API client.** Removed the duplicate
+  `NotificationSettings`/`NotificationCategory` interfaces; `SettingsView` uses
+  the canonical `api.notificationSettings()` / `api.updateNotificationSettings()`.
+- **Lint gate.** Generated `migrations/versions/*` added to ruff
+  `per-file-ignores`; `ruff check .` and `ruff check backend tests` are both
+  clean.
+
+### Added
+- `tests/test_architecture_consolidation.py` — guards that no duplicate schema/
+  model class name, duplicate `(method, full path)` route, second Telegram client
+  module, second DB engine factory or second frontend request helper can return;
+  plus (D-133) no duplicate class name anywhere in `backend/app`, no
+  `Mock`/`Stub`/`Dummy` class, no TODO/FIXME marker and no placeholder production
+  function body, with a proof test that injects each defect.
+- `tests/test_meta_audit.py::test_current_documented_passed_count_is_exact` — a
+  post-release regression guard: the *newest* release/stage section in README,
+  `agent/CHANGELOG.md` and `agent/CURRENT_STATE.md` must state the real full-suite
+  size. The existing "does not exceed" count guard was sound but weak (a count
+  left *below* reality slipped through). This guard compares the documented
+  ``passed + skipped`` to the suite's *collected* total, which depends only on the
+  files and never on a skip, so it is deterministic on a developer machine and on
+  CI. An earlier version ran the whole suite a second time and compared the exact
+  ``passed``/``skipped`` split; that split is environment-dependent (the
+  real-browser layer and the git-anchor guards skip differently on CI), so it both
+  doubled CI wall time and failed on CI while passing locally. Historical release
+  notes are untouched.
+
+### Fixed
+- **CI count guard no longer runs the suite twice or depends on the skip split.**
+  `test_current_documented_passed_count_is_exact` previously spawned a second
+  full-suite run (≈26 min backend job) and compared the exact ``passed``/``skipped``
+  split, which differs by environment (CI skips the optional real-browser layer and
+  the git-anchor guards). It now compares the documented ``passed + skipped`` to
+  the suite's deterministic *collected* total, so the guard is reproducible, cheap
+  and green on CI. No production code, version, tag, PR or release change. See
+  `agent/DECISIONS.md` D-134.
+
+---
+
+## [2.1.0] — 2026-10-25
+
+**v2.1.0 — stable release.** It was first published as the GitHub **Pre-release**
+`v2.1.0-rc.1` (2026-10-15) and is now promoted to the **stable** release on
+`main`. It rolls up the six committed stages **D-123…D-128** on top of v2.0.1 —
+Personal Account Safety, the Operational Module Registry, bot-lifecycle recovery
+and deep-link adoption, one content-processing engine, Channel Overview and the
+end-to-end Setup Wizard — plus the post-candidate stages **D-130…D-138**
+(Reaction Manager real-post ingestion, the one-step data-preserving updater, the
+architecture consolidation and stub/fake sweep, the honesty hardening, the
+test-suite speed-up and the dead-code deduplication). Integrations are labelled
+honestly; unverified ones are not claimed as verified. Version strings read
+**2.1.0**.
+
+**Promotion (additive, no schema change to `main`).** The build is the same code
+that CI and the meta-audit run; migrations
+`20261015_0900_f6a7b8c9d0e1_v2_0_invite_rate_limit.py` and
+`20261016_0900_a7b8c9d0e1f2_v2_0_setup_wizard.py` are included and applied on
+first launch. Gates: full suite green (**1211 passed, 12 skipped**; 1223 collected),
+`ruff` clean, `vue-tsc` + `npm run build` clean, meta-audit 32/32 (0 missed, 0
+false positives). The superseded pre-release tag `v2.1.0-rc.1` is **retired**
+(deleted) because a hyphenated tag sorts above `v2.1.0` in
+`git tag --sort=-v:refname` and would otherwise be reported as the newest tag
+forever; the promotion and the retirement are recorded as **D-139** (the
+candidate itself was **D-129**).
+
+**End-to-end Setup Wizard (D-128, additive, guided).** One resumable flow takes a
+fresh install to a working existing channel, with a **real** per-step
+verification. `SetupWizardService` (`backend/app/services/setup_wizard.py`) renders
+the ordered steps `app` → `channel` → `bot` → `modules` → `content` → `queue` →
+`readiness`, **reusing** the existing services: `services/setup_checks.py` for the
+local program checks, `ChannelRepository` for the canonical channel identity
+(D-051/D-055) and `channel_modules` (D-124), the Content Studio services only for
+the explicit test publication, and `channel_overview` (D-127) for the final
+readiness gate — so there is one status system, not two. A step's status is the
+**stored result of a real server check** (`SetupWizardStep`, migration
+`20261016_0900_a7b8c9d0e1f2_v2_0_setup_wizard.py`): `verified` = the check ran and
+passed, `pending` = it ran and failed, `unchecked` = it was never run. Opening the
+state endpoint writes nothing and marks nothing done; missing data or an
+un-runnable check reports `unchecked`/`failed`, never `verified`. The wizard only
+reads state; the single Telegram action is `POST /api/v1/setup-wizard/test-publication`,
+which refuses unless the request sets `confirmed` **and** the stored `bot` and
+`content` checks passed, then publishes one prepared material to the default
+channel through the existing posting path. Exposed as `GET /api/v1/setup-wizard`,
+`POST /api/v1/setup-wizard/steps/{key}/run` and
+`POST /api/v1/setup-wizard/test-publication` (`api/v1/setup_wizard.py`,
+`api/schemas/setup_wizard.py`, DI `get_setup_wizard_service` in `api/deps.py`) and
+rendered by the new `/setup-wizard` page (`frontend/src/views/SetupWizardView.vue`,
+router + nav wired). Guard: `tests/test_setup_wizard.py` (20 tests, including the
+test-publication happy-path regression). Included in the v2.1.0-rc.1 candidate.
+
+**Setup-wizard test-publication fix (D-128, defect).** The confirmed test
+publication refused its own prepared material with **HTTP 409**: it re-grabbed its
+source, and once that source was already up to date the grab returns only a
+duplicate, so there was nothing new to publish. It now publishes an
+already-prepared item. Found by driving the full ordered flow through the real
+`/setup-wizard` UI offline (fake providers) — a fresh install reached **7/7 steps
+verified, `ready=true`**. New regression
+`tests/test_setup_wizard.py::test_test_publication_publishes_an_already_prepared_item`
+(fails with 409 without the fix). The same change adds a regression guard for
+per-file guard claims (`tests/test_meta_audit.py`): a `tests/foo.py (N tests)`
+count must match what the file really collects, in either direction.
+
+**Channel Overview (D-127, additive, read-only).** One place now answers “how is
+each channel doing?”. `ChannelOverviewService`
+(`backend/app/services/channel_overview.py`) aggregates, per channel, its identity
+and verification status, the authoritative module map (D-124), bot↔channel
+bindings, audience sources, invite jobs, bot-onboarding batches, bot-factory
+batches, content items/publications, the content pipeline and the durable job
+queue into `OverviewSection`s, plus a suite-wide attention summary and a channel
+event section. It is **read-only** — it never writes a row, queues a job or calls
+a Telegram provider. Exposed as `GET /api/v1/channels/overview`
+(`ChannelOverviewOut`, schemas in `backend/app/api/schemas/channels.py`, DI
+`get_channel_overview_service` in `backend/app/api/deps.py`) and rendered by the
+new `/channel-overview` page (`frontend/src/views/ChannelOverviewView.vue`,
+router + nav wired). Each area carries an honest attention level
+(`ok`/`info`/`warning`/`error`) with a human reason (a `needs_review` item is a
+warning, a ready bot binding is `ok`). It reads the canonical channel identity via
+`ChannelRepository` (D-051/D-055). Guard: `tests/test_channel_overview.py`
+(20 tests) locks the attention levels, the section structure and that `/summary`
+is not shadowed by `/{id}`. No schema change; included in the v2.1.0-rc.1 candidate.
+
+**Content Pipeline Consolidation (D-126, no behaviour change).** The duplicated
+content **processing** path is removed without adding a feature and without
+touching the v1.2 API contract. `ContentPipelineService`
+(`backend/app/services/content_pipeline.py`) is now the single authoritative
+content-processing engine: it gains the v1.2 `rewrite_preview` / `apply_rewrite`
+(built on the unchanged local `ContentRewriteService`, which still reports
+“Рерайт недоступен” honestly when no generative model exists) and records a
+secret-free `content_operations` record for a successful rewrite.
+`ContentService.rewrite_preview` / `apply_rewrite`
+(`backend/app/services/content_service.py`) now **delegate** to the pipeline and
+map `PipelineError` → `ContentError`, so `/rewrite` and `/rewrite/apply` (and
+their error semantics and `MODE_TITLES`) are byte-for-byte unchanged. The stage
+ownership stands — `ContentService` owns receive/dedup (`grab`), the pipeline owns
+processing, `PostingService` owns publish — so no engine is deleted and no schema
+changes. Guard: `tests/test_content_consolidation.py` (7 tests) locks the single
+path, the whole path (grab → process → moderate → plan → tick → publish), restart
+idempotency, translation/target survival, AI-failure recovery, the v1.2 API
+contract and the D-124 module gate. Included in the v2.1.0-rc.1 candidate.
+
+**Bot-lifecycle recovery and adoption (D-125, additive).** One service,
+`backend/app/services/bot_lifecycle.py` (`BotLifecycleService`), now owns the bot
+lifecycle after a restart and when a bot appears. **Recovery:** `recover()` calls
+the recover method each durable queue already owns
+(`BotFactoryService.recover()`: `RUNNING` → `QUEUED`;
+`BotOnboardingService.recover()`: `VERIFYING` → `QUEUED`); the lifespan hook in
+`backend/app/main.py` runs it once on startup, so a crash mid-flight cannot hang
+the queue forever. **Adoption:** a bot created through the official deep link
+(`t.me/newbot`) arrives as a `managed_bot` update;
+`ManagerBotRuntime._handle_managed_bot()` routes it through
+`BotFactoryService.adopt_managed_bot()` (`AdoptionResult`) into its batch
+**idempotently** (a duplicate update is a no-op — no duplicate `Bot` row, no
+inflated counter), then settles the batch once no candidate remains waiting. An
+unknown username is ignored, never searched for or imported (D-070). A
+secret-free “bot created” notification is emitted best-effort. The provider
+seam (`backend/app/providers/aiogram_bot.py`, `backend/app/providers/types.py`)
+surfaces the `managed_bot` update. Additive only: no new account registration and
+no Telegram-limit bypass. No schema change; included in the v2.1.0-rc.1 candidate.
+
+- **UI.** `frontend/src/views/BotFactoryView.vue` gains a deep-link
+  **confirmation** form (the previously-unused `api.adoptFactoryBot` is now wired):
+  the owner enters the created bot's `@username` + numeric id, and only then is the
+  bot registered, its token fetched and it is bound to the selected channel —
+  success is reported only after the real registration call returns a bot id.
+- **Fixed a pre-existing defect (surfaced by the new test).**
+  `BotFactoryService.__init__` stored the injected binding service in
+  `self._binding_service`, shadowing the `_binding_service()` *method*, so
+  `bind_created()` raised `TypeError: 'BindingService' object is not callable` and
+  the whole “connect created bots to a channel” step was dead at runtime. The field
+  is renamed `_binding_override`; `/batches/{id}/bind` now works.
+- **Optional-browser guard honesty.** `tests/test_web_wrapper_playwright_integration.py`
+  now skips when Chromium is absent (it probes a real launch) instead of failing on
+  a missing binary, matching its documented behaviour.
+
+- Tests: `tests/test_bot_lifecycle_consolidation.py` (14 tests: duplicate-queue
+  prevention, idempotent adoption, crash recovery, runtime handler path) plus
+  `tests/test_bot_factory_api.py::test_deeplink_adopt_registers_then_tokens_and_binds`
+  (adopt → token → bind over the real HTTP API).
+
+**Operational Module Registry (D-124, additive).** The per-channel module map
+(`channels.modules`: `reactions`, `audience`, `invites`, `analytics`) is now
+enforced **server-side on every launch path**, not just at a few API guards.
+Disabling a module truly gates the work: switching it off stops the API call, the
+direct service call, the durable reaction queue tick, the audience background scan
+and the invite resume path — before any DB row, queue job or provider is created.
+A blocked durable job is retired honestly (a reaction job → `SKIPPED`, a scan →
+`PAUSED`) without contacting Telegram. A channel that was never configured keeps
+**all** modules enabled (no silent lock-out), and an unknown module name is
+ignored. A switched-off module answers a friendly Russian `403` envelope
+(`ChannelModuleDisabledError` → `code/message/hint`), never a 500. The registry
+never replaces a real check: the personal-account safety switches (D-123) and the
+real Telegram permission probe still decide whether an action is actually allowed.
+No schema change; included in the v2.1.0-rc.1 candidate.
+
+- Tests: `tests/test_channel_modules.py` (per-channel isolation, no-500, HTTP
+  invite resume → 403, bot rights not fabricated, D-123 switch still wins),
+  `tests/test_reaction_service.py` (durable tick skips a switched-off channel).
+
+**Personal Account Safety (D-123, additive).** A safety stage that makes an
+accidental action through the owner's personal Telegram (MTProto) account
+impossible unless the owner opts in. Not yet released; the code is committed on
+`develop` (`9295d9c`, `622053c`, `43e1cca`).
+
+- **Master switch `personal_account_enabled` (default OFF).** While off, no
+  MTProto provider is built: `SessionService.provider_for()` refuses at a single
+  chokepoint, so the API, the scheduler and background tasks are all blocked. Bot
+  API work is unaffected.
+- **Mass-action switch `invites_enabled` (default OFF).** Requires the master
+  switch too; gates invite `preview`/`create_job`/`start_job`/`resume_job`, and
+  `run_tick` pauses a running job instead of inviting when it is turned off.
+- **Bounded invites by default, and rate-limited over time.** `invite_max_total=100`,
+  `invite_max_per_account=20`; `_effective_caps()` never returns an unbounded (`<=0`)
+  value and **clamps a job/API value to the configured ceiling**. A per-job cap is
+  not a rate limit, so a rolling **24-hour per-account** ceiling
+  `invite_max_per_day=50` is enforced at execution time across all jobs; reaching it
+  pauses the job with an honest wait time (checked per task, no batch overshoot).
+- **Refuse before touching state.** Every gate runs before a DB row, session file
+  or provider is created, so a blocked operation leaves no orphan account.
+- **Honest auth UX.** `AuthStartResult.code_delivery` reports where Telegram
+  actually sent the code (often in-app, not SMS); auth errors keep the account in
+  the wizard; `PersonalAccountDisabledError` maps to a friendly 403 envelope.
+- **Migration.** `20261015_0900_f6a7b8c9d0e1` adds the display-only
+  `invite_jobs.rate_limited_at` (additive; an existing database upgrades in place).
+
+Gates: `pytest` full suite green, `ruff` clean, `vue-tsc` + `npm run build` clean,
+meta-audit 32/32 (0 false positives). Guards:
+`tests/test_personal_account_safety.py`.
+
+### Reaction Manager — real channel-post source (D-130, on `develop` after `v2.1.0-rc.1`)
+
+**Fixed a real defect.** The Reaction Manager never reacted to a real channel
+post: nothing fed the pipeline. The manager-bot runtime parsed only
+`message`/`callback`/`managed_bot`, the aiogram provider had no `channel_post`
+branch, `get_updates` never requested `channel_post`, and the manual API path
+stored a post with no Telegram `message_id`, so its job could never execute.
+
+- **Channel-post source.** `providers/aiogram_bot.py` parses
+  `channel_post`/`edited_channel_post` into `BotUpdate(kind="channel_post")`
+  carrying the real chat id, message id, text and username;
+  `MANAGER_ALLOWED_UPDATES` is passed as `allowed_updates` (without
+  `channel_post` Telegram never sends posts).
+- **Ingestion.** `manager/runtime.py` dispatches the kind to the new
+  `ReactionService.ingest_channel_post()`, which resolves the channel in the
+  registry, requires the `reactions` module (D-124), stores the post with its
+  real ids and plans the reaction jobs. Redelivery is a no-op (deduplicated by
+  chat id + message id); an edit refreshes the text without re-planning.
+- **Honest manual path.** `plan_post()` refuses a post without a real message id
+  and `ingest_post()` stores it as `skipped`; the Reactions UI requires the
+  message number and explains why a reaction is impossible.
+- **Errors.** A Telegram refusal fails the job with its real message instead of
+  failing silently.
+
+Additive; no version, tag, PR or release changed. Guards:
+`tests/test_reaction_channel_post_repro.py` (15 tests) and
+`tests/test_reaction_channel_post_pipeline.py` (12 tests, end-to-end plus a
+negative control that fails if the `channel_post` branch is removed). A
+read-only plain-language check lives at `scripts/check_reactions.py`. Gates on
+`develop` at this stage: `pytest` **1200 collected, 1188 passed, 12 skipped**,
+`ruff` clean, `vue-tsc` + `npm run build` clean.
+
+**Owner-facing Windows check (no terminal, no install).** The non-programmer
+owner runs the check by double-clicking `CHECK_REACTIONS.bat` in the portable
+ZIP; it calls `scripts/check_reactions.py` with the **embedded** Windows Python
+and prints a plain-language summary ("что проверено / что работает / что сломано
+/ причина", ending in `ИТОГ: ПРОЙДЕНО`). The script no longer imports `pytest`
+(the embedded runtime does not ship it) — it carries a tiny local patcher — and
+`scripts/build_portable.sh` bundles the script and the launcher.
+`tests/test_reaction_windows_check.py` guards both (runs the check with
+`import pytest` blocked, asserts no module-level pytest import, asserts the
+bundling). `.github/workflows/portable-dev.yml` builds the test ZIP from
+`develop` and uploads it as an Actions artifact — no tag, PR or release.
+
+### One-step data-preserving updater (D-131, on `develop` after `v2.1.0-rc.1`)
+
+**Added** a double-clickable updater so the non-programmer owner can update an
+existing portable install without losing anything. `portable/UPDATE_EXISTING.bat`
+launches `scripts/update_existing.py` with the embedded Windows Python; the build
+(`scripts/build_portable.sh`, section "4a-2") bundles both into the ZIP.
+
+- **Back up first.** `.env` (with `APP_SECRET_KEY` and the manager token),
+  `data/`, `sessions/`, `exports/` and the old `app/` are copied to
+  `<root>/backups/preupdate-<timestamp>/` before any change.
+- **Replace code only.** Only `app/` is replaced; the new `.env` is never copied
+  over the old one — only missing settings are appended, never a secret-looking
+  key, so tokens and `APP_SECRET_KEY` survive.
+- **Migrate, then prove it.** Pending Alembic migrations are applied to the
+  existing DB, then bot/channel/job/owner rows are checked and every `enc:`
+  secret is re-decrypted with the preserved key; on failure it stops, leaves the
+  data untouched and points at the backup. A second run is a safe no-op.
+- **No Telegram state** is touched (no publications, invites or session use).
+
+Additive; no version, tag, PR or release changed. Guards:
+`tests/test_portable_update.py` (6 tests, including the deliberate abort when a
+secret cannot be decrypted and the bundling assertion).
+
 ## [2.0.1] — 2026-10-11
 
 **v2.0.1 — keyless free image understanding via the Kilo Gateway (D-122, patch
@@ -361,7 +819,7 @@ bypass.
 
 ---
 
-## [1.7.0] — 2026-10-08
+## [1.7.0] — 2026-10-07
 
 **v1.7.0 — Bot Factory becomes a durable creation queue (additive minor).**
 Released via a reviewed `develop → main` PR #18 (merge `48eecdc`), tag `v1.7.0`;
@@ -467,7 +925,7 @@ behaviour-preserving for the local-first default.
 
 ---
 
-## [1.6.0] — 2026-10-07
+## [1.6.0] — 2026-10-06
 
 **Owner Auth + Config Sync vertical slice.** A local owner profile protects the
 panel, and an encrypted, versioned configuration bundle moves the owner's settings
@@ -751,7 +1209,7 @@ clean.
 
 ---
 
-## [1.5.0] — 2026-10-05 — released
+## [1.5.0] — 2026-10-06 — released
 
 Minor release: a **capability graph**, a bilingual **i18n catalog** and a
 **Consistency Auditor** (D-092…D-094). Three small, additive cross-cutting layers
@@ -799,7 +1257,7 @@ scan clean.
 
 ---
 
-## [1.4.0] — 2026-10-05 — released
+## [1.4.0] — 2026-10-06 — released
 
 Minor release: the **Notification Center**, the **TCMS Tray Agent** and the
 **Editorial Workspace** (D-084…D-091). A durable, queryable history of important

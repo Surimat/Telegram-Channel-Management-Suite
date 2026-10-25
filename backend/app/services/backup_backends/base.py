@@ -17,7 +17,7 @@ from typing import Protocol, runtime_checkable
 
 
 @dataclass(slots=True)
-class ProviderStatus:
+class BackupProviderStatus:
     """Result of a provider availability/connectivity check."""
 
     configured: bool
@@ -51,7 +51,7 @@ class BackupProvider(Protocol):
         """Human-readable destination title (safe to display)."""
         ...
 
-    def check(self) -> ProviderStatus:
+    def check(self) -> BackupProviderStatus:
         """Report whether this destination is configured and reachable."""
         ...
 
@@ -65,7 +65,7 @@ class BackupProvider(Protocol):
 
 
 @dataclass(slots=True)
-class ProviderInfo:
+class BackupProviderInfo:
     """Static description of a provider for the UI."""
 
     name: str
@@ -77,7 +77,7 @@ class ProviderInfo:
 
 __all__ = [
     "BackupProvider",
-    "ProviderInfo",
-    "ProviderStatus",
+    "BackupProviderInfo",
+    "BackupProviderStatus",
     "UploadResult",
 ]

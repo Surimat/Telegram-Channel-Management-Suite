@@ -44,14 +44,6 @@ async def check_permissions(
     return PermissionResultOut.from_result(result)
 
 
-@router.get("/latest", response_model=PermissionResultOut | None)
-async def latest_permission(
-    service: PermissionService = Depends(get_permission_service),
-) -> PermissionResultOut | None:
-    result = await service.latest()
-    return PermissionResultOut.from_result(result) if result else None
-
-
 @router.get("/history", response_model=PermissionHistoryOut)
 async def permission_history(
     limit: int = Query(default=20, ge=1, le=100),

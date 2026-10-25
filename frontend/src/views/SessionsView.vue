@@ -28,6 +28,7 @@ const wBusy = ref(false)
 const wError = ref('')
 const wAccountId = ref('')
 const wPhoneMasked = ref('')
+const wCodeDelivery = ref('')
 const wIdentity = ref('')
 
 const form = ref({ api_id: '', api_hash: '', phone: '', display_name: '' })
@@ -293,6 +294,7 @@ function resetWizard() {
   wStep.value = 'credentials'
   wAccountId.value = ''
   wPhoneMasked.value = ''
+  wCodeDelivery.value = ''
   wIdentity.value = ''
   codeInput.value = ''
   passwordInput.value = ''
@@ -318,6 +320,7 @@ async function startAuth() {
     })
     wAccountId.value = res.account_id ?? ''
     wPhoneMasked.value = res.phone_masked
+    wCodeDelivery.value = res.code_delivery
     wStep.value = res.next_step === 'code' ? 'code' : 'code'
     notice.value = res.message
   } catch (e) {
@@ -586,8 +589,9 @@ onMounted(() => {
 
       <div v-else-if="wStep === 'code'">
         <p class="muted">
-          Код отправлен в Telegram на номер {{ wPhoneMasked }}. Откройте приложение
-          Telegram и введите код (в служебном чате «Telegram»).
+          {{ wCodeDelivery || 'Код отправлен в Telegram.' }}
+          Номер: {{ wPhoneMasked }}. Если код не пришёл по SMS, откройте приложение
+          Telegram — он будет в служебном чате «Telegram».
         </p>
         <label class="field">
           <span>Код подтверждения</span>
