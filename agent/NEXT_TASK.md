@@ -37,9 +37,10 @@ decrypts. Additive; it changes no version, tag, PR or release.
 Released as a GitHub **Pre-release** from `develop` (tag `v2.1.0-rc.1`, commit
 `a148d7a`); the Release workflow (run `38720969696`) created the Pre-release and
 attached the Windows portable ZIP (**25 032 877 bytes**, sha256
-`8f9624a1…6644`) + `.sha256`. `main` HEAD = `21f2d01` (= `origin/main`, tag
-`v2.0.1`, the latest stable release); `develop` carries D-123…D-128 and is
-deliberately not pinned to a SHA because it moves with every commit. Release ZIP
+`8f9624a1…6644`) + `.sha256`. the v2.1.0 release merge is `651840a` (= tag
+`v2.1.0`, the latest stable release); the previous stable release was v2.0.1
+(`21f2d01`). `main` and `develop` are in sync and are deliberately not pinned
+to a SHA because `develop` moves with every commit. Release ZIP
 scan: no `.session`/TDATA/DB/model.
 
 Version string is **2.1.0** across `backend/app/__init__.py`, `pyproject.toml`,
